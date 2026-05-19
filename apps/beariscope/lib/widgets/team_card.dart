@@ -80,19 +80,17 @@ class TeamCard extends ConsumerWidget {
         return _buildCardShell(
           context,
           height: height,
-          onTap: headerOnly
-              ? null
-              : () {
-                  Navigator.of(context, rootNavigator: true).push(
-                    MaterialPageRoute(
-                      builder: (context) => TeamDetailsPage(
-                        teamName: resolvedTeam.name,
-                        teamNumber: resolvedTeam.number,
-                        teamWebsite: resolvedTeam.website,
-                      ),
-                    ),
-                  );
-                },
+          onTap: () {
+            Navigator.of(context, rootNavigator: true).push(
+              MaterialPageRoute(
+                builder: (context) => TeamDetailsPage(
+                  teamName: resolvedTeam.name,
+                  teamNumber: resolvedTeam.number,
+                  teamWebsite: resolvedTeam.website,
+                ),
+              ),
+            );
+          },
           child: headerOnly
               ? Padding(
                   padding: const EdgeInsets.all(16),

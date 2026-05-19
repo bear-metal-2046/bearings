@@ -1,3 +1,5 @@
+// dart format width=120
+
 import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui';
@@ -20,9 +22,8 @@ import 'package:services/providers/api_provider.dart';
 
 final collectedTeamsProvider = StateProvider<List<String>>((ref) => []);
 final isDraggingProvider = StateProvider<bool>((ref) => false);
-final picklistSheetHoverHapticPlayedProvider = StateProvider<bool>(
-  (ref) => false,
-);
+final picklistSheetHoverHapticPlayedProvider = StateProvider<bool>((ref) => false);
+final picklistSheetHeaderOnlyProvider = StateProvider<bool>((ref) => true);
 
 enum PicklistSheetState { hidden, dragging, collapsed, expanded }
 
@@ -34,10 +35,7 @@ class PicklistSheetConfig {
   final double height;
   final bool raiseSearchBar;
 
-  const PicklistSheetConfig({
-    required this.height,
-    required this.raiseSearchBar,
-  });
+  const PicklistSheetConfig({required this.height, required this.raiseSearchBar});
 }
 
 PicklistSheetConfig picklistSheetConfigForState(PicklistSheetState state) {
@@ -63,8 +61,7 @@ class TeamLookupPage extends ConsumerStatefulWidget {
   ConsumerState<TeamLookupPage> createState() => _TeamLookupPageState();
 }
 
-class _TeamLookupPageState extends ConsumerState<TeamLookupPage>
-    with SingleTickerProviderStateMixin {
+class _TeamLookupPageState extends ConsumerState<TeamLookupPage> with SingleTickerProviderStateMixin {
   final TextEditingController _searchTermTEC = TextEditingController();
   final ValueNotifier<double> _sheetHeightNotifier = ValueNotifier<double>(0);
 
@@ -81,17 +78,12 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage>
   void initState() {
     super.initState();
 
-    _sheetAnimationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 350),
-    );
+    _sheetAnimationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 350));
 
-    _sheetHeightAnimation = Tween<double>(begin: 0, end: 0).animate(
-      CurvedAnimation(
-        parent: _sheetAnimationController,
-        curve: Curves.easeOutCirc,
-      ),
-    );
+    _sheetHeightAnimation = Tween<double>(
+      begin: 0,
+      end: 0,
+    ).animate(CurvedAnimation(parent: _sheetAnimationController, curve: Curves.easeOutCirc));
 
     _sheetAnimationController.addListener(() {
       if (!_isUserDraggingSheet) {
@@ -119,8 +111,7 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage>
 
     final double targetHeight = switch (currentState) {
       PicklistSheetState.collapsed =>
-        picklistSheetConfigForState(currentState).height +
-            MediaQuery.of(context).padding.bottom,
+        picklistSheetConfigForState(currentState).height + MediaQuery.of(context).padding.bottom,
       PicklistSheetState.expanded => _sheetMaxHeight,
       _ => 0,
     };
@@ -138,23 +129,15 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage>
 
   void _animateToState(PicklistSheetState state) {
     final targetHeight = switch (state) {
-      PicklistSheetState.collapsed =>
-        picklistSheetConfigForState(state).height +
-            MediaQuery.of(context).padding.bottom,
+      PicklistSheetState.collapsed => picklistSheetConfigForState(state).height + MediaQuery.of(context).padding.bottom,
       PicklistSheetState.expanded => _sheetMaxHeight,
       _ => picklistSheetConfigForState(state).height,
     };
 
-    _sheetHeightAnimation =
-        Tween<double>(
-          begin: _sheetHeightNotifier.value,
-          end: targetHeight,
-        ).animate(
-          CurvedAnimation(
-            parent: _sheetAnimationController,
-            curve: Curves.easeOutCirc,
-          ),
-        );
+    _sheetHeightAnimation = Tween<double>(
+      begin: _sheetHeightNotifier.value,
+      end: targetHeight,
+    ).animate(CurvedAnimation(parent: _sheetAnimationController, curve: Curves.easeOutCirc));
 
     _sheetAnimationController
       ..reset()
@@ -162,18 +145,12 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage>
   }
 
   void _snapSheet({required double velocity}) {
-    final collapsedHeight = picklistSheetConfigForState(
-      PicklistSheetState.collapsed,
-    ).height;
+    final collapsedHeight = picklistSheetConfigForState(PicklistSheetState.collapsed).height;
     final midpoint = (collapsedHeight + _sheetMaxHeight) / 2;
 
     final targetState = velocity.abs() > 150
-        ? (velocity < 0
-              ? PicklistSheetState.expanded
-              : PicklistSheetState.collapsed)
-        : (_sheetHeightNotifier.value >= midpoint
-              ? PicklistSheetState.expanded
-              : PicklistSheetState.collapsed);
+        ? (velocity < 0 ? PicklistSheetState.expanded : PicklistSheetState.collapsed)
+        : (_sheetHeightNotifier.value >= midpoint ? PicklistSheetState.expanded : PicklistSheetState.collapsed);
 
     final currentState = ref.read(picklistSheetStateProvider);
 
@@ -212,10 +189,7 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage>
     Future<void> onRefresh() async {
       final client = ref.read(honeycombClientProvider);
       client.invalidateCache('/teams', queryParams: {'event': selectedEvent});
-      client.invalidateCache(
-        '/rankings',
-        queryParams: {'event': selectedEvent},
-      );
+      client.invalidateCache('/rankings', queryParams: {'event': selectedEvent});
       client.invalidateCache('/event/$selectedEvent/team_media');
       ref.invalidate(teamsProvider);
       ref.invalidate(eventRankingsProvider);
@@ -236,17 +210,10 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage>
         title: const Text('Teams'),
         leading: controller.isDesktop
             ? null
-            : IconButton(
-                icon: const Icon(LucideIcons.menu),
-                onPressed: controller.openDrawer,
-              ),
+            : IconButton(icon: const Icon(LucideIcons.menu), onPressed: controller.openDrawer),
         actions: [
           PopupMenuButton<TeamSortOptions>(
-            icon: Icon(
-              isAscending
-                  ? LucideIcons.arrowUpNarrowWide
-                  : LucideIcons.arrowDownWideNarrow,
-            ),
+            icon: Icon(isAscending ? LucideIcons.arrowUpNarrowWide : LucideIcons.arrowDownWideNarrow),
             tooltip: 'Sort',
             itemBuilder: (context) => TeamSortOptions.values
                 .map(
@@ -256,12 +223,7 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage>
                     child: Row(
                       children: [
                         Text(sort.label),
-                        if (selectedSort.sort == sort)
-                          Icon(
-                            isAscending
-                                ? Icons.arrow_drop_up
-                                : Icons.arrow_drop_down,
-                          ),
+                        if (selectedSort.sort == sort) Icon(isAscending ? Icons.arrow_drop_up : Icons.arrow_drop_down),
                       ],
                     ),
                   ),
@@ -280,19 +242,11 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage>
       body: LayoutBuilder(
         builder: (context, constraints) {
           final picklistSheetState = ref.watch(picklistSheetStateProvider);
-          final collapsedHeight = picklistSheetConfigForState(
-            PicklistSheetState.collapsed,
-          ).height;
-          final expandedHeight = picklistSheetConfigForState(
-            PicklistSheetState.expanded,
-          ).height;
-          _sheetMaxHeight = math.min(
-            expandedHeight,
-            constraints.maxHeight - 24,
-          );
+          final collapsedHeight = picklistSheetConfigForState(PicklistSheetState.collapsed).height;
+          final expandedHeight = picklistSheetConfigForState(PicklistSheetState.expanded).height;
+          _sheetMaxHeight = math.min(expandedHeight, constraints.maxHeight - 24);
 
-          final double searchBarBottom =
-              picklistSheetConfigForState(picklistSheetState).raiseSearchBar
+          final double searchBarBottom = picklistSheetConfigForState(picklistSheetState).raiseSearchBar
               ? collapsedHeight + 8
               : 8;
 
@@ -304,11 +258,7 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage>
                 data: (teams) {
                   final collectedTeams = ref.watch(collectedTeamsProvider);
 
-                  final teamList = teams
-                      .whereType<Map<String, dynamic>>()
-                      .map((json) => Team.fromJson(json))
-                      .where((team) => !collectedTeams.contains(team.key))
-                      .toList();
+                  final teamList = teams.whereType<Map<String, dynamic>>().map((json) => Team.fromJson(json)).toList();
 
                   final searchTerm = _searchTermTEC.text.trim().toLowerCase();
 
@@ -335,14 +285,8 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage>
                           .watch(teamScoutingProvider(team.number))
                           .when(
                             data: (bundle) =>
-                                bundle.avgMatchField(
-                                  kSectionTele,
-                                  kTeleFuelScored,
-                                ) +
-                                bundle.avgMatchField(
-                                  kSectionAuto,
-                                  kAutoFuelScored,
-                                ),
+                                bundle.avgMatchField(kSectionTele, kTeleFuelScored) +
+                                bundle.avgMatchField(kSectionAuto, kAutoFuelScored),
                             error: (_, _) => 0,
                             loading: () => 0,
                           );
@@ -352,13 +296,9 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage>
                   switch (selectedSort.sort) {
                     case TeamSortOptions.teamNumber:
                       if (isAscending) {
-                        filteredTeams.sort(
-                          (a, b) => a.number.compareTo(b.number),
-                        );
+                        filteredTeams.sort((a, b) => a.number.compareTo(b.number));
                       } else {
-                        filteredTeams.sort(
-                          (a, b) => b.number.compareTo(a.number),
-                        );
+                        filteredTeams.sort((a, b) => b.number.compareTo(a.number));
                       }
                     case TeamSortOptions.rank:
                       if (isAscending) {
@@ -396,26 +336,24 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage>
                     child: BeariscopeCardList(
                       padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
                       children: filteredTeams.map((team) {
+                        final isCollected = collectedTeams.contains(team.key);
+
                         return LongPressDraggable<String>(
                           data: team.key,
+                          maxSimultaneousDrags: isCollected ? 0 : null,
                           onDragStarted: () {
                             HapticFeedback.selectionClick();
 
                             ref.read(isDraggingProvider.notifier).state = true;
 
-                            ref
-                                    .read(picklistSheetStateProvider.notifier)
-                                    .state =
-                                PicklistSheetState.dragging;
+                            ref.read(picklistSheetStateProvider.notifier).state = PicklistSheetState.dragging;
                           },
                           onDragEnd: (_) {
                             ref.read(isDraggingProvider.notifier).state = false;
 
                             final teams = ref.read(collectedTeamsProvider);
 
-                            ref
-                                .read(picklistSheetStateProvider.notifier)
-                                .state = teams.isEmpty
+                            ref.read(picklistSheetStateProvider.notifier).state = teams.isEmpty
                                 ? PicklistSheetState.hidden
                                 : PicklistSheetState.collapsed;
                           },
@@ -426,18 +364,15 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage>
                               child: Material(
                                 elevation: 16,
                                 color: Colors.transparent,
-                                child: Opacity(
-                                  opacity: 0.95,
-                                  child: TeamCard(teamKey: team.key),
-                                ),
+                                child: Opacity(opacity: 0.95, child: TeamCard(teamKey: team.key)),
                               ),
                             ),
                           ),
-                          childWhenDragging: Opacity(
-                            opacity: 0.3,
+                          childWhenDragging: Opacity(opacity: 0.5, child: TeamCard(teamKey: team.key)),
+                          child: Opacity(
+                            opacity: isCollected ? 0.5 : 1,
                             child: TeamCard(teamKey: team.key),
                           ),
-                          child: TeamCard(teamKey: team.key),
                         );
                       }).toList(),
                     ),
@@ -462,9 +397,7 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage>
                     child: SearchBar(
                       controller: _searchTermTEC,
                       hintText: 'Team name or number',
-                      padding: const WidgetStatePropertyAll<EdgeInsets>(
-                        EdgeInsets.symmetric(horizontal: 16.0),
-                      ),
+                      padding: const WidgetStatePropertyAll<EdgeInsets>(EdgeInsets.symmetric(horizontal: 16.0)),
                       leading: const Icon(LucideIcons.search),
                       trailing: _searchTermTEC.text.isNotEmpty
                           ? [
@@ -511,11 +444,9 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage>
                           picklistSheetState == PicklistSheetState.collapsed ||
                               picklistSheetState == PicklistSheetState.expanded
                           ? (details) {
-                              _sheetHeightNotifier.value =
-                                  (_sheetHeightNotifier.value -
-                                          details.delta.dy)
-                                      .clamp(collapsedHeight, _sheetMaxHeight)
-                                      .toDouble();
+                              _sheetHeightNotifier.value = (_sheetHeightNotifier.value - details.delta.dy)
+                                  .clamp(collapsedHeight, _sheetMaxHeight)
+                                  .toDouble();
                             }
                           : null,
                       onVerticalDragEnd:
@@ -524,18 +455,14 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage>
                           ? (details) {
                               _isUserDraggingSheet = false;
 
-                              _snapSheet(
-                                velocity: details.primaryVelocity ?? 0,
-                              );
+                              _snapSheet(velocity: details.primaryVelocity ?? 0);
                             }
                           : null,
                       child: TeamPicklistSheet(
                         state: picklistSheetState,
                         expanded:
                             math.min(sheetHeight, _sheetMaxHeight) >
-                            picklistSheetConfigForState(
-                                  PicklistSheetState.collapsed,
-                                ).height +
+                            picklistSheetConfigForState(PicklistSheetState.collapsed).height +
                                 MediaQuery.of(context).padding.bottom +
                                 2, // 2 is height of the divider, just to make it clear
                       ),
@@ -555,11 +482,7 @@ class TeamPicklistSheet extends ConsumerStatefulWidget {
   final PicklistSheetState state;
   final bool expanded;
 
-  const TeamPicklistSheet({
-    super.key,
-    required this.state,
-    required this.expanded,
-  });
+  const TeamPicklistSheet({super.key, required this.state, required this.expanded});
 
   @override
   ConsumerState<TeamPicklistSheet> createState() => _TeamPicklistSheetState();
@@ -572,9 +495,7 @@ class _TeamPicklistSheetState extends ConsumerState<TeamPicklistSheet> {
 
   void _handleCopyTeamNumbers(List<String> collectedTeams) {
     final teamNumbers = collectedTeams
-        .map(
-          (teamKey) => RegExp(r'\d+').firstMatch(teamKey)?.group(0) ?? teamKey,
-        )
+        .map((teamKey) => RegExp(r'\d+').firstMatch(teamKey)?.group(0) ?? teamKey)
         .join(',');
 
     Clipboard.setData(ClipboardData(text: teamNumbers));
@@ -602,6 +523,7 @@ class _TeamPicklistSheetState extends ConsumerState<TeamPicklistSheet> {
   @override
   Widget build(BuildContext context) {
     final collectedTeams = ref.watch(collectedTeamsProvider);
+    final headerOnly = ref.watch(picklistSheetHeaderOnlyProvider);
 
     final isDragging = ref.watch(isDraggingProvider);
 
@@ -611,10 +533,7 @@ class _TeamPicklistSheetState extends ConsumerState<TeamPicklistSheet> {
         loading: () => teamKey,
         error: (_, _) => teamKey,
         data: (teams) {
-          final teamList = teams
-              .whereType<Map<String, dynamic>>()
-              .map((json) => Team.fromJson(json))
-              .toList();
+          final teamList = teams.whereType<Map<String, dynamic>>().map((json) => Team.fromJson(json)).toList();
 
           for (final team in teamList) {
             if (team.key == teamKey || team.number.toString() == teamKey) {
@@ -649,28 +568,21 @@ class _TeamPicklistSheetState extends ConsumerState<TeamPicklistSheet> {
         if (!currentList.contains(teamKey)) {
           HapticFeedback.mediumImpact();
 
-          ref.read(collectedTeamsProvider.notifier).state = [
-            ...currentList,
-            teamKey,
-          ];
+          ref.read(collectedTeamsProvider.notifier).state = [...currentList, teamKey];
 
-          ref.read(picklistSheetHoverHapticPlayedProvider.notifier).state =
-              false;
+          ref.read(picklistSheetHoverHapticPlayedProvider.notifier).state = false;
 
-          ref.read(picklistSheetStateProvider.notifier).state =
-              PicklistSheetState.collapsed;
+          ref.read(picklistSheetStateProvider.notifier).state = PicklistSheetState.collapsed;
         }
       },
       builder: (context, candidateData, rejectedData) {
         final isHovering = candidateData.isNotEmpty;
 
         return AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOutBack,
+          duration: const Duration(milliseconds: 150),
+          curve: Curves.easeInOut,
           decoration: BoxDecoration(
-            color: isHovering
-                ? theme.colorScheme.primaryContainer
-                : theme.colorScheme.surfaceContainerLow,
+            color: isHovering ? theme.colorScheme.primaryContainer : theme.colorScheme.surfaceContainerLow,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
             boxShadow: [
               BoxShadow(
@@ -702,11 +614,7 @@ class _TeamPicklistSheetState extends ConsumerState<TeamPicklistSheet> {
                       Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(
-                            LucideIcons.arrowDownToLine,
-                            color: theme.colorScheme.primary,
-                            size: 32,
-                          ),
+                          Icon(LucideIcons.arrowDownToLine, color: theme.colorScheme.primary, size: 32),
                           const SizedBox(height: 8),
                           Flexible(
                             child: Text(
@@ -737,26 +645,18 @@ class _TeamPicklistSheetState extends ConsumerState<TeamPicklistSheet> {
                               child: GestureDetector(
                                 behavior: HitTestBehavior.opaque,
                                 onTap: () {
-                                  final currentState = ref.read(
-                                    picklistSheetStateProvider,
-                                  );
+                                  final currentState = ref.read(picklistSheetStateProvider);
 
-                                  if (currentState ==
-                                          PicklistSheetState.hidden ||
-                                      currentState ==
-                                          PicklistSheetState.dragging) {
+                                  if (currentState == PicklistSheetState.hidden ||
+                                      currentState == PicklistSheetState.dragging) {
                                     return;
                                   }
 
                                   HapticFeedback.lightImpact();
 
                                   ref
-                                          .read(
-                                            picklistSheetStateProvider.notifier,
-                                          )
-                                          .state =
-                                      currentState ==
-                                          PicklistSheetState.expanded
+                                      .read(picklistSheetStateProvider.notifier)
+                                      .state = currentState == PicklistSheetState.expanded
                                       ? PicklistSheetState.collapsed
                                       : PicklistSheetState.expanded;
                                 },
@@ -784,28 +684,18 @@ class _TeamPicklistSheetState extends ConsumerState<TeamPicklistSheet> {
                                       color: theme.colorScheme.primaryContainer,
                                       borderRadius: BorderRadius.circular(8),
                                     ),
-                                    child: const Icon(
-                                      LucideIcons.listOrdered,
-                                      size: 20,
-                                    ),
+                                    child: const Icon(LucideIcons.listOrdered, size: 20),
                                   ),
                                   const SizedBox(width: 12),
                                   Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        'Picklist',
-                                        style: theme.textTheme.titleMedium,
-                                      ),
+                                      Text('Picklist', style: theme.textTheme.titleMedium),
                                       Text(
                                         '${collectedTeams.length} team${collectedTeams.length == 1 ? '' : 's'}',
-                                        style: theme.textTheme.bodyMedium
-                                            ?.copyWith(
-                                              color: theme
-                                                  .colorScheme
-                                                  .onSurfaceVariant,
-                                            ),
+                                        style: theme.textTheme.bodyMedium?.copyWith(
+                                          color: theme.colorScheme.onSurfaceVariant,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -819,41 +709,38 @@ class _TeamPicklistSheetState extends ConsumerState<TeamPicklistSheet> {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     IconButton(
-                                      tooltip: 'Clear picklist',
-                                      icon: const Icon(
-                                        LucideIcons.trash2,
+                                      key: const ValueKey('picklist-header-toggle'),
+                                      tooltip: headerOnly ? 'Show Full Cards' : 'Show Labels Only',
+                                      icon: Icon(
+                                        headerOnly ? LucideIcons.panelTopOpen : LucideIcons.panelTopClose,
                                         size: 20,
                                       ),
+                                      onPressed: () {
+                                        ref.read(picklistSheetHeaderOnlyProvider.notifier).state = !headerOnly;
+                                      },
+                                    ),
+                                    IconButton(
+                                      tooltip: 'Clear picklist',
+                                      icon: const Icon(LucideIcons.trash2, size: 20),
                                       onPressed: () async {
                                         final shouldClear = await showDialog<bool>(
                                           context: context,
                                           builder: (dialogContext) {
                                             return AlertDialog(
-                                              title: const Text(
-                                                'Clear picklist?',
-                                              ),
-                                              content: const Text(
-                                                'This will remove all teams from the picklist.',
-                                              ),
+                                              title: const Text('Clear picklist?'),
+                                              content: const Text('This will remove all teams from the picklist.'),
                                               actions: [
                                                 TextButton(
                                                   onPressed: () {
-                                                    Navigator.of(
-                                                      dialogContext,
-                                                    ).pop(false);
+                                                    Navigator.of(dialogContext).pop(false);
                                                   },
                                                   child: const Text('Cancel'),
                                                 ),
                                                 TextButton(
                                                   onPressed: () {
-                                                    Navigator.of(
-                                                      dialogContext,
-                                                    ).pop(true);
+                                                    Navigator.of(dialogContext).pop(true);
                                                   },
-                                                  style: TextButton.styleFrom(
-                                                    foregroundColor:
-                                                        theme.colorScheme.error,
-                                                  ),
+                                                  style: TextButton.styleFrom(foregroundColor: theme.colorScheme.error),
                                                   child: const Text('Clear'),
                                                 ),
                                               ],
@@ -865,44 +752,18 @@ class _TeamPicklistSheetState extends ConsumerState<TeamPicklistSheet> {
                                           return;
                                         }
 
-                                        ref
-                                                .read(
-                                                  collectedTeamsProvider
-                                                      .notifier,
-                                                )
-                                                .state =
-                                            [];
+                                        ref.read(collectedTeamsProvider.notifier).state = [];
 
-                                        ref
-                                                .read(
-                                                  picklistSheetStateProvider
-                                                      .notifier,
-                                                )
-                                                .state =
-                                            PicklistSheetState.hidden;
+                                        ref.read(picklistSheetStateProvider.notifier).state = PicklistSheetState.hidden;
                                       },
                                     ),
                                     const SizedBox(width: 4),
                                     IconButton.filledTonal(
                                       tooltip: 'Copy team numbers',
-                                      icon: Icon(
-                                        _showCopyCheck
-                                            ? LucideIcons.check
-                                            : LucideIcons.copy,
-                                      ),
+                                      icon: Icon(_showCopyCheck ? LucideIcons.check : LucideIcons.copy),
                                       style: ButtonStyle(
-                                        foregroundColor:
-                                            WidgetStateProperty.all(
-                                              theme
-                                                  .colorScheme
-                                                  .onTertiaryContainer,
-                                            ),
-                                        backgroundColor:
-                                            WidgetStateProperty.all(
-                                              theme
-                                                  .colorScheme
-                                                  .tertiaryContainer,
-                                            ),
+                                        foregroundColor: WidgetStateProperty.all(theme.colorScheme.onTertiaryContainer),
+                                        backgroundColor: WidgetStateProperty.all(theme.colorScheme.tertiaryContainer),
                                       ),
                                       onPressed: () {
                                         _handleCopyTeamNumbers(collectedTeams);
@@ -919,17 +780,12 @@ class _TeamPicklistSheetState extends ConsumerState<TeamPicklistSheet> {
                       if (widget.expanded)
                         Expanded(
                           child: ReorderableListView.builder(
-                            key: const PageStorageKey<String>(
-                              'team_picklist_sheet_list',
-                            ),
+                            key: const PageStorageKey<String>('team_picklist_sheet_list'),
                             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
 
                             buildDefaultDragHandles: false,
                             proxyDecorator: (child, index, animation) {
-                              final curved = CurvedAnimation(
-                                parent: animation,
-                                curve: Curves.easeOutCirc,
-                              );
+                              final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCirc);
 
                               return AnimatedBuilder(
                                 animation: curved,
@@ -944,22 +800,12 @@ class _TeamPicklistSheetState extends ConsumerState<TeamPicklistSheet> {
                                         borderRadius: BorderRadius.circular(16),
                                         boxShadow: [
                                           BoxShadow(
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .shadow
-                                                .withValues(
-                                                  alpha: lerpDouble(
-                                                    0.0,
-                                                    0.18,
-                                                    t,
-                                                  )!,
-                                                ),
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.shadow.withValues(alpha: lerpDouble(0.0, 0.18, t)!),
                                             blurRadius: lerpDouble(0, 24, t)!,
                                             spreadRadius: lerpDouble(0, 1, t)!,
-                                            offset: Offset(
-                                              0,
-                                              lerpDouble(0, 8, t)!,
-                                            ),
+                                            offset: Offset(0, lerpDouble(0, 8, t)!),
                                           ),
                                         ],
                                       ),
@@ -981,8 +827,7 @@ class _TeamPicklistSheetState extends ConsumerState<TeamPicklistSheet> {
                               final moved = updatedTeams.removeAt(oldIndex);
                               updatedTeams.insert(newIndex, moved);
 
-                              ref.read(collectedTeamsProvider.notifier).state =
-                                  updatedTeams;
+                              ref.read(collectedTeamsProvider.notifier).state = updatedTeams;
                             },
                             itemCount: collectedTeams.length,
                             itemBuilder: (context, index) {
@@ -1000,20 +845,12 @@ class _TeamPicklistSheetState extends ConsumerState<TeamPicklistSheet> {
                                       direction: DismissDirection.endToStart,
                                       background: Container(
                                         alignment: Alignment.centerRight,
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 20,
-                                        ),
+                                        padding: const EdgeInsets.symmetric(horizontal: 20),
                                         decoration: BoxDecoration(
-                                          color:
-                                              theme.colorScheme.errorContainer,
-                                          borderRadius: BorderRadius.circular(
-                                            16,
-                                          ),
+                                          color: theme.colorScheme.errorContainer,
+                                          borderRadius: BorderRadius.circular(16),
                                         ),
-                                        child: Icon(
-                                          LucideIcons.trash2,
-                                          color: theme.colorScheme.error,
-                                        ),
+                                        child: Icon(LucideIcons.trash2, color: theme.colorScheme.error),
                                       ),
                                       onUpdate: (details) {
                                         if (details.reached != _lastReached) {
@@ -1025,30 +862,24 @@ class _TeamPicklistSheetState extends ConsumerState<TeamPicklistSheet> {
                                         }
                                       },
                                       onDismissed: (_) {
-                                        final updatedTeams = [...collectedTeams]
-                                          ..remove(teamKey);
+                                        final updatedTeams = [...collectedTeams]..remove(teamKey);
 
-                                        ref
-                                                .read(
-                                                  collectedTeamsProvider
-                                                      .notifier,
-                                                )
-                                                .state =
-                                            updatedTeams;
+                                        ref.read(collectedTeamsProvider.notifier).state = updatedTeams;
 
                                         if (updatedTeams.isEmpty) {
-                                          ref
-                                                  .read(
-                                                    picklistSheetStateProvider
-                                                        .notifier,
-                                                  )
-                                                  .state =
+                                          ref.read(picklistSheetStateProvider.notifier).state =
                                               PicklistSheetState.hidden;
                                         }
                                       },
-                                      child: TeamCard(
-                                        teamKey: teamKey,
-                                        headerOnly: true,
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.max,
+                                        children: [
+                                          SizedBox(width: 20, child: Text('${index + 1}', textAlign: TextAlign.center)),
+                                          const SizedBox(width: 16),
+                                          Expanded(
+                                            child: TeamCard(teamKey: teamKey, headerOnly: headerOnly),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ),
@@ -1117,9 +948,7 @@ class SortByFieldItemState extends State<SortByFieldItem> {
             },
           ),
           DropdownMenu<String>(
-            dropdownMenuEntries: generateDropdownMenuItems(
-              sectionIdToDataPointsList(sectionId),
-            ),
+            dropdownMenuEntries: generateDropdownMenuItems(sectionIdToDataPointsList(sectionId)),
             onSelected: (item) {
               if (item != null) {
                 dataId = item;
