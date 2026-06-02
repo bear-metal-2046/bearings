@@ -6,61 +6,31 @@ import 'package:services/providers/auth_provider.dart';
 
 part 'user_profile_provider.g.dart';
 
-const _auth0Domain = 'bearmetal2046.us.auth0.com';
-
+/// Reads the current user's profile from [Auth.user] and optionally
+/// downloads the profile photo bytes.
+///
+/// This provider is a thin layer over the user info already populated
+/// by the active [AuthBackend] — it does **not** call Auth0's `/userinfo`
+/// endpoint directly.  Photo bytes are loaded lazily from [UserProfile.pictureUrl].
 @Riverpod(keepAlive: true)
 Future<UserInfo?> userInfo(Ref ref) async {
   final auth = await ref.watch(authProvider.future);
   final authStatus = ref.watch(authStatusProvider);
-  final dio = ref.watch(dioProvider);
 
   if (authStatus != AuthStatus.authenticated) return null;
 
-  String? accessToken;
-  bool isOffline = false;
+  final user = auth.user;
+  if (user == null) return null;
 
-  try {
-    accessToken = await auth.getAccessToken(['openid', 'profile', 'email']);
-  } on OfflineAuthException {
-    isOffline = true;
-  } catch (e) {
-    rethrow;
-  }
-
-  final headers = {
-    if (accessToken != null) 'Authorization': 'Bearer $accessToken',
-  };
-
-  Map<String, dynamic>? data;
-
-  try {
-    final userInfoResponse = await dio.get(
-      'https://$_auth0Domain/userinfo',
-      options: Options(
-        headers: headers,
-        extra: {
-          'cachePolicy': CachePolicy.networkFirst,
-          'isOffline': isOffline,
-        },
-      ),
-    );
-    data = userInfoResponse.data as Map<String, dynamic>;
-  } catch (e) {
-    if (isOffline) return null;
-    rethrow;
-  }
-
+  // Download photo bytes from the picture URL if present.
   Uint8List? photoBytes;
-  final photoUrl = data['picture'] as String?;
-
-  if (photoUrl != null) {
+  final pictureUrl = user.pictureUrl;
+  if (pictureUrl != null) {
     try {
+      final dio = ref.watch(dioProvider);
       final photoResponse = await dio.get(
-        photoUrl,
-        options: Options(
-          responseType: ResponseType.bytes,
-          extra: {'isOffline': isOffline},
-        ),
+        pictureUrl.toString(),
+        options: Options(responseType: ResponseType.bytes),
       );
 
       if (photoResponse.statusCode == 200 && photoResponse.data != null) {
@@ -69,14 +39,14 @@ Future<UserInfo?> userInfo(Ref ref) async {
         );
       }
     } catch (_) {
-      // no photo just continue without it
+      // Proceed without photo on failure.
     }
   }
 
   return UserInfo(
-    name: data['name'] as String?,
-    email: data['email'] as String?,
-    emailVerified: data['email_verified'] as bool?,
+    name: user.name,
+    email: user.email,
+    emailVerified: user.emailVerified,
     photo: photoBytes,
   );
 }
@@ -95,6 +65,10 @@ UserProfileService userProfileService(Ref ref) {
   return UserProfileService(ref);
 }
 
+/// CRUD service for the user's profile via the honeycomb backend.
+///
+/// This is separate from [Auth.user] — it manages profile fields
+/// (display name, email, photo) through the app's own API, not Auth0.
 class UserProfileService {
   final Ref _ref;
 
@@ -144,8 +118,8 @@ class UserProfileService {
     final response = await client.post<Map<String, dynamic>>(
       '/profile/photo-upload',
       data: {
-        'contentType': ?contentType,
-        'fileExtension': ?fileExtension,
+        'contentType': contentType,
+        'fileExtension': fileExtension,
         'fileSizeBytes': bytes.length,
       },
     );
@@ -162,7 +136,7 @@ class UserProfileService {
       uploadUrl,
       data: bytes,
       options: Options(
-        headers: {'x-ms-blob-type': 'BlockBlob', 'Content-Type': ?contentType},
+        headers: {'x-ms-blob-type': 'BlockBlob', 'Content-Type': contentType},
       ),
     );
 

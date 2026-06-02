@@ -1,4 +1,5 @@
 import 'package:beariscope/pages/auth/post_sign_in_onboarding_page.dart';
+import 'package:beariscope/pages/auth/sign_up_flow_page.dart';
 import 'package:beariscope/pages/auth/splash_screen.dart';
 import 'package:beariscope/pages/auth/welcome_page.dart';
 import 'package:beariscope/pages/device_provisioning/device_provisioning_page.dart';
@@ -22,7 +23,7 @@ import 'package:beariscope/pages/up_next/match_preview_page.dart';
 import 'package:beariscope/pages/up_next/up_next_page.dart';
 import 'package:beariscope/pages/utilities/utilities_page.dart';
 import 'package:beariscope/providers/app_boot_provider.dart';
-import 'package:beariscope/providers/post_sign_in_flow_provider.dart';
+import 'package:beariscope/providers/app_phase_provider.dart';
 import 'package:beariscope/providers/shared_preferences_provider.dart';
 import 'package:beariscope/utils/platform_utils_stub.dart'
     if (dart.library.io) 'package:beariscope/utils/platform_utils.dart';
@@ -92,10 +93,7 @@ Future<void> main() async {
 
 class RouterRefreshNotifier extends ChangeNotifier {
   RouterRefreshNotifier(this.ref) {
-    ref.listen(appBootProvider, (_, _) => notifyListeners());
-    ref.listen(authStatusProvider, (_, _) => notifyListeners());
-    ref.listen(postSignInFlowPendingProvider, (_, _) => notifyListeners());
-    ref.listen(authMeProvider, (_, _) => notifyListeners());
+    ref.listen(appPhaseProvider, (_, _) => notifyListeners());
   }
 
   final Ref ref;
@@ -112,7 +110,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/splash',
         builder: (context, state) => const SplashScreen(),
       ),
-      GoRoute(path: '/welcome', builder: (_, _) => const WelcomePage()),
+      GoRoute(
+        path: '/welcome',
+        builder: (_, _) => const WelcomePage(),
+        routes: [
+          GoRoute(path: 'sign_up', builder: (_, _) => const SignUpFlowPage()),
+        ],
+      ),
       GoRoute(
         path: '/post_sign_in_onboarding',
         builder: (_, _) => const PostSignInOnboardingPage(),
@@ -241,84 +245,80 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
     ],
     redirect: (_, state) {
-      final auth = ref.read(authStatusProvider);
       final location = state.matchedLocation;
-      final bootReady = ref.read(appBootProvider).isReady;
+      final phase = ref.read(appPhaseProvider);
 
-      // splash while booting
-      if (!bootReady) {
-        return location == '/splash' ? null : '/splash';
-      }
+      // 1. Route based on app phase
+      final phaseRedirect = switch (phase) {
+        AppPhase.splashing => location == '/splash' ? null : '/splash',
+        AppPhase.loginRequired =>
+          location == '/welcome' || location.startsWith('/welcome/')
+              ? null
+              : '/welcome',
+        AppPhase.onboarding =>
+          location == '/post_sign_in_onboarding'
+              ? null
+              : '/post_sign_in_onboarding',
+        AppPhase.ready => null,
+      };
 
-      // go to welcome if not authed
-      if (auth == AuthStatus.unauthenticated) {
-        return location == '/welcome' ? null : '/welcome';
-      }
+      if (phaseRedirect != null) return phaseRedirect;
 
-      // if on welcome and authed then leave
-      if (auth == AuthStatus.authenticated) {
-        final pendingPostSignInFlow = ref.read(postSignInFlowPendingProvider);
+      // 2. AppPhase.ready — permission guards for protected routes
+      final isRoleManagementRoute = location == '/settings/roles';
+      final isScoutManagementRoute = location == '/settings/user_selection';
+      final isPicklistCreateRoute = location == '/picklists/create';
+      final isDeviceProvisioningRoute = location == '/device_provisioning';
+      final needsPermissions =
+          isRoleManagementRoute ||
+          isScoutManagementRoute ||
+          isPicklistCreateRoute ||
+          isDeviceProvisioningRoute;
 
-        if (pendingPostSignInFlow) {
-          if (location != '/post_sign_in_onboarding') {
-            return '/post_sign_in_onboarding';
-          }
+      if (needsPermissions) {
+        final authMe = ref.read(authMeProvider);
+
+        if (authMe.isLoading) {
           return null;
         }
 
-        final isRoleManagementRoute = location == '/settings/roles';
-        final isScoutManagementRoute = location == '/settings/user_selection';
-        final isPicklistCreateRoute = location == '/picklists/create';
-        final isDeviceProvisioningRoute = location == '/device_provisioning';
-        final needsPermissions =
-            isRoleManagementRoute ||
-            isScoutManagementRoute ||
-            isPicklistCreateRoute ||
-            isDeviceProvisioningRoute;
+        final checker = ref.read(permissionCheckerProvider);
 
-        if (needsPermissions) {
-          final authMe = ref.read(authMeProvider);
-
-          if (authMe.isLoading) {
-            return null;
-          }
-
-          final checker = ref.read(permissionCheckerProvider);
-
-          if (isRoleManagementRoute) {
-            final canManageRoles =
-                checker?.hasPermission(PermissionKey.usersRolesManage) ?? false;
-            if (!canManageRoles) return '/settings';
-          }
-
-          if (isScoutManagementRoute) {
-            final canViewScouts =
-                checker?.hasAnyPermission([
-                  PermissionKey.scoutsRead,
-                  PermissionKey.scoutsManage,
-                ]) ??
-                false;
-            if (!canViewScouts) return '/settings';
-          }
-
-          if (isPicklistCreateRoute) {
-            final canManagePicklists =
-                checker?.hasPermission(PermissionKey.picklistsManage) ?? false;
-            if (!canManagePicklists) return '/picklists';
-          }
-
-          if (isDeviceProvisioningRoute) {
-            final canProvision =
-                checker?.hasPermission(PermissionKey.deviceProvision) ?? false;
-            if (!canProvision) return '/up_next';
-          }
+        if (isRoleManagementRoute) {
+          final canManageRoles =
+              checker?.hasPermission(PermissionKey.usersRolesManage) ?? false;
+          if (!canManageRoles) return '/settings';
         }
 
-        if (location == '/welcome' ||
-            location == '/splash' ||
-            location == '/post_sign_in_onboarding') {
-          return '/up_next';
+        if (isScoutManagementRoute) {
+          final canViewScouts =
+              checker?.hasAnyPermission([
+                PermissionKey.scoutsRead,
+                PermissionKey.scoutsManage,
+              ]) ??
+              false;
+          if (!canViewScouts) return '/settings';
         }
+
+        if (isPicklistCreateRoute) {
+          final canManagePicklists =
+              checker?.hasPermission(PermissionKey.picklistsManage) ?? false;
+          if (!canManagePicklists) return '/picklists';
+        }
+
+        if (isDeviceProvisioningRoute) {
+          final canProvision =
+              checker?.hasPermission(PermissionKey.deviceProvision) ?? false;
+          if (!canProvision) return '/up_next';
+        }
+      }
+
+      // 3. If ready and still on a phase-based route, go to main
+      if (phase == AppPhase.ready &&
+          (location == '/splash' ||
+              location == '/welcome' ||
+              location == '/post_sign_in_onboarding')) {
+        return '/up_next';
       }
 
       return null;

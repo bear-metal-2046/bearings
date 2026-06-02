@@ -88,7 +88,7 @@ class _MainViewState extends ConsumerState<MainView> {
   static final List<_NavItem> _navItems = [
     const _NavItem(
       route: '/up_next',
-      icon: LucideIcons.calendars,
+      icon: LucideIcons.calendar,
       label: 'Up Next',
       group: 'General',
     ),
@@ -99,23 +99,27 @@ class _MainViewState extends ConsumerState<MainView> {
       group: 'General',
     ),
     const _NavItem(
-      route: '/match_lookup',
-      icon: LucideIcons.flag,
-      label: 'Match Lookup',
-      group: 'Insights',
-    ),
-    const _NavItem(
-      route: '/export',
-      icon: LucideIcons.sheet,
-      label: 'Export Data',
-      group: 'Insights',
+      route: '/picklists',
+      icon: LucideIcons.notebookText,
+      label: 'Picklists',
+      group: 'General',
+      requiredPermissions: [
+        PermissionKey.picklistsManage,
+        PermissionKey.picklistsRead,
+      ],
     ),
     const _NavItem(
       route: '/scout_audit',
       icon: LucideIcons.clipboardCheck,
       label: 'Scout Audit',
-      group: 'Scouting',
+      group: 'Data',
       requiredPermissions: [PermissionKey.matchCorrect],
+    ),
+    const _NavItem(
+      route: '/export',
+      icon: LucideIcons.sheet,
+      label: 'Export Data',
+      group: 'Data',
     ),
     const _NavItem(
       route: '/pits_scouting',
@@ -123,6 +127,12 @@ class _MainViewState extends ConsumerState<MainView> {
       label: 'Pits Scouting',
       group: 'Scouting',
       requiredPermissions: [PermissionKey.pitsUpload, PermissionKey.pitsRead],
+    ),
+    const _NavItem(
+      route: '/match_lookup',
+      icon: LucideIcons.scale,
+      label: 'Match Compare',
+      group: 'Utilities',
     ),
   ];
 

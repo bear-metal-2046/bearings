@@ -1,8 +1,10 @@
 import 'dart:async';
 
+import 'package:beariscope/providers/post_sign_in_flow_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:services/providers/auth_provider.dart';
 import 'package:services/providers/permissions_provider.dart';
+import 'package:services/providers/user_profile_provider.dart';
 
 enum AppBootStage { initializing, restoringSession, loadingPermissions, ready }
 
@@ -83,6 +85,14 @@ class AppBootNotifier extends Notifier<AppBootState> {
       final auth = await ref.read(authProvider.future);
       await auth.trySilentLogin();
 
+      if (ref.read(authStatusProvider) == AuthStatus.authenticated) {
+        ref.invalidate(userInfoProvider);
+        final userInfo = await ref.read(userInfoProvider.future);
+        if (userInfo != null && checkNeedsOnboarding(userInfo)) {
+          ref.read(postSignInFlowPendingProvider.notifier).setPending();
+        }
+      }
+
       state = AppBootState.stage(AppBootStage.loadingPermissions);
       await ref.read(authMeProvider.future);
 
@@ -97,6 +107,23 @@ class AppBootNotifier extends Notifier<AppBootState> {
       }
     }
   }
+}
+
+/// Returns `true` when [userInfo] still needs post-sign-in onboarding
+/// (e.g. the user hasn't set their real name or verified their email yet).
+bool checkNeedsOnboarding(UserInfo userInfo) {
+  final email = userInfo.email?.trim();
+  final normalizedName = userInfo.name?.trim().toLowerCase();
+  final normalizedEmail = email?.toLowerCase();
+
+  final needsRealName =
+      normalizedName == null ||
+      normalizedName.isEmpty ||
+      (normalizedEmail != null && normalizedName == normalizedEmail);
+
+  final needsEmailVerification = userInfo.emailVerified != true;
+
+  return needsRealName || needsEmailVerification;
 }
 
 final appBootProvider = NotifierProvider<AppBootNotifier, AppBootState>(

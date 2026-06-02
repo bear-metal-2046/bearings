@@ -458,7 +458,7 @@ class _CsvImportDialogState extends State<_CsvImportDialog> {
   }
 
   Future<void> _pickFile() async {
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       dialogTitle: 'Select CSV',
       type: FileType.custom,
       allowedExtensions: ['csv', 'txt'],

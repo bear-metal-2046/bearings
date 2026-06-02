@@ -8,7 +8,7 @@ Future<void> shareOrSaveImage(
   Uint8List bytes,
   String filename,
 ) async {
-  await FilePicker.platform.saveFile(
+  await FilePicker.saveFile(
     dialogTitle: 'Save image',
     fileName: filename,
     type: FileType.custom,

@@ -217,7 +217,7 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
   }
 
   Future<void> _changePhoto() async {
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       dialogTitle: 'Select Photo',
       type: FileType.image,
       withData: true,

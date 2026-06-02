@@ -205,70 +205,73 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage> with SingleTick
       }
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Teams'),
-        leading: controller.isDesktop
-            ? null
-            : IconButton(icon: const Icon(LucideIcons.menu), onPressed: controller.openDrawer),
-        actions: [
-          PopupMenuButton<TeamSortOptions>(
-            icon: Icon(isAscending ? LucideIcons.arrowUpNarrowWide : LucideIcons.arrowDownWideNarrow),
-            tooltip: 'Sort',
-            itemBuilder: (context) => TeamSortOptions.values
-                .map(
-                  (sort) => CheckedPopupMenuItem<TeamSortOptions>(
-                    value: sort,
-                    checked: selectedSort.sort == sort,
-                    child: Row(
-                      children: [
-                        Text(sort.label),
-                        if (selectedSort.sort == sort) Icon(isAscending ? Icons.arrow_drop_up : Icons.arrow_drop_down),
-                      ],
-                    ),
-                  ),
-                )
-                .toList(),
-            onSelected: (TeamSortOptions newSort) {
-              if (ref.read(teamSortProvider.notifier).getSort() == newSort) {
-                isAscending = !isAscending;
-              }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth > 1000;
+        final picklistSheetState = ref.watch(picklistSheetStateProvider);
+        final collapsedHeight = picklistSheetConfigForState(PicklistSheetState.collapsed).height;
+        final expandedHeight = picklistSheetConfigForState(PicklistSheetState.expanded).height;
+        _sheetMaxHeight = math.min(expandedHeight, constraints.maxHeight - kToolbarHeight - 24);
 
-              ref.read(teamSortProvider.notifier).setSort(newSort, isAscending);
-            },
+        final double searchBarBottom = isWide
+            ? 8
+            : (picklistSheetConfigForState(picklistSheetState).raiseSearchBar ? collapsedHeight + 8 : 8);
+
+        final double targetSidebarWidth = switch (picklistSheetState) {
+          PicklistSheetState.hidden => 0.0,
+          _ => 400.0,
+        };
+
+        final scaffold = Scaffold(
+          appBar: AppBar(
+            title: const Text('Teams'),
+            leading: controller.isDesktop
+                ? null
+                : IconButton(icon: const Icon(LucideIcons.menu), onPressed: controller.openDrawer),
+            actions: [
+              PopupMenuButton<TeamSortOptions>(
+                icon: Icon(isAscending ? LucideIcons.arrowUpNarrowWide : LucideIcons.arrowDownWideNarrow),
+                tooltip: 'Sort',
+                itemBuilder: (context) => TeamSortOptions.values
+                    .map(
+                      (sort) => CheckedPopupMenuItem<TeamSortOptions>(
+                        value: sort,
+                        checked: selectedSort.sort == sort,
+                        child: Row(
+                          children: [
+                            Text(sort.label),
+                            if (selectedSort.sort == sort)
+                              Icon(isAscending ? Icons.arrow_drop_up : Icons.arrow_drop_down),
+                          ],
+                        ),
+                      ),
+                    )
+                    .toList(),
+                onSelected: (TeamSortOptions newSort) {
+                  if (ref.read(teamSortProvider.notifier).getSort() == newSort) {
+                    isAscending = !isAscending;
+                  }
+
+                  ref.read(teamSortProvider.notifier).setSort(newSort, isAscending);
+                },
+              ),
+            ],
           ),
-        ],
-      ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final picklistSheetState = ref.watch(picklistSheetStateProvider);
-          final collapsedHeight = picklistSheetConfigForState(PicklistSheetState.collapsed).height;
-          final expandedHeight = picklistSheetConfigForState(PicklistSheetState.expanded).height;
-          _sheetMaxHeight = math.min(expandedHeight, constraints.maxHeight - 24);
-
-          final double searchBarBottom = picklistSheetConfigForState(picklistSheetState).raiseSearchBar
-              ? collapsedHeight + 8
-              : 8;
-
-          return Stack(
+          body: Stack(
             children: [
               teamsAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (error, stack) => Center(child: Text('Error: $error')),
                 data: (teams) {
                   final collectedTeams = ref.watch(collectedTeamsProvider);
-
                   final teamList = teams.whereType<Map<String, dynamic>>().map((json) => Team.fromJson(json)).toList();
-
                   final searchTerm = _searchTermTEC.text.trim().toLowerCase();
 
                   var filteredTeams = searchTerm.isEmpty
                       ? teamList
                       : teamList.where((team) {
                           final teamName = team.name.toLowerCase();
-
                           final teamNumber = team.number.toString();
-
                           final teamKey = team.key.toLowerCase();
 
                           return teamName.contains(searchTerm) ||
@@ -343,16 +346,12 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage> with SingleTick
                           maxSimultaneousDrags: isCollected ? 0 : null,
                           onDragStarted: () {
                             HapticFeedback.selectionClick();
-
                             ref.read(isDraggingProvider.notifier).state = true;
-
                             ref.read(picklistSheetStateProvider.notifier).state = PicklistSheetState.dragging;
                           },
                           onDragEnd: (_) {
                             ref.read(isDraggingProvider.notifier).state = false;
-
                             final teams = ref.read(collectedTeamsProvider);
-
                             ref.read(picklistSheetStateProvider.notifier).state = teams.isEmpty
                                 ? PicklistSheetState.hidden
                                 : PicklistSheetState.collapsed;
@@ -379,7 +378,6 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage> with SingleTick
                   );
                 },
               ),
-
               AnimatedPositioned(
                 duration: const Duration(milliseconds: 250),
                 curve: Curves.easeOutBack,
@@ -417,63 +415,84 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage> with SingleTick
                   ),
                 ),
               ),
-              ValueListenableBuilder<double>(
-                valueListenable: _sheetHeightNotifier,
-                builder: (context, sheetHeight, _) {
-                  if (sheetHeight <= 0) {
-                    return const SizedBox.shrink();
-                  }
+              if (!isWide)
+                ValueListenableBuilder<double>(
+                  valueListenable: _sheetHeightNotifier,
+                  builder: (context, sheetHeight, _) {
+                    if (sheetHeight <= 0) {
+                      return const SizedBox.shrink();
+                    }
 
-                  return Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    height: math.min(sheetHeight, _sheetMaxHeight),
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.translucent,
-                      onVerticalDragStart:
-                          picklistSheetState == PicklistSheetState.collapsed ||
-                              picklistSheetState == PicklistSheetState.expanded
-                          ? (_) {
-                              _isUserDraggingSheet = true;
-
-                              _sheetAnimationController.stop();
-                            }
-                          : null,
-                      onVerticalDragUpdate:
-                          picklistSheetState == PicklistSheetState.collapsed ||
-                              picklistSheetState == PicklistSheetState.expanded
-                          ? (details) {
-                              _sheetHeightNotifier.value = (_sheetHeightNotifier.value - details.delta.dy)
-                                  .clamp(collapsedHeight, _sheetMaxHeight)
-                                  .toDouble();
-                            }
-                          : null,
-                      onVerticalDragEnd:
-                          picklistSheetState == PicklistSheetState.collapsed ||
-                              picklistSheetState == PicklistSheetState.expanded
-                          ? (details) {
-                              _isUserDraggingSheet = false;
-
-                              _snapSheet(velocity: details.primaryVelocity ?? 0);
-                            }
-                          : null,
-                      child: TeamPicklistSheet(
-                        state: picklistSheetState,
-                        expanded:
-                            math.min(sheetHeight, _sheetMaxHeight) >
-                            picklistSheetConfigForState(PicklistSheetState.collapsed).height +
-                                MediaQuery.of(context).padding.bottom +
-                                2, // 2 is height of the divider, just to make it clear
+                    return Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      height: math.min(sheetHeight, _sheetMaxHeight),
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.translucent,
+                        onVerticalDragStart:
+                            picklistSheetState == PicklistSheetState.collapsed ||
+                                picklistSheetState == PicklistSheetState.expanded
+                            ? (_) {
+                                _isUserDraggingSheet = true;
+                                _sheetAnimationController.stop();
+                              }
+                            : null,
+                        onVerticalDragUpdate:
+                            picklistSheetState == PicklistSheetState.collapsed ||
+                                picklistSheetState == PicklistSheetState.expanded
+                            ? (details) {
+                                _sheetHeightNotifier.value = (_sheetHeightNotifier.value - details.delta.dy)
+                                    .clamp(collapsedHeight, _sheetMaxHeight)
+                                    .toDouble();
+                              }
+                            : null,
+                        onVerticalDragEnd:
+                            picklistSheetState == PicklistSheetState.collapsed ||
+                                picklistSheetState == PicklistSheetState.expanded
+                            ? (details) {
+                                _isUserDraggingSheet = false;
+                                _snapSheet(velocity: details.primaryVelocity ?? 0);
+                              }
+                            : null,
+                        child: TeamPicklistSheet(
+                          state: picklistSheetState,
+                          expanded:
+                              math.min(sheetHeight, _sheetMaxHeight) >
+                              picklistSheetConfigForState(PicklistSheetState.collapsed).height +
+                                  MediaQuery.of(context).padding.bottom +
+                                  2,
+                        ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
+            ],
+          ),
+        );
+
+        if (isWide) {
+          return Row(
+            children: [
+              Expanded(child: scaffold),
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOutCirc,
+                width: targetSidebarWidth,
+                child: targetSidebarWidth == 0
+                    ? const SizedBox.shrink()
+                    : TeamPicklistSheet(
+                        state: picklistSheetState,
+                        expanded: picklistSheetState != PicklistSheetState.dragging,
+                        isSidebar: true,
+                      ),
               ),
             ],
           );
-        },
-      ),
+        } else {
+          return scaffold;
+        }
+      },
     );
   }
 }
@@ -481,8 +500,9 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage> with SingleTick
 class TeamPicklistSheet extends ConsumerStatefulWidget {
   final PicklistSheetState state;
   final bool expanded;
+  final bool isSidebar;
 
-  const TeamPicklistSheet({super.key, required this.state, required this.expanded});
+  const TeamPicklistSheet({super.key, required this.state, required this.expanded, this.isSidebar = false});
 
   @override
   ConsumerState<TeamPicklistSheet> createState() => _TeamPicklistSheetState();
@@ -583,13 +603,15 @@ class _TeamPicklistSheetState extends ConsumerState<TeamPicklistSheet> {
           curve: Curves.easeInOut,
           decoration: BoxDecoration(
             color: isHovering ? theme.colorScheme.primaryContainer : theme.colorScheme.surfaceContainerLow,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            borderRadius: widget.isSidebar
+                ? const BorderRadius.horizontal(left: Radius.circular(16))
+                : const BorderRadius.vertical(top: Radius.circular(16)),
             boxShadow: [
               BoxShadow(
                 color: theme.colorScheme.shadow.withValues(alpha: 0.1),
                 blurRadius: 20,
                 spreadRadius: 5,
-                offset: const Offset(0, -5),
+                offset: widget.isSidebar ? const Offset(-5, 0) : const Offset(0, -5),
               ),
             ],
           ),
@@ -606,7 +628,7 @@ class _TeamPicklistSheetState extends ConsumerState<TeamPicklistSheet> {
                           height: 4,
                           width: 32,
                           decoration: BoxDecoration(
-                            color: theme.colorScheme.onSurfaceVariant,
+                            color: widget.isSidebar ? Colors.transparent : theme.colorScheme.onSurfaceVariant,
                             borderRadius: BorderRadius.circular(2),
                           ),
                         ),
@@ -644,29 +666,31 @@ class _TeamPicklistSheetState extends ConsumerState<TeamPicklistSheet> {
                               top: 0,
                               child: GestureDetector(
                                 behavior: HitTestBehavior.opaque,
-                                onTap: () {
-                                  final currentState = ref.read(picklistSheetStateProvider);
+                                onTap: widget.isSidebar
+                                    ? null
+                                    : () {
+                                        final currentState = ref.read(picklistSheetStateProvider);
 
-                                  if (currentState == PicklistSheetState.hidden ||
-                                      currentState == PicklistSheetState.dragging) {
-                                    return;
-                                  }
+                                        if (currentState == PicklistSheetState.hidden ||
+                                            currentState == PicklistSheetState.dragging) {
+                                          return;
+                                        }
 
-                                  HapticFeedback.lightImpact();
+                                        HapticFeedback.lightImpact();
 
-                                  ref
-                                      .read(picklistSheetStateProvider.notifier)
-                                      .state = currentState == PicklistSheetState.expanded
-                                      ? PicklistSheetState.collapsed
-                                      : PicklistSheetState.expanded;
-                                },
+                                        ref
+                                            .read(picklistSheetStateProvider.notifier)
+                                            .state = currentState == PicklistSheetState.expanded
+                                            ? PicklistSheetState.collapsed
+                                            : PicklistSheetState.expanded;
+                                      },
                                 child: Padding(
                                   padding: const EdgeInsets.all(12.0),
                                   child: Container(
                                     height: 4,
                                     width: 32,
                                     decoration: BoxDecoration(
-                                      color: theme.colorScheme.onSurfaceVariant,
+                                      color: widget.isSidebar ? Colors.transparent : theme.colorScheme.onSurfaceVariant,
                                       borderRadius: BorderRadius.circular(2),
                                     ),
                                   ),

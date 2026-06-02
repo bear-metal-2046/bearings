@@ -15,22 +15,24 @@ Future<void> saveOrShareExcel(
     final file = File('${dir.path}/$filename');
     await file.writeAsBytes(bytes, flush: true);
 
-    await Share.shareXFiles(
-      [
-        XFile(
-          file.path,
-          mimeType:
-              'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-          name: filename,
-        ),
-      ],
-      subject: filename,
-      sharePositionOrigin: _getShareOrigin(context),
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [
+          XFile(
+            file.path,
+            mimeType:
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            name: filename,
+          ),
+        ],
+        subject: filename,
+        sharePositionOrigin: _getShareOrigin(context),
+      ),
     );
     return;
   }
 
-  final path = await FilePicker.platform.saveFile(
+  final path = await FilePicker.saveFile(
     dialogTitle: 'Save Excel file',
     fileName: filename,
     type: FileType.custom,

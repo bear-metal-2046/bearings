@@ -26,7 +26,7 @@ Future<void> shareOrSaveImage(
     return;
   }
 
-  final path = await FilePicker.platform.saveFile(
+  final path = await FilePicker.saveFile(
     dialogTitle: 'Save image',
     fileName: filename,
     type: FileType.custom,

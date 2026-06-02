@@ -22,7 +22,7 @@ dependencies:
   hive_ce: ^2.15.1
   hive_ce_flutter: ^2.3.3
   shared_preferences: ^2.3.0
-  syncfusion_flutter_sliders: ^32.1.21
+  syncfusion_flutter_sliders: ^33.2.7
   pressable_flutter: ^1.0.4
   mobile_scanner: ^7.0.1
   flutter_secure_storage: ^10.0.0
@@ -38,7 +38,7 @@ dependencies:
   core:
     path: ../../packages/core
   animate_do: ^5.1.0
-  package_info_plus: ^9.0.1
+  package_info_plus: ^10.1.0
 
 dev_dependencies:
   flutter_test:
