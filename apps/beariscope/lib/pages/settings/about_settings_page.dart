@@ -116,7 +116,7 @@ class AboutSettingsPage extends ConsumerWidget {
                 onTap: () => _launchUrl(
                   context,
                   Uri.parse(
-                    'https://bear-metal-apps.github.io/beariscope/privacy-policy',
+                    'https://bear-metal-2046.github.io/bearings/privacy-policy',
                   ),
                   'Privacy Policy',
                 ),
