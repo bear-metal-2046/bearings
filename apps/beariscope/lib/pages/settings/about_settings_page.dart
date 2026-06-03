@@ -1,5 +1,5 @@
-import 'package:beariscope/widgets/settings_group.dart';
 import 'package:beariscope/providers/tba_preferences_provider.dart';
+import 'package:beariscope/widgets/settings_group.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_symbols_icons/symbols.dart';
@@ -72,7 +72,7 @@ class AboutSettingsPage extends ConsumerWidget {
                 trailing: const Icon(Symbols.open_in_new_rounded),
                 onTap: () => _launchUrl(
                   context,
-                  Uri.parse('https://github.com/bear-metal-apps/beariscope'),
+                  Uri.parse('https://github.com/bear-metal-2046/bearings'),
                   'Beariscope GitHub',
                 ),
               ),
