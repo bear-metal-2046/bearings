@@ -117,7 +117,7 @@ Future<List<Scout>> scouts(Ref ref) async {
 
   final data = await client.get<List<dynamic>>(
     '/scouts',
-    cachePolicy: CachePolicy.cacheFirst,
+    cachePolicy: CachePolicy.networkFirst,
   );
 
   final scouts = data

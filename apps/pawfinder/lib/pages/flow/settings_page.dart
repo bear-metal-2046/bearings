@@ -14,6 +14,7 @@ class SettingsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final brightness = ref.watch(brightnessNotifierProvider);
+    final colorScheme = ref.watch(colorSchemeNotifierProvider);
     final isDarkMode = brightness == Brightness.dark;
 
     return Scaffold(
@@ -84,6 +85,57 @@ class SettingsPage extends ConsumerWidget {
                         },
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 24),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Color Scheme',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<AppColorScheme>(
+                    initialValue: colorScheme,
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    items: AppColorScheme.values
+                        .map(
+                          (scheme) => DropdownMenuItem<AppColorScheme>(
+                            value: scheme,
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 16,
+                                  height: 16,
+                                  decoration: BoxDecoration(
+                                    color: scheme.seedColor,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.outline,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Text(scheme.label),
+                              ],
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (scheme) {
+                      if (scheme == null) return;
+                      ref
+                          .read(colorSchemeNotifierProvider.notifier)
+                          .changeColorScheme(scheme);
+                    },
                   ),
                 ],
               ),

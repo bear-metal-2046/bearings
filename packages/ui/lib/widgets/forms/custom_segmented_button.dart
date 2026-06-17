@@ -1,4 +1,7 @@
+import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
+
+import 'form_style.dart';
 
 class CustomSegmentedButton extends StatefulWidget {
   const CustomSegmentedButton({
@@ -32,81 +35,131 @@ class _CustomSegmentedButtonState extends State<CustomSegmentedButton> {
   @override
   void initState() {
     super.initState();
+    _isSelected = _buildSelection(widget.initialValue);
+  }
+
+  @override
+  void didUpdateWidget(covariant CustomSegmentedButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialValue != widget.initialValue ||
+        oldWidget.multiSelect != widget.multiSelect ||
+        oldWidget.segments != widget.segments) {
+      _isSelected = _buildSelection(widget.initialValue);
+    }
+  }
+
+  List<bool> _buildSelection(dynamic initialValue) {
+    if (widget.segments.isEmpty) return const <bool>[];
+
     if (widget.multiSelect) {
-      if (widget.initialValue is List) {
-        final selected = widget.initialValue as List;
-        _isSelected = List.generate(
+      if (initialValue is List) {
+        final selected = initialValue;
+        return List.generate(
           widget.segments.length,
           (index) =>
               selected.contains(index) ||
               selected.contains(widget.segments[index]),
         );
-      } else {
-        _isSelected = List.filled(widget.segments.length, false);
       }
-    } else {
-      var selectedIndex = 0;
-      if (widget.initialValue is int) {
-        selectedIndex = widget.initialValue as int;
-      } else if (widget.initialValue is String) {
-        selectedIndex = widget.segments.indexOf(widget.initialValue as String);
-        if (selectedIndex == -1) selectedIndex = 0;
-      }
-      _isSelected = List.generate(
-        widget.segments.length,
-        (index) => index == selectedIndex,
-      );
+      return List.filled(widget.segments.length, false);
     }
+
+    var selectedIndex = 0;
+    if (initialValue is int) {
+      selectedIndex = initialValue;
+    } else if (initialValue is String) {
+      selectedIndex = widget.segments.indexOf(initialValue);
+      if (selectedIndex == -1) selectedIndex = 0;
+    }
+    return List.generate(
+      widget.segments.length,
+      (index) => index == selectedIndex,
+    );
+  }
+
+  void _handleTap(int index) {
+    setState(() {
+      if (widget.multiSelect) {
+        _isSelected[index] = !_isSelected[index];
+        widget.onChanged([
+          for (var i = 0; i < _isSelected.length; i++)
+            if (_isSelected[i]) i,
+        ]);
+      } else {
+        for (var i = 0; i < _isSelected.length; i++) {
+          _isSelected[i] = i == index;
+        }
+        widget.onChanged(index);
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return ToggleButtons(
-      isSelected: _isSelected,
-      onPressed: (value) {
-        setState(() {
-          if (widget.multiSelect) {
-            _isSelected[value] = !_isSelected[value];
-          } else {
-            for (var i = 0; i < _isSelected.length; i++) {
-              _isSelected[i] = i == value;
-            }
-          }
-          if (widget.multiSelect) {
-            final selectedIndices = <int>[];
-            for (var i = 0; i < _isSelected.length; i++) {
-              if (_isSelected[i]) selectedIndices.add(i);
-            }
-            widget.onChanged(selectedIndices);
-          } else {
-            widget.onChanged(value);
-          }
-        });
-      },
-      color: Theme.of(context).colorScheme.onSurface,
-      selectedColor: Theme.of(context).colorScheme.onPrimary,
-      fillColor: widget.selectedColor ?? Theme.of(context).colorScheme.primary,
-      borderColor: Colors.grey,
-      selectedBorderColor: Colors.grey,
-      borderWidth: 1.0,
-      borderRadius: BorderRadius.circular(8.0),
-      children: widget.segments
-          .map(
-            (segment) => SizedBox(
-              height: widget.height,
-              width: (widget.width / widget.segments.length),
-              child: Center(
-                child: Text(
-                  segment,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+    final theme = Theme.of(context);
+    final segmentCount = widget.segments.length;
+    if (segmentCount == 0) {
+      return SizedBox(width: widget.width, height: widget.height);
+    }
+
+    final selectedColor =
+        widget.selectedColor ?? theme.colorScheme.primaryContainer;
+    final unselectedColor =
+        widget.unselectedColor ?? theme.colorScheme.surfaceContainerLowest;
+    final outlineColor = theme.colorScheme.outlineVariant;
+
+    return SizedBox(
+      width: widget.width,
+      height: widget.height,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(FormWidgetStyle.borderRadius),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            border: Border.all(color: outlineColor, width: 1.0),
+            borderRadius: BorderRadius.circular(FormWidgetStyle.borderRadius),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.max,
+            children: [
+              for (var i = 0; i < segmentCount; i++)
+                Expanded(
+                  child: Material(
+                    color: _isSelected[i] ? selectedColor : unselectedColor,
+                    child: InkWell(
+                      onTap: () => _handleTap(i),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: outlineColor, width: 1.0),
+                        ),
+                        child: Center(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 6,
+                            ),
+                            child: AutoSizeText(
+                              widget.segments[i],
+                              maxLines: 2,
+                              minFontSize: 9,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                              style: theme.textTheme.labelLarge?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: _isSelected[i]
+                                    ? theme.colorScheme.onPrimaryContainer
+                                    : theme.colorScheme.onSurface,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
-          )
-          .toList(),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

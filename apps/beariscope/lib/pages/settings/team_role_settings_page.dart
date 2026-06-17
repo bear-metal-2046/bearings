@@ -1,4 +1,4 @@
-import 'package:beariscope/components/beariscope_card.dart';
+import 'package:beariscope/widgets/beariscope_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_symbols_icons/symbols.dart';
@@ -288,7 +288,6 @@ class _TeamRoleSettingsPageState extends ConsumerState<TeamRoleSettingsPage>
                   child: Scaffold(
                     appBar: AppBar(
                       title: Text(titleText),
-                      actionsPadding: const EdgeInsets.only(right: 12),
                       leading: IconButton(
                         onPressed: () => Navigator.pop(dialogContext),
                         icon: const Icon(Symbols.close),
@@ -520,7 +519,6 @@ class _TeamRoleSettingsPageState extends ConsumerState<TeamRoleSettingsPage>
                 child: Scaffold(
                   appBar: AppBar(
                     title: const Text('Edit User'),
-                    actionsPadding: const EdgeInsets.only(right: 12),
                     leading: IconButton(
                       onPressed: () => Navigator.pop(dialogContext),
                       icon: const Icon(Symbols.close),

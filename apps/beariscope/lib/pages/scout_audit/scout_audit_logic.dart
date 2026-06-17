@@ -7,6 +7,8 @@ import 'package:core/core.dart' show ScoutPosition;
 
 enum ScoutAuditIssueType { incomplete, notInTba, duplicate, incorrect }
 
+enum ScoutAuditEntryType { match, strat }
+
 class AuditSlot {
   const AuditSlot({
     required this.pos,
@@ -24,11 +26,15 @@ class AuditSlot {
 class IncompleteMatchIssue {
   const IncompleteMatchIssue({
     required this.matchNumber,
+    required this.entryType,
+    required this.expectedCount,
     required this.scoutedCount,
     required this.missingSlots,
   });
 
   final int matchNumber;
+  final ScoutAuditEntryType entryType;
+  final int expectedCount;
   final int scoutedCount;
   final List<AuditSlot> missingSlots;
 }
@@ -37,12 +43,16 @@ class NotInTbaIssue {
   const NotInTbaIssue({
     required this.docId,
     required this.matchNumber,
+    required this.entryType,
+    required this.alliance,
     required this.teamNumber,
     required this.positionLabel,
   });
 
   final String docId;
   final int matchNumber;
+  final ScoutAuditEntryType entryType;
+  final String? alliance;
   final int? teamNumber;
   final String positionLabel;
 }
@@ -50,7 +60,9 @@ class NotInTbaIssue {
 class DuplicateIssue {
   const DuplicateIssue({
     required this.matchNumber,
+    required this.entryType,
     required this.pos,
+    required this.alliance,
     required this.teamNumber,
     required this.entries,
     required this.identical,
@@ -58,7 +70,9 @@ class DuplicateIssue {
   });
 
   final int matchNumber;
-  final int pos;
+  final ScoutAuditEntryType entryType;
+  final int? pos;
+  final String? alliance;
   final int? teamNumber;
   final List<ScoutingDocument> entries;
   final bool identical;
@@ -226,11 +240,18 @@ ScoutAuditSnapshot buildScoutAuditSnapshot({
     return meta?['type']?.toString() == 'match' &&
         meta?['event']?.toString() == eventKey;
   }).toList();
+  final stratDocs = docs.where((doc) {
+    final meta = doc.meta;
+    return meta?['type']?.toString() == 'strat' &&
+        meta?['event']?.toString() == eventKey;
+  }).toList();
 
   final schedule = _buildGroundTruthByMatch(tbaMatches, eventKey);
 
   final byMatch = <int, List<ScoutingDocument>>{};
   final byMatchAndPos = <String, List<ScoutingDocument>>{};
+  final byStratMatchAndAlliance = <String, List<ScoutingDocument>>{};
+  final stratAlliancesByMatch = <int, Set<String>>{};
 
   for (final doc in matchDocs) {
     final matchNumber = TeamScoutingBundle.matchNumber(doc);
@@ -243,6 +264,18 @@ ScoutAuditSnapshot buildScoutAuditSnapshot({
       final key = '${matchNumber}_$pos';
       byMatchAndPos.putIfAbsent(key, () => []).add(doc);
     }
+  }
+
+  for (final doc in stratDocs) {
+    final matchNumber = _matchNumberFromMeta(doc);
+    final alliance = _allianceFromDoc(doc);
+    if (matchNumber == null || matchNumber <= 0 || alliance == null) continue;
+
+    final key = '${matchNumber}_$alliance';
+    byStratMatchAndAlliance.putIfAbsent(key, () => []).add(doc);
+    stratAlliancesByMatch
+        .putIfAbsent(matchNumber, () => <String>{})
+        .add(alliance);
   }
 
   final incomplete = <IncompleteMatchIssue>[];
@@ -291,21 +324,70 @@ ScoutAuditSnapshot buildScoutAuditSnapshot({
     incomplete.add(
       IncompleteMatchIssue(
         matchNumber: matchNumber,
+        entryType: ScoutAuditEntryType.match,
+        expectedCount: 6,
         scoutedCount: seenPositions.length,
         missingSlots: missing,
       ),
     );
   }
 
-  incomplete.sort((a, b) => a.matchNumber.compareTo(b.matchNumber));
+  final highestStratScoutedMatch = stratAlliancesByMatch.keys.isEmpty
+      ? 0
+      : stratAlliancesByMatch.keys.reduce((a, b) => a > b ? a : b);
+
+  for (final matchNumber in schedule.keys) {
+    if (matchNumber > highestStratScoutedMatch) continue;
+
+    final truth = schedule[matchNumber];
+    if (truth == null) continue;
+
+    final seenAlliances =
+        stratAlliancesByMatch[matchNumber] ?? const <String>{};
+    if (seenAlliances.length >= 2) continue;
+
+    final missing = <AuditSlot>[];
+    for (final alliance in const ['red', 'blue']) {
+      if (seenAlliances.contains(alliance)) continue;
+      final pos = alliance == 'red' ? 0 : 3;
+      final teamNumber = truth.teamsByPos[pos];
+      if (teamNumber == null) continue;
+      missing.add(
+        AuditSlot(
+          pos: alliance == 'red' ? -1 : -2,
+          label: _allianceLabel(alliance),
+          teamNumber: teamNumber,
+          alliance: alliance,
+        ),
+      );
+    }
+
+    if (missing.isEmpty) continue;
+
+    incomplete.add(
+      IncompleteMatchIssue(
+        matchNumber: matchNumber,
+        entryType: ScoutAuditEntryType.strat,
+        expectedCount: 2,
+        scoutedCount: seenAlliances.length,
+        missingSlots: missing,
+      ),
+    );
+  }
+
+  incomplete.sort((a, b) {
+    final byMatch = a.matchNumber.compareTo(b.matchNumber);
+    if (byMatch != 0) return byMatch;
+    return a.entryType.index.compareTo(b.entryType.index);
+  });
 
   final notInTba = <NotInTbaIssue>[];
   final highestScheduledMatchNumber = schedule.isEmpty
       ? 0
       : schedule.keys.reduce((a, b) => a > b ? a : b);
 
-  for (final doc in matchDocs) {
-    final matchNumber = TeamScoutingBundle.matchNumber(doc);
+  for (final doc in [...matchDocs, ...stratDocs]) {
+    final matchNumber = _auditMatchNumber(doc);
     if (matchNumber == null) continue;
 
     final isBeyondSchedule =
@@ -314,16 +396,29 @@ ScoutAuditSnapshot buildScoutAuditSnapshot({
     final isMissingFromSchedule = !schedule.containsKey(matchNumber);
     if (!isBeyondSchedule && !isMissingFromSchedule) continue;
 
+    final entryType = _entryTypeFromDoc(doc);
+    final alliance = _allianceFromDoc(doc);
+
     notInTba.add(
       NotInTbaIssue(
         docId: doc.id,
         matchNumber: matchNumber,
-        teamNumber: TeamScoutingBundle.teamNumber(doc),
-        positionLabel: _posLabel(_posOf(doc)),
+        entryType: entryType,
+        alliance: alliance,
+        teamNumber: entryType == ScoutAuditEntryType.match
+            ? TeamScoutingBundle.teamNumber(doc)
+            : null,
+        positionLabel: entryType == ScoutAuditEntryType.match
+            ? _posLabel(_posOf(doc))
+            : _allianceLabel(alliance),
       ),
     );
   }
-  notInTba.sort((a, b) => a.matchNumber.compareTo(b.matchNumber));
+  notInTba.sort((a, b) {
+    final byMatch = a.matchNumber.compareTo(b.matchNumber);
+    if (byMatch != 0) return byMatch;
+    return a.entryType.index.compareTo(b.entryType.index);
+  });
 
   final duplicates = <DuplicateIssue>[];
   for (final entry in byMatchAndPos.entries) {
@@ -350,7 +445,9 @@ ScoutAuditSnapshot buildScoutAuditSnapshot({
     duplicates.add(
       DuplicateIssue(
         matchNumber: matchNumber,
+        entryType: ScoutAuditEntryType.match,
         pos: pos,
+        alliance: null,
         teamNumber: TeamScoutingBundle.teamNumber(first),
         entries: docsInGroup,
         identical: identical,
@@ -358,10 +455,51 @@ ScoutAuditSnapshot buildScoutAuditSnapshot({
       ),
     );
   }
+
+  for (final entry in byStratMatchAndAlliance.entries) {
+    final docsInGroup = entry.value;
+    if (docsInGroup.length < 2) continue;
+
+    docsInGroup.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+
+    final first = docsInGroup.first;
+    final matchNumber = _matchNumberFromMeta(first) ?? 0;
+    final alliance = _allianceFromDoc(first);
+
+    final canonicalByDoc = {
+      for (final doc in docsInGroup) doc.id: _canonicalComparableData(doc),
+    };
+
+    final unique = canonicalByDoc.values.map(jsonEncode).toSet();
+    final identical = unique.length <= 1;
+
+    final diffByField = identical
+        ? const <String, List<dynamic>>{}
+        : _buildDiffByField(docsInGroup);
+
+    duplicates.add(
+      DuplicateIssue(
+        matchNumber: matchNumber,
+        entryType: ScoutAuditEntryType.strat,
+        pos: null,
+        alliance: alliance,
+        teamNumber: null,
+        entries: docsInGroup,
+        identical: identical,
+        diffByField: diffByField,
+      ),
+    );
+  }
+
   duplicates.sort((a, b) {
     final byMatch = a.matchNumber.compareTo(b.matchNumber);
     if (byMatch != 0) return byMatch;
-    return a.pos.compareTo(b.pos);
+    final byType = a.entryType.index.compareTo(b.entryType.index);
+    if (byType != 0) return byType;
+    if (a.entryType == ScoutAuditEntryType.match) {
+      return (a.pos ?? -1).compareTo(b.pos ?? -1);
+    }
+    return (a.alliance ?? '').compareTo(b.alliance ?? '');
   });
 
   final allMetrics = <AllianceMetric>[];
@@ -664,6 +802,42 @@ int? _toInt(dynamic value) {
   if (value is int) return value;
   if (value is num) return value.toInt();
   return int.tryParse(value.toString());
+}
+
+ScoutAuditEntryType _entryTypeFromDoc(ScoutingDocument doc) {
+  if (doc.meta?['type']?.toString() == 'strat') {
+    return ScoutAuditEntryType.strat;
+  }
+  return ScoutAuditEntryType.match;
+}
+
+int? _auditMatchNumber(ScoutingDocument doc) {
+  final entryType = _entryTypeFromDoc(doc);
+  if (entryType == ScoutAuditEntryType.strat) {
+    return _matchNumberFromMeta(doc);
+  }
+  return TeamScoutingBundle.matchNumber(doc);
+}
+
+int? _matchNumberFromMeta(ScoutingDocument doc) {
+  final value = doc.meta?['matchNumber'];
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  return int.tryParse(value?.toString() ?? '');
+}
+
+String? _allianceFromDoc(ScoutingDocument doc) {
+  final raw = doc.meta?['alliance']?.toString().trim().toLowerCase();
+  if (raw == 'red' || raw == 'blue') return raw;
+  return null;
+}
+
+String _allianceLabel(String? alliance) {
+  return switch (alliance) {
+    'red' => 'Red Alliance',
+    'blue' => 'Blue Alliance',
+    _ => 'Unknown Alliance',
+  };
 }
 
 int? _posOf(ScoutingDocument doc) {

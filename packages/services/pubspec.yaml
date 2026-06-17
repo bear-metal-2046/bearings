@@ -1,6 +1,6 @@
 name: services
 description: Shared Flutter services and providers for Bear Metal apps
-version: 26.3.3+17
+version: 26.5.0+20
 resolution: workspace
 publish_to: none
 

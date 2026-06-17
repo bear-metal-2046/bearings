@@ -2,8 +2,14 @@ class Team {
   final String key;
   final int number;
   final String name;
+  final String? website;
 
-  Team({required this.key, required this.number, required this.name});
+  Team({
+    required this.key,
+    required this.number,
+    required this.name,
+    required this.website,
+  });
 
   factory Team.fromJson(Map<String, dynamic> json) {
     // extract number (try multiple field names and types)
@@ -29,6 +35,14 @@ class Team {
                 'Unknown Team')
             .toString();
 
-    return Team(key: key, number: number, name: name);
+    final website = _cleanString(json['website']);
+
+    return Team(key: key, number: number, name: name, website: website);
+  }
+
+  static String? _cleanString(Object? value) {
+    final text = value?.toString().trim();
+    if (text == null || text.isEmpty) return null;
+    return Uri.parse(text).host.contains('firstinspires.org') ? null : text;
   }
 }

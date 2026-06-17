@@ -1,6 +1,6 @@
 name: ui
 description: Shared presentational Flutter widgets for Bear Metal apps
-version: 26.3.3+17
+version: 26.5.0+20
 resolution: workspace
 publish_to: none
 
@@ -12,10 +12,11 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_staggered_grid_view: ^0.7.0
-  pressable_flutter: any
-  syncfusion_flutter_sliders: any
-  auto_size_text: any
-  core: any
+  pressable_flutter: ^1.0.4
+  syncfusion_flutter_sliders: ^32.1.21
+  auto_size_text: ^3.0.0
+  core:
+    path: ../core
 
 dev_dependencies:
   flutter_test:

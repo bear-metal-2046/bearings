@@ -7,7 +7,17 @@ import 'package:beariscope/providers/scouting_data_provider.dart';
 import 'package:beariscope/providers/tba_match_scores_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-final processedScoutingProvider = FutureProvider<List<ProcessedScoutingDoc>>((
+class ProcessedScoutingBundle {
+  final List<ScoutingDocument> rawDocs;
+  final List<ProcessedScoutingDoc> processedDocs;
+
+  const ProcessedScoutingBundle({
+    required this.rawDocs,
+    required this.processedDocs,
+  });
+}
+
+final processedScoutingProvider = FutureProvider<ProcessedScoutingBundle>((
   ref,
 ) async {
   final allDocs = await ref.watch(scoutingDataProvider.future);
@@ -56,9 +66,12 @@ final processedScoutingProvider = FutureProvider<List<ProcessedScoutingDoc>>((
     );
   }
 
-  return allDocs
-      .map((doc) => processedById[doc.id] ?? _buildProcessedDoc(doc))
-      .toList();
+  return ProcessedScoutingBundle(
+    rawDocs: allDocs,
+    processedDocs: allDocs
+        .map((doc) => processedById[doc.id] ?? _buildProcessedDoc(doc))
+        .toList(),
+  );
 });
 
 ProcessedScoutingDoc _buildProcessedDoc(ScoutingDocument doc) {

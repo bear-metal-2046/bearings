@@ -20,7 +20,7 @@ class SettingsGroup extends StatelessWidget {
                 child: Text(
                   title!,
                   style: const TextStyle(
-                    fontSize: 12,
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
                   ),
                 ),

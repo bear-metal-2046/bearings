@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:beariscope/components/beariscope_card.dart';
+import 'package:beariscope/widgets/beariscope_card.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -30,7 +30,7 @@ class _ScoutSelectionPageState extends ConsumerState<ScoutSelectionPage> {
   final _scoutsProvider = FutureProvider<List<dynamic>>((ref) {
     return ref
         .watch(honeycombClientProvider)
-        .get<List<dynamic>>('/scouts', cachePolicy: CachePolicy.cacheFirst);
+        .get<List<dynamic>>('/scouts', cachePolicy: CachePolicy.networkFirst);
   });
 
   List<Map<String, String>> _normalizeScouts(List<dynamic> data) {
@@ -302,7 +302,6 @@ class _ScoutSelectionPageState extends ConsumerState<ScoutSelectionPage> {
           leading: Icon(Symbols.search_rounded),
           hintText: 'Search scouts',
         ),
-        actionsPadding: EdgeInsets.symmetric(horizontal: 8.0),
         actions: [
           if (canManageScouts)
             PopupMenuButton(

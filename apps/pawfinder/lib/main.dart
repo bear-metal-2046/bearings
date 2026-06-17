@@ -190,6 +190,8 @@ class _MyAppState extends ConsumerState<MyApp> {
   Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
     final usePapyrusFont = ref.watch(papyrusFontProvider);
+    final colorScheme = ref.watch(colorSchemeNotifierProvider);
+    final brightness = ref.watch(brightnessNotifierProvider);
 
     return MaterialApp.router(
       title: 'Pawfinder',
@@ -200,8 +202,8 @@ class _MyAppState extends ConsumerState<MyApp> {
             : GoogleFonts.googleSansFlex().fontFamily,
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color.fromARGB(255, 0, 221, 255),
-          brightness: ref.watch(brightnessNotifierProvider),
+          seedColor: colorScheme.seedColor,
+          brightness: brightness,
         ),
       ),
     );

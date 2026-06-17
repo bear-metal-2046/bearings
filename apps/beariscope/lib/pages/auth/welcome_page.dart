@@ -86,7 +86,7 @@ class WelcomePage extends ConsumerWidget {
                 TextButton(
                   onPressed: () async {
                     final uri = Uri.parse(
-                      'https://bear-metal-apps.github.io/beariscope/privacy-policy',
+                      'https://bear-metal-2046.github.io/bearings/privacy-policy',
                     );
                     if (await canLaunchUrl(uri)) {
                       await launchUrl(

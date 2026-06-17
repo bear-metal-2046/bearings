@@ -29,7 +29,7 @@ final _teamScheduleProvider = FutureProvider.family<List<int>, int>((
     final data = await client.get<List<dynamic>>(
       '/matches',
       queryParams: {'team': 'frc$teamNumber', 'event': eventKey},
-      cachePolicy: CachePolicy.cacheFirst,
+      cachePolicy: CachePolicy.networkFirst,
     );
 
     final matchNumbers = <int>[];
@@ -435,8 +435,6 @@ class _MatchDetailSection extends StatelessWidget {
                 'Full-Hopper Periods',
                 _f(kSectionTele, kTelePeriodStartedWithFullHopper),
               ),
-              _row(context, 'Over Bump', _f(kSectionTele, kTeleOverBump)),
-              _row(context, 'Under Trench', _f(kSectionTele, kTeleUnderTrench)),
               _row(context, 'Fouls', _f(kSectionTele, kEndFouls)),
             ],
           ),

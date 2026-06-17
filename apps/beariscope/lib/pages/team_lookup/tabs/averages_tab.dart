@@ -60,6 +60,7 @@ class _AveragesBodyState extends State<_AveragesBody> {
         pitsDoc: widget.bundle.pitsDoc,
         stratDocs: widget.bundle.stratDocs,
         driveTeamDocs: widget.bundle.driveTeamDocs,
+        observationDocs: widget.bundle.observationDocs,
         weight: 2,
       );
     } else {
@@ -75,6 +76,7 @@ class _AveragesBodyState extends State<_AveragesBody> {
         pitsDoc: widget.bundle.pitsDoc,
         stratDocs: widget.bundle.stratDocs,
         driveTeamDocs: widget.bundle.driveTeamDocs,
+        observationDocs: widget.bundle.observationDocs,
       );
     }
   }
@@ -130,8 +132,16 @@ class _AveragesBodyState extends State<_AveragesBody> {
       kEndDefendedAgainst,
       (v) => v == true,
     );
-    final avgOverBump = bundle.avgMatchField(kSectionTele, kTeleOverBump);
-    final avgUnderTrench = bundle.avgMatchField(kSectionTele, kTeleUnderTrench);
+    final beachedHighCenterRate = bundle.rateMatchField(
+      kSectionTele,
+      kTeleBeachedHighCenter,
+      (v) => v is num && v.toInt() > 0,
+    );
+    final noShowRate = bundle.rateMatchField(
+      kSectionEndgame,
+      kEndNoShow,
+      (v) => v == true,
+    );
     final avgFullHopper = bundle.avgMatchField(
       kSectionTele,
       kTelePeriodStartedWithFullHopper,
@@ -287,18 +297,18 @@ class _AveragesBodyState extends State<_AveragesBody> {
                   value: _fmtPct(stoppedWorkingRate * 100),
                 ),
                 ScoutingDataRow(
+                  label: 'No Show Rate',
+                  value: _fmtPct(noShowRate * 100),
+                ),
+                ScoutingDataRow(
+                  label: 'Beached / High Center Rate',
+                  value: _fmtPct(beachedHighCenterRate * 100),
+                ),
+                ScoutingDataRow(
                   label: 'Most Common Play Style',
                   value: mostCommonPlayStyle,
                 ),
                 const ScoutingDataDivider(),
-                ScoutingDataRow(
-                  label: 'Avg Over-Bump (Tele)',
-                  value: _fmtDec(avgOverBump),
-                ),
-                ScoutingDataRow(
-                  label: 'Avg Under-Trench (Tele)',
-                  value: _fmtDec(avgUnderTrench),
-                ),
                 ScoutingDataRow(
                   label: 'Full-Hopper Periods Avg',
                   value: _fmtDec(avgFullHopper),

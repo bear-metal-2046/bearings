@@ -33,7 +33,7 @@ final class ScoutingDataProvider
   ScoutingData create() => ScoutingData();
 }
 
-String _$scoutingDataHash() => r'dfd6e61d52dcd55122b828951d575942ee6fdfea';
+String _$scoutingDataHash() => r'577499dff7e7c0e7cd4bc210139600934345ff06';
 
 abstract class _$ScoutingData extends $AsyncNotifier<List<ScoutingDocument>> {
   FutureOr<List<ScoutingDocument>> build();

@@ -439,7 +439,6 @@ class ExportService {
       'Alliance',
       'Scouter',
       ..._stratRankingHeaders,
-      'Defense Activity',
       'Human Player Score',
     ];
     for (var col = 0; col < headers.length; col++) {
@@ -500,8 +499,7 @@ class ExportService {
           );
         }
 
-        writeCell(8, _toCellValue(doc.data['defenseActivityLevel']));
-        writeCell(9, _toCellValue(_humanPlayerScore(doc.data)));
+        writeCell(8, _toCellValue(_humanPlayerScore(doc.data)));
         row++;
       }
     }
@@ -644,17 +642,24 @@ class ExportService {
       final missing = issue.missingSlots.map((slot) => slot.label).join(', ');
       rows.add((
         matchNumber: issue.matchNumber,
-        type: 'Incomplete',
+        type: issue.entryType == ScoutAuditEntryType.strat
+            ? 'Incomplete (Strat)'
+            : 'Incomplete',
         teams: '$missing missing',
-        details: '${issue.scoutedCount}/6 scouted',
+        details:
+            '${issue.scoutedCount}/${issue.expectedCount} ${issue.entryType == ScoutAuditEntryType.strat ? 'alliances' : 'scouted'}',
       ));
     }
 
     for (final issue in snapshot.notInTba) {
       rows.add((
         matchNumber: issue.matchNumber,
-        type: 'Not in TBA',
-        teams: issue.teamNumber == null
+        type: issue.entryType == ScoutAuditEntryType.strat
+            ? 'Not in TBA (Strat)'
+            : 'Not in TBA',
+        teams: issue.entryType == ScoutAuditEntryType.strat
+            ? 'Strat · ${_allianceLabel(issue.alliance)}'
+            : issue.teamNumber == null
             ? issue.positionLabel
             : '${issue.teamNumber} · ${issue.positionLabel}',
         details: '—',
@@ -664,8 +669,12 @@ class ExportService {
     for (final issue in snapshot.duplicates) {
       rows.add((
         matchNumber: issue.matchNumber,
-        type: 'Duplicate',
-        teams: issue.teamNumber == null
+        type: issue.entryType == ScoutAuditEntryType.strat
+            ? 'Duplicate (Strat)'
+            : 'Duplicate',
+        teams: issue.entryType == ScoutAuditEntryType.strat
+            ? 'Strat · ${_allianceLabel(issue.alliance)}'
+            : issue.teamNumber == null
             ? _posLabel(issue.pos)
             : '${issue.teamNumber} · ${_posLabel(issue.pos)}',
         details: '${issue.entries.length} entries',
@@ -994,7 +1003,7 @@ class ExportService {
     return ExcelColor.fromHexString('#FECACA'); // Red
   }
 
-  static String _posLabel(int pos) {
+  static String _posLabel(int? pos) {
     return switch (pos) {
       0 => 'Red 1',
       1 => 'Red 2',
@@ -1003,6 +1012,14 @@ class ExportService {
       4 => 'Blue 2',
       5 => 'Blue 3',
       _ => 'Unknown Position',
+    };
+  }
+
+  static String _allianceLabel(String? alliance) {
+    return switch (alliance) {
+      'red' => 'Red Alliance',
+      'blue' => 'Blue Alliance',
+      _ => 'Unknown Alliance',
     };
   }
 }

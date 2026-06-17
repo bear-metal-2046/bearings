@@ -35,7 +35,6 @@ class _ScoutAuditPageState extends ConsumerState<ScoutAuditPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Scout Audit'),
-        actionsPadding: const EdgeInsetsDirectional.only(end: 8),
         leading: controller.isDesktop
             ? null
             : IconButton(
@@ -119,12 +118,17 @@ class _ScoutAuditPageState extends ConsumerState<ScoutAuditPage> {
             for (final issue in snapshot.incompleteMatches)
               _AuditIssueItem(
                 type: ScoutAuditIssueType.incomplete,
-                title: 'Match ${issue.matchNumber}',
-                subtitle: '${issue.scoutedCount}/6 teams scouted',
-                onTap: () => Navigator.of(context).push(
+                title: issue.entryType == ScoutAuditEntryType.strat
+                    ? 'Match ${issue.matchNumber} (Strat)'
+                    : 'Match ${issue.matchNumber}',
+                subtitle: issue.entryType == ScoutAuditEntryType.strat
+                    ? '${issue.scoutedCount}/${issue.expectedCount} alliances scouted'
+                    : '${issue.scoutedCount}/${issue.expectedCount} teams scouted',
+                onTap: () => Navigator.of(context, rootNavigator: true).push(
                   MaterialPageRoute<void>(
                     builder: (_) => _IncompleteMatchDetailPage(
                       matchNumber: issue.matchNumber,
+                      entryType: issue.entryType,
                     ),
                   ),
                 ),
@@ -132,29 +136,42 @@ class _ScoutAuditPageState extends ConsumerState<ScoutAuditPage> {
             for (final issue in snapshot.notInTba)
               _AuditIssueItem(
                 type: ScoutAuditIssueType.notInTba,
-                title: 'Match ${issue.matchNumber}',
-                subtitle: issue.teamNumber == null
+                title: issue.entryType == ScoutAuditEntryType.strat
+                    ? 'Match ${issue.matchNumber} (Strat)'
+                    : 'Match ${issue.matchNumber}',
+                subtitle: issue.entryType == ScoutAuditEntryType.strat
+                    ? 'Strat · ${issue.positionLabel}'
+                    : issue.teamNumber == null
                     ? issue.positionLabel
                     : '${issue.teamNumber} · ${issue.positionLabel}',
-                onTap: () => Navigator.of(context).push(
+                onTap: () => Navigator.of(context, rootNavigator: true).push(
                   MaterialPageRoute<void>(
-                    builder: (_) => _NotInTbaDetailPage(docId: issue.docId),
+                    builder: (_) => _NotInTbaDetailPage(
+                      docId: issue.docId,
+                      entryType: issue.entryType,
+                    ),
                   ),
                 ),
               ),
             for (final issue in snapshot.duplicates)
               _AuditIssueItem(
                 type: ScoutAuditIssueType.duplicate,
-                title: 'Match ${issue.matchNumber}',
-                subtitle: issue.teamNumber == null
+                title: issue.entryType == ScoutAuditEntryType.strat
+                    ? 'Match ${issue.matchNumber} (Strat)'
+                    : 'Match ${issue.matchNumber}',
+                subtitle: issue.entryType == ScoutAuditEntryType.strat
+                    ? 'Strat · ${_allianceLabel(issue.alliance)}'
+                    : issue.teamNumber == null
                     ? _posLabel(issue.pos)
                     : 'Team ${issue.teamNumber} · ${_posLabel(issue.pos)}',
                 trailing: '${issue.entries.length} entries',
-                onTap: () => Navigator.of(context).push(
+                onTap: () => Navigator.of(context, rootNavigator: true).push(
                   MaterialPageRoute<void>(
                     builder: (_) => _DuplicateDetailPage(
                       matchNumber: issue.matchNumber,
+                      entryType: issue.entryType,
                       pos: issue.pos,
+                      alliance: issue.alliance,
                     ),
                   ),
                 ),
@@ -166,7 +183,7 @@ class _ScoutAuditPageState extends ConsumerState<ScoutAuditPage> {
                 subtitle:
                     '${(issue.deviation * 100).toStringAsFixed(0)}% off TBA · ${issue.teams.join(', ')}',
                 trailing: issue.alliance == 'red' ? 'Red' : 'Blue',
-                onTap: () => Navigator.of(context).push(
+                onTap: () => Navigator.of(context, rootNavigator: true).push(
                   MaterialPageRoute<void>(
                     builder: (_) => _IncorrectDataDetailPage(
                       matchNumber: issue.matchNumber,
@@ -246,7 +263,7 @@ class _ScoutAuditPageState extends ConsumerState<ScoutAuditPage> {
       builder: (_) => const _ManualScoutDialog(),
     );
 
-    if (selection == null || !mounted) return;
+    if (selection == null || !context.mounted || !mounted) return;
 
     final saved = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
@@ -418,11 +435,13 @@ class _ScoutAuditPageState extends ConsumerState<ScoutAuditPage> {
                     ),
                   ),
                 ),
-              const SizedBox(width: 8),
-              Icon(
-                Symbols.chevron_right_rounded,
-                color: colorScheme.onSurfaceVariant,
-              ),
+              if (issue.onTap != null) ...[
+                const SizedBox(width: 8),
+                Icon(
+                  Symbols.chevron_right_rounded,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ],
             ],
           ),
         ),
@@ -486,9 +505,13 @@ class _ScoutAuditPageState extends ConsumerState<ScoutAuditPage> {
 }
 
 class _IncompleteMatchDetailPage extends ConsumerStatefulWidget {
-  const _IncompleteMatchDetailPage({required this.matchNumber});
+  const _IncompleteMatchDetailPage({
+    required this.matchNumber,
+    required this.entryType,
+  });
 
   final int matchNumber;
+  final ScoutAuditEntryType entryType;
 
   @override
   ConsumerState<_IncompleteMatchDetailPage> createState() =>
@@ -507,11 +530,15 @@ class _IncompleteMatchDetailPageState
         ref.watch(scoutingDataProvider).value ?? const <ScoutingDocument>[];
     final tbaMatchesAsync = ref.watch(cachedTbaMatchesProvider);
     final colorScheme = Theme.of(context).colorScheme;
+    final isStrat = widget.entryType == ScoutAuditEntryType.strat;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Match ${widget.matchNumber}'),
-        actionsPadding: const EdgeInsetsDirectional.only(end: 8),
+        title: Text(
+          isStrat
+              ? 'Match ${widget.matchNumber} (Strat)'
+              : 'Match ${widget.matchNumber}',
+        ),
         actions: [
           IconButton(
             onPressed: () => _openMatchVideo(
@@ -525,7 +552,7 @@ class _IncompleteMatchDetailPageState
           IconButton(
             onPressed: _working
                 ? null
-                : () => _confirmDeleteAllMatchEntries(context, eventKey, docs),
+                : () => _confirmDeleteAllEntries(context, eventKey, docs),
             icon: const Icon(Symbols.delete_rounded),
             tooltip: 'Delete all entries',
           ),
@@ -541,7 +568,11 @@ class _IncompleteMatchDetailPageState
         ),
         data: (snapshot) {
           final issue = snapshot.incompleteMatches
-              .where((i) => i.matchNumber == widget.matchNumber)
+              .where(
+                (i) =>
+                    i.entryType == widget.entryType &&
+                    i.matchNumber == widget.matchNumber,
+              )
               .firstOrNull;
 
           if (issue == null || issue.missingSlots.isEmpty) {
@@ -577,7 +608,7 @@ class _IncompleteMatchDetailPageState
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Text(
-                                  '${issue.missingSlots.length} missing ${issue.missingSlots.length == 1 ? 'position' : 'positions'}',
+                                  '${issue.missingSlots.length} missing ${issue.entryType == ScoutAuditEntryType.strat ? (issue.missingSlots.length == 1 ? 'alliance' : 'alliances') : (issue.missingSlots.length == 1 ? 'position' : 'positions')}',
                                   style: Theme.of(context).textTheme.titleSmall
                                       ?.copyWith(
                                         color: colorScheme.onSecondaryContainer,
@@ -588,6 +619,24 @@ class _IncompleteMatchDetailPageState
                           ),
                         ),
                       ),
+                      if (isStrat) ...[
+                        const SizedBox(height: 12),
+                        Card(
+                          color: colorScheme.surfaceContainer,
+                          elevation: 0,
+                          margin: EdgeInsets.zero,
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Text(
+                              'Strat scouting cannot be opened from Scout Audit. Scout the missing match on the original tablet or use the delete all entries button to resolve this issue.',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                            ),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 16),
                       for (final slot in issue.missingSlots) ...[
                         Card(
@@ -596,13 +645,15 @@ class _IncompleteMatchDetailPageState
                           margin: EdgeInsets.zero,
                           clipBehavior: Clip.antiAlias,
                           child: InkWell(
-                            onTap: () => _openMatchForm(
-                              context,
-                              eventKey: eventKey,
-                              matchNumber: issue.matchNumber,
-                              slot: slot,
-                              docs: docs,
-                            ),
+                            onTap: isStrat
+                                ? null
+                                : () => _openMatchForm(
+                                    context,
+                                    eventKey: eventKey,
+                                    matchNumber: issue.matchNumber,
+                                    slot: slot,
+                                    docs: docs,
+                                  ),
                             child: Padding(
                               padding: const EdgeInsets.all(16),
                               child: Row(
@@ -613,7 +664,9 @@ class _IncompleteMatchDetailPageState
                                           CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          'Team ${slot.teamNumber}',
+                                          isStrat
+                                              ? _allianceLabel(slot.alliance)
+                                              : 'Team ${slot.teamNumber}',
                                           style: Theme.of(context)
                                               .textTheme
                                               .titleSmall
@@ -635,10 +688,11 @@ class _IncompleteMatchDetailPageState
                                       ],
                                     ),
                                   ),
-                                  Icon(
-                                    Symbols.chevron_right_rounded,
-                                    color: colorScheme.onSurfaceVariant,
-                                  ),
+                                  if (!isStrat)
+                                    Icon(
+                                      Symbols.chevron_right_rounded,
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
                                 ],
                               ),
                             ),
@@ -695,16 +749,18 @@ class _IncompleteMatchDetailPageState
     );
   }
 
-  Future<void> _confirmDeleteAllMatchEntries(
+  Future<void> _confirmDeleteAllEntries(
     BuildContext context,
     String eventKey,
     List<ScoutingDocument> docs,
   ) async {
+    final noun = widget.entryType == ScoutAuditEntryType.strat
+        ? 'strat entries'
+        : 'scouted entries';
     final confirmed = await _confirm(
       context,
       title: 'Delete all entries?',
-      message:
-          'This will remove all scouted entries for match ${widget.matchNumber}.',
+      message: 'This will remove all $noun for match ${widget.matchNumber}.',
       confirmLabel: 'Delete',
     );
     if (!confirmed || !context.mounted) return;
@@ -712,9 +768,20 @@ class _IncompleteMatchDetailPageState
     setState(() => _working = true);
     try {
       final client = ref.read(honeycombClientProvider);
-      final matchDocs = matchDocsForMatch(docs, eventKey, widget.matchNumber);
-      for (final doc in matchDocs) {
-        await client.delete('/scouting/${doc.id}?type=match');
+      if (widget.entryType == ScoutAuditEntryType.strat) {
+        final stratDocs = _stratDocsForMatch(
+          docs,
+          eventKey,
+          widget.matchNumber,
+        );
+        for (final doc in stratDocs) {
+          await client.delete('/scouting/${doc.id}?type=strat');
+        }
+      } else {
+        final matchDocs = matchDocsForMatch(docs, eventKey, widget.matchNumber);
+        for (final doc in matchDocs) {
+          await client.delete('/scouting/${doc.id}?type=match');
+        }
       }
       await ref.read(scoutingDataProvider.notifier).refresh();
       ref.invalidate(scoutAuditSnapshotProvider);
@@ -732,9 +799,10 @@ class _IncompleteMatchDetailPageState
 }
 
 class _NotInTbaDetailPage extends ConsumerStatefulWidget {
-  const _NotInTbaDetailPage({required this.docId});
+  const _NotInTbaDetailPage({required this.docId, required this.entryType});
 
   final String docId;
+  final ScoutAuditEntryType entryType;
 
   @override
   ConsumerState<_NotInTbaDetailPage> createState() =>
@@ -760,9 +828,12 @@ class _NotInTbaDetailPageState extends ConsumerState<_NotInTbaDetailPage> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final match = doc.data['matchNumber'];
-    final team = doc.data['teamNumber'];
-    final pos = _posLabel(_posOf(doc));
+    final match =
+        TeamScoutingBundle.matchNumber(doc) ?? _matchNumberFromMeta(doc.meta);
+    final team = TeamScoutingBundle.teamNumber(doc);
+    final pos = widget.entryType == ScoutAuditEntryType.strat
+        ? _allianceLabel(doc.meta?['alliance']?.toString())
+        : _posLabel(_posOf(doc));
 
     return Scaffold(
       appBar: AppBar(title: const Text('Not in TBA')),
@@ -812,7 +883,11 @@ class _NotInTbaDetailPageState extends ConsumerState<_NotInTbaDetailPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('Match: ${match ?? 'Unknown'}'),
-                          Text('Team: ${team ?? 'Unknown'}'),
+                          Text(
+                            widget.entryType == ScoutAuditEntryType.strat
+                                ? 'Type: Strat'
+                                : 'Team: ${team ?? 'Unknown'}',
+                          ),
                           Text('Position: $pos'),
                         ],
                       ),
@@ -852,7 +927,9 @@ class _NotInTbaDetailPageState extends ConsumerState<_NotInTbaDetailPage> {
     try {
       await ref
           .read(honeycombClientProvider)
-          .delete('/scouting/$docId?type=match');
+          .delete(
+            '/scouting/$docId?type=${widget.entryType == ScoutAuditEntryType.strat ? 'strat' : 'match'}',
+          );
       await ref.read(scoutingDataProvider.notifier).refresh();
       ref.invalidate(scoutAuditSnapshotProvider);
       if (context.mounted && Navigator.of(context).canPop()) {
@@ -869,10 +946,17 @@ class _NotInTbaDetailPageState extends ConsumerState<_NotInTbaDetailPage> {
 }
 
 class _DuplicateDetailPage extends ConsumerStatefulWidget {
-  const _DuplicateDetailPage({required this.matchNumber, required this.pos});
+  const _DuplicateDetailPage({
+    required this.matchNumber,
+    required this.entryType,
+    this.pos,
+    this.alliance,
+  });
 
   final int matchNumber;
-  final int pos;
+  final ScoutAuditEntryType entryType;
+  final int? pos;
+  final String? alliance;
 
   @override
   ConsumerState<_DuplicateDetailPage> createState() =>
@@ -898,12 +982,14 @@ class _DuplicateDetailPageState extends ConsumerState<_DuplicateDetailPage> {
           ),
         ),
         data: (snapshot) {
-          final issue = snapshot.duplicates
-              .where(
-                (d) =>
-                    d.matchNumber == widget.matchNumber && d.pos == widget.pos,
-              )
-              .firstOrNull;
+          final issue = snapshot.duplicates.where((d) {
+            if (d.entryType != widget.entryType) return false;
+            if (d.matchNumber != widget.matchNumber) return false;
+            if (widget.entryType == ScoutAuditEntryType.strat) {
+              return d.alliance == widget.alliance;
+            }
+            return d.pos == widget.pos;
+          }).firstOrNull;
 
           if (issue == null) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -943,7 +1029,7 @@ class _DuplicateDetailPageState extends ConsumerState<_DuplicateDetailPage> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'Match ${issue.matchNumber} · ${_posLabel(issue.pos)}',
+                                        'Match ${issue.matchNumber} · ${_duplicateIdentityLabel(issue)}',
                                         style: Theme.of(context)
                                             .textTheme
                                             .titleSmall
@@ -1035,9 +1121,12 @@ class _DuplicateDetailPageState extends ConsumerState<_DuplicateDetailPage> {
     setState(() => _working = true);
     try {
       final client = ref.read(honeycombClientProvider);
+      final deleteType = widget.entryType == ScoutAuditEntryType.strat
+          ? 'strat'
+          : 'match';
       for (final doc in all) {
         if (doc.id == selected.id) continue;
-        await client.delete('/scouting/${doc.id}?type=match');
+        await client.delete('/scouting/${doc.id}?type=$deleteType');
       }
       await ref.read(scoutingDataProvider.notifier).refresh();
       ref.invalidate(scoutAuditSnapshotProvider);
@@ -1086,7 +1175,6 @@ class _IncorrectDataDetailPageState
     return Scaffold(
       appBar: AppBar(
         title: Text('Match ${widget.matchNumber}'),
-        actionsPadding: const EdgeInsetsDirectional.only(end: 8),
         actions: [
           IconButton(
             onPressed: () => _launchMatchVideo(
@@ -1565,14 +1653,14 @@ class _AuditIssueItem {
   final String title;
   final String subtitle;
   final String? trailing;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   const _AuditIssueItem({
     required this.type,
     required this.title,
     required this.subtitle,
     this.trailing,
-    required this.onTap,
+    this.onTap,
   });
 }
 
@@ -1655,6 +1743,21 @@ ScoutingDocument? _latestDocFor(
   return candidates.firstOrNull;
 }
 
+List<ScoutingDocument> _stratDocsForMatch(
+  List<ScoutingDocument> docs,
+  String eventKey,
+  int matchNumber,
+) {
+  return docs
+      .where((doc) {
+        final meta = doc.meta;
+        if (meta?['type']?.toString() != 'strat') return false;
+        if (meta?['event']?.toString() != eventKey) return false;
+        return _matchNumberFromMeta(meta) == matchNumber;
+      })
+      .toList(growable: false);
+}
+
 int? _posOf(ScoutingDocument doc) {
   final raw = doc.data['pos'];
   if (raw is int) return raw;
@@ -1665,6 +1768,28 @@ int? _posOf(ScoutingDocument doc) {
 String _posLabel(int? pos) {
   final parsed = ScoutPosition.fromPosIndex(pos);
   return parsed?.displayName ?? 'Unknown Position';
+}
+
+String _allianceLabel(String? alliance) {
+  return switch (alliance?.toLowerCase()) {
+    'red' => 'Red Alliance',
+    'blue' => 'Blue Alliance',
+    _ => 'Unknown Alliance',
+  };
+}
+
+int? _matchNumberFromMeta(Map<String, dynamic>? meta) {
+  final raw = meta?['matchNumber'];
+  if (raw is int) return raw;
+  if (raw is num) return raw.toInt();
+  return int.tryParse(raw?.toString() ?? '');
+}
+
+String _duplicateIdentityLabel(DuplicateIssue issue) {
+  if (issue.entryType == ScoutAuditEntryType.strat) {
+    return _allianceLabel(issue.alliance);
+  }
+  return _posLabel(issue.pos);
 }
 
 class _MergeConflictView extends StatefulWidget {
@@ -1801,7 +1926,7 @@ class _MergeConflictViewState extends State<_MergeConflictView> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Match ${widget.issue.matchNumber} · ${_posLabel(widget.issue.pos)}',
+                          'Match ${widget.issue.matchNumber} · ${_duplicateIdentityLabel(widget.issue)}',
                           style: textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),

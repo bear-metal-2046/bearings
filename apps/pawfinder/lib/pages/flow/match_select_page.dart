@@ -66,222 +66,241 @@ class _MatchSelectPageState extends ConsumerState<MatchSelectPage> {
         actionsPadding: EdgeInsets.only(right: 16),
         actions: const [UploadStatusIndicator()],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(32.0),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 600),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                      session.event?.name ?? '',
-                      style: Theme.of(context).textTheme.headlineMedium,
-                      textAlign: TextAlign.center,
-                    )
-                    .animate()
-                    .fadeIn(duration: 500.ms)
-                    .slideY(
-                      begin: -0.3,
-                      end: 0,
-                      duration: 500.ms,
-                      curve: Curves.easeOut,
-                    ),
-                const SizedBox(height: 8),
-                Text(
-                      'Position: ${position.displayName}',
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    )
-                    .animate()
-                    .fadeIn(delay: 100.ms, duration: 500.ms)
-                    .slideY(
-                      begin: -0.2,
-                      end: 0,
-                      delay: 100.ms,
-                      duration: 500.ms,
-                      curve: Curves.easeOut,
-                    ),
-                Text(
-                      'Scout: ${session.scout?.name ?? "—"}',
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    )
-                    .animate()
-                    .fadeIn(delay: 150.ms, duration: 500.ms)
-                    .slideY(
-                      begin: -0.2,
-                      end: 0,
-                      delay: 150.ms,
-                      duration: 500.ms,
-                      curve: Curves.easeOut,
-                    ),
-
-                const SizedBox(height: 16),
-                teamAsync.when(
-                  data: (team) =>
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(32.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
                       Text(
-                            team != null ? 'Team: $team' : 'Team: —',
-                            style: Theme.of(context).textTheme.headlineSmall
-                                ?.copyWith(
-                                  color: team != null
-                                      ? Theme.of(context).colorScheme.primary
-                                      : null,
-                                ),
+                            session.event?.name ?? '',
+                            style: Theme.of(context).textTheme.headlineMedium,
+                            textAlign: TextAlign.center,
                           )
                           .animate()
-                          .fadeIn(delay: 200.ms, duration: 500.ms)
+                          .fadeIn(duration: 500.ms)
                           .slideY(
-                            begin: -0.2,
+                            begin: -0.3,
                             end: 0,
-                            delay: 200.ms,
                             duration: 500.ms,
                             curve: Curves.easeOut,
                           ),
-                  loading: () => const SizedBox(
-                    height: 24,
-                    width: 24,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                  error: (_, _) => Text(
-                    'Team: —',
-                    style: Theme.of(context).textTheme.headlineSmall,
+                      const SizedBox(height: 8),
+                      Text(
+                            'Position: ${position.displayName}',
+                            style: Theme.of(context).textTheme.headlineSmall,
+                          )
+                          .animate()
+                          .fadeIn(delay: 100.ms, duration: 500.ms)
+                          .slideY(
+                            begin: -0.2,
+                            end: 0,
+                            delay: 100.ms,
+                            duration: 500.ms,
+                            curve: Curves.easeOut,
+                          ),
+                      Text(
+                            'Scout: ${session.scout?.name ?? "—"}',
+                            style: Theme.of(context).textTheme.headlineSmall,
+                          )
+                          .animate()
+                          .fadeIn(delay: 150.ms, duration: 500.ms)
+                          .slideY(
+                            begin: -0.2,
+                            end: 0,
+                            delay: 150.ms,
+                            duration: 500.ms,
+                            curve: Curves.easeOut,
+                          ),
+
+                      const SizedBox(height: 16),
+                      teamAsync.when(
+                        data: (team) =>
+                            Text(
+                                  team != null ? 'Team: $team' : 'Team: —',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .headlineSmall
+                                      ?.copyWith(
+                                        color: team != null
+                                            ? Theme.of(
+                                                context,
+                                              ).colorScheme.primary
+                                            : null,
+                                      ),
+                                )
+                                .animate()
+                                .fadeIn(delay: 200.ms, duration: 500.ms)
+                                .slideY(
+                                  begin: -0.2,
+                                  end: 0,
+                                  delay: 200.ms,
+                                  duration: 500.ms,
+                                  curve: Curves.easeOut,
+                                ),
+                        loading: () => const SizedBox(
+                          height: 24,
+                          width: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        error: (_, _) => Text(
+                          'Team: —',
+                          style: Theme.of(context).textTheme.headlineSmall,
+                        ),
+                      ),
+
+                      const SizedBox(height: 32),
+
+                      Text(
+                            'Match Number',
+                            style: Theme.of(context).textTheme.titleLarge,
+                          )
+                          .animate()
+                          .fadeIn(delay: 400.ms, duration: 500.ms)
+                          .slideY(
+                            begin: 0.2,
+                            end: 0,
+                            delay: 400.ms,
+                            duration: 500.ms,
+                          ),
+                      const SizedBox(height: 16),
+                      ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 300),
+                            child: TextField(
+                              controller: _matchNumberController,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                              ],
+                              textAlign: TextAlign.center,
+                              decoration: InputDecoration(
+                                border: const OutlineInputBorder(),
+                                hintText: 'Match number',
+                                prefixIcon: IconButton(
+                                  icon: const Icon(Icons.remove),
+                                  onPressed: () {
+                                    final current =
+                                        int.tryParse(
+                                          _matchNumberController.text,
+                                        ) ??
+                                        1;
+                                    if (current > 1) {
+                                      _matchNumberController.text =
+                                          (current - 1).toString();
+                                      setState(
+                                        () => _matchNumber = current - 1,
+                                      );
+                                      ref
+                                          .read(
+                                            scoutingSessionProvider.notifier,
+                                          )
+                                          .setMatchNumber(current - 1);
+                                    }
+                                  },
+                                ),
+                                suffixIcon: IconButton(
+                                  icon: const Icon(Icons.add),
+                                  onPressed: () {
+                                    final current =
+                                        int.tryParse(
+                                          _matchNumberController.text,
+                                        ) ??
+                                        1;
+                                    _matchNumberController.text = (current + 1)
+                                        .toString();
+                                    setState(() => _matchNumber = current + 1);
+                                    ref
+                                        .read(scoutingSessionProvider.notifier)
+                                        .setMatchNumber(current + 1);
+                                  },
+                                ),
+                              ),
+                              onChanged: (value) {
+                                final parsed = int.tryParse(value);
+                                setState(() {
+                                  _matchNumber = parsed;
+                                });
+                                if (parsed != null && parsed > 0) {
+                                  ref
+                                      .read(scoutingSessionProvider.notifier)
+                                      .setMatchNumber(parsed);
+                                }
+                              },
+                            ),
+                          )
+                          .animate()
+                          .fadeIn(delay: 500.ms, duration: 500.ms)
+                          .slideY(
+                            begin: 0.2,
+                            end: 0,
+                            delay: 500.ms,
+                            duration: 500.ms,
+                          ),
+                    ],
                   ),
                 ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(32.0),
+                child:
+                    SizedBox(
+                          width: double.infinity,
+                          height: 56,
+                          child: FilledButton.icon(
+                            onPressed: _matchNumber != null && _matchNumber! > 0
+                                ? () {
+                                    ref
+                                        .read(scoutingSessionProvider.notifier)
+                                        .setMatchNumber(_matchNumber!);
 
-                const SizedBox(height: 32),
+                                    final identity = ref
+                                        .read(scoutingSessionProvider.notifier)
+                                        .createMatchIdentity();
+                                    if (identity != null) {
+                                      final team = teamAsync.when(
+                                        data: (t) => t,
+                                        loading: () => null,
+                                        error: (_, _) => null,
+                                      );
+                                      if (team != null) {
+                                        Hive.box(
+                                          boxKey,
+                                        ).put(matchTeamKey(identity), team);
+                                      }
+                                    }
 
-                Text(
-                      'Match Number',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    )
-                    .animate()
-                    .fadeIn(delay: 400.ms, duration: 500.ms)
-                    .slideY(
-                      begin: 0.2,
-                      end: 0,
-                      delay: 400.ms,
-                      duration: 500.ms,
-                    ),
-                const SizedBox(height: 16),
-                ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 300),
-                      child: TextField(
-                        controller: _matchNumberController,
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                        ],
-                        textAlign: TextAlign.center,
-                        decoration: InputDecoration(
-                          border: const OutlineInputBorder(),
-                          hintText: 'Match number',
-                          prefixIcon: IconButton(
-                            icon: const Icon(Icons.remove),
-                            onPressed: () {
-                              final current =
-                                  int.tryParse(_matchNumberController.text) ??
-                                  1;
-                              if (current > 1) {
-                                _matchNumberController.text = (current - 1)
-                                    .toString();
-                                setState(() => _matchNumber = current - 1);
-                                ref
-                                    .read(scoutingSessionProvider.notifier)
-                                    .setMatchNumber(current - 1);
-                              }
-                            },
-                          ),
-                          suffixIcon: IconButton(
-                            icon: const Icon(Icons.add),
-                            onPressed: () {
-                              final current =
-                                  int.tryParse(_matchNumberController.text) ??
-                                  1;
-                              _matchNumberController.text = (current + 1)
-                                  .toString();
-                              setState(() => _matchNumber = current + 1);
-                              ref
-                                  .read(scoutingSessionProvider.notifier)
-                                  .setMatchNumber(current + 1);
-                            },
-                          ),
-                        ),
-                        onChanged: (value) {
-                          final parsed = int.tryParse(value);
-                          setState(() {
-                            _matchNumber = parsed;
-                          });
-                          if (parsed != null && parsed > 0) {
-                            ref
-                                .read(scoutingSessionProvider.notifier)
-                                .setMatchNumber(parsed);
-                          }
-                        },
-                      ),
-                    )
-                    .animate()
-                    .fadeIn(delay: 500.ms, duration: 500.ms)
-                    .slideY(
-                      begin: 0.2,
-                      end: 0,
-                      delay: 500.ms,
-                      duration: 500.ms,
-                    ),
-
-                const Spacer(),
-
-                SizedBox(
-                      width: double.infinity,
-                      height: 56,
-                      child: FilledButton.icon(
-                        onPressed: _matchNumber != null && _matchNumber! > 0
-                            ? () {
-                                ref
-                                    .read(scoutingSessionProvider.notifier)
-                                    .setMatchNumber(_matchNumber!);
-
-                                final identity = ref
-                                    .read(scoutingSessionProvider.notifier)
-                                    .createMatchIdentity();
-                                if (identity != null) {
-                                  final team = teamAsync.when(
-                                    data: (t) => t,
-                                    loading: () => null,
-                                    error: (_, _) => null,
-                                  );
-                                  if (team != null) {
-                                    Hive.box(
-                                      boxKey,
-                                    ).put(matchTeamKey(identity), team);
+                                    if (position.isStrategy) {
+                                      context.go('/strat');
+                                    } else {
+                                      context.go('/match/auto');
+                                    }
                                   }
-                                }
-
-                                if (position.isStrategy) {
-                                  context.go('/strat');
-                                } else {
-                                  context.go('/match/auto');
-                                }
-                              }
-                            : null,
-                        icon: const Icon(Icons.play_arrow),
-                        label: const Text('Go'),
-                      ),
-                    )
-                    .animate()
-                    .fadeIn(delay: 600.ms, duration: 500.ms)
-                    .slideY(
-                      begin: 0.3,
-                      end: 0,
-                      delay: 600.ms,
-                      duration: 500.ms,
-                      curve: Curves.easeOut,
-                    )
-                    .shimmer(
-                      delay: 1200.ms,
-                      duration: 1500.ms,
-                      color: Colors.white24,
-                    ),
-              ],
-            ),
+                                : null,
+                            icon: const Icon(Icons.play_arrow),
+                            label: const Text('Go'),
+                          ),
+                        )
+                        .animate()
+                        .fadeIn(delay: 600.ms, duration: 500.ms)
+                        .slideY(
+                          begin: 0.3,
+                          end: 0,
+                          delay: 600.ms,
+                          duration: 500.ms,
+                          curve: Curves.easeOut,
+                        )
+                        .shimmer(
+                          delay: 1200.ms,
+                          duration: 1500.ms,
+                          color: Colors.white24,
+                        ),
+              ),
+            ],
           ),
         ),
       ),

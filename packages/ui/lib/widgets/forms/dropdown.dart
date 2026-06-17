@@ -1,6 +1,7 @@
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
-import 'package:pressable_flutter/pressable_flutter.dart';
+
+import 'form_style.dart';
 
 class Dropdown extends StatefulWidget {
   const Dropdown({
@@ -32,64 +33,102 @@ class _DropdownState extends State<Dropdown> {
   @override
   void initState() {
     super.initState();
-    _dropdownValue = widget.items.first;
+    _dropdownValue = _resolveInitialValue();
+  }
+
+  @override
+  void didUpdateWidget(covariant Dropdown oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.items != widget.items ||
+        oldWidget.initialIndex != widget.initialIndex) {
+      _dropdownValue = _resolveInitialValue();
+    }
+  }
+
+  String _resolveInitialValue() {
+    if (widget.items.isEmpty) return '';
+
+    if (widget.initialIndex != null &&
+        widget.initialIndex! >= 0 &&
+        widget.initialIndex! < widget.items.length) {
+      return widget.items[widget.initialIndex!];
+    }
+
+    return widget.items.first;
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    if (widget.items.isEmpty) {
+      return SizedBox(width: widget.width, height: widget.height);
+    }
+
+    final initialValue = widget.items.contains(_dropdownValue)
+        ? _dropdownValue
+        : widget.items.first;
+
     return SizedBox(
       width: widget.width,
       height: widget.height,
-      child: Pressable(
-        child: DropdownButtonFormField<String>(
-          borderRadius: BorderRadius.circular(10),
-          initialValue: widget.initialIndex != null
-              ? widget.items[widget.initialIndex!]
-              : _dropdownValue,
-          isExpanded: true,
-          dropdownColor: widget.backgroundColor,
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurface,
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-          ),
-          decoration: InputDecoration(
-            label: widget.title.isNotEmpty
-                ? Text(
-                    widget.title,
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
-                    maxLines: 1,
-                  )
-                : null,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10.0),
-              borderSide: const BorderSide(color: Colors.grey, width: 1.0),
-            ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 8,
-            ),
-          ),
-          items: widget.items
-              .map(
-                (value) =>
-                    DropdownMenuItem<String>(value: value, child: Text(value)),
-              )
-              .toList(),
-          onChanged: widget.onChanged,
-          hint: AutoSizeText(
-            widget.title,
-            style: TextStyle(
-              fontSize: 16,
-              color: Theme.of(context).colorScheme.onSurface,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
+      child: DropdownButtonFormField<String>(
+        borderRadius: BorderRadius.circular(FormWidgetStyle.borderRadius),
+        initialValue: initialValue,
+        isExpanded: true,
+        dropdownColor: widget.backgroundColor,
+        style: theme.textTheme.bodyMedium?.copyWith(
+          color: theme.colorScheme.onSurface,
+          fontWeight: FontWeight.w600,
         ),
+        decoration: FormWidgetStyle.textFieldDecoration(
+          context: context,
+          label: widget.title,
+          fillColor: theme.colorScheme.surfaceContainerLow,
+        ),
+        items: widget.items
+            .map(
+              (value) => DropdownMenuItem<String>(
+                value: value,
+                child: AutoSizeText(
+                  value,
+                  maxLines: 1,
+                  minFontSize: 10,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            )
+            .toList(growable: false),
+        selectedItemBuilder: (context) {
+          return widget.items
+              .map(
+                (value) => Align(
+                  alignment: Alignment.centerLeft,
+                  child: AutoSizeText(
+                    value,
+                    maxLines: 1,
+                    minFontSize: 10,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              )
+              .toList(growable: false);
+        },
+        onChanged: (value) {
+          if (value == null) return;
+          setState(() => _dropdownValue = value);
+          widget.onChanged?.call(value);
+        },
+        hint: widget.title.isEmpty
+            ? null
+            : AutoSizeText(
+                widget.title,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                maxLines: 1,
+                minFontSize: 10,
+                overflow: TextOverflow.ellipsis,
+              ),
       ),
     );
   }

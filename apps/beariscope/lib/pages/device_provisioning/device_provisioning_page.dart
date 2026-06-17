@@ -1,4 +1,4 @@
-import 'package:beariscope/components/beariscope_card.dart';
+import 'package:beariscope/widgets/beariscope_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,7 +15,7 @@ class DeviceProvisioningPage extends ConsumerWidget {
     final credentialsAsync = ref.watch(deviceCredentialsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Device Provisioning')),
+      appBar: AppBar(title: const Text('Provision Device')),
       body: credentialsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(
@@ -101,7 +101,7 @@ class DeviceProvisioningPage extends ConsumerWidget {
                   }
                 },
                 icon: const Icon(Symbols.content_copy_rounded),
-                label: Text('Copy QR Payload'),
+                label: Text('Copy Provisioning Code'),
               ),
             ],
           );

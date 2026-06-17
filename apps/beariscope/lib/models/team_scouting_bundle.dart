@@ -13,6 +13,8 @@ class TeamScoutingBundle {
 
   final List<ScoutingDocument> driveTeamDocs;
 
+  final List<ScoutingDocument> observationDocs;
+
   final int weight;
 
   const TeamScoutingBundle({
@@ -20,6 +22,7 @@ class TeamScoutingBundle {
     required this.pitsDoc,
     required this.stratDocs,
     required this.driveTeamDocs,
+    required this.observationDocs,
     this.weight = 1,
   });
 
@@ -28,6 +31,8 @@ class TeamScoutingBundle {
   bool get hasPitsData => pitsDoc != null;
 
   bool get hasStratData => stratDocs.isNotEmpty;
+
+  bool get hasObservationData => observationDocs.isNotEmpty;
 
   static dynamic getMatchField(
     ScoutingDocument doc,
@@ -151,20 +156,6 @@ class TeamScoutingBundle {
   }
 
   int get stratAppearanceCount => stratDocs.length;
-
-  double? get avgDefenseActivityLevel {
-    if (stratDocs.isEmpty) return null;
-    double sum = 0;
-    int count = 0;
-    for (final doc in stratDocs) {
-      final v = doc.data['defenseActivityLevel'];
-      if (v is num) {
-        sum += v.toDouble();
-        count++;
-      }
-    }
-    return count == 0 ? null : sum / count;
-  }
 
   double? get avgHumanPlayerScore {
     if (stratDocs.isEmpty) return null;

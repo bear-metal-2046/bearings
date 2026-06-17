@@ -1,4 +1,4 @@
-import 'package:beariscope/components/beariscope_card.dart';
+import 'package:beariscope/widgets/beariscope_card.dart';
 import 'package:beariscope/models/pits_scouting_models.dart';
 import 'package:beariscope/models/scouting_document.dart';
 import 'package:beariscope/pages/main_view.dart';
@@ -24,6 +24,8 @@ class PitsScoutingHomePage extends ConsumerStatefulWidget {
 class PitsScoutingHomePageState extends ConsumerState<PitsScoutingHomePage> {
   PitsScoutingFilter _statusFilter = PitsScoutingFilter.allTeams;
 
+  /// Whether to show the interactive map view (true) or the list view (false).
+  // default to list view instead of map
   bool _showMapView = false;
 
   void _openScoutingForm(
@@ -49,21 +51,23 @@ class PitsScoutingHomePageState extends ConsumerState<PitsScoutingHomePage> {
       existingDoc = pitsDocs.firstOrNull;
     }
 
-    Navigator.push<bool>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => PitsScoutingFormPage(
-          teamNumber: teamNumber,
-          teamName: teamName,
-          scouted: scouted,
-          initialDoc: existingDoc,
-        ),
-      ),
-    ).then((result) {
-      if (result == true) {
-        ref.read(scoutingDataProvider.notifier).refresh();
-      }
-    });
+    Navigator.of(context, rootNavigator: true)
+        .push<bool>(
+          MaterialPageRoute(
+            builder: (_) => PitsScoutingFormPage(
+              teamNumber: teamNumber,
+              teamName: teamName,
+              scouted: scouted,
+              initialDoc: existingDoc,
+            ),
+          ),
+        )
+        .then((result) {
+          if (result == true) {
+            // Refresh cross-device scouted status from honeycomb.
+            ref.read(scoutingDataProvider.notifier).refresh();
+          }
+        });
   }
 
   final TextEditingController _searchTEC = TextEditingController();
@@ -216,8 +220,11 @@ class PitsScoutingHomePageState extends ConsumerState<PitsScoutingHomePage> {
       data: (mapData) {
         return RefreshIndicator(
           onRefresh: onRefresh,
+          // RefreshIndicator needs a scrollable child; wrap PitsMapView in a
+          // LayoutBuilder + Stack with a hidden ListView for scroll detection.
           child: Stack(
             children: [
+              // Invisible scrollable so RefreshIndicator triggers.
               ListView(physics: const AlwaysScrollableScrollPhysics()),
               PitsMapView(
                 mapData: mapData,

@@ -11,7 +11,6 @@ import 'package:beariscope/pages/scout_audit/scout_audit_logic.dart';
 import 'package:beariscope/pages/scout_audit/scout_audit_preferences_provider.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/processed_scouting_provider.dart';
-import 'package:beariscope/providers/scouting_data_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -111,6 +110,7 @@ class _ExportPageState extends ConsumerState<ExportPage> {
           'defensiveSkillRanking',
           'defensiveResilienceRanking',
           'mechanicalStabilityRanking',
+          'offensiveConsistencyRanking',
         ]) {
           final list = doc.data[key];
           if (list is! List) continue;
@@ -137,8 +137,9 @@ class _ExportPageState extends ConsumerState<ExportPage> {
       return;
     }
 
-    final rawDocs = ref.read(scoutingDataProvider).value ?? [];
-    final processedDocs = ref.read(processedScoutingProvider).value ?? [];
+    final processedBundle = ref.read(processedScoutingProvider).value;
+    final rawDocs = processedBundle?.rawDocs ?? [];
+    final processedDocs = processedBundle?.processedDocs ?? [];
 
     if (rawDocs.isEmpty) {
       ScaffoldMessenger.of(
@@ -212,8 +213,8 @@ class _ExportPageState extends ConsumerState<ExportPage> {
   @override
   Widget build(BuildContext context) {
     final controller = MainViewController.of(context);
-    final scoutingAsync = ref.watch(scoutingDataProvider);
-    final allDocs = scoutingAsync.value ?? [];
+    final processedAsync = ref.watch(processedScoutingProvider);
+    final allDocs = processedAsync.value?.rawDocs ?? [];
     final currentEvent = ref.watch(currentEventProvider);
     final permissionChecker = ref.watch(permissionCheckerProvider);
     final options = _buildOptions();

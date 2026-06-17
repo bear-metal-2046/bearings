@@ -1,4 +1,4 @@
-import 'package:beariscope/components/team_card.dart';
+import 'package:beariscope/widgets/team_card.dart';
 import 'package:beariscope/models/drive_team_note.dart';
 import 'package:beariscope/pages/up_next/up_next_provider.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
@@ -17,13 +17,15 @@ import 'package:url_launcher/url_launcher.dart';
 enum _TeamAction { openTba, openStatbotics, openYouTube }
 
 final matchProvider = FutureProvider.family<Map<String, dynamic>, String>((
-    ref,
-    matchKey,
-    ) {
-  return ref.watch(honeycombClientProvider).get<Map<String, dynamic>>(
-    '/matches?match=$matchKey',
-    cachePolicy: CachePolicy.cacheFirst,
-  );
+  ref,
+  matchKey,
+) {
+  return ref
+      .watch(honeycombClientProvider)
+      .get<Map<String, dynamic>>(
+        '/matches?match=$matchKey',
+        cachePolicy: CachePolicy.networkFirst,
+      );
 });
 
 class DriveTeamMatchPreviewPage extends ConsumerStatefulWidget {
@@ -87,10 +89,10 @@ class _DriveTeamMatchPreviewPageState
         }
 
         void handleAction(
-            BuildContext context,
-            _TeamAction action,
-            String key,
-            ) {
+          BuildContext context,
+          _TeamAction action,
+          String key,
+        ) {
           switch (action) {
             case _TeamAction.openTba:
               launchUrl(
@@ -105,12 +107,12 @@ class _DriveTeamMatchPreviewPageState
             case _TeamAction.openYouTube:
               key == 'null'
                   ? ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('No video available')),
-              )
+                      const SnackBar(content: Text('No video available')),
+                    )
                   : launchUrl(
-                Uri.parse('https://www.youtube.com/watch?v=$key'),
-                mode: LaunchMode.externalApplication,
-              );
+                      Uri.parse('https://www.youtube.com/watch?v=$key'),
+                      mode: LaunchMode.externalApplication,
+                    );
           }
         }
 
@@ -118,15 +120,15 @@ class _DriveTeamMatchPreviewPageState
         final alliances = match['alliances'];
         final redTeams = alliances is Map && alliances['red'] is Map
             ? (alliances['red']['team_keys'] as List?)
-            ?.map((e) => e.toString())
-            .toList() ??
-            const <String>[]
+                      ?.map((e) => e.toString())
+                      .toList() ??
+                  const <String>[]
             : const <String>[];
         final blueTeams = alliances is Map && alliances['blue'] is Map
             ? (alliances['blue']['team_keys'] as List?)
-            ?.map((e) => e.toString())
-            .toList() ??
-            const <String>[]
+                      ?.map((e) => e.toString())
+                      .toList() ??
+                  const <String>[]
             : const <String>[];
         final cards = <({String teamKey, Color color})>[
           ...redTeams.map((teamKey) => (teamKey: teamKey, color: Colors.red)),
@@ -139,16 +141,16 @@ class _DriveTeamMatchPreviewPageState
         final matchTitle = compLevel.isEmpty || number == null
             ? 'Match ${widget.matchKey}'
             : '${switch (compLevel) {
-          'qm' => 'Qualification Match',
-          'sf' => 'Semifinal Match',
-          'f' => 'Final Match',
-          _ => compLevel.toUpperCase(),
-        }} $number';
+                'qm' => 'Qualification Match',
+                'sf' => 'Semifinal Match',
+                'f' => 'Final Match',
+                _ => compLevel.toUpperCase(),
+              }} $number';
         final matchVideos = (match['videos'] as List<dynamic>? ?? [])
             .map((e) => Map<String, dynamic>.from(e))
             .toList();
         final video = matchVideos.firstWhere(
-              (e) => e['type'] == 'youtube',
+          (e) => e['type'] == 'youtube',
           orElse: () => <String, dynamic>{},
         );
 
@@ -263,8 +265,9 @@ class _DriveTeamMatchPreviewPageState
 
               // horizontal fraction
               final cardWidth = (width - 16).clamp(0.0, 600.0);
-              final hFraction =
-              width > 0 ? (cardWidth / width).clamp(0.0, 1.0) : 1.0;
+              final hfraction = width > 0
+                  ? (cardWidth / width).clamp(0.0, 1.0)
+                  : 1.0;
 
               // vertical fraction
               final cardHeight = (height - 40).clamp(0.0, height);
@@ -395,8 +398,7 @@ class _DriveTeamMatchPreviewPageState
                                 context: context,
                                 label: 'Blue Alliance',
                                 groupStartIndex: redTeams.length,
-                                groupEndIndex:
-                                redTeams.length + blueTeams.length - 1,
+                                groupEndIndex: redTeams.length + blueTeams.length - 1,
                                 page: page,
                                 stride: stride,
                                 cardWidth: cardWidth,
@@ -408,11 +410,72 @@ class _DriveTeamMatchPreviewPageState
                       },
                     ),
                   ),
-                  Expanded(child: pageView),
-                  dots,
+                  Expanded(
+                    child: NotificationListener<ScrollNotification>(
+                      onNotification: (notification) {
+                        if (notification is ScrollUpdateNotification &&
+                            _pageController?.hasClients == true) {
+                          _currentPageNotifier.value =
+                              _pageController?.page ?? 0.0;
+                        }
+                        return false;
+                      },
+                      child: PageView.builder(
+                        controller: _pageController,
+                        itemCount: cards.length,
+                        itemBuilder: (context, index) {
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            child: TeamCard(
+                              teamKey: cards[index].teamKey,
+                              allianceColor: cards[index].color,
+                              height: constraints.maxHeight,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+
+                  if (cards.length > 1)
+                    ValueListenableBuilder<double>(
+                      valueListenable: _currentPageNotifier,
+                      builder: (context, page, _) {
+                        return DotsIndicator(
+                          dotsCount: cards.length,
+                          position: page.clamp(0, cards.length - 1).toDouble(),
+                          onTap: (position) {
+                            _pageController?.animateToPage(
+                              position.toInt(),
+                              duration: const Duration(milliseconds: 250),
+                              curve: Curves.easeInOut,
+                            );
+                          },
+                          decorator: DotsDecorator(
+                            activeColor: Theme.of(context).colorScheme.primary,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.surfaceContainerHighest,
+                            colors: cards
+                                .map((c) => c.color.withValues(alpha: 0.4))
+                                .toList(),
+                            activeColors: cards.map((c) => c.color).toList(),
+                            spacing: const EdgeInsets.symmetric(
+                              horizontal: 4,
+                              vertical: 8,
+                            ),
+                            size: const Size.square(8.0),
+                            activeSize: const Size(24.0, 8.0),
+                            activeShape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(4.0),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                   if (permissionChecker?.hasPermission(
-                    PermissionKey.driveTeamUpload,
-                  ) ??
+                        PermissionKey.driveTeamUpload,
+                      ) ??
                       false)
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -423,14 +486,14 @@ class _DriveTeamMatchPreviewPageState
                             final filteredRedTeams = redTeams
                                 .where(
                                   (teamKey) =>
-                              teamNumberFromKey(teamKey) != '2046',
-                            )
+                                      teamNumberFromKey(teamKey) != '2046',
+                                )
                                 .toList();
                             final filteredBlueTeams = blueTeams
                                 .where(
                                   (teamKey) =>
-                              teamNumberFromKey(teamKey) != '2046',
-                            )
+                                      teamNumberFromKey(teamKey) != '2046',
+                                )
                                 .toList();
                             showModalBottomSheet(
                               context: context,
@@ -538,6 +601,7 @@ class _DriveTeamNotesSheetState extends ConsumerState<_DriveTeamNotesSheet> {
     super.dispose();
   }
 
+  //populates the controllers with existing notes
   void _initControllers(Map<int, DriveTeamNote> existingNotes) {
     if (_initialized) return;
     _initialized = true;
@@ -596,6 +660,7 @@ class _DriveTeamNotesSheetState extends ConsumerState<_DriveTeamNotesSheet> {
       if (entries.isNotEmpty) {
         final client = ref.read(honeycombClientProvider);
         await client.post('/scout/ingest', data: {'entries': entries});
+        // sync the local Hive cache so notes survive a page-exit and re-entry.
         await ref.read(scoutingDataProvider.notifier).refresh();
       }
 
@@ -611,10 +676,10 @@ class _DriveTeamNotesSheetState extends ConsumerState<_DriveTeamNotesSheet> {
   }
 
   Widget _buildAllianceSection(
-      ThemeData theme,
-      String label,
-      List<String> teamKeys,
-      ) {
+    ThemeData theme,
+    String label,
+    List<String> teamKeys,
+  ) {
     if (teamKeys.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -713,10 +778,10 @@ class _DriveTeamNotesSheetState extends ConsumerState<_DriveTeamNotesSheet> {
                     onPressed: _isSaving ? null : _save,
                     child: _isSaving
                         ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
                         : const Text('Save Notes'),
                   ),
                 ),

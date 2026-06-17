@@ -45,7 +45,8 @@ class HoneycombClient {
     String endpoint, {
     dynamic data,
     Map<String, dynamic>? queryParameters,
-    CachePolicy cachePolicy = CachePolicy.cacheFirst,
+    CachePolicy cachePolicy = CachePolicy.networkFirst,
+    Duration? cacheTtl,
   }) async {
     final dio = _ref.read(dioProvider);
 
@@ -78,7 +79,11 @@ class HoneycombClient {
             if (token != null) 'Authorization': 'Bearer $token',
             'Content-Type': 'application/json',
           },
-          extra: {'cachePolicy': cachePolicy, 'isOffline': isOffline},
+          extra: {
+            'cachePolicy': cachePolicy,
+            'isOffline': isOffline,
+            'cacheTtl': ?cacheTtl,
+          },
         ),
       );
 
@@ -96,37 +101,29 @@ class HoneycombClient {
 
   Future<T> get<T>(
     String endpoint, {
-    CachePolicy cachePolicy = CachePolicy.cacheFirst,
+    CachePolicy cachePolicy = CachePolicy.networkFirst,
     Map<String, dynamic>? queryParams,
+    Duration? cacheTtl,
   }) async {
     return _performRequest<T>(
       'GET',
       endpoint,
       cachePolicy: cachePolicy,
       queryParameters: queryParams,
+      cacheTtl: cacheTtl,
     );
   }
 
   void invalidateCache(String endpoint, {Map<String, dynamic>? queryParams}) {
     final dio = _ref.read(dioProvider);
-    final uri = Uri.parse('${dio.options.baseUrl}$endpoint');
-    final key = queryParams != null
-        ? uri
-              .replace(
-                queryParameters: queryParams.map(
-                  (k, v) => MapEntry(k, v.toString()),
-                ),
-              )
-              .toString()
-        : uri.toString();
+    final requestOptions = Options(
+      method: 'GET',
+    ).compose(dio.options, endpoint, queryParameters: queryParams);
+    final keys = HiveCacheInterceptor.cacheKeysForUri(requestOptions.uri);
 
     final box = Hive.box<dynamic>('api_cache');
-    final record = box.get(key);
-    if (record is Map) {
-      box.put(key, <String, dynamic>{
-        ...Map<String, dynamic>.from(record),
-        'timestamp': 0,
-      });
+    for (final key in keys) {
+      box.delete(key);
     }
   }
 

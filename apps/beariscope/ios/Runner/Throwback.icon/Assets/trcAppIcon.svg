@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   version="1.1"
+   id="svg1"
+   width="1024"
+   height="1024"
+   viewBox="0 0 1024 1024"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <g
+     id="g1"
+     style="display:none">
+    <image
+       width="64"
+       height="64"
+       preserveAspectRatio="none"
+       xlink:href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAAXNSR0IArs4c6QAAAfNJREFUeJzt&#10;W9G2hCAItD37/7/cPtlpDQQUBLV53RswE4zeyiONwyn8+8OojmFJpIQpmNRqEVSbeAnVmrWCWZPG&#10;0F2/hgAS8tx8FjHVL+YUObLDmnK1FkgVZGWu6nlbCsWKGLJsadchLToK+YzueiSFj3T6XFdPThY3&#10;C1eOBJIfR4BZyWdUOVICzE4+A+VZE2AV8hkgV0wAiHzruGj5jEacR4wPM6jXMmcOSIDVWv+OB7dS&#10;gJ4WngV/HKkRWIF8lQPXA5bFXYCVZ7/ExbXWASu0fwbKJQuw093POFNK6Yv8OPPdx2o/OMvgdngF&#10;2HT+M06oA2aefwoPbpgJWiJUx432gFDk02uCcQUY5kOjPQDajLiaboQOcPUFDwFCLbMROsAVUQRw&#10;GwOvh6JhXqZ+As2kRxccHlvhK7kRadEyG8UD3IAJ4GVKlnnB2FkALx/w9J8jESOwUhegMe8C7NQF&#10;V87XBInfVxiDaqxSAKgdV9sZ/uV6H4oyLzwHCEPtDE06EfMAr1GwBHgDpW+HZxWBfDssudBSBIsx&#10;q8bkeAA0myM8oayBQtP3TT2fyVl1gtYn/Kw4kp0gJoKnL2D52SJKt8KSL0s1AcV3OTBBJbfMwXmC&#10;JM7V+s+Qx27R5JzSe2yu5+Ibtj44WWLLo7MQtj08jSHk8fkfa3tTe4+vhtAAAAAASUVORK5CYII=&#10;"
+       id="image1"
+       style="image-rendering:pixelated" />
+  </g>
+  <g
+     id="layer1">
+    <path
+       id="path1"
+       style="opacity:1;fill:#000000;fill-opacity:1;stroke-width:9.88766;paint-order:markers stroke fill"
+       d="M 514,192 C 336.16434,192 192,336.16422 192,514 192,691.83566 336.16434,836 514,836 691.83566,836 836,691.83566 836,514 836,336.16422 691.83566,192 514,192 Z m 0,40.25 c 57.43817,-1e-4 113.5042,17.55482 160.68554,50.3125 H 594.5 c -11.11472,0 -20.125,9.01027 -20.125,20.125 0,-11.11473 -9.01027,-20.125 -20.125,-20.125 H 353.31446 C 400.49581,249.80482 456.56183,232.2499 514,232.25 Z M 307.0505,322.8125 H 393.25 V 768.56937 C 294.92207,721.92838 232.24758,622.82895 232.25,514 c 9.9e-4,-70.86848 26.7097,-139.1336 74.8005,-191.1875 z m 126.4495,0 H 534.125 V 473.75 H 463.6875 V 514 l 110.47136,275.2447 c -19.76135,4.32174 -39.93053,6.50269 -60.15886,6.5053 -27.26062,-0.003 -54.37654,-3.9614 -80.5,-11.7527 z m 181.125,0 H 715.25 v 100.625 h 40.25 v -54.55766 c 26.33567,43.8252 40.24939,93.99068 40.25,145.12016 -6.1e-4,51.12937 -13.91433,101.29486 -40.25,145.12007 V 584.4375 h -40.25 v 100.625 H 614.625 Z M 507.04268,514 H 574.375 v 167.72144 z m 84.82377,211.3125 h 108.48632 c -25.70405,22.6691 -55.32846,40.4584 -87.41797,52.49394 z" />
+  </g>
+</svg>

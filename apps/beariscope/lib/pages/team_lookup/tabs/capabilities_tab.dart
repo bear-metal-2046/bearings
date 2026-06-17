@@ -160,6 +160,8 @@ class _CapabilitiesBody extends StatelessWidget {
     ]);
     final trenchCapability =
         bundle.getPitsField<String>('trenchCapability') ?? '—';
+    final towerCapability =
+        bundle.getPitsField<String>('towerCapability') ?? '—';
     final hasMatchData = bundle.hasMatchData;
     final modalStartPosition = hasMatchData
         ? bundle.modalMatchField(kSectionAuto, kAutoStartPositions)
@@ -182,6 +184,7 @@ class _CapabilitiesBody extends StatelessWidget {
         ),
         ScoutingDataRow(label: 'Pathway Preference', value: pathwayPreference),
         ScoutingDataRow(label: 'Trench Capable', value: trenchCapability),
+        ScoutingDataRow(label: 'Tower Capable', value: towerCapability),
         if (hasMatchData) ...[
           const ScoutingDataDivider(),
           ScoutingDataRow(
@@ -346,16 +349,6 @@ class _CapabilitiesBody extends StatelessWidget {
               label: 'Defense Freq. (Off Shift)',
               value: _fmtPct(defenseOffShiftRate * 100),
             ),
-        ],
-        if (bundle.hasStratData) ...[
-          const ScoutingDataDivider(),
-          ScoutingDataRow(
-            label: 'Defense Activity Level',
-            value: bundle.avgDefenseActivityLevel != null
-                ? '${bundle.avgDefenseActivityLevel!.toStringAsFixed(1)} / 10'
-                : '—',
-            highlight: true,
-          ),
         ],
       ],
     );

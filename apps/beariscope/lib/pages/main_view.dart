@@ -1,4 +1,5 @@
-import 'package:beariscope/providers/connectivity_provider.dart';
+import 'package:beariscope/providers/current_event_provider.dart';
+import 'package:beariscope/pages/settings/appearance_settings_page.dart';
 import 'package:beariscope/providers/scouting_data_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -6,7 +7,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import 'package:services/providers/auth_provider.dart';
+import 'package:services/providers/connectivity_provider.dart';
 import 'package:services/providers/permissions_provider.dart';
+import 'package:services/providers/user_profile_provider.dart';
 import 'package:services/widgets/profile_picture.dart';
 import 'package:beariscope/pages/team_lookup/team_providers.dart';
 
@@ -70,6 +74,12 @@ class _MainViewState extends ConsumerState<MainView> {
       route: '/team_lookup',
       icon: Symbols.smart_toy_rounded,
       label: 'Team Lookup',
+      group: 'Insights',
+    ),
+    _NavItem(
+      route: '/match_lookup',
+      icon: Symbols.leaderboard,
+      label: 'Match Lookup',
       group: 'Insights',
     ),
     _NavItem(
@@ -158,20 +168,39 @@ class _MainViewState extends ConsumerState<MainView> {
         final visibleNavItems = _visibleNavItems(permissionChecker);
         final selectedIndex = _selectedIndexFor(visibleNavItems);
         final isAtTopLevel = _isAtTopLevelFor(visibleNavItems);
+        final allowDrawerGesture =
+            !isDesktop &&
+            isAtTopLevel &&
+            ModalRoute.of(context)?.isCurrent == true;
 
         final isOnline = switch (ref.watch(connectivityProvider)) {
           AsyncData(:final value) => value,
           _ => true,
         };
 
+        final navigationSidebarContent = Column(
+          children: [
+            Expanded(
+              child: NavigationDrawer(
+                selectedIndex: selectedIndex == -1 ? null : selectedIndex,
+                onDestinationSelected: (i) =>
+                    _onDestinationSelected(i, isDesktop, visibleNavItems),
+                children: _buildNavChildren(),
+              ),
+            ),
+            const Divider(height: 2),
+            _buildBottomComponents(isOnline: isOnline),
+          ],
+        );
+
         final navigationDrawer = SizedBox(
           width: _drawerWidth,
-          child: NavigationDrawer(
-            selectedIndex: selectedIndex == -1 ? null : selectedIndex,
-            onDestinationSelected: (i) =>
-                _onDestinationSelected(i, isDesktop, visibleNavItems),
-            children: _buildNavChildren(isOnline: isOnline),
-          ),
+          child: isDesktop
+              ? Material(
+                  color: Theme.of(context).colorScheme.surfaceContainerLow,
+                  child: navigationSidebarContent,
+                )
+              : Drawer(child: navigationSidebarContent),
         );
 
         final childContent = isDesktop
@@ -243,14 +272,6 @@ class _MainViewState extends ConsumerState<MainView> {
     setState(() => _isRefreshing = true);
     try {
       await ref.read(scoutingDataProvider.notifier).refresh();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Scouting data updated'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -265,7 +286,7 @@ class _MainViewState extends ConsumerState<MainView> {
     }
   }
 
-  List<Widget> _buildNavChildren({required bool isOnline}) {
+  List<Widget> _buildNavChildren() {
     final children = <Widget>[];
     final permissionChecker = ref.watch(permissionCheckerProvider);
     final visibleNavItems = _visibleNavItems(permissionChecker);
@@ -354,81 +375,414 @@ class _MainViewState extends ConsumerState<MainView> {
         ),
       );
     }
-    children.add(
-      const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 15),
-        child: Divider(),
-      ),
-    );
 
-    // final location = GoRouterState.of(context).uri.toString();
-    // final isUtilitiesSelected = location.startsWith('/utilities');
-    //
-    // children.add(
-    //   Padding(
-    //     padding: const EdgeInsets.symmetric(horizontal: 15),
-    //     child: SizedBox(
-    //       width: double.infinity,
-    //       height: 50,
-    //       child: OutlinedButton(
-    //         onPressed: () => context.go('/utilities'),
-    //         style: OutlinedButton.styleFrom(
-    //           alignment: Alignment.center,
-    //           side: BorderSide.none,
-    //           backgroundColor:
-    //               isUtilitiesSelected
-    //                   ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.4)
-    //                   : null,
-    //         ),
-    //         child: Row(
-    //           mainAxisAlignment: MainAxisAlignment.center,
-    //           children: [
-    //             Icon(
-    //               Icons.more_horiz,
-    //               size: 30,
-    //               color: Theme.of(context).colorScheme.onSurfaceVariant,
-    //             ),
-    //             const SizedBox(width: 12),
-    //           ],
-    //         ),
-    //       ),
-    //     ),
-    //   ),
-    // );
+    return children;
+  }
 
-    children.add(
-      Padding(
-        padding: const EdgeInsets.fromLTRB(15, 0, 15, 8),
-        child: SizedBox(
-          width: double.infinity,
-          height: 50,
-          child: FilledButton.icon(
-            onPressed: isOnline && !_isRefreshing ? _doRefresh : null,
-            icon: _isRefreshing
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      color: Colors.white,
-                    ),
-                  )
-                : Icon(
-                    isOnline ? Symbols.sync_rounded : Symbols.cloud_off_rounded,
-                  ),
-            label: Text(
-              _isRefreshing
-                  ? 'Syncing…'
-                  : isOnline
-                  ? 'Sync Scouting Data'
-                  : 'No Internet',
+  Widget _buildBottomComponents({required bool isOnline}) {
+    final userInfoAsync = ref.watch(userInfoProvider);
+    final userName = userInfoAsync.value?.name ?? 'Loading...';
+    final themeMode = ref.watch(themeModeProvider);
+
+    final permissionChecker = ref.watch(permissionCheckerProvider);
+    final canSelectEvent =
+        permissionChecker != null && permissionChecker.permissions.isNotEmpty;
+    final canProvision =
+        permissionChecker?.hasPermission(PermissionKey.deviceProvision) ??
+        false;
+    final eventsAsync = canSelectEvent ? ref.watch(teamEventsProvider) : null;
+    final currentEventKey = ref.watch(currentEventProvider);
+    final availableEvents = eventsAsync?.value ?? const <EventOption>[];
+    final eventOptions = canSelectEvent
+        ? eventPickerOptions(availableEvents, currentEventKey)
+        : const <EventOption>[];
+    final selectedEvent = canSelectEvent
+        ? eventOptions.firstWhere(
+            (event) => event.key == currentEventKey,
+            orElse: () => EventOption.current(currentEventKey),
+          )
+        : EventOption.current(currentEventKey);
+
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final subtitleText = canSelectEvent
+        ? 'At ${selectedEvent.displayShortName}'
+        : 'No event selected';
+
+    return SafeArea(
+      top: false,
+      child: MenuTheme(
+        data: MenuThemeData(
+          style: MenuStyle(
+            elevation: const WidgetStatePropertyAll(8.0),
+            backgroundColor: WidgetStatePropertyAll(
+              colorScheme.surfaceContainerHigh,
+            ),
+            shape: WidgetStatePropertyAll(
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            ),
+            padding: const WidgetStatePropertyAll(
+              EdgeInsets.symmetric(vertical: 12),
             ),
           ),
         ),
+        child: MenuAnchor(
+          // animated: true,
+          alignmentOffset: const Offset(12, 0),
+          builder: (context, controller, child) {
+            final isOpen = controller.isOpen;
+
+            return Material(
+              color: isOpen
+                  ? colorScheme.surfaceContainerHighest
+                  : Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  if (isOpen) {
+                    controller.close();
+                  } else {
+                    controller.open();
+                  }
+                },
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      const ProfilePicture(size: 20),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              userName,
+                              style: textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                            AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 200),
+                              layoutBuilder:
+                                  (
+                                    Widget? currentChild,
+                                    List<Widget> previousChildren,
+                                  ) {
+                                    return Stack(
+                                      alignment: Alignment.centerLeft,
+                                      children: <Widget>[
+                                        ...previousChildren,
+                                        ?currentChild,
+                                      ],
+                                    );
+                                  },
+                              child: Text(
+                                _isRefreshing ? 'Syncing...' : subtitleText,
+                                key: ValueKey('$_isRefreshing-$subtitleText'),
+                                style: textTheme.bodySmall?.copyWith(
+                                  color: colorScheme.onSurfaceVariant,
+                                  fontSize: 11,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(
+                        isOpen
+                            ? Symbols.unfold_less_rounded
+                            : Symbols.unfold_more_rounded,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+          menuChildren: [
+            if (canSelectEvent && eventsAsync != null)
+              eventsAsync.when(
+                data: (events) {
+                  final pickerEvents = eventPickerOptions(
+                    events,
+                    currentEventKey,
+                  );
+                  final currentEvent = pickerEvents.firstWhere(
+                    (e) => e.key == currentEventKey,
+                    orElse: () => EventOption.current(currentEventKey),
+                  );
+                  return SubmenuButton(
+                    // animated: true,
+                    style: const ButtonStyle(
+                      padding: WidgetStatePropertyAll(
+                        EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                      ),
+                    ),
+                    menuStyle: MenuStyle(
+                      elevation: const WidgetStatePropertyAll(8.0),
+                      backgroundColor: WidgetStatePropertyAll(
+                        colorScheme.surfaceContainerHighest,
+                      ),
+                      shape: WidgetStatePropertyAll(
+                        RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      padding: const WidgetStatePropertyAll(
+                        EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                    submenuIcon: WidgetStatePropertyAll(
+                      const Icon(Symbols.chevron_right_rounded, size: 16),
+                    ),
+                    leadingIcon: const Icon(
+                      Symbols.edit_calendar_rounded,
+                      size: 20,
+                    ),
+                    menuChildren: pickerEvents
+                        .map(
+                          (e) => MenuItemButton(
+                            style: const ButtonStyle(
+                              padding: WidgetStatePropertyAll(
+                                EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                  vertical: 14,
+                                ),
+                              ),
+                            ),
+                            leadingIcon: Icon(e.leadingIcon, size: 20),
+                            trailingIcon: e.key == currentEventKey
+                                ? Icon(
+                                    Symbols.check_rounded,
+                                    size: 20,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
+                                  )
+                                : const SizedBox(width: 20),
+                            onPressed: () {
+                              ref
+                                  .read(currentEventProvider.notifier)
+                                  .setEventKey(e.key);
+                            },
+                            child: Text(e.displayName),
+                          ),
+                        )
+                        .toList(),
+                    child: Text('At ${currentEvent.displayShortName}'),
+                  );
+                },
+                loading: () => const MenuItemButton(
+                  onPressed: null,
+                  style: ButtonStyle(
+                    padding: WidgetStatePropertyAll(
+                      EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                    ),
+                  ),
+                  leadingIcon: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  child: Text('Loading events...'),
+                ),
+                error: (e, s) => MenuItemButton(
+                  style: const ButtonStyle(
+                    padding: WidgetStatePropertyAll(
+                      EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                    ),
+                  ),
+                  onPressed: () => ref.invalidate(teamEventsProvider),
+                  leadingIcon: const Icon(Symbols.error_rounded, size: 20),
+                  child: const Text('Failed to load events. Retry?'),
+                ),
+              ),
+
+            if (canSelectEvent && eventsAsync != null)
+              const Divider(height: 16),
+
+            MenuItemButton(
+              closeOnActivate: false,
+              style: const ButtonStyle(
+                padding: WidgetStatePropertyAll(
+                  EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                ),
+              ),
+              leadingIcon: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: _isRefreshing
+                    ? const SizedBox(
+                        key: ValueKey('loading'),
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Icon(
+                        isOnline
+                            ? Symbols.sync_rounded
+                            : Symbols.cloud_off_rounded,
+                        key: const ValueKey('icon'),
+                        size: 20,
+                      ),
+              ),
+              onPressed: isOnline && !_isRefreshing ? _doRefresh : null,
+              child: Text(
+                _isRefreshing
+                    ? 'Syncing...'
+                    : isOnline
+                    ? 'Sync Scouting Data'
+                    : 'Sync Unavailable (Offline)',
+              ),
+            ),
+
+            if (canProvision)
+              MenuItemButton(
+                style: const ButtonStyle(
+                  padding: WidgetStatePropertyAll(
+                    EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                  ),
+                ),
+                leadingIcon: const Icon(Symbols.qr_code_rounded, size: 20),
+                onPressed: () => context.push('/device_provisioning'),
+                child: const Text('Provision Device'),
+              ),
+
+            const Divider(height: 16),
+
+            MenuItemButton(
+              style: const ButtonStyle(
+                padding: WidgetStatePropertyAll(
+                  EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                ),
+              ),
+              leadingIcon: const Icon(Symbols.settings_rounded, size: 20),
+              onPressed: () => context.push('/settings'),
+              child: const Text('Settings'),
+            ),
+
+            SubmenuButton(
+              // TODO: make this animated again once this param is added to flutter stable
+              // animated: true,
+              style: const ButtonStyle(
+                padding: WidgetStatePropertyAll(
+                  EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                ),
+              ),
+              menuStyle: MenuStyle(
+                elevation: const WidgetStatePropertyAll(8.0),
+                backgroundColor: WidgetStatePropertyAll(
+                  colorScheme.surfaceContainerHighest,
+                ),
+                shape: WidgetStatePropertyAll(
+                  RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                padding: const WidgetStatePropertyAll(
+                  EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+              submenuIcon: const WidgetStatePropertyAll(
+                Icon(Symbols.chevron_right_rounded, size: 16),
+              ),
+              leadingIcon: const Icon(Symbols.dark_mode_rounded, size: 20),
+              menuChildren: [
+                for (final mode in ThemeMode.values)
+                  MenuItemButton(
+                    style: const ButtonStyle(
+                      padding: WidgetStatePropertyAll(
+                        EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                      ),
+                    ),
+                    trailingIcon: mode == themeMode
+                        ? Icon(
+                            Symbols.check_rounded,
+                            size: 20,
+                            color: Theme.of(context).colorScheme.primary,
+                          )
+                        : const SizedBox(width: 20),
+                    onPressed: () async {
+                      await ref
+                          .read(themeModeProvider.notifier)
+                          .setThemeMode(mode);
+                    },
+                    leadingIcon: Icon(switch (mode) {
+                      ThemeMode.light => Symbols.light_mode_rounded,
+                      ThemeMode.dark => Symbols.dark_mode_rounded,
+                      ThemeMode.system => Symbols.routine_rounded,
+                    }, size: 20),
+                    child: Text(switch (mode) {
+                      ThemeMode.light => 'Light',
+                      ThemeMode.dark => 'Dark',
+                      ThemeMode.system => 'System',
+                    }),
+                  ),
+              ],
+              child: const Text('Theme'),
+            ),
+
+            const Divider(height: 16),
+
+            MenuItemButton(
+              closeOnActivate: false,
+              style: ButtonStyle(
+                padding: const WidgetStatePropertyAll(
+                  EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                ),
+                foregroundColor: WidgetStatePropertyAll(
+                  Theme.of(context).colorScheme.error,
+                ),
+              ),
+              leadingIcon: Icon(
+                Symbols.logout_rounded,
+                size: 20,
+                color: Theme.of(context).colorScheme.error,
+              ),
+              onPressed: () async {
+                final confirmed =
+                    await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Sign Out'),
+                        content: const Text(
+                          'Are you sure you want to sign out?',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(false),
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(true),
+                            style: TextButton.styleFrom(
+                              foregroundColor: Theme.of(
+                                context,
+                              ).colorScheme.error,
+                            ),
+                            child: const Text('Sign Out'),
+                          ),
+                        ],
+                      ),
+                    ) ??
+                    false;
+
+                if (confirmed && context.mounted) {
+                  final auth = await ref.read(authProvider.future);
+                  await auth.logout(federated: true);
+                }
+              },
+              child: const Text('Sign Out'),
+            ),
+          ],
+        ),
       ),
     );
-
-    return children;
   }
 }
 

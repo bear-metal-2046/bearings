@@ -73,11 +73,8 @@ const kTeleLostComms = 'lost_comms';
 /// Number of periods where the robot started with a full hopper.
 const kTelePeriodStartedWithFullHopper = 'periods_started_with_full_hopper';
 
-/// Number of times the robot traveled over the bump during teleop.
-const kTeleOverBump = 'over_bump';
-
-/// Number of times the robot traveled under the trench during teleop.
-const kTeleUnderTrench = 'under_trench';
+/// Number of times the robot got beached or climbed the high center during teleop.
+const kTeleBeachedHighCenter = 'beached_high_center';
 
 /// Balls passed while in the inactive (non-shooter) role.
 const kTeleInactivePassing = 'inactive_passing';
@@ -99,8 +96,7 @@ const List<String> kTeleDataList = [
   kTeleEStop,
   kTeleLostComms,
   kTelePeriodStartedWithFullHopper,
-  kTeleOverBump,
-  kTeleUnderTrench,
+  kTeleBeachedHighCenter,
   kTeleCollecting,
   kTeleDefense,
   kTeleStoppedWorking,

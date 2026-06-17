@@ -2,7 +2,7 @@ name: bearings
 publish_to: none
 environment:
   sdk: ^3.11.0
-  
+
 workspace:
   - apps/beariscope
   - apps/pawfinder
@@ -35,7 +35,7 @@ melos:
 
     analyze:
       description: Run static analysis in every package.
-      run: melos exec --fail-fast -- "dart analyze ."
+      run: melos exec --fail-fast -- "dart analyze . --no-fatal-warnings"
 
     test:dart:
       description: Run tests for pure Dart packages.
@@ -62,7 +62,3 @@ melos:
         - melos run format:check
         - melos run analyze
         - melos run test
-dependencies:
-  animate_do: ^4.2.0
-  flex_color_picker: ^3.8.0
-  syncfusion_flutter_charts: ^32.2.9

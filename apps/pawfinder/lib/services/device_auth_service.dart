@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:services/providers/auth_provider.dart';
+import 'package:services/providers/device_credentials_provider.dart';
 import 'package:services/providers/secure_storage_provider.dart';
 
 part 'device_auth_service.g.dart';
@@ -47,14 +48,13 @@ class DeviceAuthService {
     final notifier = _ref.read(authStatusProvider.notifier);
     notifier.setStatus(AuthStatus.authenticating);
 
-    // Check for a credentials file staged by the fleet tool.
+    // Check for a base64 credential payload staged by the fleet tool.
     // If found, provision automatically and delete the file so it is one-shot.
     try {
       final dir = await getApplicationDocumentsDirectory();
       final file = File(p.join(dir.path, _pendingCredentialsFile));
       if (await file.exists()) {
-        final raw =
-            jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+        final raw = decodeProvisioningPayload(await file.readAsString());
         await provision(
           clientId: raw['clientId'] as String,
           clientSecret: raw['clientSecret'] as String,

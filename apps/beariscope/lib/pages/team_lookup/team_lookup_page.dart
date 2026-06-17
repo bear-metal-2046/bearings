@@ -1,6 +1,7 @@
-import 'package:beariscope/components/beariscope_card.dart';
-import 'package:beariscope/components/team_card.dart';
+import 'package:beariscope/widgets/beariscope_card.dart';
+import 'package:beariscope/widgets/team_card.dart';
 import 'package:beariscope/models/match_field_ids.dart';
+import 'package:beariscope/pages/main_view.dart';
 import 'package:beariscope/pages/team_lookup/team_model.dart';
 import 'package:beariscope/pages/team_lookup/team_providers.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
@@ -11,7 +12,6 @@ import 'package:material_symbols_icons/symbols.dart';
 import 'package:services/providers/api_provider.dart';
 
 import '../../providers/team_scouting_provider.dart';
-import '../main_view.dart';
 
 class TeamLookupPage extends ConsumerStatefulWidget {
   const TeamLookupPage({super.key});
@@ -21,6 +21,14 @@ class TeamLookupPage extends ConsumerStatefulWidget {
 }
 
 class _TeamLookupPageState extends ConsumerState<TeamLookupPage> {
+  final TextEditingController _searchTermTEC = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchTermTEC.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final main = MainViewController.of(context);
@@ -42,14 +50,23 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage> {
       final client = ref.read(honeycombClientProvider);
       client.invalidateCache('/teams', queryParams: {'event': selectedEvent});
       client.invalidateCache('/rankings', queryParams: {'event': selectedEvent});
+      client.invalidateCache(
+        '/rankings',
+        queryParams: {'event': selectedEvent},
+      );
+      client.invalidateCache('/event/$selectedEvent/team_media');
       ref.invalidate(teamsProvider);
       ref.invalidate(eventRankingsProvider);
+      ref.invalidate(eventTeamMediaProvider);
       try {
         await Future.wait([
           ref.read(teamsProvider.future),
           ref.read(eventRankingsProvider.future),
+          ref.read(eventTeamMediaProvider.future),
         ]);
-      } catch (_) {}
+      } catch (_) {
+        // Keep current cached data visible if refresh fails.
+      }
     }
 
     return Scaffold(
@@ -103,9 +120,10 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage> {
         leading: main.isDesktop
             ? SizedBox(width: 48)
             : IconButton(
-          icon: const Icon(Symbols.menu_rounded),
-          onPressed: main.openDrawer,
-        ),
+                icon: const Icon(Symbols.menu_rounded),
+                onPressed: main.openDrawer,
+              ),
+        actions: [SizedBox(width: 48)],
       ),
       body: GestureDetector(
         behavior: HitTestBehavior.opaque,
@@ -133,64 +151,145 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage> {
                   teamKey.contains(searchTerm);
             }).toList();
 
-            filteredTeams = List.of(filteredTeams);
-            switch (selectedSort.sort) {
-              case TeamSortOptions.teamNumber:
-                if (isAscending) {
-                  filteredTeams.sort((a, b) => a.number.compareTo(b.number));
-                } else {
-                  filteredTeams.sort((a, b) => b.number.compareTo(a.number));
-                }
-              case TeamSortOptions.rank:
-                if (isAscending) {
-                  filteredTeams.sort((a, b) {
-                    final rankA = rankings[a.number]?.rank ?? 999999;
-                    final rankB = rankings[b.number]?.rank ?? 999999;
-                    return rankA.compareTo(rankB);
-                  });
-                } else {
-                  filteredTeams.sort((a, b) {
-                    final rankA = rankings[a.number]?.rank ?? 0;
-                    final rankB = rankings[b.number]?.rank ?? 0;
-                    return rankB.compareTo(rankA);
-                  });
-                }
-              case TeamSortOptions.custom:
+          // Apply sort
+          filteredTeams = List.of(filteredTeams);
+          switch (selectedSort.sort) {
+            case TeamSortOptions.teamNumber:
+              if (isAscending) {
+                filteredTeams.sort((a, b) => a.number.compareTo(b.number));
+              } else {
+                filteredTeams.sort((a, b) => b.number.compareTo(a.number));
+              }
+            case TeamSortOptions.rank:
+              if (isAscending) {
                 filteredTeams.sort((a, b) {
-                  final rankA = ref.watch(teamScoutingProvider(a.number)).when(
-                    data: (bundle) =>
-                    bundle.avgMatchField(kSectionTele, kTeleFuelScored) +
-                        bundle.avgMatchField(kSectionAuto, kAutoFuelScored),
-                    error: (_, _) => 0,
-                    loading: () => 0,
-                  );
-                  final rankB = ref.watch(teamScoutingProvider(b.number)).when(
-                    data: (bundle) =>
-                    bundle.avgMatchField(kSectionTele, kTeleFuelScored) +
-                        bundle.avgMatchField(kSectionAuto, kAutoFuelScored),
-                    error: (_, _) => 0,
-                    loading: () => 0,
-                  );
-                  return isAscending
-                      ? rankA.compareTo(rankB)
-                      : rankB.compareTo(rankA);
+                  // Teams without a rank go to the end
+                  final rankA = rankings[a.number]?.rank ?? 999999;
+                  final rankB = rankings[b.number]?.rank ?? 999999;
+                  return rankA.compareTo(rankB);
                 });
-            }
+              } else {
+                filteredTeams.sort((a, b) {
+                  final rankA = rankings[a.number]?.rank ?? 0;
+                  final rankB = rankings[b.number]?.rank ?? 0;
+                  return rankB.compareTo(rankA);
+                });
+              }
+            case TeamSortOptions.custom:
+              filteredTeams.sort((a, b) {
+                // Teams without a rank go to the end
+                final rankA = ref
+                    .watch(teamScoutingProvider(a.number))
+                    .when(
+                      data: (bundle) =>
+                          bundle.avgMatchField(kSectionTele, kTeleFuelScored) +
+                          bundle.avgMatchField(kSectionAuto, kAutoFuelScored),
+                      error: (_, _) => 0,
+                      loading: () => 0,
+                    );
+                final rankB = ref
+                    .watch(teamScoutingProvider(b.number))
+                    .when(
+                      data: (bundle) =>
+                          bundle.avgMatchField(kSectionTele, kTeleFuelScored) +
+                          bundle.avgMatchField(kSectionAuto, kAutoFuelScored),
+                      error: (_, _) => 0,
+                      loading: () => 0,
+                    );
+                if (isAscending) {
+                  return rankA.compareTo(rankB);
+                } else {
+                  return rankB.compareTo(rankA);
+                }
+              });
+          }
 
             if (filteredTeams.isEmpty) {
               return const Center(child: Text('No teams found'));
             }
 
-            return RefreshIndicator(
-              onRefresh: onRefresh,
-              child: BeariscopeCardList(
-                children: filteredTeams
-                    .map((team) => TeamCard(teamKey: team.key))
-                    .toList(),
-              ),
-            );
-          },
-        ),
+          return RefreshIndicator(
+            onRefresh: onRefresh,
+            child: BeariscopeCardList(
+              children: filteredTeams
+                  .map((team) => TeamCard(teamKey: team.key))
+                  .toList(),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class SortByFieldItem extends StatefulWidget {
+  final double total;
+  final VoidCallback? onAddNew;
+
+  const SortByFieldItem({super.key, required this.total, this.onAddNew});
+
+  @override
+  State<StatefulWidget> createState() {
+    return SortByFieldItemState();
+  }
+}
+
+class SortByFieldItemState extends State<SortByFieldItem> {
+  String sectionId = '';
+  String dataId = '';
+
+  List<DropdownMenuEntry<String>> generateDropdownMenuItems(List<String> list) {
+    List<DropdownMenuEntry<String>> finalList = [];
+    for (var item in list) {
+      finalList.add(DropdownMenuEntry(value: item, label: item));
+    }
+    return finalList;
+  }
+
+  List<String> sectionIdToDataPointsList(String sectionId) {
+    switch (sectionId) {
+      case 'auto':
+        return kAutoDataList;
+      case 'tele':
+        return kTeleDataList;
+      case 'endgame':
+        return kEndgameDataList;
+      default:
+        return kTeleDataList;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      title: Row(
+        children: [
+          DropdownMenu<String>(
+            dropdownMenuEntries: generateDropdownMenuItems(kSectionsList),
+            onSelected: (item) {
+              if (item != null) {
+                sectionId = item;
+              }
+            },
+          ),
+          DropdownMenu<String>(
+            dropdownMenuEntries: generateDropdownMenuItems(
+              sectionIdToDataPointsList(sectionId),
+            ),
+            onSelected: (item) {
+              if (item != null) {
+                dataId = item;
+              }
+            },
+          ),
+          SizedBox.shrink(child: TextField(onChanged: (text) {})),
+        ],
+      ),
+      trailing: ElevatedButton(
+        onPressed: () {
+          widget.onAddNew;
+        },
+        child: Icon(Icons.add_circle_outline),
       ),
     );
   }

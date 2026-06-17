@@ -3,6 +3,7 @@ export 'bool_button.dart' show BoolButton;
 export 'custom_segmented_button.dart' show CustomSegmentedButton;
 export 'custom_slider.dart' show CustomSlider;
 export 'dropdown.dart' show Dropdown;
+export 'form_style.dart' show FormWidgetStyle;
 export 'int_textbox.dart' show IntTextbox;
 export 'match_form_renderer.dart' show MatchFormRenderer;
 export 'number_button.dart' show NumberButton;

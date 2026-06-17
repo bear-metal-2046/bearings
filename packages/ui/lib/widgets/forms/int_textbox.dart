@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'form_style.dart';
+
 class IntTextbox extends StatefulWidget {
   const IntTextbox({
     super.key,
@@ -42,6 +44,25 @@ class _IntTextboxState extends State<IntTextbox> {
   }
 
   @override
+  void didUpdateWidget(covariant IntTextbox oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialValue != widget.initialValue &&
+        widget.initialValue != null) {
+      _value = widget.initialValue!;
+      _controller.text = _value.toString();
+    }
+  }
+
+  InputDecoration _decoration(BuildContext context) {
+    return FormWidgetStyle.textFieldDecoration(
+      context: context,
+      label: widget.dataName,
+      fillColor: widget.fillColor,
+      outlineColor: widget.outlineColor,
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: widget.width,
@@ -49,47 +70,9 @@ class _IntTextboxState extends State<IntTextbox> {
       child: TextField(
         cursorColor:
             widget.outlineColor ?? Theme.of(context).colorScheme.onSurface,
-        decoration: InputDecoration(
-          filled: true,
-          fillColor: widget.fillColor ?? Theme.of(context).colorScheme.surface,
-          labelText: widget.dataName,
-          labelStyle: TextStyle(
-            color:
-                widget.outlineColor ?? Theme.of(context).colorScheme.onSurface,
-          ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10.0),
-            borderSide: BorderSide(
-              color:
-                  widget.outlineColor ?? Theme.of(context).colorScheme.outline,
-              width: 2.0,
-            ),
-          ),
-          errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10.0),
-            borderSide: BorderSide(
-              color: widget.outlineColor ?? Colors.red,
-              width: 2.0,
-            ),
-          ),
-          focusedErrorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10.0),
-            borderSide: BorderSide(
-              color:
-                  widget.outlineColor ??
-                  Theme.of(context).colorScheme.onSurface,
-              width: 2.0,
-            ),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10.0),
-            borderSide: BorderSide(
-              color:
-                  widget.outlineColor ?? Theme.of(context).colorScheme.primary,
-              width: 2.0,
-            ),
-          ),
-        ),
+        style: Theme.of(context).textTheme.bodyMedium,
+        textAlignVertical: TextAlignVertical.center,
+        decoration: _decoration(context),
         controller: _controller,
         keyboardType: TextInputType.number,
         inputFormatters: [FilteringTextInputFormatter.digitsOnly],

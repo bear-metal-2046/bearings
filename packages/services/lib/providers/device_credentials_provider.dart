@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:services/providers/api_provider.dart';
 
@@ -16,6 +18,15 @@ class DeviceCredentials {
     required this.audience,
   });
 
+  Map<String, dynamic> toJson() {
+    return {
+      'clientId': clientId,
+      'clientSecret': clientSecret,
+      'domain': domain,
+      'audience': audience,
+    };
+  }
+
   factory DeviceCredentials.fromJson(Map<String, dynamic> json) {
     return DeviceCredentials(
       clientId: json['clientId'] as String,
@@ -26,8 +37,29 @@ class DeviceCredentials {
   }
 
   String toQrPayload() {
-    return '{"clientId":"$clientId","clientSecret":"$clientSecret","domain":"$domain","audience":"$audience"}';
+    return base64Encode(utf8.encode(jsonEncode(toJson())));
   }
+}
+
+Map<String, dynamic> decodeProvisioningPayload(String raw) {
+  final trimmed = raw.trim();
+
+  try {
+    final payload = jsonDecode(trimmed);
+    if (payload is Map<String, dynamic>) {
+      return payload;
+    }
+  } on FormatException {
+    // Fall through to base64 decoding.
+  }
+
+  final decoded = utf8.decode(base64Decode(trimmed));
+  final payload = jsonDecode(decoded);
+  if (payload is Map<String, dynamic>) {
+    return payload;
+  }
+
+  throw const FormatException('Invalid provisioning payload');
 }
 
 @Riverpod(keepAlive: false)

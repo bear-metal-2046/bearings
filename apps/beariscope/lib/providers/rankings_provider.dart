@@ -6,11 +6,13 @@ class TeamRanking {
   final int teamNumber;
   final int rank;
   final int rankingPoints;
+  final double rankingScore;
 
   const TeamRanking({
     required this.teamNumber,
     required this.rank,
     required this.rankingPoints,
+    required this.rankingScore,
   });
 }
 
@@ -39,12 +41,15 @@ final eventRankingsProvider = FutureProvider<Map<int, TeamRanking>>((
       if (teamNumber == null) continue;
 
       final rank = (map['rank'] as num?)?.toInt() ?? 0;
+      final matches = (map['matchesPlayed'] as num?)?.toInt() ?? 0;
       final rp = (map['rankingPoints'] as num?)?.toInt() ?? 0;
+      final rs = (rp / matches).toDouble();
 
       result[teamNumber] = TeamRanking(
         teamNumber: teamNumber,
         rank: rank,
         rankingPoints: rp,
+        rankingScore: rs,
       );
     }
     return result;

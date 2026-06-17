@@ -9,17 +9,17 @@
     {
       "sectionId": "auto",
       "title": "Autonomous",
-      "width": 8,
-      "height": 7,
+      "width": 4,
+      "height": 8,
       "components": [
         {
           "alias": "A-Stop",
           "fieldId": "a_stop",
           "type": "toggle_switch",
           "layout": {
-            "x": 6,
+            "x": 3,
             "y": 0,
-            "w": 2,
+            "w": 1,
             "h": 1
           },
           "parameters": {
@@ -31,9 +31,9 @@
           "type": "volumetric_button",
           "layout": {
             "x": 0,
-            "y": 5,
-            "w": 4,
-            "h": 2
+            "y": 4,
+            "w": 2,
+            "h": 4
           },
           "parameters": {}
         },
@@ -42,10 +42,10 @@
           "fieldId": "fuel_passed",
           "type": "volumetric_button",
           "layout": {
-            "x": 4,
-            "y": 5,
-            "w": 4,
-            "h": 2
+            "x": 2,
+            "y": 4,
+            "w": 2,
+            "h": 4
           },
           "parameters": {}
         },
@@ -54,9 +54,9 @@
           "fieldId": "climb_l1",
           "type": "segmented_button",
           "layout": {
-            "x": 4,
+            "x": 2,
             "y": 1,
-            "w": 4,
+            "w": 2,
             "h": 1
           },
           "parameters": {
@@ -68,72 +68,12 @@
           }
         },
         {
-          "alias": "Q1",
-          "fieldId": "quadrant_1",
+          "alias": "Entered Neutral Zone",
+          "fieldId": "entered_neutral_zone",
           "type": "checkbox",
           "layout": {
             "x": 0,
             "y": 1,
-            "w": 2,
-            "h": 1
-          },
-          "parameters": {}
-        },
-        {
-          "alias": "Q2",
-          "fieldId": "quadrant_2",
-          "type": "checkbox",
-          "layout": {
-            "x": 2,
-            "y": 1,
-            "w": 2,
-            "h": 1
-          },
-          "parameters": {}
-        },
-        {
-          "alias": "Q3",
-          "fieldId": "quadrant_3",
-          "type": "checkbox",
-          "layout": {
-            "x": 0,
-            "y": 2,
-            "w": 2,
-            "h": 1
-          },
-          "parameters": {}
-        },
-        {
-          "alias": "Q4",
-          "fieldId": "quadrant_4",
-          "type": "checkbox",
-          "layout": {
-            "x": 2,
-            "y": 2,
-            "w": 2,
-            "h": 1
-          },
-          "parameters": {}
-        },
-        {
-          "alias": "Trench",
-          "fieldId": "traveled_under_trench",
-          "type": "int_button",
-          "layout": {
-            "x": 4,
-            "y": 3,
-            "w": 2,
-            "h": 1
-          },
-          "parameters": {}
-        },
-        {
-          "alias": "Bump",
-          "fieldId": "traveled_over_bump",
-          "type": "int_button",
-          "layout": {
-            "x": 6,
-            "y": 3,
             "w": 2,
             "h": 1
           },
@@ -145,8 +85,8 @@
           "type": "checkbox",
           "layout": {
             "x": 0,
-            "y": 3,
-            "w": 2,
+            "y": 2,
+            "w": 1,
             "h": 1
           },
           "parameters": {}
@@ -156,9 +96,9 @@
           "fieldId": "collect_from_depot",
           "type": "checkbox",
           "layout": {
-            "x": 2,
-            "y": 3,
-            "w": 2,
+            "x": 1,
+            "y": 2,
+            "w": 1,
             "h": 1
           },
           "parameters": {}
@@ -170,7 +110,7 @@
           "layout": {
             "x": 0,
             "y": 0,
-            "w": 5.96,
+            "w": 3,
             "h": 1
           },
           "parameters": {
@@ -188,9 +128,9 @@
           "fieldId": "collided",
           "type": "checkbox",
           "layout": {
-            "x": 4,
+            "x": 2,
             "y": 2,
-            "w": 4,
+            "w": 2,
             "h": 1
           },
           "parameters": {}
@@ -201,8 +141,8 @@
           "type": "slider",
           "layout": {
             "x": 0,
-            "y": 4,
-            "w": 8,
+            "y": 3,
+            "w": 4,
             "h": 1
           },
           "parameters": {
@@ -216,29 +156,29 @@
       "title": "Tele",
       "sectionId": "tele",
       "width": 6,
-      "height": 6,
+      "height": 8,
       "components": [
         {
-          "alias": "Trench",
-          "fieldId": "under_trench",
-          "type": "int_button",
+          "alias": "Stopped working",
+          "fieldId": "stopped_working",
+          "type": "toggle_switch",
           "layout": {
             "x": 0,
-            "y": 1,
-            "w": 3,
-            "h": 1
+            "y": 0,
+            "w": 2,
+            "h": 1.5
           },
           "parameters": {}
         },
         {
-          "alias": "Bump",
-          "fieldId": "over_bump",
-          "type": "int_button",
+          "alias": "Lost Comms",
+          "fieldId": "lost_comms",
+          "type": "toggle_switch",
           "layout": {
-            "x": 3,
-            "y": 1,
-            "w": 3,
-            "h": 1
+            "x": 0,
+            "y": 1.5,
+            "w": 2,
+            "h": 1.5
           },
           "parameters": {}
         },
@@ -247,10 +187,22 @@
           "fieldId": "periods_started_with_full_hopper",
           "type": "int_button",
           "layout": {
+            "x": 2,
+            "y": 0,
+            "w": 2,
+            "h": 3
+          },
+          "parameters": {}
+        },
+        {
+          "alias": "Beached / High Center",
+          "fieldId": "beached_high_center",
+          "type": "int_button",
+          "layout": {
             "x": 4,
             "y": 0,
             "w": 2,
-            "h": 1
+            "h": 3
           },
           "parameters": {}
         },
@@ -260,9 +212,9 @@
           "type": "volumetric_button",
           "layout": {
             "x": 0,
-            "y": 3,
+            "y": 4,
             "w": 2,
-            "h": 3
+            "h": 4
           },
           "parameters": {}
         },
@@ -272,9 +224,9 @@
           "type": "volumetric_button",
           "layout": {
             "x": 2,
-            "y": 3,
+            "y": 4,
             "w": 2,
-            "h": 3
+            "h": 4
           },
           "parameters": {}
         },
@@ -284,45 +236,9 @@
           "type": "volumetric_button",
           "layout": {
             "x": 4,
-            "y": 3,
+            "y": 4,
             "w": 2,
-            "h": 3
-          },
-          "parameters": {}
-        },
-        {
-          "alias": "Stopped working",
-          "fieldId": "stopped_working",
-          "type": "toggle_switch",
-          "layout": {
-            "x": 0,
-            "y": 0,
-            "w": 1,
-            "h": 1
-          },
-          "parameters": {}
-        },
-        {
-          "alias": "Fouls",
-          "fieldId": "fouls",
-          "type": "int_button",
-          "layout": {
-            "x": 2,
-            "y": 0,
-            "w": 2,
-            "h": 1
-          },
-          "parameters": {}
-        },
-        {
-          "alias": "Lost Comms",
-          "fieldId": "lost_comms",
-          "type": "toggle_switch",
-          "layout": {
-            "x": 1,
-            "y": 0,
-            "w": 1,
-            "h": 1
+            "h": 4
           },
           "parameters": {}
         },
@@ -332,7 +248,7 @@
           "type": "slider",
           "layout": {
             "x": 0,
-            "y": 2,
+            "y": 3,
             "w": 6,
             "h": 1
           },
@@ -413,7 +329,7 @@
           "parameters": {}
         },
         {
-          "alias": "Off Shift Defense",
+          "alias": "OFF Shift Defense",
           "fieldId": "played_defense_off_shift",
           "type": "checkbox",
           "layout": {

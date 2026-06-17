@@ -16,6 +16,8 @@ Supported Python: 3.10+
 
 from __future__ import annotations
 
+import base64
+import binascii
 import json
 import re
 import shutil
@@ -69,7 +71,7 @@ def operation(
             ...
 
     For operations that need one-time configuration before the watcher starts
-    (e.g. prompting for a JSON payload), supply a ``configure`` callable.
+    (e.g. prompting for a provisioning payload), supply a ``configure`` callable.
     It is called once when the user hits "go".  Return True to keep the op in
     this run, False to drop it.
     """
@@ -446,20 +448,21 @@ def op_reset(serial: str) -> None:
 # ── Provision credentials ─────────────────────────────────────────────────────
 #
 # How it works:
-#   1. The user pastes the Auth0 JSON payload at "go" time.
-#   2. When a device connects, the JSON is written via `run-as` to
+#   1. The user pastes the provisioning payload at "go" time.
+#   2. When a device connects, the base64 payload is written via `run-as` to
 #      pending_credentials.json inside the app's documents directory.
 #   3. On next launch, device_auth_service.initialize() detects the file,
-#      calls provision(), deletes the file, and the app boots authenticated.
+#      decodes it, calls provision(), deletes the file, and the app boots
+#      authenticated.
 
-_provision_json: str | None = None
+_provision_payload_b64: str | None = None
 
 
 def _configure_provision() -> bool:
-    """Prompt for the Auth0 credential JSON payload once, before watching."""
-    global _provision_json
+    """Prompt for the credential payload once, before watching."""
+    global _provision_payload_b64
     print()
-    print("  Paste the Pawfinder credentials JSON payload (from Beariscope).")
+    print("  Paste the Pawfinder provisioning payload (from Beariscope).")
     print("  Press Enter on a blank line when done:")
     lines: list[str] = []
     try:
@@ -474,16 +477,31 @@ def _configure_provision() -> bool:
 
     raw = "".join(lines).strip()
     if not raw:
-        print("  ✗ No JSON provided — provision step will not run.")
+        print("  ✗ No payload provided — provision step will not run.")
         return False
     try:
-        json.loads(raw)  # validate before storing
-        _provision_json = raw
-        print("  ✓ Credentials JSON accepted")
+        _provision_payload_b64 = _normalize_provision_payload(raw)
+        print("  ✓ Provisioning payload accepted")
         return True
-    except json.JSONDecodeError as exc:
-        print(f"  ✗ Invalid JSON: {exc}")
+    except (json.JSONDecodeError, ValueError, binascii.Error, UnicodeDecodeError) as exc:
+        print(f"  ✗ Invalid provisioning payload: {exc}")
         return False
+
+
+def _normalize_provision_payload(raw: str) -> str:
+    stripped = raw.strip()
+
+    try:
+        json.loads(stripped)
+    except json.JSONDecodeError:
+        try:
+            decoded = base64.b64decode(stripped, validate=True).decode()
+            json.loads(decoded)
+            return stripped
+        except (binascii.Error, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ValueError("payload must be valid base64 or JSON") from exc
+    else:
+        return base64.b64encode(stripped.encode()).decode()
 
 
 @operation(
@@ -493,8 +511,8 @@ def _configure_provision() -> bool:
     configure=_configure_provision,
 )
 def op_provision(serial: str) -> None:
-    if _provision_json is None:
-        log("  ✗ No credentials JSON configured — skipping")
+    if _provision_payload_b64 is None:
+        log("  ✗ No provisioning payload configured — skipping")
         return
 
     label  = device_label(serial)
@@ -504,12 +522,12 @@ def op_provision(serial: str) -> None:
     proc = subprocess.run(
         ["adb", "-s", serial, "shell",
          f"run-as {PACKAGE_ID} sh -c 'mkdir -p {APP_DATA} && cat > {target}'"],
-        input=_provision_json,
+        input=_provision_payload_b64,
         capture_output=True,
         text=True,
     )
     if proc.returncode == 0:
-        log("  ✓ pending_credentials.json written — will apply on next app launch")
+        log("  ✓ pending_credentials.json written with base64 payload — will apply on next app launch")
     else:
         err = (proc.stderr or proc.stdout).strip()
         log(f"  ✗ Failed to stage credentials: {err}")

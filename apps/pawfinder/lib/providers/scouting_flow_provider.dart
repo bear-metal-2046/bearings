@@ -1,8 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_ce/hive.dart';
-import 'package:pawfinder/data/local_data.dart';
 import 'package:pawfinder/data/upload_queue.dart';
 import 'package:pawfinder/services/scout_upload_service.dart';
 import 'package:pawfinder/store/strat_state.dart';
@@ -11,8 +9,18 @@ import 'scouting_providers.dart';
 
 class ScoutingFlowController {
   final Ref _ref;
+  final List<DateTime> _nextMatchTapTimes = <DateTime>[];
 
   ScoutingFlowController(this._ref);
+
+  bool shouldWarnForRapidNextMatchTaps() {
+    final now = DateTime.now();
+    _nextMatchTapTimes.removeWhere(
+      (time) => now.difference(time) > const Duration(seconds: 5),
+    );
+    _nextMatchTapTimes.add(now);
+    return _nextMatchTapTimes.length >= 3;
+  }
 
   bool markCurrentMatchForUpload() {
     final session = _ref.read(scoutingSessionProvider);
@@ -36,12 +44,10 @@ class ScoutingFlowController {
         .createMatchIdentity();
     if (identity == null) return false;
 
-    final raw = Hive.box(boxKey).get(stratStorageKeyForIdentity(identity));
-    if (raw is! String) return false;
+    final stratDoc = loadStratFormDataForIdentity(identity);
+    if (stratDoc == null) return false;
 
-    _ref
-        .read(uploadQueueProvider.notifier)
-        .enqueue(stratQueueIdForIdentity(identity));
+    _ref.read(uploadQueueProvider.notifier).enqueue(stratDoc.id);
     return true;
   }
 

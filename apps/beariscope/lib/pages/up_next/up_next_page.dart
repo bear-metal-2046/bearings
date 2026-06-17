@@ -1,4 +1,4 @@
-import 'package:beariscope/components/beariscope_card.dart';
+import 'package:beariscope/widgets/beariscope_card.dart';
 import 'package:beariscope/pages/main_view.dart';
 import 'package:beariscope/pages/up_next/up_next_provider.dart';
 import 'package:beariscope/pages/up_next/up_next_widget.dart';
@@ -6,20 +6,13 @@ import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/tba_preferences_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 enum _MatchFilter { all, bearMetal }
 
-enum _EventAction {
-  openTba,
-  openStatbotics,
-  openNexus,
-  openFrcEvents,
-  changeEventInSettings,
-}
+enum _EventAction { openTba, openStatbotics, openNexus, openFrcEvents }
 
 class UpNextPage extends ConsumerStatefulWidget {
   const UpNextPage({super.key});
@@ -38,11 +31,18 @@ class _UpNextPageState extends ConsumerState<UpNextPage> {
     final controller = MainViewController.of(context);
     final schedule = ref.watch(upNextProvider);
     final currentEventKey = ref.watch(currentEventProvider);
-    final eventDetails = ref.watch(currentEventDetailsProvider);
+    final eventDetails = ref
+        .watch(teamEventsProvider)
+        .whenData(
+          (events) => events.firstWhere(
+            (event) => event.key == currentEventKey,
+            orElse: () => EventOption.current(currentEventKey),
+          ),
+        );
 
     Future<void> refreshSchedule() async {
       ref.invalidate(upNextProvider);
-      ref.invalidate(currentEventDetailsProvider);
+      ref.invalidate(teamEventsProvider);
       try {
         await ref.read(upNextProvider.future);
       } catch (_) {}
@@ -58,7 +58,6 @@ class _UpNextPageState extends ConsumerState<UpNextPage> {
                 icon: const Icon(Symbols.menu_rounded),
                 onPressed: controller.openDrawer,
               ),
-        actionsPadding: const EdgeInsets.only(right: 12.0),
         actions: [
           PopupMenuButton<_MatchFilter>(
             icon: Icon(
@@ -84,7 +83,6 @@ class _UpNextPageState extends ConsumerState<UpNextPage> {
               ),
             ],
           ),
-          const SizedBox(width: 8),
           PopupMenuButton<_EventAction>(
             icon: const Icon(Icons.more_vert),
             tooltip: 'More options',
@@ -94,7 +92,7 @@ class _UpNextPageState extends ConsumerState<UpNextPage> {
                 value: _EventAction.openTba,
                 child: ListTile(
                   leading: Icon(Symbols.open_in_new_rounded),
-                  title: Text('Open in TBA'),
+                  title: Text('View Event in TBA'),
                   contentPadding: EdgeInsets.zero,
                 ),
               ),
@@ -102,15 +100,7 @@ class _UpNextPageState extends ConsumerState<UpNextPage> {
                 value: _EventAction.openStatbotics,
                 child: ListTile(
                   leading: Icon(Symbols.open_in_new_rounded),
-                  title: Text('Open in Statbotics'),
-                  contentPadding: EdgeInsets.zero,
-                ),
-              ),
-              PopupMenuItem(
-                value: _EventAction.openNexus,
-                child: ListTile(
-                  leading: Icon(Symbols.open_in_new_rounded),
-                  title: Text('Open in Nexus'),
+                  title: Text('View Event in Statbotics'),
                   contentPadding: EdgeInsets.zero,
                 ),
               ),
@@ -118,15 +108,15 @@ class _UpNextPageState extends ConsumerState<UpNextPage> {
                 value: _EventAction.openFrcEvents,
                 child: ListTile(
                   leading: Icon(Symbols.open_in_new_rounded),
-                  title: Text('Open in FRC Events'),
+                  title: Text('View Event in FIRST Events'),
                   contentPadding: EdgeInsets.zero,
                 ),
               ),
               PopupMenuItem(
-                value: _EventAction.changeEventInSettings,
+                value: _EventAction.openNexus,
                 child: ListTile(
-                  leading: Icon(Symbols.settings_rounded),
-                  title: Text('Change Event in Settings'),
+                  leading: Icon(Symbols.open_in_new_rounded),
+                  title: Text('Open Schedule in Nexus'),
                   contentPadding: EdgeInsets.zero,
                 ),
               ),
@@ -144,7 +134,7 @@ class _UpNextPageState extends ConsumerState<UpNextPage> {
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               data: (event) => Text(
-                'Showing Matches for ${event['name']?.toString() ?? currentEventKey}',
+                'Showing Matches for ${event.displayShortName}',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
@@ -185,7 +175,7 @@ class _UpNextPageState extends ConsumerState<UpNextPage> {
         );
       case _EventAction.openNexus:
         launchUrl(
-          Uri.parse('https://frc.nexus/en/event/$eventKey/team/2046'),
+          Uri.parse('https://frc.nexus/en/event/$eventKey/team/2046/matches'),
           mode: LaunchMode.externalApplication,
         );
       case _EventAction.openFrcEvents:
@@ -195,8 +185,6 @@ class _UpNextPageState extends ConsumerState<UpNextPage> {
           ),
           mode: LaunchMode.externalApplication,
         );
-      case _EventAction.changeEventInSettings:
-        context.push('/settings');
     }
   }
 }

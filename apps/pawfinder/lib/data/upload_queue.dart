@@ -4,8 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_ce_flutter/adapters.dart';
 import 'package:pawfinder/data/local_data.dart';
 
-const stratQueuePrefix = 'strat:';
-
 class UploadQueueNotifier extends Notifier<List<String>> {
   static const _hiveKey = 'upload_queue';
 

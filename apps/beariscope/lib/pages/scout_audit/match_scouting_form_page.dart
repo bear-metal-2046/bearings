@@ -134,7 +134,6 @@ class _MatchScoutingFormPageState extends ConsumerState<MatchScoutingFormPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(title),
-        actionsPadding: const EdgeInsetsDirectional.only(end: 8),
         actions: [
           IconButton(
             onPressed: _saving ? null : _save,

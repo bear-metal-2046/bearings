@@ -1,5 +1,56 @@
 # Changelog
 
+## v26.5.0
+**Released:** 2026-04-25
+
+### Bug Fixes
+- beariscope: Fix image sharing build issue on web (1b2e046)
+
+
+### Features
+- pawfinder: Fix crash in strat scouting (07c7205)
+- beariscope: Add ranking score and match labels to team card (f837742)
+- beariscope: Add icon labels to team card graphs (ce5dcf7)
+- beariscope: Add team website link to team card media tab (fccce1b)
+- pawfinder: Add match spam check and color scheme settings (84a6b31)
+- beariscope: Collapse team card when there's no data (dae4e0e)
+- beariscope: TBA deviation calculations use point difference instead of percent difference (501ad3d)
+- repo: Beached and high center added to tele and average in team card, and to pawfinder (4739478)
+- beariscope: Added broken down/ defense symbols to the graph in the graph tab (abcf599)
+- Feat(beariscope: clean up visuals
+
+* fix(services): make networkFirst cache policy the default
+
+* fix(beariscope): standardize AppBar padding across all pages
+
+* fix(beariscope): fix changing accent color opacity in appearance settings
+
+* feat(beariscope): add observations and sort notes by upload time
+
+* feat(beariscope): add customizable app icons on iOS
+
+* chore(deps): clean up pubspecs (02f8663)
+
+
+## v26.4.0
+**Released:** 2026-04-08
+
+### Features
+- pawfinder: Overhaul how match form looks (6d789fe)
+- beariscope: Add media tab to team card (2a7a2c3)
+- beariscope: Improve media tab image gestures (a782201)
+- beariscope: Add links for cd threads, cad, videos in media tab (3309fa6)
+- beariscope: Redesign event selection and sidebar menu; change provision payload (1581f03)
+- beariscope: Clean up and remove unused code (76195d2)
+- beariscope: Enhance caching and clean up code (954bdc6)
+- beariscope: Fix drawer swipe gesture logic (d10214b)
+- beariscope: Add strat to scout audit and stop uploading duplicate strat docs (25d0d57)
+- pawfinder: Add match select dropdown when scouting (a49b180)
+- beariscope: Add match lookup page (4741a56)
+- beariscope: Add tower capability to team card (27e6c0b)
+- beariscope: Update ios/macos project, switch to swift pm from cocoapods (8cf9782)
+
+
 ## v26.3.3
 **Released:** 2026-03-29
 

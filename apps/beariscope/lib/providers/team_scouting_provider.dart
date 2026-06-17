@@ -6,14 +6,16 @@ final teamScoutingProvider = FutureProvider.family<TeamScoutingBundle, int>((
   ref,
   teamNumber,
 ) async {
-  final allProcessed = await ref.watch(processedScoutingProvider.future);
+  final processedBundle = await ref.watch(processedScoutingProvider.future);
+  final allProcessed = processedBundle.processedDocs;
 
   final teamDocs = allProcessed.where((doc) {
     return TeamScoutingBundle.teamNumber(doc.raw) == teamNumber;
   }).toList();
 
-  final matchDocs = teamDocs
-      .where((doc) => doc.raw.meta?['type']?.toString() == 'match')
+  final matchDocs =
+      teamDocs
+          .where((doc) => doc.raw.meta?['type']?.toString() == 'match')
           .toList()
         ..sort((a, b) {
           final aMatch = TeamScoutingBundle.matchNumber(a.raw) ?? 0;
@@ -33,6 +35,13 @@ final teamScoutingProvider = FutureProvider.family<TeamScoutingBundle, int>((
   final driveTeamDocs =
       teamDocs
           .where((doc) => doc.raw.meta?['type']?.toString() == 'drive_team')
+          .map((doc) => doc.raw)
+          .toList()
+        ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+
+  final observationDocs =
+      teamDocs
+          .where((doc) => doc.raw.meta?['type']?.toString() == 'observation')
           .map((doc) => doc.raw)
           .toList()
         ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
@@ -62,5 +71,6 @@ final teamScoutingProvider = FutureProvider.family<TeamScoutingBundle, int>((
     pitsDoc: pitsDoc,
     stratDocs: stratDocs,
     driveTeamDocs: driveTeamDocs,
+    observationDocs: observationDocs,
   );
 });

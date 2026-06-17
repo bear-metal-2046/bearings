@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:pawfinder/providers/app_provider.dart';
+import 'package:services/release/release_info.dart';
 
 class AboutPage extends ConsumerStatefulWidget {
   const AboutPage({super.key});
@@ -149,16 +151,67 @@ class _AboutPageState extends ConsumerState<AboutPage> {
 
                   const SizedBox(height: 8),
 
-                  // Version
-                  Text(
-                    'Version 1.0.0',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.onSurface.withValues(alpha: 0.6),
-                    ),
-                    textAlign: TextAlign.center,
-                  ).animate().fadeIn(delay: 200.ms, duration: 500.ms),
+                  FutureBuilder<(PackageInfo, String)>(
+                    future:
+                        Future.wait([
+                          PackageInfo.fromPlatform(),
+                          loadReleaseCodename(),
+                        ]).then(
+                          (results) => (
+                            results[0] as PackageInfo,
+                            (results[1] as String).trim(),
+                          ),
+                        ),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return Text(
+                          'Loading',
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withValues(alpha: 0.6),
+                              ),
+                          textAlign: TextAlign.center,
+                        ).animate().fadeIn(delay: 200.ms, duration: 500.ms);
+                      } else if (snapshot.hasError) {
+                        return Text(
+                          'Error',
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withValues(alpha: 0.6),
+                              ),
+                          textAlign: TextAlign.center,
+                        ).animate().fadeIn(delay: 200.ms, duration: 500.ms);
+                      } else {
+                        final (info, codename) = snapshot.data!;
+                        final version = info.version;
+                        if (codename.isEmpty || codename == 'Unknown') {
+                          return Text(
+                            'Version $version',
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
+                                  color: Theme.of(context).colorScheme.onSurface
+                                      .withValues(alpha: 0.6),
+                                ),
+                            textAlign: TextAlign.center,
+                          ).animate().fadeIn(delay: 200.ms, duration: 500.ms);
+                        }
+                        return Text(
+                          'Version $version - $codename',
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withValues(alpha: 0.6),
+                              ),
+                          textAlign: TextAlign.center,
+                        ).animate().fadeIn(delay: 200.ms, duration: 500.ms);
+                      }
+                    },
+                  ),
 
                   const SizedBox(height: 40),
 

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'form_style.dart';
+
 class StringTextbox extends StatefulWidget {
   const StringTextbox({
     super.key,
@@ -26,18 +28,43 @@ class StringTextbox extends StatefulWidget {
 
 class _StringTextboxState extends State<StringTextbox> {
   final TextEditingController _controller = TextEditingController();
-  late String _value = widget.initialString ?? '';
+  final FocusNode _focusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
-    _controller.text = _value;
+    _controller.text = widget.initialString ?? '';
   }
 
   @override
   void dispose() {
+    _focusNode.dispose();
     _controller.dispose();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant StringTextbox oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final externalValue = widget.initialString ?? '';
+    if (oldWidget.initialString != widget.initialString &&
+        !_focusNode.hasFocus &&
+        _controller.text != externalValue) {
+      _controller.value = _controller.value.copyWith(
+        text: externalValue,
+        selection: TextSelection.collapsed(offset: externalValue.length),
+        composing: TextRange.empty,
+      );
+    }
+  }
+
+  InputDecoration _decoration(BuildContext context) {
+    return FormWidgetStyle.textFieldDecoration(
+      context: context,
+      label: widget.dataName,
+      fillColor: widget.fillColor,
+      outlineColor: widget.outlineColor,
+    );
   }
 
   @override
@@ -45,55 +72,31 @@ class _StringTextboxState extends State<StringTextbox> {
     return SizedBox(
       width: widget.width,
       height: widget.height,
-      child: TextField(
-        cursorColor: Theme.of(context).colorScheme.onSurface,
-        decoration: InputDecoration(
-          filled: true,
-          fillColor: widget.fillColor ?? Theme.of(context).colorScheme.surface,
-          labelText: widget.dataName,
-          labelStyle: TextStyle(
-            color:
-                widget.outlineColor ?? Theme.of(context).colorScheme.onSurface,
-          ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10.0),
-            borderSide: BorderSide(
-              color:
-                  widget.outlineColor ?? Theme.of(context).colorScheme.outline,
-              width: 2.0,
-            ),
-          ),
-          errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10.0),
-            borderSide: BorderSide(
-              color: widget.outlineColor ?? Colors.red,
-              width: 2.0,
-            ),
-          ),
-          focusedErrorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10.0),
-            borderSide: BorderSide(
-              color:
-                  widget.outlineColor ??
-                  Theme.of(context).colorScheme.onSurface,
-              width: 2.0,
-            ),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10.0),
-            borderSide: BorderSide(
-              color:
-                  widget.outlineColor ?? Theme.of(context).colorScheme.primary,
-              width: 2.0,
-            ),
-          ),
-        ),
-        controller: _controller,
-        onChanged: (_) {
-          setState(() {
-            _value = _controller.text;
-            widget.onChanged(_value);
-          });
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // Taller slots from the JSON layout behave like true notes fields.
+          final isMultiline = constraints.maxHeight >= 88;
+
+          return TextField(
+            cursorColor: Theme.of(context).colorScheme.onSurface,
+            style: Theme.of(context).textTheme.bodyMedium,
+            focusNode: _focusNode,
+            keyboardType: isMultiline
+                ? TextInputType.multiline
+                : TextInputType.text,
+            textInputAction: isMultiline
+                ? TextInputAction.newline
+                : TextInputAction.done,
+            minLines: isMultiline ? null : 1,
+            maxLines: isMultiline ? null : 1,
+            expands: isMultiline,
+            textAlignVertical: isMultiline
+                ? TextAlignVertical.top
+                : TextAlignVertical.center,
+            decoration: _decoration(context),
+            controller: _controller,
+            onChanged: widget.onChanged,
+          );
         },
       ),
     );

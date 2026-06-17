@@ -1,3 +1,4 @@
+import 'package:auto_size_text/auto_size_text.dart';
 import 'package:core/core.dart';
 import 'package:flutter/material.dart';
 
@@ -6,6 +7,7 @@ import 'bool_button.dart';
 import 'custom_segmented_button.dart';
 import 'custom_slider.dart';
 import 'dropdown.dart';
+import 'form_style.dart';
 import 'int_textbox.dart';
 import 'number_button.dart';
 import 'string_textbox.dart';
@@ -70,6 +72,25 @@ class _MatchFormRendererState extends State<MatchFormRenderer> {
     }
 
     return true;
+  }
+
+  String _normalizedLabel(ComponentConfig component) {
+    final raw = component.alias.trim().isNotEmpty
+        ? component.alias.trim()
+        : component.fieldId.trim();
+    final normalized = raw
+        .replaceAll(RegExp(r'[_-]+'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    if (normalized.isEmpty) return component.fieldId;
+
+    return normalized
+        .split(' ')
+        .map((word) {
+          if (word.length <= 2) return word.toUpperCase();
+          return '${word[0].toUpperCase()}${word.substring(1)}';
+        })
+        .join(' ');
   }
 
   bool _jsonListEquals(List<dynamic> a, List<dynamic> b) {
@@ -143,6 +164,7 @@ class _MatchFormRendererState extends State<MatchFormRenderer> {
     required double height,
   }) {
     final sectionId = widget.page.sectionId;
+    final label = _normalizedLabel(component);
 
     switch (component.type) {
       case 'volumetric_button':
@@ -150,13 +172,13 @@ class _MatchFormRendererState extends State<MatchFormRenderer> {
           buttons: const [1, 5, -1, -5],
           width: width,
           height: height,
-          dataName: component.alias,
+          dataName: label,
           initialValue: storedValue is int ? storedValue : null,
           onChanged: (v) => _onFieldChanged(sectionId, component.fieldId, v),
         );
       case 'int_button':
         return NumberButton(
-          dataName: component.alias,
+          dataName: label,
           width: width,
           height: height,
           initialValue: storedValue is int ? storedValue : null,
@@ -165,7 +187,7 @@ class _MatchFormRendererState extends State<MatchFormRenderer> {
       case 'int_text_box':
         return IntTextbox(
           onChanged: (v) => _onFieldChanged(sectionId, component.fieldId, v),
-          dataName: component.alias,
+          dataName: label,
           width: width,
           height: height,
           initialValue: storedValue is int ? storedValue : null,
@@ -173,16 +195,15 @@ class _MatchFormRendererState extends State<MatchFormRenderer> {
       case 'toggle_switch':
       case 'checkbox':
         return BoolButton(
-          dataName: component.alias,
+          dataName: label,
           width: width,
           height: height,
           initialValue: storedValue is bool ? storedValue : null,
           onChanged: (v) => _onFieldChanged(sectionId, component.fieldId, v),
-          visualFeedback: true,
         );
       case 'text_box':
         return StringTextbox(
-          dataName: component.alias,
+          dataName: label,
           width: width,
           height: height,
           initialString: storedValue is String ? storedValue : null,
@@ -199,8 +220,10 @@ class _MatchFormRendererState extends State<MatchFormRenderer> {
         final selectedIndex = items.indexOf(storedValue?.toString() ?? '');
 
         return Dropdown(
-          title: component.alias,
-          backgroundColor: Colors.blueAccent,
+          title: label,
+          backgroundColor: Theme.of(
+            context,
+          ).colorScheme.surfaceContainerHighest,
           items: items,
           onChanged: (v) => _onFieldChanged(sectionId, component.fieldId, v),
           initialIndex: selectedIndex == -1 ? null : selectedIndex,
@@ -209,7 +232,7 @@ class _MatchFormRendererState extends State<MatchFormRenderer> {
         );
       case 'tristate':
         return TristateButton(
-          dataName: component.alias,
+          dataName: label,
           width: width,
           height: height,
           initialValue: storedValue is int ? storedValue : null,
@@ -218,7 +241,7 @@ class _MatchFormRendererState extends State<MatchFormRenderer> {
       case 'slider':
         return CustomSlider(
           onChanged: (v) => _onFieldChanged(sectionId, component.fieldId, v),
-          title: component.alias,
+          title: label,
           width: width,
           height: height,
           minValue: 0,
@@ -245,13 +268,15 @@ class _MatchFormRendererState extends State<MatchFormRenderer> {
           height: height,
         );
       case 'Nxt':
-        return _buildNextButton(component, width, height);
+        return _buildNextButton(context, component, width, height);
       default:
+        debugPrint('Unsupported component type: ${component.type}');
         return null;
     }
   }
 
   Widget? _buildNextButton(
+    BuildContext context,
     ComponentConfig component,
     double width,
     double height,
@@ -269,7 +294,26 @@ class _MatchFormRendererState extends State<MatchFormRenderer> {
     return SizedBox(
       width: width,
       height: height,
-      child: ElevatedButton(onPressed: onNextPressed, child: Text(text)),
+      child: ElevatedButton(
+        onPressed: onNextPressed,
+        style: FormWidgetStyle.elevatedButtonStyle(
+          context,
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          foregroundColor: Theme.of(context).colorScheme.onPrimary,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        ),
+        child: AutoSizeText(
+          text,
+          textAlign: TextAlign.center,
+          maxLines: 2,
+          minFontSize: 10,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: Theme.of(context).colorScheme.onPrimary,
+          ),
+        ),
+      ),
     );
   }
 }

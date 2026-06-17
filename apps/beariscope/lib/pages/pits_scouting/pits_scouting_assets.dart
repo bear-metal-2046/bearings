@@ -1,4 +1,4 @@
-import 'package:beariscope/components/beariscope_card.dart';
+import 'package:beariscope/widgets/beariscope_card.dart';
 import 'package:beariscope/models/pits_form_schema.dart';
 import 'package:beariscope/models/pits_scouting_models.dart';
 import 'package:beariscope/models/scouting_document.dart';
@@ -76,8 +76,7 @@ class PitsScoutingTeamCard extends ConsumerWidget {
         ],
       ),
       onTap: () async {
-        final result = await Navigator.push(
-          context,
+        final result = await Navigator.of(context, rootNavigator: true).push(
           MaterialPageRoute(
             builder: (context) => PitsScoutingFormPage(
               teamNumber: teamNumber,

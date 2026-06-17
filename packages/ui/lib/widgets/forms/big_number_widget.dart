@@ -1,4 +1,7 @@
+import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
+
+import 'form_style.dart';
 
 class BigNumberWidget extends StatefulWidget {
   const BigNumberWidget({
@@ -28,92 +31,121 @@ class _BigNumberWidgetState extends State<BigNumberWidget> {
   late int _currentValue = widget.initialValue ?? 0;
 
   @override
+  void didUpdateWidget(covariant BigNumberWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialValue != widget.initialValue) {
+      _currentValue = widget.initialValue ?? 0;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final panelColor =
+        widget.backgroundColor ?? theme.colorScheme.surfaceContainerLow;
+
     return SizedBox(
       width: widget.width,
       height: widget.height,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final width = constraints.maxWidth;
-          final height = constraints.maxHeight;
-          final headerHeight = height * 0.28;
-          final gridHeight = (height - headerHeight).clamp(0.0, height);
-          final rows = (widget.buttons.length / 2).ceil().clamp(1, 4);
-          final cellHeight = gridHeight / rows;
-          final cellWidth = width / 2;
-          final aspectRatio = cellHeight > 0 ? cellWidth / cellHeight : 1.0;
+      child: DecoratedBox(
+        decoration: FormWidgetStyle.panelDecoration(
+          context,
+          fillColor: panelColor,
+        ),
+        child: Padding(
+          padding: FormWidgetStyle.cardPadding,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final width = constraints.maxWidth;
+              final height = constraints.maxHeight;
+              final headerHeight = (height * 0.32).clamp(24.0, 78.0).toDouble();
+              final gridHeight = (height - headerHeight)
+                  .clamp(0.0, height)
+                  .toDouble();
+              final columns = widget.buttons.length <= 2 ? 1 : 2;
+              final rows = (widget.buttons.length / columns).ceil().clamp(1, 4);
+              final availableItemWidth = (width - ((columns - 1) * 8))
+                  .clamp(1.0, width)
+                  .toDouble();
+              final availableItemHeight = (gridHeight - ((rows - 1) * 8))
+                  .clamp(1.0, gridHeight + 1)
+                  .toDouble();
+              final childAspectRatio =
+                  (availableItemWidth / columns) / (availableItemHeight / rows);
+              final title = widget.dataName.trim().isEmpty
+                  ? _currentValue.toString()
+                  : '${widget.dataName}: $_currentValue';
 
-          return Column(
-            children: [
-              SizedBox(
-                height: headerHeight,
-                child: Center(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      '${widget.dataName}: $_currentValue',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.onSurface,
+              return Column(
+                children: [
+                  SizedBox(
+                    height: headerHeight,
+                    child: Center(
+                      child: AutoSizeText(
+                        title,
+                        textAlign: TextAlign.center,
+                        minFontSize: 11,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          color: theme.colorScheme.onSurface,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ),
-              SizedBox(
-                height: gridHeight,
-                width: width,
-                child: GridView.builder(
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    childAspectRatio: aspectRatio,
-                  ),
-                  itemCount: widget.buttons.length,
-                  itemBuilder: (context, index) {
-                    final value = widget.buttons[index];
-                    return ElevatedButton(
-                      onPressed: () {
-                        setState(() {
-                          _currentValue += value;
-                          if (_currentValue <= 0) {
-                            _currentValue = 0;
-                          }
-                        });
-                        widget.onChanged?.call(_currentValue);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            widget.backgroundColor ??
-                            Theme.of(context).colorScheme.surface,
-                        foregroundColor: Theme.of(
-                          context,
-                        ).colorScheme.onSurface,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8.0),
-                          side: const BorderSide(
-                            color: Colors.grey,
-                            width: 1.0,
+                  SizedBox(
+                    height: gridHeight,
+                    width: width,
+                    child: GridView.builder(
+                      physics: const NeverScrollableScrollPhysics(),
+                      padding: EdgeInsets.zero,
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: columns,
+                        childAspectRatio: childAspectRatio,
+                        mainAxisSpacing: FormWidgetStyle.controlGap,
+                        crossAxisSpacing: FormWidgetStyle.controlGap,
+                      ),
+                      itemCount: widget.buttons.length,
+                      itemBuilder: (context, index) {
+                        final value = widget.buttons[index];
+                        final buttonText = value > 0
+                            ? '+$value'
+                            : value.toString();
+
+                        return ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              _currentValue += value;
+                              if (_currentValue <= 0) {
+                                _currentValue = 0;
+                              }
+                            });
+                            widget.onChanged?.call(_currentValue);
+                          },
+                          style: FormWidgetStyle.elevatedButtonStyle(
+                            context,
+                            backgroundColor: theme.colorScheme.surface,
+                            foregroundColor: theme.colorScheme.onSurface,
                           ),
-                        ),
-                      ),
-                      child: Text(
-                        value > 0 ? '+$value' : value.toString(),
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          );
-        },
+                          child: AutoSizeText(
+                            buttonText,
+                            maxLines: 1,
+                            minFontSize: 10,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
       ),
     );
   }

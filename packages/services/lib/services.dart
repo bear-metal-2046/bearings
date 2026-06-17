@@ -24,7 +24,10 @@ export 'providers/connectivity_provider.dart'
         checkOnline,
         isDefinitelyOffline;
 export 'providers/device_credentials_provider.dart'
-    show DeviceCredentials, deviceCredentialsProvider;
+    show
+        DeviceCredentials,
+        decodeProvisioningPayload,
+        deviceCredentialsProvider;
 export 'providers/permissions_provider.dart'
     show
         authMeProvider,
@@ -45,12 +48,12 @@ export 'providers/rbac_management_provider.dart'
         RbacManagementService,
         RbacMetadata,
         RbacPermissionMetadata;
-export 'providers/secure_storage_provider.dart' show secureStorageProvider;
-export 'release/release_info.dart' show loadReleaseCodename;
+export 'providers/secure_storage_provider.dart';
 export 'providers/user_profile_provider.dart'
     show
         userInfoProvider,
         userProfileServiceProvider,
         UserInfo,
         UserProfileService;
+export 'release/release_info.dart' show loadReleaseCodename;
 export 'widgets/profile_picture.dart' show ProfilePicture;

@@ -9,7 +9,7 @@ final upNextProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final matches = await client.get<List<dynamic>>(
     '/matches',
     queryParams: {'event': currentEventKey},
-    cachePolicy: CachePolicy.cacheFirst,
+    cachePolicy: CachePolicy.networkFirst,
   );
 
   final eventMatches =
@@ -22,39 +22,6 @@ final upNextProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
 
   return eventMatches;
 });
-
-final currentEventDetailsProvider = FutureProvider<Map<String, dynamic>>((
-  ref,
-) async {
-  final client = ref.watch(honeycombClientProvider);
-  final currentEventKey = ref.watch(currentEventProvider);
-  final year = DateTime.now().year;
-
-  final events = await client.get<List<dynamic>>(
-    '/events',
-    queryParams: {'year': year, 'key': currentEventKey},
-    cachePolicy: CachePolicy.cacheFirst,
-  );
-
-  final event = events
-      .whereType<Map>()
-      .map((e) => Map<String, dynamic>.from(e))
-      .where((e) => e['key']?.toString() == currentEventKey)
-      .cast<Map<String, dynamic>>()
-      .toList();
-
-  if (event.isNotEmpty) {
-    return event.first;
-  }
-
-  return <String, dynamic>{'key': currentEventKey};
-});
-
-String? eventKeyFromMatchKey(String matchKey) {
-  final parts = matchKey.split('_');
-  if (parts.isEmpty) return null;
-  return parts.first;
-}
 
 String? eventKeyForMatch(Map<String, dynamic> match) {
   return match['eventKey']?.toString() ?? match['event_key']?.toString();

@@ -9,7 +9,7 @@ void main() {
     });
 
     test('cache policy enum is available', () {
-      expect(CachePolicy.values, contains(CachePolicy.cacheFirst));
+      expect(CachePolicy.values, contains(CachePolicy.networkFirst));
     });
   });
 }

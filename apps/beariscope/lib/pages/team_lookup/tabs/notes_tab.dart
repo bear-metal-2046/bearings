@@ -128,28 +128,21 @@ class _NotesBody extends StatelessWidget {
       );
     }
 
-    // Strat scouting entries — show ranking positions per recorded match.
-    for (final doc in bundle.stratDocs) {
-      final matchNum = doc.meta?['matchNumber'];
-      final matchLabel = matchNum != null
-          ? 'Match $matchNum'
-          : 'Match (unknown)';
+    for (final doc in bundle.observationDocs) {
       final scoutedBy = doc.meta?['scoutedBy']?.toString() ?? '';
-      final rankSummary = _formatStratRanks(doc, teamNumber);
-      if (rankSummary.isNotEmpty) {
-        feedItems.add(
-          _FeedItem(
-            sourceLabel: 'Strategy · $matchLabel',
-            scoutedBy: scoutedBy,
-            notes: rankSummary,
-            incidents: const [],
-            timestamp: doc.timestamp,
-          ),
-        );
-      }
+      final note = doc.data['note']?.toString().trim() ?? '';
+      feedItems.add(
+        _FeedItem(
+          sourceLabel: 'Observation',
+          scoutedBy: scoutedBy,
+          notes: note,
+          incidents: const [],
+          timestamp: doc.timestamp,
+        ),
+      );
     }
 
-    // TODO(strat): add strat notes entry once strat data is implemented.
+    feedItems.sort((a, b) => a.timestamp.compareTo(b.timestamp));
 
     final hasAnyContent = feedItems.any(
       (f) => f.notes.isNotEmpty || f.incidents.isNotEmpty,
@@ -197,7 +190,7 @@ class _NotesBody extends StatelessWidget {
           const Center(heightFactor: 5, child: Text('No notes recorded.'))
         else ...[
           const ScoutingSectionHeader(
-            title: 'Notes',
+            title: 'Notes & Observations',
             icon: Symbols.notes_rounded,
           ),
           const SizedBox(height: kScoutingHeaderGap),
@@ -212,26 +205,6 @@ class _NotesBody extends StatelessWidget {
 
   static dynamic _field(ScoutingDocument doc, String section, String fieldId) =>
       TeamScoutingBundle.getMatchField(doc, section, fieldId);
-
-  /// Formats the team's ranking positions across all four strat dimensions,
-  /// e.g. "Driver: #1  ·  Def. Skill: #3  ·  Def. Resilience: #2  ·  Mech.: #1".
-  static String _formatStratRanks(ScoutingDocument doc, int teamNumber) {
-    const keys = {
-      'driverSkillRanking': 'Driver',
-      'defensiveSkillRanking': 'Def. Skill',
-      'defensiveResilienceRanking': 'Def. Resilience',
-      'mechanicalStabilityRanking': 'Mech.',
-    };
-    final teamStr = teamNumber.toString();
-    final parts = <String>[];
-    for (final entry in keys.entries) {
-      final list = doc.data[entry.key];
-      if (list is! List) continue;
-      final idx = list.map((e) => e.toString()).toList().indexOf(teamStr);
-      if (idx >= 0) parts.add('${entry.value}: #${idx + 1}');
-    }
-    return parts.join('  ·  ');
-  }
 
   static String _formatMatchKey(String matchKey) {
     final underscore = matchKey.lastIndexOf('_');

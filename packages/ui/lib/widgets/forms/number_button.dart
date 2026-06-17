@@ -1,5 +1,7 @@
+import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
-import 'package:pressable_flutter/pressable_flutter.dart';
+
+import 'form_style.dart';
 
 class NumberButton extends StatefulWidget {
   const NumberButton({
@@ -38,75 +40,101 @@ class _NumberButtonState extends State<NumberButton> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return SizedBox(
       width: widget.width,
       height: widget.height,
-      child: Pressable(
-        child: ElevatedButton(
-          onPressed: () {
-            setState(() {
-              _currentVariable++;
-            });
+      child: ElevatedButton(
+        onPressed: () {
+          setState(() => _currentVariable++);
+          widget.onChanged?.call(_currentVariable);
+        },
+        style: FormWidgetStyle.elevatedButtonStyle(
+          context,
+          backgroundColor:
+              widget.backgroundColor ?? theme.colorScheme.surfaceContainerLow,
+          foregroundColor: theme.colorScheme.onSurface,
+          padding: FormWidgetStyle.cardPadding,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Flexible(
+              child: AutoSizeText(
+                widget.dataName,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+                maxLines: 2,
+                minFontSize: 10,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(height: FormWidgetStyle.controlGap - 2),
+            AutoSizeText(
+              _currentVariable.toString(),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              minFontSize: 12,
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w900,
+                height: 1.0,
+              ),
+            ),
+            const SizedBox(height: FormWidgetStyle.controlGap),
+            Align(
+              alignment: widget.textAlignment,
+              child: _DecrementButton(
+                onPressed: () {
+                  setState(() {
+                    if (_currentVariable > 0) {
+                      _currentVariable--;
+                    }
+                  });
+                  widget.onChanged?.call(_currentVariable);
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
-            widget.onChanged?.call(_currentVariable);
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor:
-                widget.backgroundColor ?? Theme.of(context).colorScheme.surface,
-            foregroundColor: Theme.of(context).colorScheme.onSurface,
+class _DecrementButton extends StatelessWidget {
+  const _DecrementButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SizedBox(
+      width: 48,
+      height: 48,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(FormWidgetStyle.borderRadius),
+          border: Border.fromBorderSide(FormWidgetStyle.borderSide(context)),
+        ),
+        child: IconButton(
+          iconSize: 24,
+          style: IconButton.styleFrom(
+            padding: EdgeInsets.zero,
+            minimumSize: const Size(48, 48),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8.0),
-              side: const BorderSide(color: Colors.grey, width: 1.0),
+              borderRadius: BorderRadius.circular(FormWidgetStyle.borderRadius),
             ),
           ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            mainAxisSize: MainAxisSize.max,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                '${widget.dataName}: $_currentVariable',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.5,
-                ),
-              ),
-              Align(
-                alignment: widget.textAlignment,
-                child: Container(
-                  width: 56,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surface,
-                    borderRadius: BorderRadius.circular(20.0),
-                    border: Border.all(color: Colors.grey, width: 1.0),
-                  ),
-                  child: IconButton(
-                    iconSize: 24,
-                    style: IconButton.styleFrom(
-                      padding: EdgeInsets.zero,
-                      minimumSize: const Size(56, 36),
-                    ),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    icon: Icon(
-                      Icons.remove,
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        if (_currentVariable > 0) {
-                          _currentVariable--;
-                        }
-                      });
-                      widget.onChanged?.call(_currentVariable);
-                    },
-                  ),
-                ),
-              ),
-            ],
-          ),
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
+          icon: Icon(Icons.remove, color: theme.colorScheme.onSurface),
+          onPressed: onPressed,
         ),
       ),
     );

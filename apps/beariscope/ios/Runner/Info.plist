@@ -41,6 +41,10 @@
 	<true/>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Beariscope needs access to your photo library to upload photos.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Beariscope uses the camera to take and attach photos.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Beariscope uses your location to support scouting and event workflows.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

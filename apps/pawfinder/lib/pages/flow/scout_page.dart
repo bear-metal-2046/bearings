@@ -29,7 +29,6 @@ class _ScoutPageState extends ConsumerState<ScoutPage> {
         });
       }
 
-      // Start timeout timer
       Future.delayed(const Duration(seconds: 10), () {
         if (mounted) {
           setState(() => _showTimeout = true);
@@ -52,42 +51,33 @@ class _ScoutPageState extends ConsumerState<ScoutPage> {
         actions: const [UploadStatusIndicator()],
         actionsPadding: EdgeInsets.only(right: 8),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(32.0),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 600),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: Padding(
+            padding: const EdgeInsets.all(32.0),
             child: Column(
               children: [
                 SearchBar(
-                      hintText: 'Search scouts...',
-                      elevation: WidgetStateProperty.all(0.0),
-                      shape: WidgetStateProperty.all(
-                        StadiumBorder(
-                          side: BorderSide(
-                            color: Theme.of(context).colorScheme.outline,
-                            width: 1,
-                          ),
-                        ),
+                  hintText: 'Search scouts...',
+                  elevation: WidgetStateProperty.all(0.0),
+                  shape: WidgetStateProperty.all(
+                    StadiumBorder(
+                      side: BorderSide(
+                        color: Theme.of(context).colorScheme.outline,
+                        width: 1,
                       ),
-                      padding: WidgetStatePropertyAll<EdgeInsets>(
-                        EdgeInsets.symmetric(horizontal: 16.0),
-                      ),
-                      leading: const Icon(Icons.search),
-                      onChanged: (value) {
-                        setState(() => _searchQuery = value);
-                      },
-                    )
-                    .animate()
-                    .fadeIn(duration: 500.ms)
-                    .slideY(
-                      begin: -0.2,
-                      end: 0,
-                      duration: 500.ms,
-                      curve: Curves.easeOut,
                     ),
-                const SizedBox(height: 32),
-
+                  ),
+                  padding: WidgetStatePropertyAll<EdgeInsetsGeometry>(
+                    const EdgeInsets.symmetric(horizontal: 16.0),
+                  ),
+                  leading: const Icon(Icons.search),
+                  onChanged: (value) {
+                    setState(() => _searchQuery = value);
+                  },
+                ).animate().fadeIn(duration: 500.ms),
+                const SizedBox(height: 8),
                 Expanded(
                   child: scoutsAsync.when(
                     data: (scouts) {
@@ -108,56 +98,66 @@ class _ScoutPageState extends ConsumerState<ScoutPage> {
                         );
                       }
 
-                      return ListView.separated(
-                        itemCount: filtered.length,
-                        separatorBuilder: (context, index) {
-                          return SizedBox(height: 8);
-                        },
-                        itemBuilder: (context, index) {
-                          final scout = filtered[index];
-                          final isSelected = _selectedScout?.uuid == scout.uuid;
-                          return ListTile(
-                            contentPadding: EdgeInsets.symmetric(horizontal: 4),
-                            leading: CircleAvatar(
-                              backgroundColor: isSelected
-                                  ? Theme.of(context)
-                                        .colorScheme
-                                        .primaryContainer
-                                        .withAlpha(100)
-                                  : Theme.of(
+                      return ClipRect(
+                        child: ListView.separated(
+                          clipBehavior: Clip.hardEdge,
+                          physics: const ClampingScrollPhysics(),
+                          padding: const EdgeInsets.only(top: 4),
+                          itemCount: filtered.length,
+                          separatorBuilder: (_, _) => const SizedBox(height: 8),
+                          itemBuilder: (context, index) {
+                            final scout = filtered[index];
+                            final isSelected =
+                                _selectedScout?.uuid == scout.uuid;
+
+                            return Material(
+                              color: isSelected
+                                  ? Theme.of(
                                       context,
-                                    ).colorScheme.primaryContainer,
-                              child: Text(
-                                scout.name.isNotEmpty
-                                    ? scout.name[0].toUpperCase()
-                                    : '?',
+                                    ).colorScheme.primaryContainer
+                                  : Colors.transparent,
+                              shape: const StadiumBorder(),
+                              clipBehavior: Clip.antiAlias,
+                              child: ListTile(
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                ),
+                                leading: CircleAvatar(
+                                  backgroundColor: isSelected
+                                      ? Theme.of(context)
+                                            .colorScheme
+                                            .primaryContainer
+                                            .withAlpha(100)
+                                      : Theme.of(
+                                          context,
+                                        ).colorScheme.primaryContainer,
+                                  child: Text(
+                                    scout.name.isNotEmpty
+                                        ? scout.name[0].toUpperCase()
+                                        : '?',
+                                  ),
+                                ),
+                                title: Text(scout.name),
+                                selected: isSelected,
+                                shape: const StadiumBorder(),
+                                onTap: () {
+                                  setState(() => _selectedScout = scout);
+                                  ref
+                                      .read(scoutingSessionProvider.notifier)
+                                      .setScout(scout);
+                                },
                               ),
-                            ),
-                            title: Text(scout.name),
-                            selected: isSelected,
-                            selectedTileColor: Theme.of(
-                              context,
-                            ).colorScheme.primaryContainer,
-                            shape: StadiumBorder(),
-                            onTap: () {
-                              setState(() => _selectedScout = scout);
-                              ref
-                                  .read(scoutingSessionProvider.notifier)
-                                  .setScout(scout);
-                            },
-                          );
-                        },
+                            );
+                          },
+                        ),
                       );
                     },
                     loading: () => _showTimeout
                         ? _buildTimeoutWidget(context)
                         : const Center(child: CircularProgressIndicator()),
-                    error: (err, _) => _buildTimeoutWidget(context),
+                    error: (_, _) => _buildTimeoutWidget(context),
                   ),
                 ),
-
-                const SizedBox(height: 16),
-
                 SizedBox(
                       width: double.infinity,
                       height: 56,
