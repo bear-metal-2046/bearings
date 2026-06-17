@@ -916,10 +916,10 @@ packages:
     dependency: transitive
     description:
       name: material_symbols_icons
-      sha256: c62b15f2b3de98d72cbff0148812f5ef5159f05e61fc9f9a089ec2bb234df082
+      sha256: "49c532dd0b74544e9d8d93ec0f821d52ec532e7c9263c889ebe71b1be4f34ba7"
       url: "https://pub.dev"
     source: hosted
-    version: "4.2906.0"
+    version: "4.2951.0"
   melos:
     dependency: "direct dev"
     description:

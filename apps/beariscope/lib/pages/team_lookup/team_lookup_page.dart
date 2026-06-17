@@ -218,6 +218,7 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage> {
           );
         },
       ),
+      ),
     );
   }
 }

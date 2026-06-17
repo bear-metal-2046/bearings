@@ -161,7 +161,9 @@ class _DriveTeamMatchPreviewPageState
               if (MediaQuery.sizeOf(context).width <= 1380)
                 IconButton(
                   icon: Icon(
-                    _scrollVertical ? Symbols.view_agenda_rounded : Symbols.view_carousel_rounded,
+                    _scrollVertical
+                        ? Symbols.view_agenda_rounded
+                        : Symbols.view_carousel_rounded,
                   ),
                   tooltip: _scrollVertical
                       ? 'Tiktok Scroll Style'
@@ -214,16 +216,19 @@ class _DriveTeamMatchPreviewPageState
               final width = constraints.maxWidth;
               final height = constraints.maxHeight;
 
-              final labelStyle =
-              Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.onSurface,
-              );
+              final labelStyle = Theme.of(context).textTheme.titleMedium
+                  ?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  );
 
               Widget buildStyledCard(int index, {bool showLabel = false}) {
+                const padding = 60.0;
+                const gap = 10.0;
                 final card = cards[index];
                 final isRed = index < redTeams.length;
                 final label = isRed ? 'Red Alliance' : 'Blue Alliance';
+                final cardHeight = (height - padding * 2 - gap) / 2;
 
                 return Column(
                   mainAxisSize: MainAxisSize.min,
@@ -232,15 +237,17 @@ class _DriveTeamMatchPreviewPageState
                     if (showLabel)
                       Padding(
                         padding: const EdgeInsets.only(left: 4, bottom: 0),
-                        child: Text(
-                          label,
-                          style: labelStyle?.copyWith(color: Colors.white),
-                        ),
+                        child: Text(label, style: labelStyle?.copyWith(color: Colors.white)),
                       ),
                     Expanded(
-                      child: TeamCard(
-                        teamKey: card.teamKey,
-                        allianceColor: card.color,
+                      child: Padding(
+                        padding: const EdgeInsets.all(4),
+                        child: TeamCard(
+                          teamKey: card.teamKey,
+                          allianceColor: card.color,
+                          compact: true,
+                          height: cardHeight,
+                        ),
                       ),
                     ),
                   ],
@@ -248,35 +255,43 @@ class _DriveTeamMatchPreviewPageState
               }
 
               if (width > 1100) {
-                return GridView.builder(
-                  padding: const EdgeInsets.all(16),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                    childAspectRatio: 0.8,
-                  ),
-                  itemCount: cards.length,
-                  itemBuilder: (context, index) => buildStyledCard(
-                    index,
+                const padding = 60.0;
+                const gap = 10.0;
+                return Padding(
+                  padding: const EdgeInsets.all(padding),
+                  child: GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    padding: EdgeInsets.zero,
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 3,
+                      crossAxisSpacing: gap,
+                      mainAxisSpacing: gap,
+                      childAspectRatio: (width - padding * 2 - gap * 2) / 3 /
+                          ((height - padding * 2 - gap) / 2),
+                    ),
+                    itemCount: cards.length,
+                    itemBuilder: (context, index) => buildStyledCard(index),
                   ),
                 );
               }
 
               // horizontal fraction
               final cardWidth = (width - 16).clamp(0.0, 600.0);
-              final hfraction = width > 0
+              final hFraction = width > 0
                   ? (cardWidth / width).clamp(0.0, 1.0)
                   : 1.0;
 
               // vertical fraction
               final cardHeight = (height - 40).clamp(0.0, height);
-              final vFraction =
-              height > 0 ? (cardHeight / height).clamp(0.0, 1.0) : 1.0;
+              final vFraction = height > 0
+                  ? (cardHeight / height).clamp(0.0, 1.0)
+                  : 1.0;
 
               final fraction = _scrollVertical ? vFraction : hFraction;
-              final stride =
-              _scrollVertical ? height * vFraction : width * hFraction;
+              final stride = _scrollVertical
+                  ? height * vFraction
+                  : width * hFraction;
               final contentLeftEdge = (width - cardWidth) / 2.0 + 8.0;
 
               _updatePageController(
@@ -286,43 +301,43 @@ class _DriveTeamMatchPreviewPageState
 
               Widget dots = cards.length > 1
                   ? ValueListenableBuilder<double>(
-                valueListenable: _currentPageNotifier,
-                builder: (context, page, _) {
-                  return DotsIndicator(
-                    dotsCount: cards.length,
-                    position: page.clamp(0, cards.length - 1).toDouble(),
-                    axis: _scrollVertical
-                        ? Axis.vertical
-                        : Axis.horizontal,
-                    onTap: (position) {
-                      _pageController?.animateToPage(
-                        position.toInt(),
-                        duration: const Duration(milliseconds: 250),
-                        curve: Curves.easeInOut,
-                      );
-                    },
-                    decorator: DotsDecorator(
-                      activeColor: Theme.of(context).colorScheme.primary,
-                      color: Theme.of(context)
-                          .colorScheme
-                          .surfaceContainerHighest,
-                      colors: cards
-                          .map((c) => c.color.withValues(alpha: 0.4))
-                          .toList(),
-                      activeColors: cards.map((c) => c.color).toList(),
-                      spacing: const EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 8,
-                      ),
-                      size: const Size.square(8.0),
-                      activeSize: const Size(24.0, 8.0),
-                      activeShape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(4.0),
-                      ),
-                    ),
-                  );
-                },
-              )
+                      valueListenable: _currentPageNotifier,
+                      builder: (context, page, _) {
+                        return DotsIndicator(
+                          dotsCount: cards.length,
+                          position: page.clamp(0, cards.length - 1).toDouble(),
+                          axis: _scrollVertical
+                              ? Axis.vertical
+                              : Axis.horizontal,
+                          onTap: (position) {
+                            _pageController?.animateToPage(
+                              position.toInt(),
+                              duration: const Duration(milliseconds: 250),
+                              curve: Curves.easeInOut,
+                            );
+                          },
+                          decorator: DotsDecorator(
+                            activeColor: Theme.of(context).colorScheme.primary,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.surfaceContainerHighest,
+                            colors: cards
+                                .map((c) => c.color.withValues(alpha: 0.4))
+                                .toList(),
+                            activeColors: cards.map((c) => c.color).toList(),
+                            spacing: const EdgeInsets.symmetric(
+                              horizontal: 4,
+                              vertical: 8,
+                            ),
+                            size: const Size.square(8.0),
+                            activeSize: const Size(24.0, 8.0),
+                            activeShape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(4.0),
+                            ),
+                          ),
+                        );
+                      },
+                    )
                   : const SizedBox.shrink();
 
               Widget pageView = NotificationListener<ScrollNotification>(
@@ -335,8 +350,9 @@ class _DriveTeamMatchPreviewPageState
                 },
                 child: PageView.builder(
                   controller: _pageController,
-                  scrollDirection:
-                  _scrollVertical ? Axis.vertical : Axis.horizontal,
+                  scrollDirection: _scrollVertical
+                      ? Axis.vertical
+                      : Axis.horizontal,
                   itemCount: cards.length,
                   itemBuilder: (context, index) {
                     if (_scrollVertical) {
@@ -398,7 +414,8 @@ class _DriveTeamMatchPreviewPageState
                                 context: context,
                                 label: 'Blue Alliance',
                                 groupStartIndex: redTeams.length,
-                                groupEndIndex: redTeams.length + blueTeams.length - 1,
+                                groupEndIndex:
+                                    redTeams.length + blueTeams.length - 1,
                                 page: page,
                                 stride: stride,
                                 cardWidth: cardWidth,
