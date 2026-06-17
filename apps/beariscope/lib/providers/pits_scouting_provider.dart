@@ -4,11 +4,15 @@ import 'package:beariscope/pages/team_lookup/team_model.dart';
 import 'package:beariscope/pages/team_lookup/team_providers.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/scouting_data_provider.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:services/providers/api_provider.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'pits_scouting_provider.g.dart';
+
+final pitsSearchControllerProvider = Provider((ref) => TextEditingController());
+final pitsSearchFocusNodeProvider = Provider((ref) => FocusNode());
 
 //teams that are eligible for pits scouting (at the event and not already scouted)
 final pitsTeamsProvider = Provider<AsyncValue<List<Team>>>((ref) {

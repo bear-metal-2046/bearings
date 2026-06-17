@@ -26,6 +26,7 @@ class TeamCard extends ConsumerWidget {
   final String teamKey;
   final double? height;
   final Color? allianceColor;
+  final bool compact;
 
   static const double _defaultPlaceholderHeight = 120;
 
@@ -34,6 +35,7 @@ class TeamCard extends ConsumerWidget {
     required this.teamKey,
     this.height,
     this.allianceColor,
+    this.compact = false,
   });
 
   @override
@@ -92,6 +94,7 @@ class TeamCard extends ConsumerWidget {
           child: _TeamCardSummary(
             team: resolvedTeam,
             expandToFillHeight: height != null,
+            compact: compact,
           ),
         );
       },
@@ -111,6 +114,7 @@ class TeamCard extends ConsumerWidget {
         color: Theme.of(context).colorScheme.surfaceContainer,
         elevation: 0,
         borderRadius: BorderRadius.circular(12),
+        clipBehavior: Clip.antiAlias,
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
           onTap: onTap,
@@ -133,10 +137,12 @@ class TeamCard extends ConsumerWidget {
 class _TeamCardSummary extends ConsumerWidget {
   final Team team;
   final bool expandToFillHeight;
+  final bool compact;
 
   const _TeamCardSummary({
     required this.team,
     required this.expandToFillHeight,
+    required this.compact,
   });
 
   @override
@@ -149,17 +155,18 @@ class _TeamCardSummary extends ConsumerWidget {
     };
 
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(expandToFillHeight ? 20 : (compact ? 8 : 20)),
       child: Column(
         mainAxisSize: expandToFillHeight ? MainAxisSize.max : MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _TeamCardHeader(team: team),
+          _TeamCardHeader(team: team, compact: compact),
           bundleAsync.when(
             loading: () => const SizedBox.shrink(),
             error: (_, _) => const SizedBox.shrink(),
-            data: (bundle) =>
-                SizedBox(height: bundle.matchDocs.length > 1 ? 12 : 4),
+            data: (bundle) => SizedBox(
+              height: bundle.matchDocs.length > 1 ? (compact ? 4 : 12) : 4,
+            ),
           ),
           bundleAsync.when(
             loading: () => const SizedBox.shrink(),
@@ -169,6 +176,7 @@ class _TeamCardSummary extends ConsumerWidget {
                 teamNumber: team.number,
                 bundle: bundle,
                 expandToFillHeight: expandToFillHeight,
+                compact: compact,
                 stratZScores:
                     ref
                         .watch(stratZScoresProvider)
@@ -194,8 +202,9 @@ class _TeamCardSummary extends ConsumerWidget {
 
 class _TeamCardHeader extends StatelessWidget {
   final Team team;
+  final bool compact;
 
-  const _TeamCardHeader({required this.team});
+  const _TeamCardHeader({required this.team, this.compact = false});
 
   @override
   Widget build(BuildContext context) {
@@ -207,8 +216,8 @@ class _TeamCardHeader extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             SizedBox(
-              width: 32,
-              height: 32,
+              width: compact ? 24 : 32,
+              height: compact ? 24 : 32,
               child: mediaAsync.when(
                 loading: () => _fallbackAvatar(context),
                 error: (_, _) => _fallbackAvatar(context),
@@ -236,8 +245,8 @@ class _TeamCardHeader extends StatelessWidget {
                   if (bytes == null) return _fallbackAvatar(context);
                   return Image.memory(
                     bytes,
-                    width: 32,
-                    height: 32,
+                    width: compact ? 24 : 32,
+                    height: compact ? 24 : 32,
                     fit: BoxFit.contain,
                     gaplessPlayback: true,
                     errorBuilder: (context, error, stackTrace) =>
@@ -246,19 +255,22 @@ class _TeamCardHeader extends StatelessWidget {
                 },
               ),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: compact ? 6 : 12),
             Expanded(
               child: Text(
                 team.name,
-                style: const TextStyle(fontSize: 20, fontFamily: 'Xolonium'),
+                style: TextStyle(
+                  fontSize: compact ? 14 : 20,
+                  fontFamily: 'Xolonium',
+                ),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            const SizedBox(width: 8),
+            SizedBox(width: compact ? 4 : 8),
             Text(
               team.number.toString(),
               style: TextStyle(
-                fontSize: 16,
+                fontSize: compact ? 12 : 16,
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
@@ -271,7 +283,7 @@ class _TeamCardHeader extends StatelessWidget {
   Widget _fallbackAvatar(BuildContext context) {
     return Icon(
       Icons.account_circle,
-      size: 32,
+      size: compact ? 24 : 32,
       color: Theme.of(context).colorScheme.onSurfaceVariant,
     );
   }
@@ -281,6 +293,7 @@ class _SummaryMetrics extends ConsumerWidget {
   final int teamNumber;
   final TeamScoutingBundle bundle;
   final bool expandToFillHeight;
+  final bool compact;
   final StratZScoreData? stratZScores;
   final TeamRanking? ranking;
 
@@ -288,6 +301,7 @@ class _SummaryMetrics extends ConsumerWidget {
     required this.teamNumber,
     required this.bundle,
     required this.expandToFillHeight,
+    required this.compact,
     required this.stratZScores,
     required this.ranking,
   });
@@ -330,26 +344,31 @@ class _SummaryMetrics extends ConsumerWidget {
             mostCommonPlayStyle: mostCommonPlayStyle,
             trenchCapable: trenchCapable,
             climbCapable: climbCapable,
+            compact: compact,
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: compact ? 4 : 8),
         ],
         if (hasEnoughMatchDataForGraph) ...[
-          const SizedBox(height: 8),
+          SizedBox(height: compact ? 4 : 8),
           if (expandToFillHeight)
             Expanded(
-              child: SfCartesianChart(
-                margin: EdgeInsets.zero,
-                primaryXAxis: const CategoryAxis(
-                  labelPlacement: LabelPlacement.onTicks,
+              child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                child: SfCartesianChart(
+                  margin: EdgeInsets.zero,
+                  primaryXAxis: const CategoryAxis(
+                    labelPlacement: LabelPlacement.onTicks,
+                  ),
+                  primaryYAxis: const NumericAxis(),
+                  plotAreaBorderWidth: 0,
+                  series: _buildLineSeries(context, bundle.matchDocs),
                 ),
-                primaryYAxis: const NumericAxis(),
-                plotAreaBorderWidth: 0,
-                series: _buildLineSeries(context, bundle.matchDocs),
               ),
+
             )
           else
-            SizedBox(
-              height: 180,
+            AspectRatio(
+              aspectRatio: compact ? 2.8 : 1.9,
               child: SfCartesianChart(
                 margin: EdgeInsets.zero,
                 primaryXAxis: const CategoryAxis(
@@ -360,13 +379,13 @@ class _SummaryMetrics extends ConsumerWidget {
                 series: _buildLineSeries(context, bundle.matchDocs),
               ),
             ),
-          const Divider(height: 8, thickness: 1),
+          Divider(height: compact ? 4 : 8, thickness: 1),
         ],
         if (hasZScores) ...[
-          const SizedBox(height: 6),
+          SizedBox(height: compact ? 2 : 6),
           Wrap(
-            spacing: 12,
-            runSpacing: 2,
+            spacing: compact ? 6 : 12,
+            runSpacing: compact ? 0 : 2,
             children: [
               _zScoreLabel(
                 context,
@@ -393,25 +412,28 @@ class _SummaryMetrics extends ConsumerWidget {
         ],
 
         if (hasMatch) ...[
-          const SizedBox(height: 8),
+          SizedBox(height: compact ? 4 : 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Wrap(
-                spacing: 12,
+                spacing: compact ? 6 : 12,
                 children: [
                   _StatPill(
                     label: 'Auto',
                     value: avgAutoFuel.toStringAsFixed(1),
+                    compact: compact,
                   ),
                   _StatPill(
                     label: 'Tele',
                     value: avgTeleFuel.toStringAsFixed(1),
+                    compact: compact,
                   ),
                   _StatPill(
                     label: 'Total',
                     value: (avgAutoFuel + avgTeleFuel).toStringAsFixed(1),
                     highlight: true,
+                    compact: compact,
                   ),
                   _StatPill(
                     label: 'Accuracy',
@@ -419,10 +441,12 @@ class _SummaryMetrics extends ConsumerWidget {
                         ? '${avgAccuracy.toStringAsFixed(1)}%'
                         : '?',
                     highlight: true,
+                    compact: compact,
                   ),
                 ],
               ),
-              if (ranking != null) _RankBadge(ranking: ranking!),
+              if (ranking != null)
+                _RankBadge(ranking: ranking!, compact: compact),
             ],
           ),
         ],
@@ -450,11 +474,13 @@ class _ChipsRow extends StatelessWidget {
   final String mostCommonPlayStyle;
   final bool trenchCapable;
   final String? climbCapable;
+  final bool compact;
 
   const _ChipsRow({
     required this.mostCommonPlayStyle,
     required this.trenchCapable,
     required this.climbCapable,
+    required this.compact,
   });
 
   @override
@@ -462,34 +488,36 @@ class _ChipsRow extends StatelessWidget {
     final secondaryColor = Theme.of(context).colorScheme.secondary;
 
     return Wrap(
-      spacing: 6,
-      runSpacing: 6,
+      spacing: compact ? 3 : 6,
+      runSpacing: compact ? 3 : 6,
       children: [
         if (mostCommonPlayStyle.isNotEmpty)
           Chip(
             label: Text(
               mostCommonPlayStyle,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: compact ? 10 : 12,
                 color: Theme.of(context).colorScheme.onPrimaryContainer,
               ),
             ),
             backgroundColor: Theme.of(context).colorScheme.primaryContainer,
             visualDensity: VisualDensity.compact,
             padding: EdgeInsets.zero,
-            labelPadding: const EdgeInsets.symmetric(horizontal: 8),
+            labelPadding: EdgeInsets.symmetric(horizontal: compact ? 6 : 8),
           ),
         if (trenchCapable)
           _OutlinedChip(
             icon: Symbols.merge_type_rounded,
             label: 'Trench',
             color: secondaryColor,
+            compact: compact,
           ),
         if (climbCapable != null && climbCapable != 'No Climb')
           _OutlinedChip(
             icon: Symbols.arrow_upload_ready_rounded,
             label: climbCapable!,
             color: secondaryColor,
+            compact: compact,
           ),
       ],
     );
@@ -500,23 +528,28 @@ class _OutlinedChip extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color color;
+  final bool compact;
 
   const _OutlinedChip({
     required this.icon,
     required this.label,
     required this.color,
+    this.compact = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return Chip(
-      avatar: Icon(icon, size: 14, color: color),
-      label: Text(label, style: TextStyle(fontSize: 12, color: color)),
+      avatar: Icon(icon, size: compact ? 12 : 14, color: color),
+      label: Text(
+        label,
+        style: TextStyle(fontSize: compact ? 10 : 12, color: color),
+      ),
       backgroundColor: color.withValues(alpha: 0.12),
       side: BorderSide(color: color.withValues(alpha: 0.4)),
       visualDensity: VisualDensity.compact,
       padding: EdgeInsets.zero,
-      labelPadding: const EdgeInsets.symmetric(horizontal: 4),
+      labelPadding: EdgeInsets.symmetric(horizontal: compact ? 3 : 4),
     );
   }
 }
@@ -525,11 +558,13 @@ class _StatPill extends StatelessWidget {
   final String label;
   final String value;
   final bool highlight;
+  final bool compact;
 
   const _StatPill({
     required this.label,
     required this.value,
     this.highlight = false,
+    this.compact = false,
   });
 
   @override
@@ -543,13 +578,17 @@ class _StatPill extends StatelessWidget {
       children: [
         Text(
           label,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(color: color),
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: color,
+            fontSize: compact ? 8 : null,
+          ),
         ),
         Text(
           value,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
             color: color,
             fontWeight: highlight ? FontWeight.bold : FontWeight.normal,
+            fontSize: compact ? 11 : null,
           ),
         ),
       ],
@@ -559,8 +598,9 @@ class _StatPill extends StatelessWidget {
 
 class _RankBadge extends StatelessWidget {
   final TeamRanking ranking;
+  final bool compact;
 
-  const _RankBadge({required this.ranking});
+  const _RankBadge({required this.ranking, this.compact = false});
 
   @override
   Widget build(BuildContext context) {
@@ -574,13 +614,15 @@ class _RankBadge extends StatelessWidget {
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
             color: scheme.primary,
             fontWeight: FontWeight.bold,
+            fontSize: compact ? 12 : null,
           ),
         ),
         Text(
           '${ranking.rankingPoints} RP — ${ranking.rankingScore.toStringAsFixed(2)} RS',
-          style: Theme.of(
-            context,
-          ).textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant),
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: scheme.onSurfaceVariant,
+            fontSize: compact ? 8 : null,
+          ),
         ),
       ],
     );

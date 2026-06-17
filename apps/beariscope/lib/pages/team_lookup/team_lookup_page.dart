@@ -33,19 +33,24 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage> {
   @override
   Widget build(BuildContext context) {
     final main = MainViewController.of(context);
+    final searchFocusNode = ref.watch(searchFocusNodeProvider);
+    final searchTermTEC = ref.watch(searchControllerProvider);
     final selectedEvent = ref.watch(currentEventProvider);
     final teamsAsync = ref.watch(teamsProvider);
     final selectedSort = ref.watch(teamSortProvider);
     final rankingsAsync = ref.watch(eventRankingsProvider);
+
     final rankings = switch (rankingsAsync) {
       AsyncData(:final value) => value,
       _ => const <int, TeamRanking>{},
     };
+
     bool isAscending = ref.read(teamSortProvider.notifier).getIsAscending();
 
     Future<void> onRefresh() async {
       final client = ref.read(honeycombClientProvider);
       client.invalidateCache('/teams', queryParams: {'event': selectedEvent});
+      client.invalidateCache('/rankings', queryParams: {'event': selectedEvent});
       client.invalidateCache(
         '/rankings',
         queryParams: {'event': selectedEvent},
@@ -70,7 +75,8 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage> {
         centerTitle: true,
         titleSpacing: 8.0,
         title: SearchBar(
-          controller: _searchTermTEC,
+          focusNode: searchFocusNode,
+          controller: searchTermTEC,
           onChanged: (_) => setState(() {}),
           hintText: 'Team name or number',
           elevation: WidgetStateProperty.all(0.0),
@@ -80,26 +86,25 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage> {
           leading: const Icon(Symbols.search_rounded),
           trailing: [
             PopupMenuButton<TeamSortOptions>(
-              icon: Icon(Symbols.sort_rounded),
+              icon: const Icon(Symbols.sort_rounded),
               tooltip: 'Sort',
               itemBuilder: (context) => TeamSortOptions.values
                   .map(
-                    (sort) => CheckedPopupMenuItem<TeamSortOptions>(
-                      value: sort,
-                      checked: selectedSort.sort == sort,
-                      child: Row(
-                        children: [
-                          Text(sort.label),
-                          if (selectedSort.sort == sort)
-                            Icon(
-                              isAscending
-                                  ? Icons.arrow_drop_up
-                                  : Icons.arrow_drop_down,
-                            ),
-                        ],
-                      ),
-                    ),
-                  )
+                    (option) => PopupMenuItem(
+                  value: option,
+                  child: ListTile(
+                    title: Text(option.label),
+                    leading: selectedSort.sort == option
+                        ? Icon(
+                      isAscending
+                          ? Symbols.arrow_upward_rounded
+                          : Symbols.arrow_downward_rounded,
+                    )
+                        : const SizedBox(width: 24),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+              )
                   .toList(),
               onSelected: (TeamSortOptions newSort) {
                 if (ref.read(teamSortProvider.notifier).getSort() == newSort) {
@@ -108,21 +113,7 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage> {
                 ref
                     .read(teamSortProvider.notifier)
                     .setSort(newSort, isAscending);
-                // if (ref.read(teamSortProvider.notifier).getSort() ==
-                //     TeamSortOptions.custom) {
-                //   Scaffold.of(context).showBottomSheet((BuildContext context) {
-                //     return SizedBox(
-                //       height: 400,
-                //       child: Expanded(
-                //         child: ListView(
-                //           children: [
-                //             SortByFieldItem(total: 0.0,)
-                //           ],
-                //         ),
-                //       ),
-                //     );
-                //   });
-                // }
+                setState(() {});
               },
             ),
           ],
@@ -135,26 +126,31 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage> {
               ),
         actions: [SizedBox(width: 48)],
       ),
-      body: teamsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) => Center(child: Text('Error: $error')),
-        data: (teams) {
-          final teamList = teams
-              .whereType<Map<String, dynamic>>()
-              .map((json) => Team.fromJson(json))
-              .toList();
+      body: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          searchFocusNode.unfocus();
+        },
+        child: teamsAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, stack) => Center(child: Text('Error: $error')),
+          data: (teams) {
+            final teamList = teams
+                .whereType<Map<String, dynamic>>()
+                .map((json) => Team.fromJson(json))
+                .toList();
 
-          final searchTerm = _searchTermTEC.text.trim().toLowerCase();
-          var filteredTeams = searchTerm.isEmpty
-              ? teamList
-              : teamList.where((team) {
-                  final teamName = team.name.toLowerCase();
-                  final teamNumber = team.number.toString();
-                  final teamKey = team.key.toLowerCase();
-                  return teamName.contains(searchTerm) ||
-                      teamNumber.contains(searchTerm) ||
-                      teamKey.contains(searchTerm);
-                }).toList();
+            final searchTerm = searchTermTEC.text.trim().toLowerCase();
+            var filteredTeams = searchTerm.isEmpty
+                ? teamList
+                : teamList.where((team) {
+              final teamName = team.name.toLowerCase();
+              final teamNumber = team.number.toString();
+              final teamKey = team.key.toLowerCase();
+              return teamName.contains(searchTerm) ||
+                  teamNumber.contains(searchTerm) ||
+                  teamKey.contains(searchTerm);
+            }).toList();
 
           // apply sort
           filteredTeams = List.of(filteredTeams);
@@ -307,9 +303,9 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage> {
               });
           }
 
-          if (filteredTeams.isEmpty) {
-            return const Center(child: Text('No teams found'));
-          }
+            if (filteredTeams.isEmpty) {
+              return const Center(child: Text('No teams found'));
+            }
 
           return RefreshIndicator(
             onRefresh: onRefresh,
@@ -320,6 +316,7 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage> {
             ),
           );
         },
+      ),
       ),
     );
   }
