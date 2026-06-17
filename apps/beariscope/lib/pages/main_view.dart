@@ -228,10 +228,20 @@ class _MainViewState extends ConsumerState<MainView> {
             final isPitsScouting = location.startsWith('/pits_scouting');
 
             if (isTeamLookup || isPitsScouting) {
-              final focusNode = ref.read(isTeamLookup ? searchFocusNodeProvider : pitsSearchFocusNodeProvider);
-              final controller = ref.read(isTeamLookup ? searchControllerProvider : pitsSearchControllerProvider);
+              final focusNode = ref.read(
+                isTeamLookup
+                    ? searchFocusNodeProvider
+                    : pitsSearchFocusNodeProvider,
+              );
+              final controller = ref.read(
+                isTeamLookup
+                    ? searchControllerProvider
+                    : pitsSearchControllerProvider,
+              );
 
-              if (event is KeyDownEvent && event.character != null && !focusNode.hasFocus) {
+              if (event is KeyDownEvent &&
+                  event.character != null &&
+                  !focusNode.hasFocus) {
                 focusNode.requestFocus();
 
                 Future.microtask(() {

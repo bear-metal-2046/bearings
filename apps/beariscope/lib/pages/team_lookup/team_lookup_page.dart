@@ -49,7 +49,10 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage> {
     Future<void> onRefresh() async {
       final client = ref.read(honeycombClientProvider);
       client.invalidateCache('/teams', queryParams: {'event': selectedEvent});
-      client.invalidateCache('/rankings', queryParams: {'event': selectedEvent});
+      client.invalidateCache(
+        '/rankings',
+        queryParams: {'event': selectedEvent},
+      );
       client.invalidateCache(
         '/rankings',
         queryParams: {'event': selectedEvent},
@@ -90,20 +93,20 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage> {
               itemBuilder: (context) => TeamSortOptions.values
                   .map(
                     (option) => PopupMenuItem(
-                  value: option,
-                  child: ListTile(
-                    title: Text(option.label),
-                    leading: selectedSort.sort == option
-                        ? Icon(
-                      isAscending
-                          ? Symbols.arrow_upward_rounded
-                          : Symbols.arrow_downward_rounded,
-                    )
-                        : const SizedBox(width: 24),
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ),
-              )
+                      value: option,
+                      child: ListTile(
+                        title: Text(option.label),
+                        leading: selectedSort.sort == option
+                            ? Icon(
+                                isAscending
+                                    ? Symbols.arrow_upward_rounded
+                                    : Symbols.arrow_downward_rounded,
+                              )
+                            : const SizedBox(width: 24),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                  )
                   .toList(),
               onSelected: (TeamSortOptions newSort) {
                 if (ref.read(teamSortProvider.notifier).getSort() == newSort) {
@@ -143,81 +146,87 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage> {
             var filteredTeams = searchTerm.isEmpty
                 ? teamList
                 : teamList.where((team) {
-              final teamName = team.name.toLowerCase();
-              final teamNumber = team.number.toString();
-              final teamKey = team.key.toLowerCase();
-              return teamName.contains(searchTerm) ||
-                  teamNumber.contains(searchTerm) ||
-                  teamKey.contains(searchTerm);
-            }).toList();
+                    final teamName = team.name.toLowerCase();
+                    final teamNumber = team.number.toString();
+                    final teamKey = team.key.toLowerCase();
+                    return teamName.contains(searchTerm) ||
+                        teamNumber.contains(searchTerm) ||
+                        teamKey.contains(searchTerm);
+                  }).toList();
 
-          // Apply sort
-          filteredTeams = List.of(filteredTeams);
-          switch (selectedSort.sort) {
-            case TeamSortOptions.teamNumber:
-              if (isAscending) {
-                filteredTeams.sort((a, b) => a.number.compareTo(b.number));
-              } else {
-                filteredTeams.sort((a, b) => b.number.compareTo(a.number));
-              }
-            case TeamSortOptions.rank:
-              if (isAscending) {
+            // Apply sort
+            filteredTeams = List.of(filteredTeams);
+            switch (selectedSort.sort) {
+              case TeamSortOptions.teamNumber:
+                if (isAscending) {
+                  filteredTeams.sort((a, b) => a.number.compareTo(b.number));
+                } else {
+                  filteredTeams.sort((a, b) => b.number.compareTo(a.number));
+                }
+              case TeamSortOptions.rank:
+                if (isAscending) {
+                  filteredTeams.sort((a, b) {
+                    // Teams without a rank go to the end
+                    final rankA = rankings[a.number]?.rank ?? 999999;
+                    final rankB = rankings[b.number]?.rank ?? 999999;
+                    return rankA.compareTo(rankB);
+                  });
+                } else {
+                  filteredTeams.sort((a, b) {
+                    final rankA = rankings[a.number]?.rank ?? 0;
+                    final rankB = rankings[b.number]?.rank ?? 0;
+                    return rankB.compareTo(rankA);
+                  });
+                }
+              case TeamSortOptions.custom:
                 filteredTeams.sort((a, b) {
                   // Teams without a rank go to the end
-                  final rankA = rankings[a.number]?.rank ?? 999999;
-                  final rankB = rankings[b.number]?.rank ?? 999999;
-                  return rankA.compareTo(rankB);
+                  final rankA = ref
+                      .watch(teamScoutingProvider(a.number))
+                      .when(
+                        data: (bundle) =>
+                            bundle.avgMatchField(
+                              kSectionTele,
+                              kTeleFuelScored,
+                            ) +
+                            bundle.avgMatchField(kSectionAuto, kAutoFuelScored),
+                        error: (_, _) => 0,
+                        loading: () => 0,
+                      );
+                  final rankB = ref
+                      .watch(teamScoutingProvider(b.number))
+                      .when(
+                        data: (bundle) =>
+                            bundle.avgMatchField(
+                              kSectionTele,
+                              kTeleFuelScored,
+                            ) +
+                            bundle.avgMatchField(kSectionAuto, kAutoFuelScored),
+                        error: (_, _) => 0,
+                        loading: () => 0,
+                      );
+                  if (isAscending) {
+                    return rankA.compareTo(rankB);
+                  } else {
+                    return rankB.compareTo(rankA);
+                  }
                 });
-              } else {
-                filteredTeams.sort((a, b) {
-                  final rankA = rankings[a.number]?.rank ?? 0;
-                  final rankB = rankings[b.number]?.rank ?? 0;
-                  return rankB.compareTo(rankA);
-                });
-              }
-            case TeamSortOptions.custom:
-              filteredTeams.sort((a, b) {
-                // Teams without a rank go to the end
-                final rankA = ref
-                    .watch(teamScoutingProvider(a.number))
-                    .when(
-                      data: (bundle) =>
-                          bundle.avgMatchField(kSectionTele, kTeleFuelScored) +
-                          bundle.avgMatchField(kSectionAuto, kAutoFuelScored),
-                      error: (_, _) => 0,
-                      loading: () => 0,
-                    );
-                final rankB = ref
-                    .watch(teamScoutingProvider(b.number))
-                    .when(
-                      data: (bundle) =>
-                          bundle.avgMatchField(kSectionTele, kTeleFuelScored) +
-                          bundle.avgMatchField(kSectionAuto, kAutoFuelScored),
-                      error: (_, _) => 0,
-                      loading: () => 0,
-                    );
-                if (isAscending) {
-                  return rankA.compareTo(rankB);
-                } else {
-                  return rankB.compareTo(rankA);
-                }
-              });
-          }
+            }
 
             if (filteredTeams.isEmpty) {
               return const Center(child: Text('No teams found'));
             }
 
-          return RefreshIndicator(
-            onRefresh: onRefresh,
-            child: BeariscopeCardList(
-              children: filteredTeams
-                  .map((team) => TeamCard(teamKey: team.key))
-                  .toList(),
-            ),
-          );
-        },
-      ),
+            return RefreshIndicator(
+              onRefresh: onRefresh,
+              child: BeariscopeCardList(
+                children: filteredTeams
+                    .map((team) => TeamCard(teamKey: team.key))
+                    .toList(),
+              ),
+            );
+          },
+        ),
       ),
     );
   }

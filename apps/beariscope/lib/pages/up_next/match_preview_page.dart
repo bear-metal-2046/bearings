@@ -237,7 +237,10 @@ class _DriveTeamMatchPreviewPageState
                     if (showLabel)
                       Padding(
                         padding: const EdgeInsets.only(left: 4, bottom: 0),
-                        child: Text(label, style: labelStyle?.copyWith(color: Colors.white)),
+                        child: Text(
+                          label,
+                          style: labelStyle?.copyWith(color: Colors.white),
+                        ),
                       ),
                     Expanded(
                       child: Padding(
@@ -267,7 +270,9 @@ class _DriveTeamMatchPreviewPageState
                       crossAxisCount: 3,
                       crossAxisSpacing: gap,
                       mainAxisSpacing: gap,
-                      childAspectRatio: (width - padding * 2 - gap * 2) / 3 /
+                      childAspectRatio:
+                          (width - padding * 2 - gap * 2) /
+                          3 /
                           ((height - padding * 2 - gap) / 2),
                     ),
                     itemCount: cards.length,

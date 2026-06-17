@@ -27,7 +27,6 @@ extension TeamSortLabel on TeamSortOptions {
 }
 
 class TeamSortNotifier extends Notifier<TeamSort> {
-
   @override
   TeamSort build() => TeamSort(TeamSortOptions.teamNumber, true);
 
