@@ -2,6 +2,7 @@ import 'package:beariscope/models/match_field_ids.dart';
 import 'package:beariscope/models/processed_scouting_doc.dart';
 import 'package:beariscope/models/team_scouting_bundle.dart';
 import 'package:beariscope/pages/team_lookup/tabs/scouting_tab_widgets.dart';
+import 'package:beariscope/pages/up_next/match_preview_page.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/team_scouting_provider.dart';
 import 'package:flutter/material.dart';
@@ -193,7 +194,7 @@ class _UnscoutedMatchCard extends StatelessWidget {
   }
 }
 
-class _MatchCard extends StatelessWidget {
+class _MatchCard extends ConsumerWidget {
   final ProcessedScoutingDoc doc;
 
   const _MatchCard({required this.doc});
@@ -201,8 +202,17 @@ class _MatchCard extends StatelessWidget {
   dynamic _f(String section, String id) =>
       TeamScoutingBundle.getMatchField(doc.raw, section, id);
 
+  String? _getMatchKey(BuildContext context, WidgetRef ref) {
+    final matchNumber = TeamScoutingBundle.matchNumber(doc.raw);
+    if (matchNumber == null) return null;
+
+    final eventKey = ref.watch(currentEventProvider);
+    // Construct matchKey format: eventKey_compLevel#matchNumber (e.g., "2025xyz_qm1")
+    return '${eventKey}_qm$matchNumber';
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final matchNumber = TeamScoutingBundle.matchNumber(doc.raw);
     final scouterName = _scouterNameFromRaw(doc.raw);
     final label = matchNumber != null
@@ -247,6 +257,8 @@ class _MatchCard extends StatelessWidget {
         : (climbLoc != null && climbLoc.isNotEmpty
               ? '$climb ($climbLoc)'
               : climb.toString());
+
+    final matchKey = _getMatchKey(context, ref);
 
     return Card(
       elevation: 0,
@@ -297,6 +309,22 @@ class _MatchCard extends StatelessWidget {
         children: [
           const Divider(height: 1),
           _MatchDetailSection(doc: doc),
+          if (matchKey != null) ...[const SizedBox(height: 12)],
+          if (matchKey != null)
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton.icon(
+                onPressed: () =>
+                    Navigator.of(context, rootNavigator: true).push(
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            DriveTeamMatchPreviewPage(matchKey: matchKey),
+                      ),
+                    ),
+                icon: const Icon(Symbols.open_in_new_rounded),
+                label: const Text('View Match Preview'),
+              ),
+            ),
         ],
       ),
     );
