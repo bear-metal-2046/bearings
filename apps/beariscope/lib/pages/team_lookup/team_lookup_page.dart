@@ -12,7 +12,6 @@ import 'package:material_symbols_icons/symbols.dart';
 import 'package:services/providers/api_provider.dart';
 import 'package:beariscope/models/team_scouting_bundle.dart';
 import 'package:beariscope/providers/team_scouting_provider.dart';
-import 'package:flutter/services.dart';
 
 class TeamLookupPage extends ConsumerStatefulWidget {
   const TeamLookupPage({super.key});
@@ -50,7 +49,10 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage> {
     Future<void> onRefresh() async {
       final client = ref.read(honeycombClientProvider);
       client.invalidateCache('/teams', queryParams: {'event': selectedEvent});
-      client.invalidateCache('/rankings', queryParams: {'event': selectedEvent});
+      client.invalidateCache(
+        '/rankings',
+        queryParams: {'event': selectedEvent},
+      );
       client.invalidateCache(
         '/rankings',
         queryParams: {'event': selectedEvent},
@@ -91,20 +93,20 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage> {
               itemBuilder: (context) => TeamSortOptions.values
                   .map(
                     (option) => PopupMenuItem(
-                  value: option,
-                  child: ListTile(
-                    title: Text(option.label),
-                    leading: selectedSort.sort == option
-                        ? Icon(
-                      isAscending
-                          ? Symbols.arrow_upward_rounded
-                          : Symbols.arrow_downward_rounded,
-                    )
-                        : const SizedBox(width: 24),
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ),
-              )
+                      value: option,
+                      child: ListTile(
+                        title: Text(option.label),
+                        leading: selectedSort.sort == option
+                            ? Icon(
+                                isAscending
+                                    ? Symbols.arrow_upward_rounded
+                                    : Symbols.arrow_downward_rounded,
+                              )
+                            : const SizedBox(width: 24),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                  )
                   .toList(),
               onSelected: (TeamSortOptions newSort) {
                 if (ref.read(teamSortProvider.notifier).getSort() == newSort) {
@@ -144,179 +146,186 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage> {
             var filteredTeams = searchTerm.isEmpty
                 ? teamList
                 : teamList.where((team) {
-              final teamName = team.name.toLowerCase();
-              final teamNumber = team.number.toString();
-              final teamKey = team.key.toLowerCase();
-              return teamName.contains(searchTerm) ||
-                  teamNumber.contains(searchTerm) ||
-                  teamKey.contains(searchTerm);
-            }).toList();
+                    final teamName = team.name.toLowerCase();
+                    final teamNumber = team.number.toString();
+                    final teamKey = team.key.toLowerCase();
+                    return teamName.contains(searchTerm) ||
+                        teamNumber.contains(searchTerm) ||
+                        teamKey.contains(searchTerm);
+                  }).toList();
 
-          // apply sort
-          filteredTeams = List.of(filteredTeams);
-          bool _parseSafetyBool(dynamic value) {
-            if (value == null) return false;
-            if (value is bool) return value;
-            if (value is num) return value > 0;
-            if (value is String) {
-              final lower = value.toLowerCase();
-              return lower == 'true' || lower == '1' || lower == 'y';
+            // apply sort
+            filteredTeams = List.of(filteredTeams);
+            bool parseSafetyBool(dynamic value) {
+              if (value == null) return false;
+              if (value is bool) return value;
+              if (value is num) return value > 0;
+              if (value is String) {
+                final lower = value.toLowerCase();
+                return lower == 'true' || lower == '1' || lower == 'y';
+              }
+              return false;
             }
-            return false;
-          }
 
-          // helper to calculate team stats
-          (int defenseCount, int noShowCount, int breakdownCount) _getTeamStats(int teamNumber) {
-            int defenseCount = 0;
-            int noShowCount = 0;
-            int breakdownCount = 0;
+            // helper to calculate team stats
+            (int defenseCount, int noShowCount, int breakdownCount)
+            getTeamStats(int teamNumber) {
+              int defenseCount = 0;
+              int noShowCount = 0;
+              int breakdownCount = 0;
 
-            final bundleAsync = ref.watch(teamScoutingProvider(teamNumber));
-            bundleAsync.whenData((bundle) {
-              for (final doc in bundle.matchDocs) {
-                final playedDefense =
-                    _parseSafetyBool(
-                      TeamScoutingBundle.getMatchField(
-                        doc.raw,
-                        kSectionEndgame,
-                        kEndPlayedDefenseOffShift,
-                      ),
-                    ) ||
-                    _parseSafetyBool(
-                      TeamScoutingBundle.getMatchField(
-                        doc.raw,
-                        kSectionEndgame,
-                        kEndPlayedDefenseOnShift,
-                      ),
-                    );
+              final bundleAsync = ref.watch(teamScoutingProvider(teamNumber));
+              bundleAsync.whenData((bundle) {
+                for (final doc in bundle.matchDocs) {
+                  final playedDefense =
+                      parseSafetyBool(
+                        TeamScoutingBundle.getMatchField(
+                          doc.raw,
+                          kSectionEndgame,
+                          kEndPlayedDefenseOffShift,
+                        ),
+                      ) ||
+                      parseSafetyBool(
+                        TeamScoutingBundle.getMatchField(
+                          doc.raw,
+                          kSectionEndgame,
+                          kEndPlayedDefenseOnShift,
+                        ),
+                      );
 
-                final noShow = _parseSafetyBool(
-                  TeamScoutingBundle.getMatchField(
-                    doc.raw,
-                    kSectionEndgame,
-                    kEndNoShow,
-                  ),
-                );
+                  final noShow = parseSafetyBool(
+                    TeamScoutingBundle.getMatchField(
+                      doc.raw,
+                      kSectionEndgame,
+                      kEndNoShow,
+                    ),
+                  );
 
-                final brokeDown =
-                    _parseSafetyBool(
-                      TeamScoutingBundle.getMatchField(
-                        doc.raw,
-                        kSectionTele,
-                        kTeleStoppedWorking,
-                      ),
-                    ) ||
-                    _parseSafetyBool(
-                      TeamScoutingBundle.getMatchField(
-                        doc.raw,
-                        kSectionTele,
-                        kTeleLostComms,
-                      ),
-                    );
+                  final brokeDown =
+                      parseSafetyBool(
+                        TeamScoutingBundle.getMatchField(
+                          doc.raw,
+                          kSectionTele,
+                          kTeleStoppedWorking,
+                        ),
+                      ) ||
+                      parseSafetyBool(
+                        TeamScoutingBundle.getMatchField(
+                          doc.raw,
+                          kSectionTele,
+                          kTeleLostComms,
+                        ),
+                      );
 
-                if (playedDefense) defenseCount++;
-                if (noShow) noShowCount++;
-                if (brokeDown) breakdownCount++;
-              }
-            });
+                  if (playedDefense) defenseCount++;
+                  if (noShow) noShowCount++;
+                  if (brokeDown) breakdownCount++;
+                }
+              });
 
-            return (defenseCount, noShowCount, breakdownCount);
-          }
+              return (defenseCount, noShowCount, breakdownCount);
+            }
 
-          switch (selectedSort.sort) {
-            case TeamSortOptions.teamNumber:
-              if (isAscending) {
-                filteredTeams.sort((a, b) => a.number.compareTo(b.number));
-              } else {
-                filteredTeams.sort((a, b) => b.number.compareTo(a.number));
-              }
-            case TeamSortOptions.rank:
-              if (isAscending) {
+            switch (selectedSort.sort) {
+              case TeamSortOptions.teamNumber:
+                if (isAscending) {
+                  filteredTeams.sort((a, b) => a.number.compareTo(b.number));
+                } else {
+                  filteredTeams.sort((a, b) => b.number.compareTo(a.number));
+                }
+              case TeamSortOptions.rank:
+                if (isAscending) {
+                  filteredTeams.sort((a, b) {
+                    // Teams without a rank go to the end
+                    final rankA = rankings[a.number]?.rank ?? 999999;
+                    final rankB = rankings[b.number]?.rank ?? 999999;
+                    return rankA.compareTo(rankB);
+                  });
+                } else {
+                  filteredTeams.sort((a, b) {
+                    final rankA = rankings[a.number]?.rank ?? 0;
+                    final rankB = rankings[b.number]?.rank ?? 0;
+                    return rankB.compareTo(rankA);
+                  });
+                }
+              case TeamSortOptions.custom:
                 filteredTeams.sort((a, b) {
-                  // Teams without a rank go to the end
-                  final rankA = rankings[a.number]?.rank ?? 999999;
-                  final rankB = rankings[b.number]?.rank ?? 999999;
-                  return rankA.compareTo(rankB);
+                  final rankA = ref
+                      .watch(teamScoutingProvider(a.number))
+                      .when(
+                        data: (bundle) =>
+                            bundle.avgMatchField(
+                              kSectionTele,
+                              kTeleFuelScored,
+                            ) +
+                            bundle.avgMatchField(kSectionAuto, kAutoFuelScored),
+                        error: (_, _) => 0,
+                        loading: () => 0,
+                      );
+                  final rankB = ref
+                      .watch(teamScoutingProvider(b.number))
+                      .when(
+                        data: (bundle) =>
+                            bundle.avgMatchField(
+                              kSectionTele,
+                              kTeleFuelScored,
+                            ) +
+                            bundle.avgMatchField(kSectionAuto, kAutoFuelScored),
+                        error: (_, _) => 0,
+                        loading: () => 0,
+                      );
+                  if (isAscending) {
+                    return rankA.compareTo(rankB);
+                  } else {
+                    return rankB.compareTo(rankA);
+                  }
                 });
-              } else {
+              case TeamSortOptions.defense:
                 filteredTeams.sort((a, b) {
-                  final rankA = rankings[a.number]?.rank ?? 0;
-                  final rankB = rankings[b.number]?.rank ?? 0;
-                  return rankB.compareTo(rankA);
+                  final statsA = getTeamStats(a.number);
+                  final statsB = getTeamStats(b.number);
+                  if (isAscending) {
+                    return statsA.$1.compareTo(statsB.$1);
+                  } else {
+                    return statsB.$1.compareTo(statsA.$1);
+                  }
                 });
-              }
-            case TeamSortOptions.custom:
-              filteredTeams.sort((a, b) {
-                final rankA = ref
-                    .watch(teamScoutingProvider(a.number))
-                    .when(
-                      data: (bundle) =>
-                          bundle.avgMatchField(kSectionTele, kTeleFuelScored) +
-                          bundle.avgMatchField(kSectionAuto, kAutoFuelScored),
-                      error: (_, _) => 0,
-                      loading: () => 0,
-                    );
-                final rankB = ref
-                    .watch(teamScoutingProvider(b.number))
-                    .when(
-                      data: (bundle) =>
-                          bundle.avgMatchField(kSectionTele, kTeleFuelScored) +
-                          bundle.avgMatchField(kSectionAuto, kAutoFuelScored),
-                      error: (_, _) => 0,
-                      loading: () => 0,
-                    );
-                if (isAscending) {
-                  return rankA.compareTo(rankB);
-                } else {
-                  return rankB.compareTo(rankA);
-                }
-              });
-            case TeamSortOptions.defense:
-              filteredTeams.sort((a, b) {
-                final statsA = _getTeamStats(a.number);
-                final statsB = _getTeamStats(b.number);
-                if (isAscending) {
-                  return statsA.$1.compareTo(statsB.$1);
-                } else {
-                  return statsB.$1.compareTo(statsA.$1);
-                }
-              });
-            case TeamSortOptions.noShow:
-              filteredTeams.sort((a, b) {
-                final statsA = _getTeamStats(a.number);
-                final statsB = _getTeamStats(b.number);
-                if (isAscending) {
-                  return statsA.$2.compareTo(statsB.$2);
-                } else {
-                  return statsB.$2.compareTo(statsA.$2);
-                }
-              });
-            case TeamSortOptions.brokeDown:
-              filteredTeams.sort((a, b) {
-                final statsA = _getTeamStats(a.number);
-                final statsB = _getTeamStats(b.number);
-                if (isAscending) {
-                  return statsA.$3.compareTo(statsB.$3);
-                } else {
-                  return statsB.$3.compareTo(statsA.$3);
-                }
-              });
-          }
+              case TeamSortOptions.noShow:
+                filteredTeams.sort((a, b) {
+                  final statsA = getTeamStats(a.number);
+                  final statsB = getTeamStats(b.number);
+                  if (isAscending) {
+                    return statsA.$2.compareTo(statsB.$2);
+                  } else {
+                    return statsB.$2.compareTo(statsA.$2);
+                  }
+                });
+              case TeamSortOptions.brokeDown:
+                filteredTeams.sort((a, b) {
+                  final statsA = getTeamStats(a.number);
+                  final statsB = getTeamStats(b.number);
+                  if (isAscending) {
+                    return statsA.$3.compareTo(statsB.$3);
+                  } else {
+                    return statsB.$3.compareTo(statsA.$3);
+                  }
+                });
+            }
 
             if (filteredTeams.isEmpty) {
               return const Center(child: Text('No teams found'));
             }
 
-          return RefreshIndicator(
-            onRefresh: onRefresh,
-            child: BeariscopeCardList(
-              children: filteredTeams
-                  .map((team) => TeamCard(teamKey: team.key))
-                  .toList(),
-            ),
-          );
-        },
-      ),
+            return RefreshIndicator(
+              onRefresh: onRefresh,
+              child: BeariscopeCardList(
+                children: filteredTeams
+                    .map((team) => TeamCard(teamKey: team.key))
+                    .toList(),
+              ),
+            );
+          },
+        ),
       ),
     );
   }

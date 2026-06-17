@@ -353,7 +353,7 @@ class _SummaryMetrics extends ConsumerWidget {
           if (expandToFillHeight)
             Expanded(
               child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
+                padding: const EdgeInsets.symmetric(vertical: 8),
                 child: SfCartesianChart(
                   margin: EdgeInsets.zero,
                   primaryXAxis: const CategoryAxis(
@@ -364,7 +364,6 @@ class _SummaryMetrics extends ConsumerWidget {
                   series: _buildLineSeries(context, bundle.matchDocs),
                 ),
               ),
-
             )
           else
             AspectRatio(

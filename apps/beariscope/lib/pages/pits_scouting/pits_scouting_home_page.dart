@@ -102,48 +102,48 @@ class PitsScoutingHomePageState extends ConsumerState<PitsScoutingHomePage> {
         centerTitle: !_showMapView,
         titleSpacing: !_showMapView ? 8.0 : 16.0,
         title: _showMapView
-          ? const Text('Pits Map')
-          : SearchBar(
-          focusNode: searchFocusNode,
-          controller: _searchTEC,
-          hintText: 'Team name or number',
-          padding: const WidgetStatePropertyAll<EdgeInsets>(
-            EdgeInsets.symmetric(horizontal: 16.0),
-          ),
-          elevation: const WidgetStatePropertyAll<double>(0),
-          leading: const Icon(Symbols.search_rounded),
-          trailing: [
-            PopupMenuButton<PitsScoutingFilter>(
-              icon: const Icon(Symbols.filter_list_rounded),
-              tooltip: 'Filter & Sort',
-              itemBuilder: (context) => [
-                CheckedPopupMenuItem<PitsScoutingFilter>(
-                  value: PitsScoutingFilter.allTeams,
-                  checked: _statusFilter == PitsScoutingFilter.allTeams,
-                  child: const Text('All Teams'),
+            ? const Text('Pits Map')
+            : SearchBar(
+                focusNode: searchFocusNode,
+                controller: _searchTEC,
+                hintText: 'Team name or number',
+                padding: const WidgetStatePropertyAll<EdgeInsets>(
+                  EdgeInsets.symmetric(horizontal: 16.0),
                 ),
-                CheckedPopupMenuItem<PitsScoutingFilter>(
-                  value: PitsScoutingFilter.notScouted,
-                  checked: _statusFilter == PitsScoutingFilter.notScouted,
-                  child: const Text('Not Scouted'),
-                ),
-                CheckedPopupMenuItem<PitsScoutingFilter>(
-                  value: PitsScoutingFilter.scouted,
-                  checked: _statusFilter == PitsScoutingFilter.scouted,
-                  child: const Text('Scouted'),
-                ),
-              ],
-              onSelected: (selection) {
-                setState(() {
-                  _statusFilter = selection;
-                });
-              },
-            ),
-          ],
-          onChanged: (value) {
-            setState(() {});
-          },
-        ),
+                elevation: const WidgetStatePropertyAll<double>(0),
+                leading: const Icon(Symbols.search_rounded),
+                trailing: [
+                  PopupMenuButton<PitsScoutingFilter>(
+                    icon: const Icon(Symbols.filter_list_rounded),
+                    tooltip: 'Filter & Sort',
+                    itemBuilder: (context) => [
+                      CheckedPopupMenuItem<PitsScoutingFilter>(
+                        value: PitsScoutingFilter.allTeams,
+                        checked: _statusFilter == PitsScoutingFilter.allTeams,
+                        child: const Text('All Teams'),
+                      ),
+                      CheckedPopupMenuItem<PitsScoutingFilter>(
+                        value: PitsScoutingFilter.notScouted,
+                        checked: _statusFilter == PitsScoutingFilter.notScouted,
+                        child: const Text('Not Scouted'),
+                      ),
+                      CheckedPopupMenuItem<PitsScoutingFilter>(
+                        value: PitsScoutingFilter.scouted,
+                        checked: _statusFilter == PitsScoutingFilter.scouted,
+                        child: const Text('Scouted'),
+                      ),
+                    ],
+                    onSelected: (selection) {
+                      setState(() {
+                        _statusFilter = selection;
+                      });
+                    },
+                  ),
+                ],
+                onChanged: (value) {
+                  setState(() {});
+                },
+              ),
         leading: main.isDesktop
             ? (!_showMapView ? const SizedBox(width: 40) : null)
             : IconButton(
@@ -202,7 +202,7 @@ class PitsScoutingHomePageState extends ConsumerState<PitsScoutingHomePage> {
             },
           ),
         ),
-      )
+      ),
     );
   }
 

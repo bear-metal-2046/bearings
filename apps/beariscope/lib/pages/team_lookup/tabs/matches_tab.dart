@@ -3,7 +3,6 @@ import 'package:beariscope/models/processed_scouting_doc.dart';
 import 'package:beariscope/models/team_scouting_bundle.dart';
 import 'package:beariscope/pages/team_lookup/tabs/scouting_tab_widgets.dart';
 import 'package:beariscope/pages/up_next/match_preview_page.dart';
-import 'package:beariscope/pages/up_next/up_next_provider.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/team_scouting_provider.dart';
 import 'package:flutter/material.dart';
@@ -315,8 +314,8 @@ class _MatchCard extends ConsumerWidget {
             Align(
               alignment: Alignment.centerRight,
               child: FilledButton.icon(
-                onPressed: () => Navigator.of(context, rootNavigator: true)
-                    .push(
+                onPressed: () =>
+                    Navigator.of(context, rootNavigator: true).push(
                       MaterialPageRoute(
                         builder: (context) =>
                             DriveTeamMatchPreviewPage(matchKey: matchKey),
