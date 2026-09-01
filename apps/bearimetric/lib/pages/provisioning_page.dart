@@ -33,7 +33,8 @@ class _ProvisioningPageState extends ConsumerState<ProvisioningPage> {
     } catch (_) {
       if (mounted) {
         setState(
-          () => _error = 'Invalid Code — not a Bearimetric provisioning payload.',
+          () =>
+              _error = 'Invalid Code — not a Bearimetric provisioning payload.',
         );
       }
       return;

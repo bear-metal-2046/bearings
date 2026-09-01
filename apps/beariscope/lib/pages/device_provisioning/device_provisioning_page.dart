@@ -62,8 +62,9 @@ class DeviceProvisioningPage extends ConsumerWidget {
                   const SizedBox(height: 8),
                   Text(
                     'All devices share the same credentials. Keep this screen private.',
-                    style: Theme.of(context).textTheme.bodySmall
-                        ?.copyWith(color: colorScheme.onSurfaceVariant),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                 ],
