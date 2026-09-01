@@ -55,7 +55,7 @@ class DeviceProvisioningPage extends ConsumerWidget {
               Column(
                 children: [
                   Text(
-                    'Scan this QR code with a Pawfinder device to provision it.',
+                    'Scan this QR code with a Bearimetric device to provision it.',
                     style: Theme.of(context).textTheme.bodyMedium,
                     textAlign: TextAlign.center,
                   ),

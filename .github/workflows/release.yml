@@ -21,7 +21,7 @@ concurrency:
 
 env:
   BEARISCOPE_DIR: apps/beariscope
-  PAWFINDER_DIR: apps/pawfinder
+  BEARIMETRIC_DIR: apps/bearimetric
 
 jobs:
   prepare:
@@ -130,7 +130,7 @@ jobs:
 
           git add CHANGELOG.md \
             apps/beariscope/pubspec.yaml \
-            apps/pawfinder/pubspec.yaml \
+            apps/bearimetric/pubspec.yaml \
             packages/core/pubspec.yaml \
             packages/services/pubspec.yaml \
             packages/services/assets/release/codename.txt \
@@ -354,7 +354,7 @@ jobs:
           name: beariscope-windows
           path: artifacts/beariscope-windows-${{ needs.prepare.outputs.version }}.exe
 
-  build-pawfinder-android:
+  build-bearimetric-android:
     needs: prepare
     runs-on: ubuntu-latest
 
@@ -377,8 +377,8 @@ jobs:
         run: |
           yes | flutter doctor --android-licenses
 
-      - name: Build Pawfinder Android APK
-        working-directory: ${{ env.PAWFINDER_DIR }}
+      - name: Build Bearimetric Android APK
+        working-directory: ${{ env.BEARIMETRIC_DIR }}
         run: |
           flutter build apk \
             --release \
@@ -388,14 +388,14 @@ jobs:
       - name: Stage Android artifact
         run: |
           mkdir -p artifacts
-          cp "${{ env.PAWFINDER_DIR }}/build/app/outputs/flutter-apk/app-release.apk" \
-            "artifacts/pawfinder-android-${{ needs.prepare.outputs.version }}.apk"
+          cp "${{ env.BEARIMETRIC_DIR }}/build/app/outputs/flutter-apk/app-release.apk" \
+            "artifacts/bearimetric-android-${{ needs.prepare.outputs.version }}.apk"
 
       - name: Upload Android artifact
         uses: actions/upload-artifact@v4
         with:
-          name: pawfinder-android
-          path: artifacts/pawfinder-android-${{ needs.prepare.outputs.version }}.apk
+          name: bearimetric-android
+          path: artifacts/bearimetric-android-${{ needs.prepare.outputs.version }}.apk
 
   publish:
     needs:
@@ -404,7 +404,7 @@ jobs:
       - build-beariscope-linux
       - build-beariscope-web
       - build-beariscope-windows
-      - build-pawfinder-android
+      - build-bearimetric-android
     runs-on: ubuntu-latest
     if: always() && needs.prepare.result == 'success'
   
@@ -450,12 +450,12 @@ jobs:
           name: beariscope-windows
           path: release-assets/beariscope-windows
   
-      - name: Download Pawfinder Android artifact
+      - name: Download Bearimetric Android artifact
         uses: actions/download-artifact@v4
         continue-on-error: true
         with:
-          name: pawfinder-android
-          path: release-assets/pawfinder-android
+          name: bearimetric-android
+          path: release-assets/bearimetric-android
   
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
