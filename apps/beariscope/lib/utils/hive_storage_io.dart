@@ -40,5 +40,21 @@ Future<void> initializeHiveStorage() async {
     stderr.writeln('Skipping legacy Hive migration: $error');
   }
 
-  await Hive.initFlutter(support.path);
+  _initializeHiveAt(support.path);
+}
+
+/// Unlike `initFlutter`, this treats [path] as Hive's complete home path rather
+/// than appending it to the application documents directory.
+void _initializeHiveAt(String path) {
+  Hive.init(path);
+
+  final colorAdapter = ColorAdapter();
+  if (!Hive.isAdapterRegistered(colorAdapter.typeId)) {
+    Hive.registerAdapter(colorAdapter);
+  }
+
+  const timeOfDayAdapter = TimeOfDayAdapter();
+  if (!Hive.isAdapterRegistered(timeOfDayAdapter.typeId)) {
+    Hive.registerAdapter(timeOfDayAdapter);
+  }
 }
