@@ -1,7 +1,8 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -15,30 +16,32 @@ Future<void> saveOrShareExcel(
     final file = File('${dir.path}/$filename');
     await file.writeAsBytes(bytes, flush: true);
 
-    await Share.shareXFiles(
-      [
-        XFile(
-          file.path,
-          mimeType:
-              'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-          name: filename,
-        ),
-      ],
-      subject: filename,
-      sharePositionOrigin: _getShareOrigin(context),
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [
+          XFile(
+            file.path,
+            mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            name: filename,
+          ),
+        ],
+        subject: filename,
+        sharePositionOrigin: _getShareOrigin(context),
+      ),
     );
     return;
   }
 
-  final path = await FilePicker.platform.saveFile(
+  final uri = await FilePicker.saveFile(
     dialogTitle: 'Save Excel file',
     fileName: filename,
     type: FileType.custom,
     allowedExtensions: const ['xlsx'],
+    bytes: Uint8List.fromList(bytes),
   );
-  if (path == null || path.isEmpty) return;
+  if (uri == null || uri.scheme != 'file') return;
 
-  await File(path).writeAsBytes(bytes, flush: true);
+  final path = uri.toFilePath();
   if (context.mounted) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(

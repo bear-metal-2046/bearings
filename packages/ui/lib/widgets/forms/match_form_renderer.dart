@@ -221,9 +221,9 @@ class _MatchFormRendererState extends State<MatchFormRenderer> {
 
         return Dropdown(
           title: label,
-          backgroundColor: Theme.of(
-            context,
-          ).colorScheme.surfaceContainerHighest,
+          backgroundColor: Theme.of(context)
+              .colorScheme
+              .surfaceContainerHighest,
           items: items,
           onChanged: (v) => _onFieldChanged(sectionId, component.fieldId, v),
           initialIndex: selectedIndex == -1 ? null : selectedIndex,

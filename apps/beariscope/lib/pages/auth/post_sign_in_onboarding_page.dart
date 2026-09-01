@@ -1,5 +1,5 @@
 import 'package:beariscope/providers/post_sign_in_flow_provider.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:services/providers/user_profile_provider.dart';
@@ -168,9 +168,9 @@ class _PostSignInOnboardingPageState
       // remaining steps using the currently cached userInfo.
       final cachedUserInfo = ref.read(userInfoProvider).asData?.value;
       final remainingSteps = cachedUserInfo != null
-          ? _requiredSteps(
-              cachedUserInfo,
-            ).where((s) => s != _OnboardingStep.realName).toList()
+          ? _requiredSteps(cachedUserInfo)
+                .where((s) => s != _OnboardingStep.realName)
+                .toList()
           : <_OnboardingStep>[];
 
       if (mounted) {

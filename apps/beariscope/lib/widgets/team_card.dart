@@ -11,7 +11,7 @@ import 'package:beariscope/pages/team_lookup/team_providers.dart';
 import 'package:beariscope/providers/rankings_provider.dart';
 import 'package:beariscope/providers/tba_preferences_provider.dart';
 import 'package:beariscope/providers/team_scouting_provider.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_symbols_icons/symbols.dart';
@@ -577,10 +577,8 @@ class _StatPill extends StatelessWidget {
       children: [
         Text(
           label,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: color,
-            fontSize: compact ? 8 : null,
-          ),
+          style: Theme.of(context).textTheme.labelSmall
+              ?.copyWith(color: color, fontSize: compact ? 8 : null),
         ),
         Text(
           value,

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -112,9 +112,9 @@ class _ScoutPageState extends ConsumerState<ScoutPage> {
 
                             return Material(
                               color: isSelected
-                                  ? Theme.of(
-                                      context,
-                                    ).colorScheme.primaryContainer
+                                  ? Theme.of(context)
+                                        .colorScheme
+                                        .primaryContainer
                                   : Colors.transparent,
                               shape: const StadiumBorder(),
                               clipBehavior: Clip.antiAlias,
@@ -128,9 +128,9 @@ class _ScoutPageState extends ConsumerState<ScoutPage> {
                                             .colorScheme
                                             .primaryContainer
                                             .withAlpha(100)
-                                      : Theme.of(
-                                          context,
-                                        ).colorScheme.primaryContainer,
+                                      : Theme.of(context)
+                                            .colorScheme
+                                            .primaryContainer,
                                   child: Text(
                                     scout.name.isNotEmpty
                                         ? scout.name[0].toUpperCase()
@@ -209,9 +209,8 @@ class _ScoutPageState extends ConsumerState<ScoutPage> {
           const SizedBox(height: 16),
           Text(
             'Failed to load scouts',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: Theme.of(context).colorScheme.error,
-            ),
+            style: Theme.of(context).textTheme.titleMedium
+                ?.copyWith(color: Theme.of(context).colorScheme.error),
           ),
           const SizedBox(height: 8),
           Text(

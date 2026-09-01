@@ -1,7 +1,7 @@
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/pages/settings/appearance_settings_page.dart';
 import 'package:beariscope/providers/scouting_data_provider.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
@@ -571,9 +571,9 @@ class _MainViewState extends ConsumerState<MainView> {
                                 ? Icon(
                                     Symbols.check_rounded,
                                     size: 20,
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.primary,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .primary,
                                   )
                                 : const SizedBox(width: 20),
                             onPressed: () {
@@ -771,9 +771,9 @@ class _MainViewState extends ConsumerState<MainView> {
                           TextButton(
                             onPressed: () => Navigator.of(context).pop(true),
                             style: TextButton.styleFrom(
-                              foregroundColor: Theme.of(
-                                context,
-                              ).colorScheme.error,
+                              foregroundColor: Theme.of(context)
+                                  .colorScheme
+                                  .error,
                             ),
                             child: const Text('Sign Out'),
                           ),

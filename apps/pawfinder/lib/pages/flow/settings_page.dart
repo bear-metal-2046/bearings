@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hive_ce/hive.dart';
@@ -67,9 +67,9 @@ class SettingsPage extends ConsumerWidget {
                                   : 'Light theme is currently active',
                               style: Theme.of(context).textTheme.bodyMedium
                                   ?.copyWith(
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.onSurfaceVariant,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
                                   ),
                             ),
                           ],
@@ -91,9 +91,8 @@ class SettingsPage extends ConsumerWidget {
                     alignment: Alignment.centerLeft,
                     child: Text(
                       'Color Scheme',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: Theme.of(context).textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.bold),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -117,9 +116,9 @@ class SettingsPage extends ConsumerWidget {
                                     color: scheme.seedColor,
                                     shape: BoxShape.circle,
                                     border: Border.all(
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.outline,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .outline,
                                     ),
                                   ),
                                 ),

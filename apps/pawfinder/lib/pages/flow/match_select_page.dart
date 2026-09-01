@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -128,9 +128,9 @@ class _MatchSelectPageState extends ConsumerState<MatchSelectPage> {
                                       .headlineSmall
                                       ?.copyWith(
                                         color: team != null
-                                            ? Theme.of(
-                                                context,
-                                              ).colorScheme.primary
+                                            ? Theme.of(context)
+                                                  .colorScheme
+                                                  .primary
                                             : null,
                                       ),
                                 )
@@ -268,9 +268,8 @@ class _MatchSelectPageState extends ConsumerState<MatchSelectPage> {
                                         error: (_, _) => null,
                                       );
                                       if (team != null) {
-                                        Hive.box(
-                                          boxKey,
-                                        ).put(matchTeamKey(identity), team);
+                                        Hive.box(boxKey)
+                                            .put(matchTeamKey(identity), team);
                                       }
                                     }
 

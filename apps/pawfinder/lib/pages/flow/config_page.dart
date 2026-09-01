@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -175,17 +175,17 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(50),
                                     borderSide: BorderSide(
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.outline,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .outline,
                                     ),
                                   ),
                                   focusedBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(50),
                                     borderSide: BorderSide(
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.outline,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .outline,
                                     ),
                                   ),
                                   hintText: 'Select a competition',
@@ -275,9 +275,9 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
 
                       if (_selectedEvent != null) ...[
                         const SizedBox(height: 16),
-                        _ScheduleDownloadTile(
-                          eventKey: _selectedEvent!.key,
-                        ).animate().fadeIn(delay: 500.ms, duration: 300.ms),
+                        _ScheduleDownloadTile(eventKey: _selectedEvent!.key)
+                            .animate()
+                            .fadeIn(delay: 500.ms, duration: 300.ms),
                       ],
                     ],
                   ),

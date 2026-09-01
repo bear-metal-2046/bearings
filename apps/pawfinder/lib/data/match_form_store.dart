@@ -50,21 +50,20 @@ class MatchFormStore {
         final payload = decoded['payload'];
         if (payload is Map) {
           final data =
-              MatchFormData.fromJson(
-                Map<String, dynamic>.from(payload),
-              ).copyWith(
-                id: (() {
-                  final storedId = decoded['id']?.toString();
-                  return storedId != null && storedId.isNotEmpty
-                      ? storedId
-                      : null;
-                })(),
-                lastModified:
-                    DateTime.tryParse(
-                      decoded['lastModified']?.toString() ?? '',
-                    ) ??
-                    DateTime.now().toUtc(),
-              );
+              MatchFormData.fromJson(Map<String, dynamic>.from(payload))
+                  .copyWith(
+                    id: (() {
+                      final storedId = decoded['id']?.toString();
+                      return storedId != null && storedId.isNotEmpty
+                          ? storedId
+                          : null;
+                    })(),
+                    lastModified:
+                        DateTime.tryParse(
+                          decoded['lastModified']?.toString() ?? '',
+                        ) ??
+                        DateTime.now().toUtc(),
+                  );
           if (data.id == id) return data;
           continue;
         }

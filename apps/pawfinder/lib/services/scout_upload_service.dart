@@ -83,9 +83,8 @@ class ScoutUploadService {
   }
 
   int? _teamNumberFor(String eventKey, int matchNumber, int pos) {
-    final raw = Hive.box(
-      boxKey,
-    ).get('MATCH_${eventKey}_${matchNumber}_${pos}_team');
+    final raw = Hive.box(boxKey)
+        .get('MATCH_${eventKey}_${matchNumber}_${pos}_team');
     if (raw is int) return raw;
     if (raw is num) return raw.toInt();
     if (raw is String) return int.tryParse(raw);

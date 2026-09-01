@@ -59,7 +59,7 @@ final class StratStateNotifierProvider
 }
 
 String _$stratStateNotifierHash() =>
-    r'906b88ca5c31b2914641081d64379aeddd8e9138';
+    r'69791c25db17c96d006285fdbcc66888192296c0';
 
 final class StratStateNotifierFamily extends $Family
     with
@@ -93,7 +93,7 @@ abstract class _$StratStateNotifier extends $Notifier<StratState> {
   StratState build(MatchIdentity identity);
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<StratState, StratState>;
     final element =
         ref.element
@@ -103,6 +103,6 @@ abstract class _$StratStateNotifier extends $Notifier<StratState> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, () => build(_$args));
+    return element.handleCreate(ref, () => build(_$args));
   }
 }
