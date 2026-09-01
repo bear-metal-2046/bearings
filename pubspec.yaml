@@ -3,6 +3,11 @@ publish_to: none
 environment:
   sdk: ^3.13.0
 
+hooks:
+  user_defines:
+    win32:
+      local_build: true
+
 workspace:
   - apps/beariscope
   - apps/bearimetric

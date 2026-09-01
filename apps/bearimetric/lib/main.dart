@@ -21,6 +21,7 @@ import 'package:bearimetric/services/scout_upload_service.dart';
 import 'package:services/providers/api_provider.dart';
 import 'package:services/providers/auth_provider.dart';
 import 'package:services/providers/connectivity_provider.dart';
+import 'package:ui/ui.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -196,6 +197,10 @@ class _MyAppState extends ConsumerState<MyApp> {
     return MaterialApp.router(
       title: 'Bearimetric',
       routerConfig: router,
+      debugShowCheckedModeBanner: false,
+      builder: (context, child) => FlutterMaterialScope(
+        child: child ?? const SizedBox.shrink(),
+      ),
       theme: ThemeData(
         fontFamily: usePapyrusFont
             ? 'Papyrus'

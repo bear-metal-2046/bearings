@@ -108,7 +108,7 @@ class Auth {
     required this.redirectUri,
   });
 
-  Future<void> login(List<String> scopes) async {
+  Future<void> login(List<String> scopes, {bool isSignup = false}) async {
     _setStatus(AuthStatus.authenticating);
 
     if (!await checkOnline(ref)) {
@@ -137,6 +137,8 @@ class Auth {
           'code_challenge': challenge,
           'code_challenge_method': 'S256',
           'audience': config.audience,
+          if (isSignup) 'screen_hint': 'signup',
+          if (!isSignup) 'screen_hint': 'login',
         },
       );
 

@@ -304,44 +304,44 @@ class _DriveTeamMatchPreviewPageState
                 _currentPageNotifier.value.round().clamp(0, cards.length - 1),
               );
 
+              Widget buildDotsIndicator(double page) {
+                return DotsIndicator(
+                  dotsCount: cards.length,
+                  position: page.clamp(0, cards.length - 1).toDouble(),
+                  axis: _scrollVertical ? Axis.vertical : Axis.horizontal,
+                  onTap: (position) {
+                    _pageController?.animateToPage(
+                      position.toInt(),
+                      duration: const Duration(milliseconds: 250),
+                      curve: Curves.easeInOut,
+                    );
+                  },
+                  decorator: DotsDecorator(
+                    activeColor: Theme.of(context).colorScheme.primary,
+                    color: Theme.of(context)
+                        .colorScheme
+                        .surfaceContainerHighest,
+                    colors: cards
+                        .map((c) => c.color.withValues(alpha: 0.4))
+                        .toList(),
+                    activeColors: cards.map((c) => c.color).toList(),
+                    spacing: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 8,
+                    ),
+                    size: const Size.square(8.0),
+                    activeSize: const Size(24.0, 8.0),
+                    activeShape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(4.0),
+                    ),
+                  ),
+                );
+              }
+
               Widget dots = cards.length > 1
                   ? ValueListenableBuilder<double>(
                       valueListenable: _currentPageNotifier,
-                      builder: (context, page, _) {
-                        return DotsIndicator(
-                          dotsCount: cards.length,
-                          position: page.clamp(0, cards.length - 1).toDouble(),
-                          axis: _scrollVertical
-                              ? Axis.vertical
-                              : Axis.horizontal,
-                          onTap: (position) {
-                            _pageController?.animateToPage(
-                              position.toInt(),
-                              duration: const Duration(milliseconds: 250),
-                              curve: Curves.easeInOut,
-                            );
-                          },
-                          decorator: DotsDecorator(
-                            activeColor: Theme.of(context).colorScheme.primary,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .surfaceContainerHighest,
-                            colors: cards
-                                .map((c) => c.color.withValues(alpha: 0.4))
-                                .toList(),
-                            activeColors: cards.map((c) => c.color).toList(),
-                            spacing: const EdgeInsets.symmetric(
-                              horizontal: 4,
-                              vertical: 8,
-                            ),
-                            size: const Size.square(8.0),
-                            activeSize: const Size(24.0, 8.0),
-                            activeShape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(4.0),
-                            ),
-                          ),
-                        );
-                      },
+                      builder: (context, page, _) => buildDotsIndicator(page),
                     )
                   : const SizedBox.shrink();
 
@@ -386,8 +386,15 @@ class _DriveTeamMatchPreviewPageState
 
               // vertical layout
               if (_scrollVertical) {
-                return Center(
-                  child: SizedBox(width: cardWidth, child: pageView),
+                return Column(
+                  children: [
+                    Expanded(
+                      child: Center(
+                        child: SizedBox(width: cardWidth, child: pageView),
+                      ),
+                    ),
+                    dots,
+                  ],
                 );
               }
 
@@ -459,42 +466,7 @@ class _DriveTeamMatchPreviewPageState
                     ),
                   ),
 
-                  if (cards.length > 1)
-                    ValueListenableBuilder<double>(
-                      valueListenable: _currentPageNotifier,
-                      builder: (context, page, _) {
-                        return DotsIndicator(
-                          dotsCount: cards.length,
-                          position: page.clamp(0, cards.length - 1).toDouble(),
-                          onTap: (position) {
-                            _pageController?.animateToPage(
-                              position.toInt(),
-                              duration: const Duration(milliseconds: 250),
-                              curve: Curves.easeInOut,
-                            );
-                          },
-                          decorator: DotsDecorator(
-                            activeColor: Theme.of(context).colorScheme.primary,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .surfaceContainerHighest,
-                            colors: cards
-                                .map((c) => c.color.withValues(alpha: 0.4))
-                                .toList(),
-                            activeColors: cards.map((c) => c.color).toList(),
-                            spacing: const EdgeInsets.symmetric(
-                              horizontal: 4,
-                              vertical: 8,
-                            ),
-                            size: const Size.square(8.0),
-                            activeSize: const Size(24.0, 8.0),
-                            activeShape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(4.0),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+                  dots,
                   if (permissionChecker?.hasPermission(
                         PermissionKey.driveTeamUpload,
                       ) ??
