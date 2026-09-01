@@ -36,7 +36,9 @@ from typing import Callable
 SCRIPT_DIR  = Path(__file__).parent.resolve()
 APK_PATH    = SCRIPT_DIR / "build" / "app" / "outputs" / "flutter-apk" / "app-release.apk"
 PACKAGE_ID  = "org.tahomarobotics.pawfinder"
-# Flutter's getApplicationDocumentsDirectory() on Android
+# Flutter's getApplicationSupportDirectory() on Android. Hive lives here;
+# pending provisioning credentials remain in the documents directory.
+HIVE_DATA   = f"/data/user/0/{PACKAGE_ID}/files"
 APP_DATA    = f"/data/user/0/{PACKAGE_ID}/app_flutter"
 POLL_SECS   = 2
 
@@ -341,7 +343,7 @@ def _list_hive_files(serial: str) -> list[str]:
     """
     rc, out = adb_shell(
         serial,
-        f"run-as {PACKAGE_ID} ls {APP_DATA}",
+        f"run-as {PACKAGE_ID} ls {HIVE_DATA}",
     )
     if rc != 0 or not out:
         return []
@@ -375,7 +377,7 @@ def op_export(serial: str) -> None:
 
         for hive_filename in hive_files:
             box = hive_filename.removesuffix(".hive")
-            hive_path = f"{APP_DATA}/{hive_filename}"
+            hive_path = f"{HIVE_DATA}/{hive_filename}"
             raw = adb_pull_binary(
                 serial,
                 f"run-as {PACKAGE_ID} cat {hive_path}",
