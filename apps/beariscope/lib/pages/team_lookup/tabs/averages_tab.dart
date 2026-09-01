@@ -3,7 +3,7 @@ import 'package:beariscope/models/team_scouting_bundle.dart';
 import 'package:beariscope/pages/team_lookup/tabs/scouting_tab_widgets.dart';
 import 'package:beariscope/providers/strat_z_score_provider.dart';
 import 'package:beariscope/providers/team_scouting_provider.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_symbols_icons/symbols.dart';
 
@@ -323,9 +323,8 @@ class _AveragesBodyState extends State<_AveragesBody> {
           _lastN == null
               ? 'Based on $n match${n == 1 ? '' : 'es'}'
               : 'Last $n of ${widget.bundle.matchDocs.length} match${widget.bundle.matchDocs.length == 1 ? '' : 'es'}',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
+          style: Theme.of(context).textTheme.bodySmall
+              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
           textAlign: TextAlign.center,
         ),
         if (bundle.hasStratData) ...[

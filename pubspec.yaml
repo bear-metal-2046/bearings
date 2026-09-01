@@ -1,7 +1,7 @@
 name: bearings
 publish_to: none
 environment:
-  sdk: ^3.11.0
+  sdk: ^3.13.0
 
 workspace:
   - apps/beariscope
@@ -12,8 +12,8 @@ workspace:
   - backend/honeycomb
 
 dev_dependencies:
-  build_runner: ^2.12.2
-  melos: ^7.4.0
+  build_runner: 2.15.1
+  melos: 7.8.1
 
 melos:
   packages:

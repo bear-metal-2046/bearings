@@ -54,7 +54,7 @@ abstract class _$HoneycombEndpointPreference
   HoneycombEndpointSelection build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref =
         this.ref
             as $Ref<HoneycombEndpointSelection, HoneycombEndpointSelection>;
@@ -69,7 +69,7 @@ abstract class _$HoneycombEndpointPreference
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }
 

@@ -6,7 +6,7 @@ import 'package:beariscope/providers/drive_team_notes_provider.dart';
 import 'package:beariscope/providers/scouting_data_provider.dart';
 import 'package:beariscope/providers/tba_preferences_provider.dart';
 import 'package:dots_indicator/dots_indicator.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:services/providers/api_provider.dart';
@@ -323,9 +323,9 @@ class _DriveTeamMatchPreviewPageState
                           },
                           decorator: DotsDecorator(
                             activeColor: Theme.of(context).colorScheme.primary,
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.surfaceContainerHighest,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .surfaceContainerHighest,
                             colors: cards
                                 .map((c) => c.color.withValues(alpha: 0.4))
                                 .toList(),
@@ -475,9 +475,9 @@ class _DriveTeamMatchPreviewPageState
                           },
                           decorator: DotsDecorator(
                             activeColor: Theme.of(context).colorScheme.primary,
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.surfaceContainerHighest,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .surfaceContainerHighest,
                             colors: cards
                                 .map((c) => c.color.withValues(alpha: 0.4))
                                 .toList(),
@@ -690,9 +690,8 @@ class _DriveTeamNotesSheetState extends ConsumerState<_DriveTeamNotesSheet> {
     } catch (e) {
       if (mounted) {
         setState(() => _isSaving = false);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to save notes: $e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Failed to save notes: $e')));
       }
     }
   }

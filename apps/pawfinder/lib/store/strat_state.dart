@@ -455,10 +455,6 @@ class StratStateNotifier extends _$StratStateNotifier {
     int newIndex,
     Function(List<String>) updateState,
   ) {
-    if (oldIndex < newIndex) {
-      newIndex -= 1;
-    }
-
     final list = List<String>.from(currentList);
     final item = list.removeAt(oldIndex);
     list.insert(newIndex, item);

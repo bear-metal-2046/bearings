@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -168,9 +168,8 @@ class _AboutPageState extends ConsumerState<AboutPage> {
                           'Loading',
                           style: Theme.of(context).textTheme.bodyMedium
                               ?.copyWith(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onSurface.withValues(alpha: 0.6),
+                                color: Theme.of(context).colorScheme.onSurface
+                                    .withValues(alpha: 0.6),
                               ),
                           textAlign: TextAlign.center,
                         ).animate().fadeIn(delay: 200.ms, duration: 500.ms);
@@ -179,9 +178,8 @@ class _AboutPageState extends ConsumerState<AboutPage> {
                           'Error',
                           style: Theme.of(context).textTheme.bodyMedium
                               ?.copyWith(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onSurface.withValues(alpha: 0.6),
+                                color: Theme.of(context).colorScheme.onSurface
+                                    .withValues(alpha: 0.6),
                               ),
                           textAlign: TextAlign.center,
                         ).animate().fadeIn(delay: 200.ms, duration: 500.ms);
@@ -203,9 +201,8 @@ class _AboutPageState extends ConsumerState<AboutPage> {
                           'Version $version - $codename',
                           style: Theme.of(context).textTheme.bodyMedium
                               ?.copyWith(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onSurface.withValues(alpha: 0.6),
+                                color: Theme.of(context).colorScheme.onSurface
+                                    .withValues(alpha: 0.6),
                               ),
                           textAlign: TextAlign.center,
                         ).animate().fadeIn(delay: 200.ms, duration: 500.ms);
@@ -274,8 +271,7 @@ class _AboutPageState extends ConsumerState<AboutPage> {
                                     TextSpan(text: 'Zaydenyahu Palantir\n'),
                                     TextSpan(text: 'Tiny and Sen\n'),
                                     TextSpan(
-                                      text:
-                                          'And Nived i guess (emotional support)',
+                                      text: 'And Nived i guess (emotional support)',
                                     ),
                                   ],
                                 ),

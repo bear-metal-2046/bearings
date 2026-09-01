@@ -1,5 +1,5 @@
 import 'package:beariscope/widgets/beariscope_card.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_symbols_icons/symbols.dart';
@@ -62,9 +62,8 @@ class DeviceProvisioningPage extends ConsumerWidget {
                   const SizedBox(height: 8),
                   Text(
                     'All devices share the same credentials. Keep this screen private.',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
+                    style: Theme.of(context).textTheme.bodySmall
+                        ?.copyWith(color: colorScheme.onSurfaceVariant),
                     textAlign: TextAlign.center,
                   ),
                 ],

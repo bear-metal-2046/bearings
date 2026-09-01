@@ -35,9 +35,8 @@ class Auth0Config {
 
   Uri get tokenEndpoint => Uri.parse('https://$domain/oauth/token');
 
-  Uri logoutUri(String returnTo) => Uri.parse(
-    'https://$domain/v2/logout',
-  ).replace(queryParameters: {'client_id': clientId, 'returnTo': returnTo});
+  Uri logoutUri(String returnTo) => Uri.parse('https://$domain/v2/logout')
+      .replace(queryParameters: {'client_id': clientId, 'returnTo': returnTo});
 }
 
 enum AuthStatus { authenticated, unauthenticated, authenticating }
@@ -319,9 +318,8 @@ class Auth {
   }
 
   String _codeChallenge(String verifier) {
-    return base64UrlEncode(
-      sha256.convert(utf8.encode(verifier)).bytes,
-    ).replaceAll('=', '');
+    return base64UrlEncode(sha256.convert(utf8.encode(verifier)).bytes)
+        .replaceAll('=', '');
   }
 }
 

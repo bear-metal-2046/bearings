@@ -325,7 +325,7 @@ final class ScoutsProvider
   }
 }
 
-String _$scoutsHash() => r'bb8b405be9c386ab2ac1f98f65a92493b747da9d';
+String _$scoutsHash() => r'b69d30cd5b385fdc5ea3426a920bfd684e57bf75';
 
 @ProviderFor(ScoutingSessionNotifier)
 final scoutingSessionProvider = ScoutingSessionNotifierProvider._();
@@ -366,7 +366,7 @@ abstract class _$ScoutingSessionNotifier extends $Notifier<ScoutingSession> {
   ScoutingSession build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<ScoutingSession, ScoutingSession>;
     final element =
         ref.element
@@ -376,7 +376,7 @@ abstract class _$ScoutingSessionNotifier extends $Notifier<ScoutingSession> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }
 

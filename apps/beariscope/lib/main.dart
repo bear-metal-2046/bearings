@@ -33,7 +33,7 @@ import 'package:beariscope/utils/hive_storage.dart';
 import 'package:beariscope/utils/window_size_stub.dart'
     if (dart.library.io) 'package:window_size/window_size.dart';
 import 'package:core/providers/device_info_provider.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
@@ -404,7 +404,7 @@ ThemeData _createTheme(Brightness brightness, Color accentColor) {
       weight: 600,
       color: colorScheme.onSurface,
     ),
-    textTheme: GoogleFonts.nunitoSansTextTheme(
+    textTheme: _nunitoTextTheme(
       ThemeData(brightness: brightness, colorScheme: colorScheme).textTheme,
     ),
   );
@@ -425,6 +425,27 @@ ThemeData _createTheme(Brightness brightness, Color accentColor) {
         fontSize: 20,
       ),
     ),
+  );
+}
+
+// TEMP STUFF UNTIL GOOGLE_FONTS UPDATES TO BE COMPATIBLE WITH MATERIAL_UI
+TextTheme _nunitoTextTheme(TextTheme textTheme) {
+  return TextTheme(
+    displayLarge: GoogleFonts.nunitoSans(textStyle: textTheme.displayLarge),
+    displayMedium: GoogleFonts.nunitoSans(textStyle: textTheme.displayMedium),
+    displaySmall: GoogleFonts.nunitoSans(textStyle: textTheme.displaySmall),
+    headlineLarge: GoogleFonts.nunitoSans(textStyle: textTheme.headlineLarge),
+    headlineMedium: GoogleFonts.nunitoSans(textStyle: textTheme.headlineMedium),
+    headlineSmall: GoogleFonts.nunitoSans(textStyle: textTheme.headlineSmall),
+    titleLarge: GoogleFonts.nunitoSans(textStyle: textTheme.titleLarge),
+    titleMedium: GoogleFonts.nunitoSans(textStyle: textTheme.titleMedium),
+    titleSmall: GoogleFonts.nunitoSans(textStyle: textTheme.titleSmall),
+    bodyLarge: GoogleFonts.nunitoSans(textStyle: textTheme.bodyLarge),
+    bodyMedium: GoogleFonts.nunitoSans(textStyle: textTheme.bodyMedium),
+    bodySmall: GoogleFonts.nunitoSans(textStyle: textTheme.bodySmall),
+    labelLarge: GoogleFonts.nunitoSans(textStyle: textTheme.labelLarge),
+    labelMedium: GoogleFonts.nunitoSans(textStyle: textTheme.labelMedium),
+    labelSmall: GoogleFonts.nunitoSans(textStyle: textTheme.labelSmall),
   );
 }
 
