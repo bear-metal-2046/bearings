@@ -1,5 +1,5 @@
 import 'package:hive_ce_flutter/adapters.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:pawfinder/data/hive_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // the one hive box for all match/strat/queue/schedule data
@@ -8,8 +8,7 @@ const boxKey = "localData";
 late final SharedPreferences prefs;
 
 Future<void> loadStorage() async {
-  final dir = await getApplicationDocumentsDirectory();
-  await Hive.initFlutter(dir.path);
+  await initializeHiveStorage();
   await Hive.openBox(boxKey); // so the code doesn't have to use openBox
   await Hive.openBox(
     'api_cache',

@@ -29,6 +29,7 @@ import 'package:beariscope/providers/post_sign_in_flow_provider.dart';
 import 'package:beariscope/providers/shared_preferences_provider.dart';
 import 'package:beariscope/utils/platform_utils_stub.dart'
     if (dart.library.io) 'package:beariscope/utils/platform_utils.dart';
+import 'package:beariscope/utils/hive_storage.dart';
 import 'package:beariscope/utils/window_size_stub.dart'
     if (dart.library.io) 'package:window_size/window_size.dart';
 import 'package:core/providers/device_info_provider.dart';
@@ -52,7 +53,7 @@ Future<void> main() async {
   final sharedPreferences = await SharedPreferences.getInstance();
   setUrlStrategy(PathUrlStrategy());
 
-  await Hive.initFlutter();
+  await initializeHiveStorage();
   await Hive.openBox('api_cache');
   await Hive.openBox<String>('scouting_data');
 
