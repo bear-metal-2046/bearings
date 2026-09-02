@@ -5,7 +5,7 @@ environment:
 
 workspace:
   - apps/beariscope
-  - apps/pawfinder
+  - apps/bearimetric
   - packages/core
   - packages/services
   - packages/ui
@@ -18,7 +18,7 @@ dev_dependencies:
 melos:
   packages:
     - apps/beariscope
-    - apps/pawfinder
+    - apps/bearimetric
     - packages/core
     - packages/services
     - packages/ui

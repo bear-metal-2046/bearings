@@ -13,7 +13,7 @@ written in Dart and in this monorepo for simplicity when developing across multi
 
 The strategy app. Runs on personal devices like phones and laptops.
 
-### [Pawfinder](apps/pawfinder)
+### [Bearimetric](apps/bearimetric)
 
 The scouting app. Runs on team-issued tablets.
 
@@ -70,7 +70,7 @@ You can also signify a breaking change by adding an `!` after the type like this
 A scope is where the commit edits things. Use one of these scopes:
 
 - `beariscope`
-- `pawfinder`
+- `bearimetric`
 - `core`
 - `services`
 - `ui`

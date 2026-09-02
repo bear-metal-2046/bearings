@@ -1,0 +1,60 @@
+name: bearimetric
+description: "Bear Metal's Scouting App"
+version: 26.5.0+20
+resolution: workspace
+publish_to: none
+
+environment:
+  sdk: ^3.13.0
+
+dependencies:
+  path: ^1.9.1
+  path_provider: ^2.1.6
+  flutter_riverpod: 3.3.2
+  go_router: ^18.0.0
+  riverpod_annotation: 4.0.3
+  http: ^1.6.0
+  uuid: ^4.6.0
+  meta: ^1.19.0
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.9
+  hive_ce: ^2.19.3
+  hive_ce_flutter: ^2.3.4
+  shared_preferences: ^2.5.5
+  syncfusion_flutter_sliders: ^34.2.5
+  pressable_flutter: ^1.0.4
+  mobile_scanner: ^7.4.0
+  flutter_secure_storage: ^10.3.1
+  flutter_secure_storage_windows: ^4.2.2
+  auto_size_text: ^3.0.0
+  flutter_animate: ^4.5.2
+  google_fonts: ^8.2.1
+  material_symbols_icons: ^4.2960.0
+  services:
+    path: ../../packages/services
+  ui:
+    path: ../../packages/ui
+  core:
+    path: ../../packages/core
+  animate_do: ^5.1.0
+  package_info_plus: ^10.2.1
+  material_ui: ^1.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  build_runner: 2.15.1
+  riverpod_generator: 4.0.4
+  hive_ce_generator: 1.11.2
+
+flutter:
+  uses-material-design: true
+  fonts:
+    - family: Papyrus
+      fonts:
+        - asset: resources/PAPYRUS.TTF
+
+assets:
+  - assets/
