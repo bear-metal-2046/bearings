@@ -346,33 +346,38 @@ class _SummaryMetrics extends ConsumerWidget {
         ],
         if (hasEnoughMatchDataForGraph) ...[
           const SizedBox(height: 8),
-          if (expandToFillHeight)
-            Expanded(
-              child: SfCartesianChart(
-                margin: EdgeInsets.zero,
-                primaryXAxis: const CategoryAxis(
-                  labelPlacement: LabelPlacement.onTicks,
+          SizedBox(
+            height: expandToFillHeight ? 240 : 180,
+            child: SfCartesianChart(
+              margin: EdgeInsets.zero,
+              primaryXAxis: CategoryAxis(
+                labelPlacement: LabelPlacement.onTicks,
+                labelStyle: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
-                primaryYAxis: const NumericAxis(),
-                plotAreaBorderWidth: 0,
-                series: _buildLineSeries(context, bundle.matchDocs),
+                majorGridLines: MajorGridLines(width: 0),
               ),
-            )
-          else
-            SizedBox(
-              height: 180,
-              child: SfCartesianChart(
-                margin: EdgeInsets.zero,
-                primaryXAxis: const CategoryAxis(
-                  labelPlacement: LabelPlacement.onTicks,
+              primaryYAxis: NumericAxis(
+                labelStyle: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
-                primaryYAxis: const NumericAxis(),
-                plotAreaBorderWidth: 0,
-                series: _buildLineSeries(context, bundle.matchDocs),
+                majorGridLines: MajorGridLines(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                  width: 2,
+                ),
               ),
+              plotAreaBorderWidth: 0,
+              series: _buildLineSeries(context, bundle.matchDocs),
             ),
-          const Divider(height: 8, thickness: 1),
+          ),
         ],
+
+        if (expandToFillHeight && hasEnoughMatchDataForGraph)
+          const Spacer(),
+
+        if (hasEnoughMatchDataForGraph)
+          const Divider(height: 8, thickness: 1),
+
         if (hasZScores) ...[
           const SizedBox(height: 6),
           Wrap(
@@ -486,6 +491,7 @@ class _ChipsRow extends StatelessWidget {
               ),
             ),
             backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+            side: BorderSide(color: Theme.of(context).colorScheme.primary),
             visualDensity: VisualDensity.compact,
             padding: EdgeInsets.zero,
             labelPadding: const EdgeInsets.symmetric(horizontal: 8),
@@ -527,7 +533,7 @@ class _OutlinedChip extends StatelessWidget {
       side: BorderSide(color: color.withValues(alpha: 0.4)),
       visualDensity: VisualDensity.compact,
       padding: EdgeInsets.zero,
-      labelPadding: const EdgeInsets.symmetric(horizontal: 4),
+      labelPadding: const EdgeInsets.only(right: 8),
     );
   }
 }
@@ -582,16 +588,13 @@ class _RankBadge extends StatelessWidget {
       children: [
         Text(
           '#${ranking.rank}',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            color: scheme.primary,
-            fontWeight: FontWeight.bold,
-          ),
+          style: Theme.of(context).textTheme.titleMedium
+              ?.copyWith(color: scheme.primary, fontWeight: FontWeight.bold),
         ),
         Text(
           '${ranking.rankingPoints} RP — ${ranking.rankingScore.toStringAsFixed(2)} RS',
-          style: Theme.of(
-            context,
-          ).textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant),
+          style: Theme.of(context).textTheme.labelSmall
+              ?.copyWith(color: scheme.onSurfaceVariant),
         ),
       ],
     );
