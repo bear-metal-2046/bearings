@@ -11,7 +11,7 @@ import 'package:beariscope/pages/scout_audit/scout_audit_provider.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/scouting_data_provider.dart';
 import 'package:core/core.dart' show ScoutPosition;
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:services/providers/api_provider.dart';
@@ -225,9 +225,9 @@ class _ScoutAuditPageState extends ConsumerState<ScoutAuditPage> {
                           Padding(
                             padding: const EdgeInsets.only(bottom: 8),
                             child: Card(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.surfaceContainerLow,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainerLow,
                               elevation: 0,
                               margin: EdgeInsets.zero,
                               child: Padding(
@@ -236,9 +236,9 @@ class _ScoutAuditPageState extends ConsumerState<ScoutAuditPage> {
                                   'No issues',
                                   style: Theme.of(context).textTheme.bodyMedium
                                       ?.copyWith(
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.onSurfaceVariant,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurfaceVariant,
                                       ),
                                 ),
                               ),
@@ -404,16 +404,14 @@ class _ScoutAuditPageState extends ConsumerState<ScoutAuditPage> {
                   children: [
                     Text(
                       issue.title,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: Theme.of(context).textTheme.titleSmall
+                          ?.copyWith(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       issue.subtitle,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: colorScheme.onSurfaceVariant),
                     ),
                   ],
                 ),
@@ -430,9 +428,8 @@ class _ScoutAuditPageState extends ConsumerState<ScoutAuditPage> {
                   ),
                   child: Text(
                     issue.trailing!,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
+                    style: Theme.of(context).textTheme.labelSmall
+                        ?.copyWith(color: colorScheme.onSurfaceVariant),
                   ),
                 ),
               if (issue.onTap != null) ...[
@@ -1263,12 +1260,10 @@ class _IncorrectDataDetailPageState
                                           .bodySmall
                                           ?.copyWith(
                                             color: isRed
-                                                ? const Color(
-                                                    0xFFC62828,
-                                                  ).withAlpha(200)
-                                                : const Color(
-                                                    0xFF1565C0,
-                                                  ).withAlpha(200),
+                                                ? const Color(0xFFC62828)
+                                                      .withAlpha(200)
+                                                : const Color(0xFF1565C0)
+                                                      .withAlpha(200),
                                           ),
                                     ),
                                   ],
@@ -1294,15 +1289,15 @@ class _IncorrectDataDetailPageState
                                 children: [
                                   Text(
                                     'Scouted: ${metric.scoutedSum}',
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.bodyMedium,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium,
                                   ),
                                   Text(
                                     'TBA: ${metric.tbaScore}',
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.bodyMedium,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium,
                                   ),
                                 ],
                               ),
@@ -1620,9 +1615,8 @@ class _ManualScoutDialogState extends ConsumerState<_ManualScoutDialog> {
               const SizedBox(height: 12),
               Text(
                 _errorText!,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: colorScheme.error),
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: colorScheme.error),
               ),
             ],
           ],

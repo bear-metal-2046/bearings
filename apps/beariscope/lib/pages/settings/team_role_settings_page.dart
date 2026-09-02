@@ -1,5 +1,5 @@
 import 'package:beariscope/widgets/beariscope_card.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:services/providers/api_provider.dart';
@@ -659,9 +659,9 @@ class _TeamRoleSettingsPageState extends ConsumerState<TeamRoleSettingsPage>
                       children: filteredUsers
                           .map(
                             (user) => Card(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.surfaceContainer,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainer,
                               margin: EdgeInsets.zero,
                               clipBehavior: Clip.antiAlias,
                               elevation: 0,
@@ -796,9 +796,9 @@ class _TeamRoleSettingsPageState extends ConsumerState<TeamRoleSettingsPage>
                       children: filteredRoles
                           .map(
                             (role) => Card(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.surfaceContainer,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainer,
                               margin: EdgeInsets.zero,
                               clipBehavior: Clip.antiAlias,
                               elevation: 0,

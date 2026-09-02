@@ -1,5 +1,5 @@
 import 'package:beariscope/providers/post_sign_in_flow_provider.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:go_router/go_router.dart';
@@ -94,7 +94,7 @@ class WelcomePage extends ConsumerWidget {
                       TextButton(
                         onPressed: () async {
                           final uri = Uri.parse(
-                            'https://bear-metal-apps.github.io/beariscope/privacy-policy',
+                            'https://bear-metal-2046.github.io/bearings/privacy-policy',
                           );
                           if (await canLaunchUrl(uri)) {
                             await launchUrl(

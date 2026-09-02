@@ -1,7 +1,7 @@
 import 'package:beariscope/widgets/settings_group.dart';
 import 'package:flex_color_picker/flex_color_picker.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -269,9 +269,9 @@ class AppearanceSettingsPage extends ConsumerWidget {
                           shape: BoxShape.circle,
                           border: isSelected
                               ? Border.all(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurface,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface,
                                   width: 2,
                                 )
                               : null,
@@ -336,9 +336,9 @@ class AppearanceSettingsPage extends ConsumerWidget {
                               child: Container(
                                 width: 64,
                                 height: 64,
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.surfaceContainerHighest,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .surfaceContainerHighest,
                                 child: const Icon(
                                   LucideIcons.fileQuestionMark,
                                   size: 24,

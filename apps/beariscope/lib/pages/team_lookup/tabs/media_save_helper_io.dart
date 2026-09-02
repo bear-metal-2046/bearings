@@ -2,7 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -18,23 +18,24 @@ Future<void> shareOrSaveImage(
     final file = File('${dir.path}/$filename');
     await file.writeAsBytes(bytes, flush: true);
 
-    await Share.shareXFiles(
-      [XFile(file.path, mimeType: 'image/jpeg', name: filename)],
-      subject: filename,
-      sharePositionOrigin: shareOrigin,
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [XFile(file.path, mimeType: 'image/jpeg', name: filename)],
+        subject: filename,
+        sharePositionOrigin: shareOrigin,
+      ),
     );
     return;
   }
 
-  final path = await FilePicker.saveFile(
+  final uri = await FilePicker.saveFile(
     dialogTitle: 'Save image',
     fileName: filename,
     type: FileType.custom,
     allowedExtensions: const ['jpg', 'jpeg', 'png'],
+    bytes: bytes,
   );
-  if (path == null || path.isEmpty) return;
-
-  await File(path).writeAsBytes(bytes, flush: true);
+  if (uri == null || uri.scheme != 'file') return;
 }
 
 Rect _getShareOrigin(BuildContext context) {

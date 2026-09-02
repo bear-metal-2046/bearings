@@ -41,13 +41,13 @@ final class CurrentEventProvider
   }
 }
 
-String _$currentEventHash() => r'048ea4a6002c9b78d1944f1ddce54b4f37aedc06';
+String _$currentEventHash() => r'9813a4d2122c46be35ec6e7f1bd78f35fa6ae67a';
 
 abstract class _$CurrentEvent extends $Notifier<String> {
   String build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<String, String>;
     final element =
         ref.element
@@ -57,6 +57,6 @@ abstract class _$CurrentEvent extends $Notifier<String> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

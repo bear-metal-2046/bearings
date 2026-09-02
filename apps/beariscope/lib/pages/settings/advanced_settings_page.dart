@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/tba_preferences_provider.dart';
 import 'package:beariscope/widgets/settings_group.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:services/providers/connectivity_provider.dart';
@@ -167,8 +167,7 @@ class _AdvancedSettingsPageState extends ConsumerState<AdvancedSettingsPage> {
                     textInputAction: TextInputAction.done,
                     decoration: InputDecoration(
                       labelText: 'Custom URL',
-                      helperText:
-                          'Enter the endpoint origin, such as https://example.com',
+                      helperText: 'Enter the endpoint origin, such as https://example.com',
                       errorText: _customUrlError(
                         _customHoneycombUrlController.text,
                       ),

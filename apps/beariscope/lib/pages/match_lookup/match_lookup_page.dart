@@ -1,10 +1,10 @@
 import 'package:beariscope/pages/main_view.dart';
 import 'package:beariscope/pages/match_lookup/match_card.dart';
 import 'package:beariscope/pages/match_lookup/match_providers.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:beariscope/pages/team_lookup/team_model.dart';
 import 'package:beariscope/pages/team_lookup/team_providers.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class MatchLookupPage extends ConsumerStatefulWidget {

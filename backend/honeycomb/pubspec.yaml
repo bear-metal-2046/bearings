@@ -5,14 +5,14 @@ resolution: workspace
 publish_to: none
 
 environment:
-  sdk: ^3.11.1
+  sdk: ^3.13.0
 
 dependencies:
   core:
     path: ../../packages/core
-  dart_frog: ^1.1.0
+  dart_frog: ^1.2.6
 
 dev_dependencies:
-  dart_frog_lint: ^0.1.0
-  mocktail: ^1.0.3
-  test: ^1.25.5
+  dart_frog_lint: ^0.1.2
+  mocktail: ^1.0.5
+  test: 1.31.1

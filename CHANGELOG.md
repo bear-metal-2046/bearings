@@ -8,14 +8,14 @@
 
 
 ### Features
-- pawfinder: Fix crash in strat scouting (07c7205)
+- bearimetric: Fix crash in strat scouting (07c7205)
 - beariscope: Add ranking score and match labels to team card (f837742)
 - beariscope: Add icon labels to team card graphs (ce5dcf7)
 - beariscope: Add team website link to team card media tab (fccce1b)
-- pawfinder: Add match spam check and color scheme settings (84a6b31)
+- bearimetric: Add match spam check and color scheme settings (84a6b31)
 - beariscope: Collapse team card when there's no data (dae4e0e)
 - beariscope: TBA deviation calculations use point difference instead of percent difference (501ad3d)
-- repo: Beached and high center added to tele and average in team card, and to pawfinder (4739478)
+- repo: Beached and high center added to tele and average in team card, and to bearimetric (4739478)
 - beariscope: Added broken down/ defense symbols to the graph in the graph tab (abcf599)
 - Feat(beariscope: clean up visuals
 
@@ -36,7 +36,7 @@
 **Released:** 2026-04-08
 
 ### Features
-- pawfinder: Overhaul how match form looks (6d789fe)
+- bearimetric: Overhaul how match form looks (6d789fe)
 - beariscope: Add media tab to team card (2a7a2c3)
 - beariscope: Improve media tab image gestures (a782201)
 - beariscope: Add links for cd threads, cad, videos in media tab (3309fa6)
@@ -45,7 +45,7 @@
 - beariscope: Enhance caching and clean up code (954bdc6)
 - beariscope: Fix drawer swipe gesture logic (d10214b)
 - beariscope: Add strat to scout audit and stop uploading duplicate strat docs (25d0d57)
-- pawfinder: Add match select dropdown when scouting (a49b180)
+- bearimetric: Add match select dropdown when scouting (a49b180)
 - beariscope: Add match lookup page (4741a56)
 - beariscope: Add tower capability to team card (27e6c0b)
 - beariscope: Update ios/macos project, switch to swift pm from cocoapods (8cf9782)
@@ -92,7 +92,7 @@
 - repo: Pits scouting and playstyles changes (3496f3c)
 - beariscope: Add data export, scout audit pages, ui tweaks (44729b2)
 - beariscope: Add custom color picker to theme selector (a8bd335)
-- pawfinder: Add defended to post match (276bfd3)
+- bearimetric: Add defended to post match (276bfd3)
 - ci: Update AppImageBuilder and release workflows (3160ac5)
 
 
@@ -182,10 +182,10 @@ on-behalf-of: @Azure opensource@microsoft.com (977a62c)
 - Make the readme look better (d2c8948)
 - Bump version to 26.1.2 [skip ci] (154c829)
 - Clean up monorepo migration (ba48ec5)
-- pawfinder: Remove giant problems report file (a879ab1)
+- bearimetric: Remove giant problems report file (a879ab1)
 - repo: Dart format (88b6164)
-- pawfinder: Dart format . (b572362)
-- pawfinder: Dart format . again (a2eebcc)
+- bearimetric: Dart format . (b572362)
+- bearimetric: Dart format . again (a2eebcc)
 
 
 ### Documentation
@@ -221,11 +221,11 @@ on-behalf-of: @Azure opensource@microsoft.com (977a62c)
 - Add privacy policy around the app (af1150e)
 - Display codename around app (5d63e61)
 - Add drive team notes functionality (1d50a33)
-- Add pawfinder device provisioning (aeae05c)
+- Add bearimetric device provisioning (aeae05c)
 - Add z-score for strat, add drive team notes (3d896eb)
 - Pits scouting scouting page changes from feedback (6a7b085)
 - Bundle fonts with app to avoid downloading them (c4a5d42)
-- Update team card details to match pawfinder (3e34918)
+- Update team card details to match bearimetric (3e34918)
 - beariscope: Add jingle easter egg (caec1e8)
 - repo: Added no show in post match, next match tab automatically goes to auto now, play style shows all the play styles instead of just index, color coded red and blue alliance, changed averages to 0-100%, changed up next page to show all teams matches for each current event (6f22c88)
 - repo: Added no show in post match, next match tab automatically goes to auto now, play style shows all the play styles instead of just index, color coded red and blue alliance, changed averages to 0-100%, changed up next page to show all teams matches for each current event (d220133)
@@ -233,14 +233,14 @@ on-behalf-of: @Azure opensource@microsoft.com (977a62c)
 t (b9821d7)
 - beariscope: Update match filter and improve UI in up next (35c75d3)
 - beariscope: Match preview and pits functional edits (3355310)
-- Feat!(pawfinder): strat page should be done (013fbc5)
+- Feat!(bearimetric): strat page should be done (013fbc5)
 - services: Completely refactor data sync and move internal code (e476b72)
 - beariscope: Rename defensive susceptibility to defensive resilience (7eb9c66)
 
 
 ### Refactoring
-- Refactor!(pawfinder): StratStateNotifier changed to have two human player scores (6ac4da9)
-- Refactor!(pawfinder): fixed an oopsie poopsie in scout_upload_service.dart (3ee15e3)
+- Refactor!(bearimetric): StratStateNotifier changed to have two human player scores (6ac4da9)
+- Refactor!(bearimetric): fixed an oopsie poopsie in scout_upload_service.dart (3ee15e3)
 
 
 # Changelog

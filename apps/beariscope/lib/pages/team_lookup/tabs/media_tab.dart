@@ -6,7 +6,7 @@ import 'package:beariscope/pages/team_lookup/tabs/scouting_tab_widgets.dart';
 import 'package:beariscope/pages/team_lookup/team_providers.dart';
 import 'package:beariscope/widgets/beariscope_card.dart';
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
@@ -510,9 +510,12 @@ class _PhotoGrid extends StatelessWidget {
                           initialIndex: index,
                           activeUrlNotifier: activeUrlNotifier,
                         ),
-                    transitionsBuilder:
-                        (context, animation, secondaryAnimation, child) =>
-                            FadeTransition(opacity: animation, child: child),
+                    transitionsBuilder: (
+                      context,
+                      animation,
+                      secondaryAnimation,
+                      child,
+                    ) => FadeTransition(opacity: animation, child: child),
                   ),
                 );
                 activeUrlNotifier.value = null;
@@ -611,9 +614,8 @@ class _MediaLinkCard extends StatelessWidget {
   }
 
   Widget _buildTitle(BuildContext context) {
-    final style = Theme.of(
-      context,
-    ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600);
+    final style = Theme.of(context).textTheme.titleMedium
+        ?.copyWith(fontWeight: FontWeight.w600);
 
     final fallback = switch (record.type) {
       'cd-thread' => 'Chief Delphi thread',
@@ -1259,9 +1261,8 @@ class _PulseSkeletonState extends State<_PulseSkeleton>
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, _) => Container(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(
-          alpha: 0.5 + (_controller.value * 0.2),
-        ),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest
+            .withValues(alpha: 0.5 + (_controller.value * 0.2)),
       ),
     );
   }

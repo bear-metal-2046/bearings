@@ -116,9 +116,8 @@ class HoneycombClient {
 
   void invalidateCache(String endpoint, {Map<String, dynamic>? queryParams}) {
     final dio = _ref.read(dioProvider);
-    final requestOptions = Options(
-      method: 'GET',
-    ).compose(dio.options, endpoint, queryParameters: queryParams);
+    final requestOptions = Options(method: 'GET')
+        .compose(dio.options, endpoint, queryParameters: queryParams);
     final keys = HiveCacheInterceptor.cacheKeysForUri(requestOptions.uri);
 
     final box = Hive.box<dynamic>('api_cache');

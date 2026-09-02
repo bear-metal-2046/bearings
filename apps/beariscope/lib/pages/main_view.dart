@@ -2,7 +2,8 @@ import 'package:beariscope/pages/scout_audit/scout_audit_provider.dart';
 import 'package:beariscope/pages/settings/appearance_settings_page.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/scouting_data_provider.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:go_router/go_router.dart';
@@ -12,6 +13,8 @@ import 'package:services/providers/connectivity_provider.dart';
 import 'package:services/providers/permissions_provider.dart';
 import 'package:services/providers/user_profile_provider.dart';
 import 'package:services/widgets/profile_picture.dart';
+import 'package:beariscope/pages/team_lookup/team_providers.dart';
+import 'package:beariscope/providers/pits_scouting_provider.dart';
 
 class _NavItem {
   final String route;
@@ -208,6 +211,9 @@ class _MainViewState extends ConsumerState<MainView> {
 
   @override
   Widget build(BuildContext context) {
+    final searchFocusNode = ref.watch(searchFocusNodeProvider);
+    final searchController = ref.watch(searchControllerProvider);
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final isDesktop = constraints.maxWidth >= _desktopBreakpoint;
@@ -257,22 +263,58 @@ class _MainViewState extends ConsumerState<MainView> {
             permissionChecker != null &&
             permissionChecker.permissions.isEmpty;
 
-        return Scaffold(
-          key: _scaffoldKey,
-          drawer: isDesktop ? null : drawerContent,
-          drawerEnableOpenDragGesture: allowDrawerGesture,
-          drawerBarrierDismissible: !isDesktop,
-          body: MainViewController(
-            isDesktop: isDesktop,
-            openDrawer: () {
-              _scaffoldKey.currentState?.openDrawer();
-            },
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (hasNoPermissions) const _NoPermissionsBanner(),
-                Expanded(child: childContent),
-              ],
+        return Focus(
+          autofocus: true,
+          onKeyEvent: (node, event) {
+            final location = GoRouterState.of(context).uri.toString();
+
+            final isTeamLookup = location.startsWith('/team_lookup');
+            final isPitsScouting = location.startsWith('/pits_scouting');
+
+            if (isTeamLookup || isPitsScouting) {
+              final focusNode = ref.read(
+                isTeamLookup
+                    ? searchFocusNodeProvider
+                    : pitsSearchFocusNodeProvider,
+              );
+              final controller = ref.read(
+                isTeamLookup
+                    ? searchControllerProvider
+                    : pitsSearchControllerProvider,
+              );
+
+              if (event is KeyDownEvent &&
+                  event.character != null &&
+                  !focusNode.hasFocus) {
+                focusNode.requestFocus();
+
+                Future.microtask(() {
+                  controller.text += event.character!;
+                  controller.selection = TextSelection.fromPosition(
+                    TextPosition(offset: controller.text.length),
+                  );
+                });
+                return KeyEventResult.handled;
+              }
+            }
+            return KeyEventResult.ignored;
+          },
+          child: Scaffold(
+            key: _scaffoldKey,
+            // Only enable drawer when at top level and on mobile
+            drawer: isDesktop ? null : drawerContent,
+            drawerEnableOpenDragGesture: allowDrawerGesture,
+            drawerBarrierDismissible: !isDesktop,
+            body: MainViewController(
+              isDesktop: isDesktop,
+              openDrawer: () => _scaffoldKey.currentState?.openDrawer(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (hasNoPermissions) const _NoPermissionsBanner(),
+                  Expanded(child: childContent),
+                ],
+              ),
             ),
           ),
         );
@@ -560,9 +602,9 @@ class _MainViewState extends ConsumerState<MainView> {
                                 ? Icon(
                                     LucideIcons.check,
                                     size: 20,
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.primary,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .primary,
                                   )
                                 : const SizedBox(width: 20),
                             onPressed: () {
@@ -757,9 +799,9 @@ class _MainViewState extends ConsumerState<MainView> {
                           TextButton(
                             onPressed: () => Navigator.of(context).pop(true),
                             style: TextButton.styleFrom(
-                              foregroundColor: Theme.of(
-                                context,
-                              ).colorScheme.error,
+                              foregroundColor: Theme.of(context)
+                                  .colorScheme
+                                  .error,
                             ),
                             child: const Text('Sign Out'),
                           ),

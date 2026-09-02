@@ -7,7 +7,7 @@ import Foundation
 
 import auth0_flutter
 import desktop_webview_window
-import file_picker
+import file_picker_darwin
 import flutter_secure_storage_darwin
 import flutter_web_auth_2
 import package_info_plus

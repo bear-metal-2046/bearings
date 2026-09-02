@@ -11,7 +11,7 @@ import 'package:beariscope/pages/scout_audit/scout_audit_logic.dart';
 import 'package:beariscope/pages/scout_audit/scout_audit_preferences_provider.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/processed_scouting_provider.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -126,9 +126,8 @@ class _ExportPageState extends ConsumerState<ExportPage> {
 
   Future<void> _export() async {
     if (!_sheets.hasAny) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Please select at least one sheet to export.')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Please select at least one sheet to export.')));
       return;
     }
 
@@ -142,9 +141,8 @@ class _ExportPageState extends ConsumerState<ExportPage> {
     final processedDocs = processedBundle?.processedDocs ?? [];
 
     if (rawDocs.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('No scouting data available to export.')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('No scouting data available to export.')));
       return;
     }
 
@@ -165,9 +163,8 @@ class _ExportPageState extends ConsumerState<ExportPage> {
           tbaMatchData = _parseTbaMatches(raw);
         } catch (error) {
           if (_sheets.correctionTodoList && mounted) {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text('Correction To-Do List requires TBA match data: $error')));
+            ScaffoldMessenger.of(context)
+                .showSnackBar(SnackBar(content: Text('Correction To-Do List requires TBA match data: $error')));
             return;
           }
           tbaMatchData = null;
@@ -479,9 +476,8 @@ class _ExportPageState extends ConsumerState<ExportPage> {
                                     children: [
                                       Text(
                                         'These settings control how spreadsheet cells are colored based on how far off our scouted data is from the official TBA results. A lower percentage means the data has to be highly accurate to avoid getting marked as an error.',
-                                        style: Theme.of(
-                                          context,
-                                        ).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                                        style: Theme.of(context).textTheme.bodySmall
+                                            ?.copyWith(color: colorScheme.onSurfaceVariant),
                                       ),
                                       const SizedBox(height: 16),
                                       Wrap(
@@ -520,9 +516,8 @@ class _ExportPageState extends ConsumerState<ExportPage> {
                                           thumbColor: colorScheme.primary,
                                           overlayColor: colorScheme.primary.withAlpha(50),
                                           tooltipBackgroundColor: colorScheme.primaryContainer,
-                                          tooltipTextStyle: Theme.of(
-                                            context,
-                                          ).textTheme.labelSmall?.copyWith(color: colorScheme.onPrimaryContainer),
+                                          tooltipTextStyle: Theme.of(context).textTheme.labelSmall
+                                              ?.copyWith(color: colorScheme.onPrimaryContainer),
                                         ),
                                         child: Column(
                                           children: [
@@ -547,17 +542,17 @@ class _ExportPageState extends ConsumerState<ExportPage> {
                                                             inactiveTrackHeight: 8,
                                                             thumbRadius: 12,
                                                             overlayRadius: 20,
-                                                            inactiveTrackColor: Theme.of(
-                                                              context,
-                                                            ).colorScheme.surfaceContainerHighest,
-                                                            tooltipBackgroundColor: Theme.of(
-                                                              context,
-                                                            ).colorScheme.primaryContainer,
+                                                            inactiveTrackColor: Theme.of(context)
+                                                                .colorScheme
+                                                                .surfaceContainerHighest,
+                                                            tooltipBackgroundColor: Theme.of(context)
+                                                                .colorScheme
+                                                                .primaryContainer,
                                                             tooltipTextStyle: Theme.of(context).textTheme.labelSmall
                                                                 ?.copyWith(
-                                                                  color: Theme.of(
-                                                                    context,
-                                                                  ).colorScheme.onPrimaryContainer,
+                                                                  color: Theme.of(context)
+                                                                      .colorScheme
+                                                                      .onPrimaryContainer,
                                                                 ),
                                                           ),
                                                           child: SfSlider(
@@ -569,9 +564,10 @@ class _ExportPageState extends ConsumerState<ExportPage> {
                                                             ),
                                                             stepSize: 0.01,
                                                             enableTooltip: true,
-                                                            tooltipTextFormatterCallback:
-                                                                (actualValue, formattedText) =>
-                                                                    '${(actualValue * 100).toStringAsFixed(0)}%',
+                                                            tooltipTextFormatterCallback: (
+                                                              actualValue,
+                                                              formattedText,
+                                                            ) => '${(actualValue * 100).toStringAsFixed(0)}%',
                                                             onChanged: (dynamic newValue) {
                                                               final nv = (newValue as double).clamp(
                                                                 0.0,
@@ -630,17 +626,17 @@ class _ExportPageState extends ConsumerState<ExportPage> {
                                                             inactiveTrackHeight: 8,
                                                             thumbRadius: 12,
                                                             overlayRadius: 20,
-                                                            inactiveTrackColor: Theme.of(
-                                                              context,
-                                                            ).colorScheme.surfaceContainerHighest,
-                                                            tooltipBackgroundColor: Theme.of(
-                                                              context,
-                                                            ).colorScheme.primaryContainer,
+                                                            inactiveTrackColor: Theme.of(context)
+                                                                .colorScheme
+                                                                .surfaceContainerHighest,
+                                                            tooltipBackgroundColor: Theme.of(context)
+                                                                .colorScheme
+                                                                .primaryContainer,
                                                             tooltipTextStyle: Theme.of(context).textTheme.labelSmall
                                                                 ?.copyWith(
-                                                                  color: Theme.of(
-                                                                    context,
-                                                                  ).colorScheme.onPrimaryContainer,
+                                                                  color: Theme.of(context)
+                                                                      .colorScheme
+                                                                      .onPrimaryContainer,
                                                                 ),
                                                           ),
                                                           child: SfSlider(
@@ -652,9 +648,10 @@ class _ExportPageState extends ConsumerState<ExportPage> {
                                                             ),
                                                             stepSize: 0.01,
                                                             enableTooltip: true,
-                                                            tooltipTextFormatterCallback:
-                                                                (actualValue, formattedText) =>
-                                                                    '${(actualValue * 100).toStringAsFixed(0)}%',
+                                                            tooltipTextFormatterCallback: (
+                                                              actualValue,
+                                                              formattedText,
+                                                            ) => '${(actualValue * 100).toStringAsFixed(0)}%',
                                                             onChanged: (dynamic newValue) {
                                                               final nv = (newValue as double).clamp(
                                                                 (_colorThresholds.good + 0.01),
@@ -713,17 +710,17 @@ class _ExportPageState extends ConsumerState<ExportPage> {
                                                             inactiveTrackHeight: 8,
                                                             thumbRadius: 12,
                                                             overlayRadius: 20,
-                                                            inactiveTrackColor: Theme.of(
-                                                              context,
-                                                            ).colorScheme.surfaceContainerHighest,
-                                                            tooltipBackgroundColor: Theme.of(
-                                                              context,
-                                                            ).colorScheme.primaryContainer,
+                                                            inactiveTrackColor: Theme.of(context)
+                                                                .colorScheme
+                                                                .surfaceContainerHighest,
+                                                            tooltipBackgroundColor: Theme.of(context)
+                                                                .colorScheme
+                                                                .primaryContainer,
                                                             tooltipTextStyle: Theme.of(context).textTheme.labelSmall
                                                                 ?.copyWith(
-                                                                  color: Theme.of(
-                                                                    context,
-                                                                  ).colorScheme.onPrimaryContainer,
+                                                                  color: Theme.of(context)
+                                                                      .colorScheme
+                                                                      .onPrimaryContainer,
                                                                 ),
                                                           ),
                                                           child: SfSlider(
@@ -735,9 +732,10 @@ class _ExportPageState extends ConsumerState<ExportPage> {
                                                             ),
                                                             stepSize: 0.01,
                                                             enableTooltip: true,
-                                                            tooltipTextFormatterCallback:
-                                                                (actualValue, formattedText) =>
-                                                                    '${(actualValue * 100).toStringAsFixed(0)}%',
+                                                            tooltipTextFormatterCallback: (
+                                                              actualValue,
+                                                              formattedText,
+                                                            ) => '${(actualValue * 100).toStringAsFixed(0)}%',
                                                             onChanged: (dynamic newValue) {
                                                               final nv = (newValue as double).clamp(
                                                                 (_colorThresholds.warning + 0.01),
@@ -791,9 +789,8 @@ class _ExportPageState extends ConsumerState<ExportPage> {
                                     children: [
                                       Text(
                                         'Auto-correction tries to fix inaccurate scout data by comparing it to official TBA alliance totals',
-                                        style: Theme.of(
-                                          context,
-                                        ).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                                        style: Theme.of(context).textTheme.bodySmall
+                                            ?.copyWith(color: colorScheme.onSurfaceVariant),
                                       ),
                                       const SizedBox(height: 16),
                                       SfSliderTheme(
@@ -807,9 +804,8 @@ class _ExportPageState extends ConsumerState<ExportPage> {
                                           thumbColor: colorScheme.primary,
                                           overlayColor: colorScheme.primary.withAlpha(50),
                                           tooltipBackgroundColor: colorScheme.primaryContainer,
-                                          tooltipTextStyle: Theme.of(
-                                            context,
-                                          ).textTheme.labelSmall?.copyWith(color: colorScheme.onPrimaryContainer),
+                                          tooltipTextStyle: Theme.of(context).textTheme.labelSmall
+                                              ?.copyWith(color: colorScheme.onPrimaryContainer),
                                         ),
                                         child: Column(
                                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -852,9 +848,8 @@ class _ExportPageState extends ConsumerState<ExportPage> {
                                             const SizedBox(height: 4),
                                             Text(
                                               'The app will only attempt to fix the data if it differs from the official total by more than this percentage.',
-                                              style: Theme.of(
-                                                context,
-                                              ).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                                              style: Theme.of(context).textTheme.bodySmall
+                                                  ?.copyWith(color: colorScheme.onSurfaceVariant),
                                             ),
                                             const SizedBox(height: 16),
                                             Row(
@@ -895,9 +890,8 @@ class _ExportPageState extends ConsumerState<ExportPage> {
                                             const SizedBox(height: 4),
                                             Text(
                                               'To prevent wildly impossible corrections (like multiplying a scouted score by 5 just to force the math to work), this sets a limit. If correcting the data requires multiplying it by more than this number, the app will cap the scalar.',
-                                              style: Theme.of(
-                                                context,
-                                              ).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                                              style: Theme.of(context).textTheme.bodySmall
+                                                  ?.copyWith(color: colorScheme.onSurfaceVariant),
                                             ),
                                           ],
                                         ),
@@ -916,9 +910,8 @@ class _ExportPageState extends ConsumerState<ExportPage> {
                                     children: [
                                       Text(
                                         'Incorrect Data rows are included when alliance deviation is above this threshold.',
-                                        style: Theme.of(
-                                          context,
-                                        ).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                                        style: Theme.of(context).textTheme.bodySmall
+                                            ?.copyWith(color: colorScheme.onSurfaceVariant),
                                       ),
                                       const SizedBox(height: 16),
                                       SfSliderTheme(
@@ -932,9 +925,8 @@ class _ExportPageState extends ConsumerState<ExportPage> {
                                           thumbColor: colorScheme.primary,
                                           overlayColor: colorScheme.primary.withAlpha(50),
                                           tooltipBackgroundColor: colorScheme.primaryContainer,
-                                          tooltipTextStyle: Theme.of(
-                                            context,
-                                          ).textTheme.labelSmall?.copyWith(color: colorScheme.onPrimaryContainer),
+                                          tooltipTextStyle: Theme.of(context).textTheme.labelSmall
+                                              ?.copyWith(color: colorScheme.onPrimaryContainer),
                                         ),
                                         child: Row(
                                           children: [
@@ -1118,10 +1110,8 @@ class _SectionCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     title,
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      color: Theme.of(context).colorScheme.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: Theme.of(context).textTheme.titleSmall
+                        ?.copyWith(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold),
                   ),
                 ),
                 ?trailing,

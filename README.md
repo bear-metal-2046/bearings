@@ -1,21 +1,42 @@
 # Bearings
 
-Bearings is Bear Metal's monorepo for our apps. We use a monorepo with everything in dart to share code and make it easier for less experienced members to contribute. 
+### FRC scouting and strategy
 
-## Repo layout
+Bearings is our collection of apps for scouting, strategizing, and scheming with data at FRC competitions. All of it is
+written in Dart and in this monorepo for simplicity when developing across multiple apps.
 
-- `apps/beariscope`: strategy app
-- `apps/pawfinder`: scouting app
-- `packages/core`: shared pure dart models and utilities
-- `packages/services`: shared flutter services and providers
-- `packages/ui`: shared flutter UI components
-- `backend/honeycomb`: Dart Frog backend (wip)
+---
+
+## Apps
+
+### [Beariscope](apps/beariscope)
+
+The strategy app. Runs on personal devices like phones and laptops.
+
+### [Bearimetric](apps/bearimetric)
+
+The scouting app. Runs on team-issued tablets.
+
+### [Honeycomb](backend/honeycomb)
+
+Backend written with Dart Frog. (wip)
+
+### Shared packages
+
+- [`core`](packages/core) - Models and utilities shared by everything, no Flutter allowed.
+- [`services`](packages/services) - API client, auth (Auth0), permissions, secure storage, and other Flutter services.
+- [`ui`](packages/ui) - Reusable Flutter widgets that drive both apps.
+
+---
 
 ## Getting started
 
-1. Install the latest version of flutter (run `flutter upgrade` if you need to update) and Melos and make sure `dart`, `flutter`, and `melos` are in your `PATH`.
-2. From the repo root, run `melos bootstrap`.
-3. Use Melos scripts from the root for day-to-day tasks.
+```sh
+flutter upgrade
+melos bootstrap
+```
+
+Then use `melos run` for day-to-day tasks: `test`, `analyze`, `format`, `generate`, and `ci`.
 
 ## Melos commands
 
@@ -28,29 +49,28 @@ Bearings is Bear Metal's monorepo for our apps. We use a monorepo with everythin
 
 ## Conventional commits
 
-Conventional commits are a standardized way to write commit messages. They look like this:  
+Conventional commits are a standardized way to write commit messages. They look like this:
+
 ```
 <type>(<scope>): <description>
 ```
 
-Notice how everything is lowercase, the type and scope are separated by parentheses, and the description is separated from the type/scope by a colon and space.
+Notice how everything is lowercase, the type and scope are separated by parentheses, and the description is separated
+from the type/scope by a colon and space.
 
-- `feat`
-- `fix`
-- `perf`
-- `refactor`
-- `docs`
-- `build`
-- `ci`
-- `test`
-- `chore`
+A type is what the commit is doing. Use one of these types:
+
+- `feat` - adding a new feature in the app
+- `fix` - fixing a bug
+- `chore` - doing repo busywork
 
 You can also signify a breaking change by adding an `!` after the type like this:  
-`refactor!(services): refactor honeycomb api provider`
+`feat!(services): refactor honeycomb api provider`
 
-A scope is where the commit edits things. CI enforces scoped commits for pull requests. Use one of these scopes:  
+A scope is where the commit edits things. Use one of these scopes:
+
 - `beariscope`
-- `pawfinder`
+- `bearimetric`
 - `core`
 - `services`
 - `ui`
@@ -59,11 +79,10 @@ A scope is where the commit edits things. CI enforces scoped commits for pull re
 - `workspace`
 - `ci`
 - `release`
-- `deps`
 - `docs`
 
 Examples of good commits:
 
 - `feat(beariscope): add pit map refresh`
 - `fix(services): retry secure storage read`
-- `chore(ci): add commitlint to pull requests`
+- `chore(ci): add a 1% chance to delete pull requests when tests fail`

@@ -1,6 +1,6 @@
 import 'package:beariscope/providers/tba_preferences_provider.dart';
 import 'package:beariscope/widgets/settings_group.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -15,9 +15,8 @@ class AboutSettingsPage extends ConsumerWidget {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Could not open $label')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Could not open $label')));
       }
     }
   }
@@ -72,7 +71,7 @@ class AboutSettingsPage extends ConsumerWidget {
                 trailing: const Icon(LucideIcons.externalLink),
                 onTap: () => _launchUrl(
                   context,
-                  Uri.parse('https://github.com/bear-metal-apps/beariscope'),
+                  Uri.parse('https://github.com/bear-metal-2046/bearings'),
                   'Beariscope GitHub',
                 ),
               ),
@@ -116,7 +115,7 @@ class AboutSettingsPage extends ConsumerWidget {
                 onTap: () => _launchUrl(
                   context,
                   Uri.parse(
-                    'https://bear-metal-apps.github.io/beariscope/privacy-policy',
+                    'https://bear-metal-2046.github.io/bearings/privacy-policy',
                   ),
                   'Privacy Policy',
                 ),

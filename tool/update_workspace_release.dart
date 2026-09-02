@@ -2,7 +2,7 @@ import 'dart:io';
 
 const _pubspecPaths = <String>[
   'apps/beariscope/pubspec.yaml',
-  'apps/pawfinder/pubspec.yaml',
+  'apps/bearimetric/pubspec.yaml',
   'packages/core/pubspec.yaml',
   'packages/services/pubspec.yaml',
   'packages/ui/pubspec.yaml',

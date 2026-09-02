@@ -2,8 +2,12 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:beariscope/providers/current_event_provider.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:services/providers/api_provider.dart';
+
+final searchControllerProvider = Provider((ref) => TextEditingController());
+final searchFocusNodeProvider = Provider((ref) => FocusNode());
 
 class TeamSort {
   TeamSortOptions sort = TeamSortOptions.teamNumber;
@@ -12,13 +16,16 @@ class TeamSort {
   TeamSort(this.sort, this.isAscending);
 }
 
-enum TeamSortOptions { teamNumber, rank, custom }
+enum TeamSortOptions { teamNumber, rank, custom, defense, noShow, brokeDown }
 
 extension TeamSortLabel on TeamSortOptions {
   String get label => switch (this) {
     TeamSortOptions.teamNumber => 'Team #',
     TeamSortOptions.rank => 'Rank',
     TeamSortOptions.custom => 'Total #',
+    TeamSortOptions.defense => 'Played Defense',
+    TeamSortOptions.noShow => 'No Shows',
+    TeamSortOptions.brokeDown => 'Breakdowns',
   };
 }
 

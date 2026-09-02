@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// A list/column of cards with consistent spacing and max-width constraint
 class BeariscopeCardList extends StatelessWidget {

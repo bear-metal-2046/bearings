@@ -27,10 +27,11 @@ import 'package:beariscope/providers/app_phase_provider.dart';
 import 'package:beariscope/providers/shared_preferences_provider.dart';
 import 'package:beariscope/utils/platform_utils_stub.dart'
     if (dart.library.io) 'package:beariscope/utils/platform_utils.dart';
+import 'package:beariscope/utils/hive_storage.dart';
 import 'package:beariscope/utils/window_size_stub.dart'
     if (dart.library.io) 'package:window_size/window_size.dart';
 import 'package:core/providers/device_info_provider.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
@@ -44,13 +45,15 @@ import 'package:services/providers/connectivity_provider.dart';
 import 'package:services/providers/permissions_provider.dart';
 import 'package:services/release/release_info.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ui/ui.dart';
+import 'package:beariscope/pages/match_lookup/match_lookup_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final sharedPreferences = await SharedPreferences.getInstance();
   setUrlStrategy(PathUrlStrategy());
 
-  await Hive.initFlutter();
+  await initializeHiveStorage();
   await Hive.openBox('api_cache');
   await Hive.openBox<String>('scouting_data');
 
@@ -362,6 +365,9 @@ class _BeariscopeState extends ConsumerState<Beariscope> {
           darkTheme: _createTheme(Brightness.dark, accentColor),
           themeMode: themeMode,
           debugShowCheckedModeBanner: false,
+          builder: (context, child) => FlutterMaterialScope(
+            child: child ?? const SizedBox.shrink(),
+          ),
         );
       },
     );
@@ -404,7 +410,7 @@ ThemeData _createTheme(Brightness brightness, Color accentColor) {
       size: 22,
       color: colorScheme.onSurface,
     ),
-    textTheme: GoogleFonts.outfitTextTheme(
+    textTheme: _outfitTextTheme(
       ThemeData(brightness: brightness, colorScheme: colorScheme).textTheme,
     ),
   );
@@ -425,6 +431,27 @@ ThemeData _createTheme(Brightness brightness, Color accentColor) {
       //     fontSize: 20,
       //   ),
     ),
+  );
+}
+
+// TEMP STUFF UNTIL GOOGLE_FONTS UPDATES TO BE COMPATIBLE WITH MATERIAL_UI
+TextTheme _outfitTextTheme(TextTheme textTheme) {
+  return TextTheme(
+    displayLarge: GoogleFonts.outfit(textStyle: textTheme.displayLarge),
+    displayMedium: GoogleFonts.outfit(textStyle: textTheme.displayMedium),
+    displaySmall: GoogleFonts.outfit(textStyle: textTheme.displaySmall),
+    headlineLarge: GoogleFonts.outfit(textStyle: textTheme.headlineLarge),
+    headlineMedium: GoogleFonts.outfit(textStyle: textTheme.headlineMedium),
+    headlineSmall: GoogleFonts.outfit(textStyle: textTheme.headlineSmall),
+    titleLarge: GoogleFonts.outfit(textStyle: textTheme.titleLarge),
+    titleMedium: GoogleFonts.outfit(textStyle: textTheme.titleMedium),
+    titleSmall: GoogleFonts.outfit(textStyle: textTheme.titleSmall),
+    bodyLarge: GoogleFonts.outfit(textStyle: textTheme.bodyLarge),
+    bodyMedium: GoogleFonts.outfit(textStyle: textTheme.bodyMedium),
+    bodySmall: GoogleFonts.outfit(textStyle: textTheme.bodySmall),
+    labelLarge: GoogleFonts.outfit(textStyle: textTheme.labelLarge),
+    labelMedium: GoogleFonts.outfit(textStyle: textTheme.labelMedium),
+    labelSmall: GoogleFonts.outfit(textStyle: textTheme.labelSmall),
   );
 }
 
