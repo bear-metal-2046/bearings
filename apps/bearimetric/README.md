@@ -4,7 +4,7 @@ Bearimetric is Bear Metal's FRC scouting app. In Bearings it sits beside Bearisc
 
 ## About
 
-Pawinder is built using flutter. This enables scouting on android while keeping it in the app ecosystem.
+Bearimetric is built using Flutter. This enables scouting on Android while keeping it in the app ecosystem.
 
 ## Working on Bearimetric
 

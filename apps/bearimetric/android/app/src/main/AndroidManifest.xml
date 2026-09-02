@@ -2,8 +2,6 @@
           package="org.tahomarobotics.bearimetric">
     <uses-permission android:name="android.permission.INTERNET"/>
 
-    >
-
     <application
             android:label="bearimetric"
             android:name="${applicationName}"
