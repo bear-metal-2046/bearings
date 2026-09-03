@@ -1,12 +1,13 @@
+import 'package:beariscope/pages/settings/image_crop_dialog.dart';
+
 import 'dart:typed_data';
 
-import 'package:beariscope/pages/settings/image_crop_dialog.dart';
 import 'package:beariscope/utils/image_processor.dart';
 import 'package:beariscope/widgets/settings_group.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:material_symbols_icons/symbols.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:mime/mime.dart';
 import 'package:services/providers/api_provider.dart';
 import 'package:services/providers/auth_provider.dart';
@@ -463,7 +464,7 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
                                   ),
                                 ),
                                 child: Icon(
-                                  Symbols.photo_camera_rounded,
+                                  LucideIcons.camera,
                                   size: 12,
                                   color: Theme.of(context)
                                       .colorScheme
@@ -554,7 +555,7 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
                                   strokeWidth: 2,
                                 ),
                               )
-                            : const Icon(Symbols.save_rounded),
+                            : const Icon(LucideIcons.save),
                         label: const Text('Save Changes'),
                       ),
                     ),
@@ -568,7 +569,7 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
             title: 'Security',
             children: [
               ListTile(
-                leading: const Icon(Symbols.lock_reset_rounded),
+                leading: const Icon(LucideIcons.rotateCcwKey),
                 title: const Text('Reset Password'),
                 subtitle: const Text('Send a password reset email'),
                 trailing: _isSendingReset
@@ -581,14 +582,14 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
                 onTap: _isSendingReset ? null : _sendPasswordReset,
               ),
               ListTile(
-                leading: Icon(Symbols.logout_rounded),
+                leading: Icon(LucideIcons.logOut),
                 title: Text('Sign Out'),
                 subtitle: Text('Sign out of your account'),
                 onTap: () => _signOut(context),
               ),
               ListTile(
                 leading: Icon(
-                  Symbols.delete_forever_rounded,
+                  LucideIcons.bomb,
                   color: Theme.of(context).colorScheme.error,
                 ),
                 title: Text(

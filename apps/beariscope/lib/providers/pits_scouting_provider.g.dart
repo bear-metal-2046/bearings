@@ -56,18 +56,18 @@ final pitsMapProvider = PitsMapProvider._();
 final class PitsMapProvider
     extends
         $FunctionalProvider<
-          AsyncValue<PitsMapData>,
-          PitsMapData,
-          FutureOr<PitsMapData>
+          AsyncValue<PitsMapData?>,
+          PitsMapData?,
+          FutureOr<PitsMapData?>
         >
-    with $FutureModifier<PitsMapData>, $FutureProvider<PitsMapData> {
+    with $FutureModifier<PitsMapData?>, $FutureProvider<PitsMapData?> {
   PitsMapProvider._()
     : super(
         from: null,
         argument: null,
         retry: null,
         name: r'pitsMapProvider',
-        isAutoDispose: true,
+        isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
@@ -77,14 +77,14 @@ final class PitsMapProvider
 
   @$internal
   @override
-  $FutureProviderElement<PitsMapData> $createElement(
+  $FutureProviderElement<PitsMapData?> $createElement(
     $ProviderPointer pointer,
   ) => $FutureProviderElement(pointer);
 
   @override
-  FutureOr<PitsMapData> create(Ref ref) {
+  FutureOr<PitsMapData?> create(Ref ref) {
     return pitsMap(ref);
   }
 }
 
-String _$pitsMapHash() => r'c62baafd46bfe18f0e8505e5e18b6e96f3e06706';
+String _$pitsMapHash() => r'4affe6424bfa2acd46d0792c8c910515db4fd50f';

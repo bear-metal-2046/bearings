@@ -1,18 +1,22 @@
-import 'dart:convert';
-import 'dart:math';
-
 import 'package:core/providers/device_info_provider.dart';
-import 'package:crypto/crypto.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:hive_ce/hive.dart';
-import 'package:http/http.dart' as http;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:services/providers/auth/auth0_native_backend.dart';
+import 'package:services/providers/auth/auth0_windows_backend.dart';
+import 'package:services/providers/auth/auth0_web_backend_stub.dart'
+    if (dart.library.js) 'package:services/providers/auth/auth0_web_backend.dart';
+import 'package:services/providers/auth/auth_backend.dart';
+import 'package:services/providers/auth/flutter_web_auth_backend.dart';
 import 'package:services/providers/connectivity_provider.dart';
 import 'package:services/providers/secure_storage_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 part 'auth_provider.g.dart';
+
+// ---------------------------------------------------------------------------
+// Configuration
+// ---------------------------------------------------------------------------
 
 class Auth0Config {
   final String domain;
@@ -38,6 +42,10 @@ class Auth0Config {
   Uri logoutUri(String returnTo) => Uri.parse('https://$domain/v2/logout')
       .replace(queryParameters: {'client_id': clientId, 'returnTo': returnTo});
 }
+
+// ---------------------------------------------------------------------------
+// Auth status
+// ---------------------------------------------------------------------------
 
 enum AuthStatus { authenticated, unauthenticated, authenticating }
 
@@ -66,6 +74,10 @@ class AuthStatusNotifier extends _$AuthStatusNotifier implements Listenable {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Riverpod providers
+// ---------------------------------------------------------------------------
+
 @Riverpod(keepAlive: true)
 Auth0Config auth0Config(Ref ref) {
   throw UnimplementedError(
@@ -75,38 +87,78 @@ Auth0Config auth0Config(Ref ref) {
 
 @Riverpod(keepAlive: true)
 Future<Auth> auth(Ref ref) async {
-  final storage = await ref.watch(tokenStorageProvider.future);
   final deviceInfo = ref.watch(deviceInfoProvider);
   final config = ref.watch(auth0ConfigProvider);
 
-  final redirectUri = config.redirectUris[deviceInfo.deviceOS];
-
-  if (redirectUri == null) {
-    throw Exception('No redirect URI configured for ${deviceInfo.deviceOS}');
-  }
-
-  return Auth(
-    ref: ref,
-    storage: storage,
-    config: config,
-    redirectUri: redirectUri,
-  );
+  final backend = await _createBackend(ref, config, deviceInfo.deviceOS);
+  return Auth(ref: ref, backend: backend, config: config);
 }
 
+Future<AuthBackend> _createBackend(
+  Ref ref,
+  Auth0Config config,
+  DeviceOS os,
+) async {
+  return switch (os) {
+    DeviceOS.android || DeviceOS.ios || DeviceOS.macos => Auth0NativeBackend(
+      domain: config.domain,
+      clientId: config.clientId,
+      scheme: Uri.parse(config.redirectUris[os]!).scheme,
+      audience: config.audience,
+    ),
+    DeviceOS.windows => Auth0WindowsBackend(
+      domain: config.domain,
+      clientId: config.clientId,
+      appCustomUrl: config.redirectUris[DeviceOS.windows]!,
+      storage: await ref.watch(tokenStorageProvider.future),
+      storageKeyPrefix: config.storageKeyPrefix,
+    ),
+    DeviceOS.web => Auth0WebBackend(
+      domain: config.domain,
+      clientId: config.clientId,
+    ),
+    DeviceOS.linux => FlutterWebAuthBackend(
+      config: config,
+      redirectUri: config.redirectUris[DeviceOS.linux]!,
+      storage: await ref.watch(tokenStorageProvider.future),
+    ),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Auth facade
+// ---------------------------------------------------------------------------
+
+/// Unified authentication facade that delegates platform-specific OAuth work
+/// to an [AuthBackend].
+///
+/// ### Public API (unchanged from previous versions)
+/// - [login] / [logout] / [getAccessToken] / [trySilentLogin]
+/// - [user] — the current user profile (populated by the backend)
+///
+/// ### Facade-level responsibilities
+/// - Auth status transitions ([AuthStatusNotifier])
+/// - Online connectivity checks before login
+/// - Hive cache and SharedPreferences cleanup on logout
 class Auth {
+  final AuthBackend _backend;
   final Ref ref;
-  final TokenStorage storage;
   final Auth0Config config;
-  final String redirectUri;
 
-  final Map<String, OAuthToken> _tokenCache = {};
+  Auth({required this.ref, required this._backend, required this.config});
 
-  Auth({
-    required this.ref,
-    required this.storage,
-    required this.config,
-    required this.redirectUri,
-  });
+  // -------------------------------------------------------------------------
+  // User profile (delegates to backend)
+  // -------------------------------------------------------------------------
+
+  /// The current user's profile, or `null` if not authenticated.
+  ///
+  /// Populated after a successful [login] or [trySilentLogin].
+  AuthUser? get user => _backend.user;
+
+  // -------------------------------------------------------------------------
+  // Login
+  // -------------------------------------------------------------------------
 
   Future<void> login(List<String> scopes, {bool isSignup = false}) async {
     _setStatus(AuthStatus.authenticating);
@@ -117,46 +169,7 @@ class Auth {
     }
 
     try {
-      final verifier = _generateCodeVerifier();
-      final challenge = _codeChallenge(verifier);
-
-      final requestScopes = {
-        ...scopes,
-        'offline_access',
-        'openid',
-        'profile',
-        'email',
-      }.join(' ');
-
-      final authUrl = config.authorizeEndpoint.replace(
-        queryParameters: {
-          'client_id': config.clientId,
-          'response_type': 'code',
-          'redirect_uri': redirectUri,
-          'scope': requestScopes,
-          'code_challenge': challenge,
-          'code_challenge_method': 'S256',
-          'audience': config.audience,
-          if (isSignup) 'screen_hint': 'signup',
-          if (!isSignup) 'screen_hint': 'login',
-        },
-      );
-
-      final result = await FlutterWebAuth2.authenticate(
-        url: authUrl.toString(),
-        callbackUrlScheme: redirectUri == 'http://localhost:4000/auth'
-            ? redirectUri
-            : Uri.parse(redirectUri).scheme,
-        options: const FlutterWebAuth2Options(useWebview: false),
-      );
-
-      final code = Uri.parse(result).queryParameters['code'];
-      if (code == null) throw Exception('No authorization code received');
-
-      final token = await _exchangeCode(code, verifier);
-
-      await _persistRefreshToken(token.refreshToken);
-      _tokenCache[scopes.join(' ')] = token;
+      await _backend.login(scopes, isSignup: isSignup);
       _setStatus(AuthStatus.authenticated);
     } catch (e) {
       debugPrint('Login Error: $e');
@@ -165,165 +178,71 @@ class Auth {
     }
   }
 
+  // -------------------------------------------------------------------------
+  // Access token
+  // -------------------------------------------------------------------------
+
   Future<String> getAccessToken(List<String> scopes) async {
-    final scopeKey = scopes.join(' ');
-
-    final cached = _tokenCache[scopeKey];
-    if (cached != null && !cached.isExpired) {
-      return cached.accessToken;
-    }
-
-    final anyValid = _tokenCache.values.where((t) => !t.isExpired).firstOrNull;
-    if (anyValid != null) {
-      _tokenCache[scopeKey] = anyValid;
-      return anyValid.accessToken;
-    }
-
-    final refreshToken = await storage.read(key: config.refreshTokenKey);
-    if (refreshToken == null) {
-      await logout();
-      throw Exception('Session expired (No refresh token)');
-    }
-
-    if (!await checkOnline(ref)) {
-      throw OfflineAuthException(
-        'No internet connection: Cannot get access token',
-      );
-    }
-
-    try {
-      final newToken = await _fetchNewToken(refreshToken, scopes);
-
-      if (newToken.refreshToken != null) {
-        await _persistRefreshToken(newToken.refreshToken);
-      }
-
-      _tokenCache[scopeKey] = newToken;
-
-      return newToken.accessToken;
-    } catch (e) {
-      await logout();
-      throw Exception('Failed to refresh token: $e');
-    }
+    return _backend.getAccessToken(scopes);
   }
+
+  // -------------------------------------------------------------------------
+  // Silent login
+  // -------------------------------------------------------------------------
 
   Future<void> trySilentLogin() async {
     _setStatus(AuthStatus.authenticating);
 
-    final refreshToken = await storage.read(key: config.refreshTokenKey);
-
-    if (refreshToken == null) {
-      _setStatus(AuthStatus.unauthenticated);
-      return;
-    }
-
-    if (!await checkOnline(ref)) {
-      _setStatus(AuthStatus.authenticated);
-      return;
-    }
-
     try {
-      await getAccessToken(['openid', 'profile', 'email']);
-      _setStatus(AuthStatus.authenticated);
+      await _backend.trySilentLogin();
+      _setStatus(
+        _backend.user != null
+            ? AuthStatus.authenticated
+            : AuthStatus.unauthenticated,
+      );
     } catch (e) {
-      await logout();
+      debugPrint('Silent login failed: $e');
+      _setStatus(AuthStatus.unauthenticated);
     }
   }
+
+  // -------------------------------------------------------------------------
+  // Logout
+  // -------------------------------------------------------------------------
 
   Future<void> logout({bool federated = false}) async {
-    if (federated) {
-      try {
-        final logoutUrl = config.logoutUri(redirectUri);
-        await FlutterWebAuth2.authenticate(
-          url: logoutUrl.toString(),
-          callbackUrlScheme: redirectUri == 'http://localhost:4000/auth'
-              ? redirectUri
-              : Uri.parse(redirectUri).scheme,
-          options: const FlutterWebAuth2Options(useWebview: false),
-        );
-      } catch (_) {}
+    await _backend.logout(federated: federated);
+
+    // Clear known Hive cache boxes.
+    const cacheBoxNames = ['api_cache', 'scouting_data'];
+    for (final name in cacheBoxNames) {
+      if (Hive.isBoxOpen(name)) {
+        try {
+          await Hive.box(name).clear();
+        } catch (_) {}
+      }
     }
 
+    // Clear SharedPreferences (app-level keys like endpoint selection).
     try {
-      await Hive.box<dynamic>('api_cache').clear();
+      (await SharedPreferences.getInstance()).clear();
     } catch (_) {}
 
-    _tokenCache.clear();
-    await storage.deleteAll();
     _setStatus(AuthStatus.unauthenticated);
   }
+
+  // -------------------------------------------------------------------------
+  // Internal helpers
+  // -------------------------------------------------------------------------
 
   void _setStatus(AuthStatus status) {
     ref.read(authStatusProvider.notifier).setStatus(status);
   }
-
-  Future<void> _persistRefreshToken(String? token) async {
-    if (token != null) {
-      await storage.write(key: config.refreshTokenKey, value: token);
-    }
-  }
-
-  Future<OAuthToken> _exchangeCode(String code, String verifier) async {
-    return _postRequest({
-      'client_id': config.clientId,
-      'grant_type': 'authorization_code',
-      'code': code,
-      'redirect_uri': redirectUri,
-      'code_verifier': verifier,
-    });
-  }
-
-  Future<OAuthToken> _fetchNewToken(
-    String refreshToken,
-    List<String> scopes,
-  ) async {
-    return _postRequest({
-      'client_id': config.clientId,
-      'grant_type': 'refresh_token',
-      'refresh_token': refreshToken,
-      'scope': scopes.join(' '),
-    });
-  }
-
-  Future<OAuthToken> _postRequest(Map<String, String> body) async {
-    final response = await http.post(
-      config.tokenEndpoint,
-      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-      body: body,
-    );
-
-    Map<String, dynamic>? payload;
-    try {
-      payload = jsonDecode(response.body) as Map<String, dynamic>;
-    } catch (_) {
-      payload = null;
-    }
-
-    if (response.statusCode != 200) {
-      final description =
-          payload?['error_description'] ?? payload?['error'] ?? response.body;
-      throw Exception('Auth Error: HTTP ${response.statusCode} $description');
-    }
-
-    if (payload == null) {
-      throw Exception('Auth Error: Invalid JSON response: ${response.body}');
-    }
-
-    return OAuthToken.fromJson(payload);
-  }
-
-  String _generateCodeVerifier() {
-    const chars =
-        'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
-    final rand = Random.secure();
-    return List.generate(64, (_) => chars[rand.nextInt(chars.length)]).join();
-  }
-
-  String _codeChallenge(String verifier) {
-    return base64UrlEncode(sha256.convert(utf8.encode(verifier)).bytes)
-        .replaceAll('=', '');
-  }
 }
+
+// ---------------------------------------------------------------------------
+// Token model
+// ---------------------------------------------------------------------------
 
 class OAuthToken {
   final String accessToken;
@@ -350,6 +269,10 @@ class OAuthToken {
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// Exceptions
+// ---------------------------------------------------------------------------
 
 class OfflineAuthException implements Exception {
   final String message;

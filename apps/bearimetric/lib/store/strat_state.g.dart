@@ -59,7 +59,7 @@ final class StratStateNotifierProvider
 }
 
 String _$stratStateNotifierHash() =>
-    r'69791c25db17c96d006285fdbcc66888192296c0';
+    r'aaeadeca632644b0492c2680cd12e5030c6dd512';
 
 final class StratStateNotifierFamily extends $Family
     with

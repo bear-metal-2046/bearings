@@ -5,9 +5,9 @@ import 'package:beariscope/widgets/beariscope_card.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:services/providers/api_provider.dart';
 import 'package:services/providers/permissions_provider.dart';
-import 'package:material_symbols_icons/symbols.dart';
 
 class CurrentScout extends Notifier<String> {
   @override
@@ -173,7 +173,7 @@ class _ScoutSelectionPageState extends ConsumerState<ScoutSelectionPage> {
                       ),
                     );
                   },
-                  icon: Icon(Symbols.edit_rounded),
+                  icon: Icon(LucideIcons.pencil, size: 20),
                 ),
               ),
             if (canManageScouts)
@@ -236,7 +236,7 @@ class _ScoutSelectionPageState extends ConsumerState<ScoutSelectionPage> {
                       }
                     }
                   },
-                  icon: Icon(Symbols.delete_rounded),
+                  icon: Icon(LucideIcons.trash2, size: 20),
                 ),
               ),
           ],
@@ -299,7 +299,7 @@ class _ScoutSelectionPageState extends ConsumerState<ScoutSelectionPage> {
           padding: const WidgetStatePropertyAll<EdgeInsets>(
             EdgeInsets.symmetric(horizontal: 16.0),
           ),
-          leading: Icon(Symbols.search_rounded),
+          leading: Icon(LucideIcons.search),
           hintText: 'Search scouts',
         ),
         actions: [
@@ -310,7 +310,7 @@ class _ScoutSelectionPageState extends ConsumerState<ScoutSelectionPage> {
                   value: 'import',
                   child: Row(
                     children: [
-                      Icon(Symbols.file_upload_rounded),
+                      Icon(LucideIcons.import),
                       const SizedBox(width: 8),
                       const Text('Import From CSV'),
                     ],
@@ -423,7 +423,7 @@ class _ScoutSelectionPageState extends ConsumerState<ScoutSelectionPage> {
                 );
               },
               tooltip: 'Add Scout',
-              child: const Icon(Symbols.add),
+              child: const Icon(LucideIcons.plus),
             )
           : null,
     );
@@ -516,7 +516,7 @@ class _CsvImportDialogState extends State<_CsvImportDialog> {
             const Text('Upload a CSV file from your device'),
             const SizedBox(height: 12),
             OutlinedButton.icon(
-              icon: const Icon(Symbols.upload_file_rounded),
+              icon: const Icon(LucideIcons.file),
               label: const Text('Select file'),
               onPressed: _pickFile,
             ),

@@ -1,11 +1,11 @@
 import 'dart:async';
 
-import 'package:beariscope/widgets/settings_group.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/tba_preferences_provider.dart';
+import 'package:beariscope/widgets/settings_group.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:material_symbols_icons/symbols.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:services/providers/connectivity_provider.dart';
 
 class AdvancedSettingsPage extends ConsumerStatefulWidget {
@@ -79,7 +79,7 @@ class _AdvancedSettingsPageState extends ConsumerState<AdvancedSettingsPage> {
             title: 'External Links',
             children: [
               SwitchListTile(
-                secondary: const Icon(Symbols.experiment_rounded),
+                secondary: const Icon(LucideIcons.flaskConical),
                 title: const Text('Use beta TBA website'),
                 subtitle: const Text(
                   'Use The Blue Alliance\'s beta redesign for in-app links',
@@ -104,7 +104,7 @@ class _AdvancedSettingsPageState extends ConsumerState<AdvancedSettingsPage> {
                   autocorrect: false,
                   enableSuggestions: false,
                   decoration: InputDecoration(
-                    icon: const Icon(Symbols.event_rounded),
+                    icon: const Icon(LucideIcons.calendar),
                     labelText: 'Custom event key',
                     border: const OutlineInputBorder(),
                   ),

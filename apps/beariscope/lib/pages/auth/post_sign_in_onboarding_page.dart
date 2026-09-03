@@ -1,11 +1,18 @@
 import 'package:beariscope/providers/post_sign_in_flow_provider.dart';
+import 'package:beariscope/widgets/step_flow.dart';
+import 'package:beariscope/widgets/step_layout.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:services/providers/user_profile_provider.dart';
 
-enum _OnboardingStep { realName, emailVerification }
-
+/// Steps the user through post-sign-in onboarding tasks (set real name, verify
+/// email) using the same step-flow shell as [SignUpFlowPage].
+///
+/// Steps are only shown if the user's profile indicates they are needed (e.g.
+/// no real name set, email not yet verified).  The flow can be dismissed at any
+/// time via the explicit "Skip for now" action.
 class PostSignInOnboardingPage extends ConsumerStatefulWidget {
   const PostSignInOnboardingPage({super.key});
 
@@ -14,27 +21,50 @@ class PostSignInOnboardingPage extends ConsumerStatefulWidget {
       _PostSignInOnboardingPageState();
 }
 
+// =============================================================================
+// Parent state — owns the StepFlow shell and coordinates step routing.
+// =============================================================================
+
 class _PostSignInOnboardingPageState
     extends ConsumerState<PostSignInOnboardingPage> {
-  final TextEditingController _nameController = TextEditingController();
-  bool _isSavingName = false;
+  final GlobalKey<NavigatorState> _nestedNavKey = GlobalKey<NavigatorState>();
   bool _isFinishingFlow = false;
-  bool _nameStepComplete = false;
 
-  @override
-  void dispose() {
-    _nameController.dispose();
-    super.dispose();
-  }
+  /// 1-indexed current step (matches [StepFlow] convention so the progress bar
+  /// stays in sync with the nested navigator).
+  int _currentStep = 1;
+
+  /// Ordered list of route names for the required steps.  Populated once from
+  /// [userInfoProvider] — never recomputed reactively, because the nested
+  /// [Navigator] owns its own stack.
+  List<String> _stepRoutes = const [];
+
+  /// Whether [_stepRoutes] has been initialised from [userInfoProvider].
+  bool _routesInitialized = false;
+
+  /// Cached user info so step builders can reference it.
+  UserInfo? _userInfo;
+
+  // ---------------------------------------------------------------------------
+  // Flow lifecycle
+  // ---------------------------------------------------------------------------
 
   Future<void> _finishFlow() async {
+    if (_isFinishingFlow) return;
+    _isFinishingFlow = true;
+
     ref.read(postSignInFlowPendingProvider.notifier).clearPending();
     if (mounted) {
       context.go('/up_next');
     }
   }
 
-  List<_OnboardingStep> _requiredSteps(UserInfo userInfo) {
+  // ---------------------------------------------------------------------------
+  // Step routing
+  // ---------------------------------------------------------------------------
+
+  /// Determines which onboarding steps are needed for [userInfo].
+  static List<String> _computeStepRoutes(UserInfo userInfo) {
     final email = userInfo.email?.trim();
     final normalizedName = userInfo.name?.trim().toLowerCase();
     final normalizedEmail = email?.toLowerCase();
@@ -46,144 +76,180 @@ class _PostSignInOnboardingPageState
 
     final needsEmailVerification = userInfo.emailVerified != true;
 
-    final steps = <_OnboardingStep>[];
-    if (needsRealName) {
-      steps.add(_OnboardingStep.realName);
-    }
-    if (needsEmailVerification) {
-      steps.add(_OnboardingStep.emailVerification);
-    }
-    return steps;
+    final routes = <String>[];
+    if (needsRealName) routes.add('real_name');
+    if (needsEmailVerification) routes.add('email_verification');
+    return routes;
   }
 
-  void _scheduleFinishFlow() {
-    if (_isFinishingFlow) {
-      return;
+  Widget _buildStep(RouteSettings settings) {
+    switch (settings.name) {
+      case 'real_name':
+        return _buildRealNameStep();
+      case 'email_verification':
+        return _buildEmailVerificationStep();
+      default:
+        return const SizedBox.shrink();
     }
-
-    _isFinishingFlow = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await _finishFlow();
-      if (mounted) {
-        setState(() {
-          _isFinishingFlow = false;
-        });
-      }
-    });
   }
 
-  String? _nameValidationError(String name, String? email) {
-    final trimmedName = name.trim();
-    if (trimmedName.isEmpty) {
-      return 'Enter your first and last name.';
+  /// Called by a step widget when it has been completed successfully.
+  void _advanceToNextStep() {
+    final nextIndex = _currentStep; // 1-indexed = index of next route
+    if (nextIndex < _stepRoutes.length) {
+      setState(() => _currentStep++);
+      _nestedNavKey.currentState?.pushNamed(_stepRoutes[nextIndex]);
+    } else {
+      _finishFlow();
     }
+  }
 
-    final parts = trimmedName
-        .split(RegExp(r'\s+'))
-        .where((part) => part.isNotEmpty)
-        .toList();
-    if (parts.length < 2) {
-      return 'Please include both first and last name.';
-    }
+  // ---------------------------------------------------------------------------
+  // Step builders
+  // ---------------------------------------------------------------------------
 
-    if (trimmedName.toLowerCase() == email) {
-      return 'Name cannot be the same as your email.';
-    }
+  Widget _buildRealNameStep() {
+    final userInfo = _userInfo;
+    if (userInfo == null) return const SizedBox.shrink();
+    return _RealNameStep(userInfo: userInfo, onComplete: _advanceToNextStep);
+  }
 
-    final hasProperCapitalization = parts.asMap().entries.every(
-      (entry) => _isProperlyCapitalizedNamePart(
-        entry.value,
-        isFirstPart: entry.key == 0,
+  Widget _buildEmailVerificationStep() {
+    final userInfo = _userInfo;
+    if (userInfo == null) return const SizedBox.shrink();
+
+    return StepLayout(
+      title: 'Verify your email',
+      buttonText: 'Refresh verification status',
+      buttonIcon: LucideIcons.refreshCcw,
+      onButtonPressed: () {
+        ref.invalidate(userInfoProvider);
+      },
+      secondaryButtonText: 'Skip for now',
+      onSecondaryButtonPressed: _finishFlow,
+      body: Text(
+        'Please check ${userInfo.email ?? 'your inbox'} for a verification email. If you can\'t find it, skip for now.',
+        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
       ),
     );
-    if (!hasProperCapitalization) {
-      return 'Use proper capitalization (for example: John Scout).';
-    }
-
-    if (trimmedName == 'John Scout') {
-      return 'Nice try, but you aren\'t the real John Scout.';
-    }
-
-    return null;
   }
 
-  bool _isProperlyCapitalizedNamePart(
-    String part, {
-    required bool isFirstPart,
-  }) {
-    const lowercaseParticles = {
-      'de',
-      'del',
-      'da',
-      'di',
-      'du',
-      'la',
-      'le',
-      'van',
-      'von',
-      'der',
-      'den',
-      'bin',
-      'al',
-      'ibn',
-    };
+  // ---------------------------------------------------------------------------
+  // Build
+  // ---------------------------------------------------------------------------
 
-    if (!isFirstPart && lowercaseParticles.contains(part.toLowerCase())) {
-      return true;
-    }
+  @override
+  Widget build(BuildContext context) {
+    final userInfoAsync = ref.watch(userInfoProvider);
 
-    final segments = part.split(RegExp(r"[-']"));
-    for (final segment in segments) {
-      if (segment.isEmpty) {
-        return false;
-      }
+    return userInfoAsync.when(
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (error, _) => Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              spacing: 12,
+              children: [
+                const Text('Unable to load your account info right now.'),
+                FilledButton(
+                  onPressed: () => ref.invalidate(userInfoProvider),
+                  child: const Text('Try again'),
+                ),
+                TextButton(
+                  onPressed: _finishFlow,
+                  child: const Text('Continue to app'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      data: (userInfo) {
+        if (userInfo == null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) => _finishFlow());
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
 
-      if (!RegExp(r'^[A-Za-z]+$').hasMatch(segment)) {
-        return false;
-      }
+        _userInfo = userInfo;
 
-      if (!RegExp(r'^[A-Z]').hasMatch(segment)) {
-        return false;
-      }
-    }
+        if (!_routesInitialized) {
+          _stepRoutes = _computeStepRoutes(userInfo);
+          _routesInitialized = true;
+        }
 
-    return true;
+        if (_stepRoutes.contains('email_verification') &&
+            userInfo.emailVerified == true) {
+          WidgetsBinding.instance.addPostFrameCallback((_) => _finishFlow());
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        if (_stepRoutes.isEmpty) {
+          WidgetsBinding.instance.addPostFrameCallback((_) => _finishFlow());
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        return StepFlow(
+          totalSteps: _stepRoutes.length,
+          currentStep: _currentStep,
+          title: 'Onboarding',
+          navigatorKey: _nestedNavKey,
+          initialRoute: _stepRoutes.first,
+          stepBuilder: _buildStep,
+          onBack: () => setState(() => _currentStep--),
+          onExitRequested: null,
+        );
+      },
+    );
+  }
+}
+
+// =============================================================================
+// Self-contained real-name step  (StatefulWidget so validation is reactive
+// inside the nested Navigator's page — the parent's setState can't reach in).
+// =============================================================================
+
+class _RealNameStep extends ConsumerStatefulWidget {
+  const _RealNameStep({required this.userInfo, required this.onComplete});
+
+  final UserInfo userInfo;
+  final VoidCallback onComplete;
+
+  @override
+  ConsumerState<_RealNameStep> createState() => _RealNameStepState();
+}
+
+class _RealNameStepState extends ConsumerState<_RealNameStep> {
+  final TextEditingController _controller = TextEditingController();
+  bool _isSaving = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
-  Future<void> _saveRealName(String? email) async {
-    final rawName = _nameController.text;
-    final nameError = _nameValidationError(rawName, email);
-    if (nameError != null) {
-      return;
-    }
+  Future<void> _save() async {
+    final rawName = _controller.text;
+    if (_nameValidationError(rawName, widget.userInfo.email) != null) return;
 
-    setState(() => _isSavingName = true);
+    setState(() => _isSaving = true);
     try {
       await ref
           .read(userProfileServiceProvider)
           .updateProfile(name: rawName.trim());
 
-      // name saved successfully. don't rely on Auth0's /userinfo propagating
-      // the change immediately, mark the step as complete locally and check
-      // remaining steps using the currently cached userInfo.
-      final cachedUserInfo = ref.read(userInfoProvider).asData?.value;
-      final remainingSteps = cachedUserInfo != null
-          ? _requiredSteps(cachedUserInfo)
-                .where((s) => s != _OnboardingStep.realName)
-                .toList()
-          : <_OnboardingStep>[];
-
       if (mounted) {
-        setState(() {
-          _isSavingName = false;
-          _nameStepComplete = true;
-        });
+        widget.onComplete();
       }
-
-      if (remainingSteps.isEmpty) {
-        await _finishFlow();
-      }
-      return;
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -191,154 +257,116 @@ class _PostSignInOnboardingPageState
         );
       }
     } finally {
-      if (mounted) {
-        setState(() => _isSavingName = false);
-      }
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final userInfoAsync = ref.watch(userInfoProvider);
+    final nameError = _nameValidationError(
+      _controller.text,
+      widget.userInfo.email,
+    );
+    final isNameEmpty = _controller.text.trim().isEmpty;
+    final canSubmit = !_isSaving && !isNameEmpty && nameError == null;
 
-    return Scaffold(
-      body: userInfoAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                spacing: 12,
-                children: [
-                  const Text('Unable to load your account info right now.'),
-                  FilledButton(
-                    onPressed: () => ref.invalidate(userInfoProvider),
-                    child: const Text('Try again'),
-                  ),
-                  TextButton(
-                    onPressed: _finishFlow,
-                    child: const Text('Continue to app'),
-                  ),
-                ],
-              ),
+    return StepLayout(
+      title: 'Set your real name',
+      isLoading: _isSaving,
+      onButtonPressed: canSubmit ? _save : null,
+      buttonText: 'Continue',
+      buttonIcon: LucideIcons.arrowRight,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Using your real name helps teammates know who you are.'),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _controller,
+            enabled: !_isSaving,
+            autofocus: true,
+            textInputAction: TextInputAction.done,
+            onChanged: (_) => setState(() {}),
+            onSubmitted: (_) {
+              if (canSubmit) _save();
+            },
+            decoration: InputDecoration(
+              labelText: 'Real name',
+              hintText: 'First and last name',
+              errorText: nameError,
+              border: const OutlineInputBorder(),
             ),
-          );
-        },
-        data: (userInfo) {
-          if (userInfo == null) {
-            _scheduleFinishFlow();
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          final steps = _requiredSteps(userInfo)
-              .where((s) => !_nameStepComplete || s != _OnboardingStep.realName)
-              .toList();
-          if (steps.isEmpty) {
-            _scheduleFinishFlow();
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          final currentStep = steps.first;
-
-          return Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 560),
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: _buildStepContent(context, userInfo, currentStep),
-              ),
-            ),
-          );
-        },
+          ),
+        ],
       ),
     );
   }
+}
 
-  Widget _buildStepContent(
-    BuildContext context,
-    UserInfo userInfo,
-    _OnboardingStep step,
-  ) {
-    switch (step) {
-      case _OnboardingStep.realName:
-        final nameError = _nameValidationError(
-          _nameController.text,
-          userInfo.email,
-        );
-        final isNameEmpty = _nameController.text.trim().isEmpty;
-        final canSubmit = !_isSavingName && !isNameEmpty && nameError == null;
+// =============================================================================
+// Name validation helpers (top-level so they're accessible from both the
+// parent and the self-contained step widget).
+// =============================================================================
 
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          spacing: 16,
-          children: [
-            const Text(
-              'Set your real name',
-              style: TextStyle(fontSize: 24, fontFamily: 'Xolonium'),
-            ),
-            const Text(
-              'Using your real name helps teammates know who you are.',
-            ),
-            TextField(
-              controller: _nameController,
-              enabled: !_isSavingName,
-              autofocus: true,
-              textInputAction: TextInputAction.done,
-              onChanged: (_) {
-                setState(() {});
-              },
-              onSubmitted: (_) {
-                if (canSubmit) {
-                  _saveRealName(userInfo.email);
-                }
-              },
-              decoration: InputDecoration(
-                labelText: 'Real name',
-                hintText: 'First and last name',
-                errorText: nameError,
-                border: OutlineInputBorder(),
-              ),
-            ),
-            FilledButton(
-              onPressed: canSubmit ? () => _saveRealName(userInfo.email) : null,
-              child: _isSavingName
-                  ? const SizedBox(
-                      height: 18,
-                      width: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Continue'),
-            ),
-          ],
-        );
-      case _OnboardingStep.emailVerification:
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          spacing: 16,
-          children: [
-            const Text(
-              'Verify your email',
-              style: TextStyle(fontSize: 24, fontFamily: 'Xolonium'),
-            ),
-            Text(
-              userInfo.email == null
-                  ? 'Please check your inbox for a verification email. If you can\'t find it, reach out to an Apps lead for help!'
-                  : 'Please check ${userInfo.email} for a verification email. If you can\'t find it, reach out to an Apps lead for help!',
-            ),
-            FilledButton(
-              onPressed: () => ref.invalidate(userInfoProvider),
-              child: const Text('Refresh verification status'),
-            ),
-            TextButton(
-              onPressed: _finishFlow,
-              child: const Text('Skip for now'),
-            ),
-          ],
-        );
-    }
+String? _nameValidationError(String name, String? email) {
+  final trimmedName = name.trim();
+  if (trimmedName.isEmpty) return 'Enter your first and last name.';
+
+  final parts = trimmedName
+      .split(RegExp(r'\s+'))
+      .where((part) => part.isNotEmpty)
+      .toList();
+  if (parts.length < 2) return 'Please include both first and last name.';
+
+  if (trimmedName.toLowerCase() == email) {
+    return 'Name cannot be the same as your email.';
   }
+
+  final hasProperCapitalization = parts.asMap().entries.every(
+    (entry) => _isProperlyCapitalizedNamePart(
+      entry.value,
+      isFirstPart: entry.key == 0,
+    ),
+  );
+  if (!hasProperCapitalization) {
+    return 'Use proper capitalization (for example: John Scout).';
+  }
+
+  if (trimmedName == 'John Scout') {
+    return 'Nice try, but you aren\'t the real John Scout.';
+  }
+
+  return null;
+}
+
+bool _isProperlyCapitalizedNamePart(String part, {required bool isFirstPart}) {
+  const lowercaseParticles = {
+    'de',
+    'del',
+    'da',
+    'di',
+    'du',
+    'la',
+    'le',
+    'van',
+    'von',
+    'der',
+    'den',
+    'bin',
+    'al',
+    'ibn',
+  };
+
+  if (!isFirstPart && lowercaseParticles.contains(part.toLowerCase())) {
+    return true;
+  }
+
+  final segments = part.split(RegExp(r"[-']"));
+  for (final segment in segments) {
+    if (segment.isEmpty) return false;
+    if (!RegExp(r'^[A-Za-z]+$').hasMatch(segment)) return false;
+    if (!RegExp(r'^[A-Z]').hasMatch(segment)) return false;
+  }
+
+  return true;
 }

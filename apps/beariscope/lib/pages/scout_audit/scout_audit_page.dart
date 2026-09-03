@@ -13,7 +13,7 @@ import 'package:beariscope/providers/scouting_data_provider.dart';
 import 'package:core/core.dart' show ScoutPosition;
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:material_symbols_icons/symbols.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:services/providers/api_provider.dart';
 import 'package:syncfusion_flutter_sliders/sliders.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -34,22 +34,22 @@ class _ScoutAuditPageState extends ConsumerState<ScoutAuditPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Scout Audit'),
+        title: const Text('Audit'),
         leading: controller.isDesktop
             ? null
             : IconButton(
-                icon: const Icon(Symbols.menu_rounded),
+                icon: const Icon(LucideIcons.menu),
                 onPressed: controller.openDrawer,
               ),
         actions: [
           IconButton(
             onPressed: () => _showManualScoutDialog(context),
-            icon: const Icon(Symbols.add_rounded),
+            icon: const Icon(LucideIcons.plus),
             tooltip: 'Manual Scout',
           ),
           IconButton(
             onPressed: () => _showThresholdDialog(context, threshold),
-            icon: const Icon(Symbols.tune_rounded),
+            icon: const Icon(LucideIcons.slidersHorizontal),
             tooltip: 'Adjust Threshold',
           ),
         ],
@@ -63,18 +63,18 @@ class _ScoutAuditPageState extends ConsumerState<ScoutAuditPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
-                  Symbols.error_rounded,
+                  LucideIcons.circleAlert,
                   size: 52,
                   color: Theme.of(context).colorScheme.error,
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'TBA cached data is unavailable',
+                  'TBA data is unavailable',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Scout Audit needs cached match schedule and scores.',
+                  'Scout Audit needs TBA match schedule and scores. Check your connection and try again.',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -86,7 +86,7 @@ class _ScoutAuditPageState extends ConsumerState<ScoutAuditPage> {
                     ref.invalidate(cachedTbaMatchesProvider);
                     ref.invalidate(scoutAuditSnapshotProvider);
                   },
-                  icon: const Icon(Symbols.refresh_rounded),
+                  icon: const Icon(LucideIcons.rotateCw),
                   label: const Text('Retry'),
                 ),
               ],
@@ -100,7 +100,7 @@ class _ScoutAuditPageState extends ConsumerState<ScoutAuditPage> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    Symbols.check_circle_rounded,
+                    LucideIcons.circleCheck,
                     size: 56,
                     color: Theme.of(context).colorScheme.primary,
                   ),
@@ -337,16 +337,16 @@ class _ScoutAuditPageState extends ConsumerState<ScoutAuditPage> {
     switch (type) {
       case ScoutAuditIssueType.incomplete:
         label = 'Incomplete Match';
-        icon = Symbols.pending_rounded;
+        icon = LucideIcons.circleDashed;
       case ScoutAuditIssueType.notInTba:
         label = 'Not in TBA';
-        icon = Symbols.help_rounded;
+        icon = LucideIcons.circleQuestionMark;
       case ScoutAuditIssueType.duplicate:
         label = 'Duplicate';
-        icon = Symbols.content_copy_rounded;
+        icon = LucideIcons.bookCopy;
       case ScoutAuditIssueType.incorrect:
         label = 'Incorrect Data';
-        icon = Symbols.warning_rounded;
+        icon = LucideIcons.circleSlash;
     }
 
     return Row(
@@ -435,7 +435,7 @@ class _ScoutAuditPageState extends ConsumerState<ScoutAuditPage> {
               if (issue.onTap != null) ...[
                 const SizedBox(width: 8),
                 Icon(
-                  Symbols.chevron_right_rounded,
+                  LucideIcons.chevronRight,
                   color: colorScheme.onSurfaceVariant,
                 ),
               ],
@@ -543,14 +543,14 @@ class _IncompleteMatchDetailPageState
               tbaMatchesAsync.asData?.value ?? const <Map<String, dynamic>>[],
               widget.matchNumber,
             ),
-            icon: const Icon(Symbols.play_circle_rounded),
+            icon: const Icon(LucideIcons.squarePlay),
             tooltip: 'Watch Match Video',
           ),
           IconButton(
             onPressed: _working
                 ? null
                 : () => _confirmDeleteAllEntries(context, eventKey, docs),
-            icon: const Icon(Symbols.delete_rounded),
+            icon: const Icon(LucideIcons.trash2),
             tooltip: 'Delete all entries',
           ),
         ],
@@ -599,7 +599,7 @@ class _IncompleteMatchDetailPageState
                           child: Row(
                             children: [
                               Icon(
-                                Symbols.pending_rounded,
+                                LucideIcons.circleDashed,
                                 color: colorScheme.onSecondaryContainer,
                               ),
                               const SizedBox(width: 12),
@@ -687,7 +687,7 @@ class _IncompleteMatchDetailPageState
                                   ),
                                   if (!isStrat)
                                     Icon(
-                                      Symbols.chevron_right_rounded,
+                                      LucideIcons.chevronRight,
                                       color: colorScheme.onSurfaceVariant,
                                     ),
                                 ],
@@ -852,7 +852,7 @@ class _NotInTbaDetailPageState extends ConsumerState<_NotInTbaDetailPage> {
                       child: Row(
                         children: [
                           Icon(
-                            Symbols.help_rounded,
+                            LucideIcons.circleQuestionMark,
                             color: colorScheme.onErrorContainer,
                           ),
                           const SizedBox(width: 12),
@@ -895,7 +895,7 @@ class _NotInTbaDetailPageState extends ConsumerState<_NotInTbaDetailPage> {
                     onPressed: _working
                         ? null
                         : () => _deleteDoc(context, doc.id),
-                    icon: const Icon(Symbols.delete_rounded),
+                    icon: const Icon(LucideIcons.trash2),
                     label: const Text('Delete Entry'),
                     style: FilledButton.styleFrom(
                       backgroundColor: colorScheme.error,
@@ -1016,7 +1016,7 @@ class _DuplicateDetailPageState extends ConsumerState<_DuplicateDetailPage> {
                             child: Row(
                               children: [
                                 Icon(
-                                  Symbols.content_copy_rounded,
+                                  LucideIcons.bookCopy,
                                   color: colorScheme.onTertiaryContainer,
                                 ),
                                 const SizedBox(width: 12),
@@ -1076,7 +1076,7 @@ class _DuplicateDetailPageState extends ConsumerState<_DuplicateDetailPage> {
                                   issue.entries.first,
                                   issue.entries,
                                 ),
-                          icon: const Icon(Symbols.check_rounded),
+                          icon: const Icon(LucideIcons.circleCheck),
                           label: const Text('Keep Most Recent'),
                         ),
                       ],
@@ -1180,7 +1180,7 @@ class _IncorrectDataDetailPageState
               tbaMatchesAsync.asData?.value ?? const <Map<String, dynamic>>[],
               widget.matchNumber,
             ),
-            icon: const Icon(Symbols.play_circle_rounded),
+            icon: const Icon(LucideIcons.squarePlay),
             tooltip: 'Watch Match Video',
           ),
         ],
@@ -1230,7 +1230,7 @@ class _IncorrectDataDetailPageState
                           child: Row(
                             children: [
                               Icon(
-                                Symbols.warning_rounded,
+                                LucideIcons.triangleAlert,
                                 color: isRed
                                     ? const Color(0xFFC62828)
                                     : const Color(0xFF1565C0),
@@ -1319,8 +1319,8 @@ class _IncorrectDataDetailPageState
                                 children: [
                                   Icon(
                                     looksGood
-                                        ? Symbols.check_circle_rounded
-                                        : Symbols.error_rounded,
+                                        ? LucideIcons.circleCheck
+                                        : LucideIcons.circleAlert,
                                     size: 16,
                                     color: looksGood
                                         ? Colors.green
@@ -1371,13 +1371,13 @@ class _IncorrectDataDetailPageState
                                 children: [
                                   if (_rescannedTeams.contains(slot.teamNumber))
                                     Icon(
-                                      Symbols.check_circle_rounded,
+                                      LucideIcons.circleCheck,
                                       color: Colors.green,
                                       size: 20,
                                     )
                                   else
                                     Icon(
-                                      Symbols.edit_rounded,
+                                      LucideIcons.pencil,
                                       color: colorScheme.onSurfaceVariant,
                                       size: 20,
                                     ),
@@ -1411,7 +1411,7 @@ class _IncorrectDataDetailPageState
                                     ),
                                   ),
                                   Icon(
-                                    Symbols.chevron_right_rounded,
+                                    LucideIcons.chevronRight,
                                     color: colorScheme.onSurfaceVariant,
                                   ),
                                 ],
@@ -1910,7 +1910,7 @@ class _MergeConflictViewState extends State<_MergeConflictView> {
               Row(
                 children: [
                   Icon(
-                    Symbols.merge_rounded,
+                    LucideIcons.combine,
                     color: colorScheme.primary,
                     size: 20,
                   ),

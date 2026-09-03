@@ -1,10 +1,11 @@
+import 'package:beariscope/providers/match_preview_layout_provider.dart';
 import 'package:beariscope/widgets/settings_group.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart'; // Added for MethodChannel
 import 'package:flex_color_picker/flex_color_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:material_symbols_icons/symbols.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 final themeModeProvider = NotifierProvider<ThemeModeNotifier, ThemeMode>(
@@ -158,6 +159,7 @@ class AppearanceSettingsPage extends ConsumerWidget {
     final themeMode = ref.watch(themeModeProvider);
     final selectedColor = ref.watch(accentColorProvider);
     final selectedAppIcon = ref.watch(appIconProvider);
+    final matchPreviewLayout = ref.watch(matchPreviewLayoutProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Appearance')),
@@ -168,7 +170,7 @@ class AppearanceSettingsPage extends ConsumerWidget {
             title: 'Interface',
             children: [
               ListTile(
-                leading: const Icon(Symbols.dark_mode_rounded),
+                leading: const Icon(LucideIcons.sunMoon),
                 title: const Text('Theme Mode'),
                 contentPadding: EdgeInsets.all(16),
                 trailing: DropdownMenu<ThemeMode>(
@@ -189,6 +191,33 @@ class AppearanceSettingsPage extends ConsumerWidget {
                     DropdownMenuEntry(value: ThemeMode.light, label: 'Light'),
                     DropdownMenuEntry(value: ThemeMode.dark, label: 'Dark'),
                   ],
+                ),
+              ),
+              ListTile(
+                leading: const Icon(LucideIcons.galleryHorizontal),
+                title: const Text('Match Preview Scroll'),
+                contentPadding: const EdgeInsets.all(16),
+                trailing: DropdownMenu<MatchPreviewLayout>(
+                  requestFocusOnTap: false,
+                  initialSelection: matchPreviewLayout,
+                  inputDecorationTheme: const InputDecorationTheme(
+                    border: OutlineInputBorder(),
+                  ),
+                  onSelected: (layout) {
+                    if (layout != null) {
+                      ref
+                          .read(matchPreviewLayoutProvider.notifier)
+                          .setLayout(layout);
+                    }
+                  },
+                  dropdownMenuEntries: MatchPreviewLayout.values
+                      .map(
+                        (layout) => DropdownMenuEntry(
+                          value: layout,
+                          label: layout.label,
+                        ),
+                      )
+                      .toList(),
                 ),
               ),
             ],
@@ -250,7 +279,7 @@ class AppearanceSettingsPage extends ConsumerWidget {
                               width: 2,
                             ),
                           ),
-                          child: const Icon(Symbols.add_rounded, size: 24),
+                          child: const Icon(LucideIcons.plus, size: 24),
                         ),
                       );
                     }
@@ -278,7 +307,7 @@ class AppearanceSettingsPage extends ConsumerWidget {
                         ),
                         child: isSelected
                             ? Icon(
-                                Symbols.check_rounded,
+                                LucideIcons.check,
                                 color: Theme.of(context).colorScheme.onSurface,
                                 size: 20,
                               )
@@ -340,7 +369,7 @@ class AppearanceSettingsPage extends ConsumerWidget {
                                     .colorScheme
                                     .surfaceContainerHighest,
                                 child: const Icon(
-                                  Symbols.image_not_supported_rounded,
+                                  LucideIcons.fileQuestionMark,
                                   size: 24,
                                 ),
                               ),

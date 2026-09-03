@@ -1,7 +1,5 @@
 import 'package:material_ui/material_ui.dart';
-import 'package:material_symbols_icons/symbols.dart';
-
-import 'package:beariscope/pages/main_view.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class UtilitiesPage extends StatefulWidget {
   const UtilitiesPage({super.key});
@@ -15,7 +13,6 @@ class _UtilitiesPageState extends State<UtilitiesPage> {
 
   @override
   Widget build(BuildContext context) {
-    final main = MainViewController.of(context);
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
@@ -27,14 +24,8 @@ class _UtilitiesPageState extends State<UtilitiesPage> {
           padding: const WidgetStatePropertyAll<EdgeInsets>(
             EdgeInsets.symmetric(horizontal: 16.0),
           ),
-          leading: const Icon(Symbols.search_rounded),
+          leading: const Icon(LucideIcons.search),
         ),
-        leading: main.isDesktop
-            ? SizedBox(width: 48)
-            : IconButton(
-                icon: const Icon(Symbols.menu_rounded),
-                onPressed: main.openDrawer,
-              ),
         actions: [SizedBox(width: 48)],
       ),
       body: Center(

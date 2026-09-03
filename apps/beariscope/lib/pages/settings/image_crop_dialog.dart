@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import 'package:beariscope/utils/image_processor.dart';
 import 'package:crop_your_image/crop_your_image.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:material_symbols_icons/symbols.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class ImageCropDialog extends StatefulWidget {
   final Uint8List imageBytes;
@@ -90,7 +90,7 @@ class _ImageCropDialogState extends State<ImageCropDialog> {
         foregroundColor: Colors.white,
         title: const Text('Crop Photo'),
         leading: IconButton(
-          icon: const Icon(Symbols.close),
+          icon: const Icon(LucideIcons.x),
           onPressed: _isProcessing ? null : _cancel,
         ),
         actions: [

@@ -1,7 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:material_symbols_icons/symbols.dart';
 import 'package:services/providers/api_provider.dart';
 
 import 'shared_preferences_provider.dart';
@@ -70,6 +70,7 @@ class EventOption {
   static const int unlabeled = -1;
 
   final String key;
+  final String firstKey;
   final String name;
   final String shortName;
   final int eventType;
@@ -77,6 +78,7 @@ class EventOption {
 
   const EventOption({
     required this.key,
+    required this.firstKey,
     required this.name,
     required this.shortName,
     required this.eventType,
@@ -87,6 +89,7 @@ class EventOption {
     return EventOption(
       key: key,
       name: key,
+      firstKey: key,
       shortName: key,
       eventType: unlabeled,
     );
@@ -95,6 +98,9 @@ class EventOption {
   factory EventOption.fromJson(Map<String, dynamic> json) {
     return EventOption(
       key: json['key']?.toString() ?? '',
+      firstKey:
+          (json['year']?.toString() ?? '') +
+          (json['firstEventCode']?.toString() ?? ''),
       name: json['name']?.toString() ?? 'Unknown Event',
       shortName:
           json['shortName']?.toString() ??
@@ -116,28 +122,28 @@ class EventOption {
   IconData get leadingIcon {
     switch (eventType) {
       case regional:
-        return Symbols.public_rounded;
+        return LucideIcons.earth;
       case district:
-        return Symbols.location_city_rounded;
+        return LucideIcons.building2;
       case districtCmpDivision:
-        return Symbols.view_module_rounded;
+        return LucideIcons.grid3x2;
       case districtCmp:
-        return Symbols.stadium_rounded;
+        return LucideIcons.trophy;
       case cmpDivision:
-        return Symbols.view_module_rounded;
+        return LucideIcons.grid3x2;
       case cmpFinals:
-        return Symbols.trophy_rounded;
+        return LucideIcons.brain;
       case foc:
-        return Symbols.groups_rounded;
+        return LucideIcons.users;
       case remote:
-        return Symbols.videocam_rounded;
+        return LucideIcons.video;
       case offseason:
-        return Symbols.beach_access_rounded;
+        return LucideIcons.balloon;
       case preseason:
-        return Symbols.rocket_launch_rounded;
+        return LucideIcons.sprout;
       case unlabeled:
       default:
-        return Symbols.help_rounded;
+        return LucideIcons.circleQuestionMark;
     }
   }
 }

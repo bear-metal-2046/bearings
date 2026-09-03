@@ -1,11 +1,11 @@
 import 'package:beariscope/pages/main_view.dart';
+import 'package:beariscope/pages/match_lookup/match_card.dart';
+import 'package:beariscope/pages/match_lookup/match_providers.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:beariscope/pages/team_lookup/team_model.dart';
 import 'package:beariscope/pages/team_lookup/team_providers.dart';
-import 'package:beariscope/pages/match_lookup/match_providers.dart';
-import 'package:beariscope/pages/match_lookup/match_card.dart';
-import 'package:material_symbols_icons/symbols.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class MatchLookupPage extends ConsumerStatefulWidget {
   const MatchLookupPage({super.key});
@@ -39,7 +39,7 @@ class _MatchLookupPageState extends ConsumerState<MatchLookupPage> {
         leading: controller.isDesktop
             ? null
             : IconButton(
-                icon: const Icon(Symbols.menu_rounded),
+                icon: const Icon(LucideIcons.menu),
                 onPressed: controller.openDrawer,
               ),
       ),

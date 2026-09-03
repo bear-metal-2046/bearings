@@ -1,33 +1,54 @@
-import 'package:beariscope/providers/current_event_provider.dart';
+import 'package:beariscope/pages/scout_audit/scout_audit_provider.dart';
 import 'package:beariscope/pages/settings/appearance_settings_page.dart';
+import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/scouting_data_provider.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:go_router/go_router.dart';
-import 'package:material_symbols_icons/symbols.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:services/providers/auth_provider.dart';
 import 'package:services/providers/connectivity_provider.dart';
 import 'package:services/providers/permissions_provider.dart';
 import 'package:services/providers/user_profile_provider.dart';
 import 'package:services/widgets/profile_picture.dart';
 import 'package:beariscope/pages/team_lookup/team_providers.dart';
-
-import '../providers/pits_scouting_provider.dart';
+import 'package:beariscope/providers/pits_scouting_provider.dart';
 
 class _NavItem {
   final String route;
   final IconData icon;
   final String label;
   final String group;
+  final List<String> requiredPermissions;
+  final int? badgeCount;
 
   const _NavItem({
     required this.route,
     required this.icon,
     required this.label,
     required this.group,
+    this.requiredPermissions = const [],
+    this.badgeCount,
   });
+
+  bool canAccess(PermissionChecker? checker) {
+    if (requiredPermissions.isEmpty) return true;
+
+    return checker != null && requiredPermissions.any(checker.hasPermission);
+  }
+
+  _NavItem copyWith({int? badgeCount}) {
+    return _NavItem(
+      route: route,
+      icon: icon,
+      label: label,
+      group: group,
+      requiredPermissions: requiredPermissions,
+      badgeCount: badgeCount,
+    );
+  }
 }
 
 class MainViewController extends InheritedWidget {
@@ -41,12 +62,14 @@ class MainViewController extends InheritedWidget {
     required super.child,
   });
 
-  static MainViewController of(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<MainViewController>()!;
+  static MainViewController of(BuildContext context) {
+    return context.dependOnInheritedWidgetOfExactType<MainViewController>()!;
+  }
 
   @override
-  bool updateShouldNotify(MainViewController oldWidget) =>
-      isDesktop != oldWidget.isDesktop;
+  bool updateShouldNotify(MainViewController oldWidget) {
+    return isDesktop != oldWidget.isDesktop;
+  }
 }
 
 class MainView extends ConsumerStatefulWidget {
@@ -59,101 +82,131 @@ class MainView extends ConsumerStatefulWidget {
 }
 
 class _MainViewState extends ConsumerState<MainView> {
-  bool _isRefreshing = false;
-  static const double _drawerWidth = 280;
-  static const _animationDuration = Duration(milliseconds: 100);
+  static const _desktopBreakpoint = 700.0;
 
-  static const List<_NavItem> _navItems = [
-    _NavItem(
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  bool _isRefreshing = false;
+
+  static final List<_NavItem> _navItems = [
+    const _NavItem(
       route: '/up_next',
-      icon: Symbols.event_rounded,
+      icon: LucideIcons.calendar,
       label: 'Up Next',
       group: 'General',
     ),
-    _NavItem(
+    const _NavItem(
       route: '/team_lookup',
-      icon: Symbols.smart_toy_rounded,
-      label: 'Team Lookup',
-      group: 'Insights',
+      icon: LucideIcons.bot,
+      label: 'Teams',
+      group: 'General',
     ),
-    _NavItem(
-      route: '/match_lookup',
-      icon: Symbols.leaderboard,
-      label: 'Match Lookup',
-      group: 'Insights',
-    ),
-    _NavItem(
-      route: '/export',
-      icon: Symbols.table_chart_rounded,
-      label: 'Export Data',
-      group: 'Insights',
-    ),
-    // _NavItem(
+    // const _NavItem(
     //   route: '/picklists',
-    //   icon: Symbols.list_alt_rounded,
+    //   icon: LucideIcons.notebookText,
     //   label: 'Picklists',
-    //   group: 'Insights',
+    //   group: 'General',
+    //   requiredPermissions: [
+    //     PermissionKey.picklistsManage,
+    //     PermissionKey.picklistsRead,
+    //   ],
     // ),
-    // _NavItem(
-    //   route: '/corrections',
-    //   icon: Symbols.table_edit_rounded,
-    //   label: 'Data Corrections',
-    //   group: 'Scouting',
-    // ),
-    _NavItem(
+    const _NavItem(
       route: '/scout_audit',
-      icon: Symbols.assignment_rounded,
+      icon: LucideIcons.clipboardCheck,
       label: 'Scout Audit',
-      group: 'Scouting',
+      group: 'Data',
+      requiredPermissions: [PermissionKey.matchCorrect],
     ),
-    _NavItem(
+    const _NavItem(
+      route: '/export',
+      icon: LucideIcons.sheet,
+      label: 'Export Data',
+      group: 'Data',
+    ),
+    const _NavItem(
       route: '/pits_scouting',
-      icon: Symbols.build_rounded,
+      icon: LucideIcons.wrench,
       label: 'Pits Scouting',
       group: 'Scouting',
+      requiredPermissions: [PermissionKey.pitsUpload, PermissionKey.pitsRead],
+    ),
+    const _NavItem(
+      route: '/match_lookup',
+      icon: LucideIcons.scale,
+      label: 'Match Compare',
+      group: 'Utilities',
     ),
   ];
 
-  List<_NavItem> _visibleNavItems(PermissionChecker? permissionChecker) {
-    return [
-      for (final item in _navItems)
-        if (_canShowNavItem(item, permissionChecker)) item,
-    ];
+  List<_NavItem> _buildNavItems({
+    required int scoutAuditIssueCount,
+    required PermissionChecker? permissionChecker,
+  }) {
+    return _navItems
+        .map((item) {
+          if (item.route == '/scout_audit') {
+            return item.copyWith(
+              badgeCount: scoutAuditIssueCount > 0
+                  ? scoutAuditIssueCount
+                  : null,
+            );
+          }
+
+          return item;
+        })
+        .where((item) => item.canAccess(permissionChecker))
+        .toList();
   }
 
-  bool _canShowNavItem(_NavItem item, PermissionChecker? permissionChecker) {
-    return switch (item.route) {
-      '/scout_audit' =>
-        permissionChecker?.hasPermission(PermissionKey.matchCorrect) ?? false,
-      '/pits_scouting' =>
-        (permissionChecker?.hasPermission(PermissionKey.pitsUpload) ?? false) ||
-            (permissionChecker?.hasPermission(PermissionKey.pitsRead) ?? false),
-      _ => true,
-    };
+  String get _location {
+    return GoRouterState.of(context).uri.toString();
   }
-
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   int _selectedIndexFor(List<_NavItem> items) {
-    final location = GoRouterState.of(context).uri.toString();
-    final idx = items.indexWhere((n) => location.startsWith(n.route));
-    return idx;
+    return items.indexWhere((item) => _location.startsWith(item.route));
   }
 
   bool _isAtTopLevelFor(List<_NavItem> items) {
-    final location = GoRouterState.of(context).uri.toString();
-    // just checks if we're at a top level nav item (not a nested route)
-    return items.any((n) => n.route == location);
+    return items.any((item) => item.route == _location);
   }
 
   void _onDestinationSelected(int index, bool isDesktop, List<_NavItem> items) {
     if (index < 0 || index >= items.length) return;
-    if (index == _selectedIndexFor(items)) {
-      if (!isDesktop) Navigator.pop(context);
+
+    final selectedItem = items[index];
+    final isDrawerOpen = _scaffoldKey.currentState?.isDrawerOpen ?? false;
+
+    if (_location.startsWith(selectedItem.route)) {
+      if (!isDesktop && isDrawerOpen) {
+        Navigator.pop(context);
+      }
       return;
     }
-    context.go(items[index].route);
-    if (!isDesktop) Navigator.pop(context);
+
+    if (!isDesktop && isDrawerOpen) {
+      Navigator.pop(context);
+    }
+
+    context.go(selectedItem.route);
+  }
+
+  int _scoutAuditIssueCount() {
+    return switch (ref.watch(scoutAuditSnapshotProvider)) {
+      AsyncData(:final value) =>
+        value.incompleteMatches.length +
+            value.notInTba.length +
+            value.duplicates.length +
+            value.incorrect.length,
+      _ => 0,
+    };
+  }
+
+  bool _isOnline() {
+    return switch (ref.watch(connectivityProvider)) {
+      AsyncData(:final value) => value,
+      _ => true,
+    };
   }
 
   @override
@@ -163,57 +216,48 @@ class _MainViewState extends ConsumerState<MainView> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isDesktop = constraints.maxWidth >= 700;
+        final isDesktop = constraints.maxWidth >= _desktopBreakpoint;
+
         final permissionChecker = ref.watch(permissionCheckerProvider);
-        final visibleNavItems = _visibleNavItems(permissionChecker);
+
+        final visibleNavItems = _buildNavItems(
+          scoutAuditIssueCount: _scoutAuditIssueCount(),
+          permissionChecker: permissionChecker,
+        );
+
         final selectedIndex = _selectedIndexFor(visibleNavItems);
+
         final isAtTopLevel = _isAtTopLevelFor(visibleNavItems);
+
         final allowDrawerGesture =
             !isDesktop &&
             isAtTopLevel &&
             ModalRoute.of(context)?.isCurrent == true;
 
-        final isOnline = switch (ref.watch(connectivityProvider)) {
-          AsyncData(:final value) => value,
-          _ => true,
-        };
-
-        final navigationSidebarContent = Column(
-          children: [
-            Expanded(
-              child: NavigationDrawer(
-                selectedIndex: selectedIndex == -1 ? null : selectedIndex,
-                onDestinationSelected: (i) =>
-                    _onDestinationSelected(i, isDesktop, visibleNavItems),
-                children: _buildNavChildren(),
-              ),
-            ),
-            const Divider(height: 2),
-            _buildBottomComponents(isOnline: isOnline),
-          ],
-        );
-
-        final navigationDrawer = SizedBox(
-          width: _drawerWidth,
-          child: isDesktop
-              ? Material(
-                  color: Theme.of(context).colorScheme.surfaceContainerLow,
-                  child: navigationSidebarContent,
-                )
-              : Drawer(child: navigationSidebarContent),
+        final drawerContent = NavigationDrawer(
+          selectedIndex: selectedIndex >= 0 ? selectedIndex : null,
+          onDestinationSelected: (index) =>
+              _onDestinationSelected(index, isDesktop, visibleNavItems),
+          footer: Column(
+            children: [
+              const Divider(height: 2),
+              _buildBottomComponents(isOnline: _isOnline()),
+            ],
+          ),
+          children: _buildNavChildren(visibleNavItems),
         );
 
         final childContent = isDesktop
             ? Row(
                 children: [
-                  navigationDrawer,
+                  drawerContent,
                   Expanded(child: widget.child),
                 ],
               )
             : widget.child;
 
-        // checks for showing no perms banner
         final authMeLoaded = ref.watch(authMeProvider).hasValue;
+
         final hasNoPermissions =
             authMeLoaded &&
             permissionChecker != null &&
@@ -258,8 +302,8 @@ class _MainViewState extends ConsumerState<MainView> {
           child: Scaffold(
             key: _scaffoldKey,
             // Only enable drawer when at top level and on mobile
-            drawer: isDesktop ? null : (isAtTopLevel ? navigationDrawer : null),
-            drawerEnableOpenDragGesture: !isDesktop && isAtTopLevel,
+            drawer: isDesktop ? null : drawerContent,
+            drawerEnableOpenDragGesture: allowDrawerGesture,
             drawerBarrierDismissible: !isDesktop,
             body: MainViewController(
               isDesktop: isDesktop,
@@ -296,44 +340,37 @@ class _MainViewState extends ConsumerState<MainView> {
     }
   }
 
-  List<Widget> _buildNavChildren() {
+  List<Widget> _buildNavChildren(List<_NavItem> visibleNavItems) {
     final children = <Widget>[];
-    final permissionChecker = ref.watch(permissionCheckerProvider);
-    final visibleNavItems = _visibleNavItems(permissionChecker);
 
     children.add(
-      Padding(
-        padding: const EdgeInsets.fromLTRB(28, 12, 24, 10),
-        child: Row(
-          children: [
-            Expanded(
-              child: Row(
-                children: [
-                  SvgPicture.asset(
-                    'assets/beariscope_head.svg',
-                    width: 24,
-                    colorFilter: ColorFilter.mode(
-                      Theme.of(context).colorScheme.primary,
-                      BlendMode.srcATop,
+      SizedBox(
+        height: kToolbarHeight,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 28),
+          child: Row(
+            children: [
+              Expanded(
+                child: Row(
+                  children: [
+                    SvgPicture.asset(
+                      'assets/beariscope_head.svg',
+                      width: 24,
+                      colorFilter: ColorFilter.mode(
+                        Theme.of(context).colorScheme.primary,
+                        BlendMode.srcATop,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Text(
-                    'Beariscope',
-                    style: TextStyle(fontFamily: 'Xolonium', fontSize: 20),
-                  ),
-                ],
+                    const SizedBox(width: 12),
+                    Text(
+                      'Beariscope',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ],
+                ),
               ),
-            ),
-            Tooltip(
-              message: 'Settings',
-              child: InkWell(
-                onTap: () => context.push('/settings'),
-                borderRadius: BorderRadius.circular(24),
-                child: ProfilePicture(size: 16),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -341,13 +378,12 @@ class _MainViewState extends ConsumerState<MainView> {
     children.add(
       const Padding(
         padding: EdgeInsets.symmetric(horizontal: 28),
-        child: Divider(),
+        child: Divider(height: 2),
       ),
     );
 
     String? currentGroup;
     for (final entry in visibleNavItems.indexed) {
-      final index = entry.$1;
       final item = entry.$2;
       if (item.group != currentGroup) {
         if (currentGroup != null) {
@@ -371,15 +407,12 @@ class _MainViewState extends ConsumerState<MainView> {
       }
       children.add(
         NavigationDrawerDestination(
-          icon: TweenAnimationBuilder<double>(
-            tween: Tween<double>(
-              begin: _selectedIndexFor(visibleNavItems) == index ? 0.0 : 1.0,
-              end: _selectedIndexFor(visibleNavItems) == index ? 1.0 : 0.0,
-            ),
-            duration: _animationDuration,
-            curve: Curves.fastOutSlowIn,
-            builder: (context, value, _) =>
-                Icon(item.icon, weight: 600, fill: value),
+          icon: Badge(
+            isLabelVisible: item.badgeCount != null && item.badgeCount! > 0,
+            label: item.badgeCount != null
+                ? Text(item.badgeCount.toString())
+                : null,
+            child: Icon(item.icon, weight: 600),
           ),
           label: Text(item.label),
         ),
@@ -437,7 +470,7 @@ class _MainViewState extends ConsumerState<MainView> {
           ),
         ),
         child: MenuAnchor(
-          // animated: true,
+          animated: true,
           alignmentOffset: const Offset(12, 0),
           builder: (context, controller, child) {
             final isOpen = controller.isOpen;
@@ -505,9 +538,10 @@ class _MainViewState extends ConsumerState<MainView> {
                       const SizedBox(width: 8),
                       Icon(
                         isOpen
-                            ? Symbols.unfold_less_rounded
-                            : Symbols.unfold_more_rounded,
+                            ? LucideIcons.chevronsDownUp
+                            : LucideIcons.chevronsUpDown,
                         color: colorScheme.onSurfaceVariant,
+                        size: 20,
                       ),
                     ],
                   ),
@@ -528,7 +562,7 @@ class _MainViewState extends ConsumerState<MainView> {
                     orElse: () => EventOption.current(currentEventKey),
                   );
                   return SubmenuButton(
-                    // animated: true,
+                    animated: true,
                     style: const ButtonStyle(
                       padding: WidgetStatePropertyAll(
                         EdgeInsets.symmetric(horizontal: 20, vertical: 14),
@@ -549,12 +583,9 @@ class _MainViewState extends ConsumerState<MainView> {
                       ),
                     ),
                     submenuIcon: WidgetStatePropertyAll(
-                      const Icon(Symbols.chevron_right_rounded, size: 16),
+                      const Icon(LucideIcons.chevronRight, size: 16),
                     ),
-                    leadingIcon: const Icon(
-                      Symbols.edit_calendar_rounded,
-                      size: 20,
-                    ),
+                    leadingIcon: const Icon(LucideIcons.calendarCog, size: 20),
                     menuChildren: pickerEvents
                         .map(
                           (e) => MenuItemButton(
@@ -566,10 +597,10 @@ class _MainViewState extends ConsumerState<MainView> {
                                 ),
                               ),
                             ),
-                            leadingIcon: Icon(e.leadingIcon, size: 20),
+                            leadingIcon: Icon(customIconFor(e), size: 20),
                             trailingIcon: e.key == currentEventKey
                                 ? Icon(
-                                    Symbols.check_rounded,
+                                    LucideIcons.check,
                                     size: 20,
                                     color: Theme.of(context)
                                         .colorScheme
@@ -581,7 +612,7 @@ class _MainViewState extends ConsumerState<MainView> {
                                   .read(currentEventProvider.notifier)
                                   .setEventKey(e.key);
                             },
-                            child: Text(e.displayName),
+                            child: Text(e.displayName.shortenEventName()),
                           ),
                         )
                         .toList(),
@@ -609,7 +640,7 @@ class _MainViewState extends ConsumerState<MainView> {
                     ),
                   ),
                   onPressed: () => ref.invalidate(teamEventsProvider),
-                  leadingIcon: const Icon(Symbols.error_rounded, size: 20),
+                  leadingIcon: const Icon(LucideIcons.circleAlert, size: 20),
                   child: const Text('Failed to load events. Retry?'),
                 ),
               ),
@@ -634,9 +665,7 @@ class _MainViewState extends ConsumerState<MainView> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : Icon(
-                        isOnline
-                            ? Symbols.sync_rounded
-                            : Symbols.cloud_off_rounded,
+                        isOnline ? LucideIcons.cloud : LucideIcons.cloudOff,
                         key: const ValueKey('icon'),
                         size: 20,
                       ),
@@ -658,7 +687,7 @@ class _MainViewState extends ConsumerState<MainView> {
                     EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                   ),
                 ),
-                leadingIcon: const Icon(Symbols.qr_code_rounded, size: 20),
+                leadingIcon: const Icon(LucideIcons.qrCode, size: 20),
                 onPressed: () => context.push('/device_provisioning'),
                 child: const Text('Provision Device'),
               ),
@@ -671,14 +700,13 @@ class _MainViewState extends ConsumerState<MainView> {
                   EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                 ),
               ),
-              leadingIcon: const Icon(Symbols.settings_rounded, size: 20),
+              leadingIcon: const Icon(LucideIcons.settings, size: 20),
               onPressed: () => context.push('/settings'),
               child: const Text('Settings'),
             ),
 
             SubmenuButton(
-              // TODO: make this animated again once this param is added to flutter stable
-              // animated: true,
+              animated: true,
               style: const ButtonStyle(
                 padding: WidgetStatePropertyAll(
                   EdgeInsets.symmetric(horizontal: 20, vertical: 14),
@@ -699,9 +727,9 @@ class _MainViewState extends ConsumerState<MainView> {
                 ),
               ),
               submenuIcon: const WidgetStatePropertyAll(
-                Icon(Symbols.chevron_right_rounded, size: 16),
+                Icon(LucideIcons.chevronRight, size: 16),
               ),
-              leadingIcon: const Icon(Symbols.dark_mode_rounded, size: 20),
+              leadingIcon: const Icon(LucideIcons.sunMoon, size: 20),
               menuChildren: [
                 for (final mode in ThemeMode.values)
                   MenuItemButton(
@@ -712,7 +740,7 @@ class _MainViewState extends ConsumerState<MainView> {
                     ),
                     trailingIcon: mode == themeMode
                         ? Icon(
-                            Symbols.check_rounded,
+                            LucideIcons.check,
                             size: 20,
                             color: Theme.of(context).colorScheme.primary,
                           )
@@ -723,9 +751,9 @@ class _MainViewState extends ConsumerState<MainView> {
                           .setThemeMode(mode);
                     },
                     leadingIcon: Icon(switch (mode) {
-                      ThemeMode.light => Symbols.light_mode_rounded,
-                      ThemeMode.dark => Symbols.dark_mode_rounded,
-                      ThemeMode.system => Symbols.routine_rounded,
+                      ThemeMode.light => LucideIcons.sun,
+                      ThemeMode.dark => LucideIcons.moon,
+                      ThemeMode.system => LucideIcons.eclipse,
                     }, size: 20),
                     child: Text(switch (mode) {
                       ThemeMode.light => 'Light',
@@ -750,7 +778,7 @@ class _MainViewState extends ConsumerState<MainView> {
                 ),
               ),
               leadingIcon: Icon(
-                Symbols.logout_rounded,
+                LucideIcons.logOut,
                 size: 20,
                 color: Theme.of(context).colorScheme.error,
               ),
@@ -812,7 +840,7 @@ class _NoPermissionsBanner extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Icon(
-                Symbols.warning_rounded,
+                LucideIcons.circleAlert,
                 color: colorScheme.onErrorContainer,
                 size: 20,
               ),
@@ -832,4 +860,147 @@ class _NoPermissionsBanner extends StatelessWidget {
       ),
     );
   }
+}
+
+const _eventNameReplacements = {
+  'District Championship': 'DCMP',
+  'State Championship': 'State CMP',
+  'Provincial Championship': 'PCMP',
+
+  'Pacific Northwest FIRST': 'PNW',
+  'FIRST in Michigan': 'FIM',
+  'FIRST in Texas': 'FIT',
+  'FIRST Indiana': 'FIN',
+  'FIRST Mid-Atlantic': 'FMA',
+  'FIRST North Carolina': 'FNC',
+  'FIRST South Carolina': 'FSC',
+  'FIRST Wisconsin': 'WIN',
+  'New England FIRST': 'NE',
+  'Peachtree': 'PCH',
+  'FIRST Ontario': 'ONT',
+  'FIRST Israel': 'ISR',
+
+  'PNW District': 'PNW',
+  'FIM District': 'FIM',
+  'FIT District': 'FIT',
+  'FCH District': 'FCH',
+  'FIN District': 'FIN',
+  'FMA District': 'FMA',
+  'FNC District': 'FNC',
+  'FSC District': 'FSC',
+  'WIN District': 'WIN',
+  'NE District': 'NE',
+  'PCH District': 'PCH',
+  'ONT District': 'ONT',
+  'ISR District': 'ISR',
+};
+
+extension EventNameShortener on String {
+  String shortenEventName() {
+    var text = replaceAll(RegExp(r'\s+presented.*$', caseSensitive: false), '');
+
+    for (final entry in _eventNameReplacements.entries) {
+      text = text.replaceAll(
+        RegExp(RegExp.escape(entry.key), caseSensitive: false),
+        entry.value,
+      );
+    }
+
+    return text;
+  }
+}
+
+IconData customIconFor(EventOption event) {
+  final name = event.displayName.toLowerCase();
+
+  // Worlds divisions
+  if (name.contains('archimedes')) {
+    return LucideIcons.pi;
+  }
+
+  if (name.contains('curie')) {
+    return LucideIcons.radiation;
+  }
+
+  if (name.contains('daly')) {
+    return LucideIcons.flaskConical;
+  }
+
+  if (name.contains('galileo')) {
+    return LucideIcons.telescope;
+  }
+
+  if (name.contains('hopper')) {
+    return LucideIcons.bug;
+  }
+
+  if (name.contains('johnson')) {
+    return LucideIcons.rocket;
+  }
+
+  if (name.contains('milstein')) {
+    return LucideIcons.biohazard;
+  }
+
+  if (name.contains('newton')) {
+    return LucideIcons.apple;
+  }
+
+  // FIM
+  if (name.contains('dte')) {
+    return LucideIcons.solarPanel;
+  }
+  if (name.contains('consumers')) {
+    return LucideIcons.zap;
+  }
+  if (name.contains('hemlock')) {
+    return LucideIcons.microchip;
+  }
+  if (name.contains('aptiv')) {
+    return LucideIcons.factory;
+  }
+
+  // FIT
+  if (name.contains('mercury')) {
+    return LucideIcons.globe;
+  }
+  if (name.contains('apollo')) {
+    return LucideIcons.sparkles;
+  }
+
+  // NE
+  if (name.contains('burns')) {
+    return LucideIcons.bookMarked;
+  }
+  if (name.contains('newsom')) {
+    return LucideIcons.amphora;
+  }
+
+  // ONT
+  if (name.contains('technology')) {
+    return LucideIcons.cpu;
+  }
+
+  if (name.contains('science')) {
+    return LucideIcons.atom;
+  }
+
+  // Other
+  if (name.contains('chezy')) {
+    return LucideIcons.hamburger;
+  }
+  if (name.contains('bordie')) {
+    return LucideIcons.bird;
+  }
+  if (name.contains('block party')) {
+    return LucideIcons.cuboid;
+  }
+  if (name.contains('girl') && name.contains('generation')) {
+    return LucideIcons.venus;
+  }
+  if (name.contains('stormsurge')) {
+    return LucideIcons.cloudLightning;
+  }
+
+  return event.leadingIcon;
 }

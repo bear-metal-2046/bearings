@@ -1,4 +1,5 @@
 import 'package:beariscope/providers/app_boot_provider.dart';
+import 'package:beariscope/providers/app_phase_provider.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,7 +12,18 @@ class SplashScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final bootState = ref.watch(appBootProvider);
+    final phase = ref.watch(appPhaseProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // When boot is done and we're in the splashing phase (e.g. during
+    // login after initial boot), show "Authorizing…" instead of the
+    // boot-ready message.
+    final message = switch (phase) {
+      AppPhase.splashing when !bootState.isReady => bootState.message,
+      AppPhase.splashing => 'Authorizing…',
+      _ => '',
+    };
+
     return Scaffold(
       body: Stack(
         children: [
@@ -42,12 +54,12 @@ class SplashScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                        bootState.message,
-                        key: ValueKey(bootState.message),
+                        message,
+                        key: ValueKey(message),
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.bodyMedium,
                       )
-                      .animate(key: ValueKey(bootState.message))
+                      .animate(key: ValueKey(message))
                       .fadeIn(duration: 250.ms, curve: Curves.easeOut)
                       .slideY(
                         begin: 0.35,

@@ -198,9 +198,8 @@ class _MyAppState extends ConsumerState<MyApp> {
       title: 'Bearimetric',
       routerConfig: router,
       debugShowCheckedModeBanner: false,
-      builder: (context, child) => FlutterMaterialScope(
-        child: child ?? const SizedBox.shrink(),
-      ),
+      builder: (context, child) =>
+          FlutterMaterialScope(child: child ?? const SizedBox.shrink()),
       theme: ThemeData(
         fontFamily: usePapyrusFont
             ? 'Papyrus'

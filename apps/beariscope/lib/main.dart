@@ -1,13 +1,11 @@
-import 'dart:math';
-
-import 'package:audioplayers/audioplayers.dart';
 import 'package:beariscope/pages/auth/post_sign_in_onboarding_page.dart';
+import 'package:beariscope/pages/auth/sign_up_flow_page.dart';
 import 'package:beariscope/pages/auth/splash_screen.dart';
 import 'package:beariscope/pages/auth/welcome_page.dart';
-import 'package:beariscope/pages/corrections/corrections_page.dart';
 import 'package:beariscope/pages/device_provisioning/device_provisioning_page.dart';
 import 'package:beariscope/pages/export/export_page.dart';
 import 'package:beariscope/pages/main_view.dart';
+import 'package:beariscope/pages/match_lookup/match_lookup_page.dart';
 import 'package:beariscope/pages/picklists/picklists_create_page.dart';
 import 'package:beariscope/pages/picklists/picklists_page.dart';
 import 'package:beariscope/pages/pits_scouting/pits_scouting_home_page.dart';
@@ -25,7 +23,7 @@ import 'package:beariscope/pages/up_next/match_preview_page.dart';
 import 'package:beariscope/pages/up_next/up_next_page.dart';
 import 'package:beariscope/pages/utilities/utilities_page.dart';
 import 'package:beariscope/providers/app_boot_provider.dart';
-import 'package:beariscope/providers/post_sign_in_flow_provider.dart';
+import 'package:beariscope/providers/app_phase_provider.dart';
 import 'package:beariscope/providers/shared_preferences_provider.dart';
 import 'package:beariscope/utils/platform_utils_stub.dart'
     if (dart.library.io) 'package:beariscope/utils/platform_utils.dart';
@@ -40,6 +38,7 @@ import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hive_ce_flutter/adapters.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:services/providers/auth_provider.dart';
 import 'package:services/providers/connectivity_provider.dart';
@@ -47,7 +46,6 @@ import 'package:services/providers/permissions_provider.dart';
 import 'package:services/release/release_info.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ui/ui.dart';
-import 'package:beariscope/pages/match_lookup/match_lookup_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -58,14 +56,8 @@ Future<void> main() async {
   await Hive.openBox('api_cache');
   await Hive.openBox<String>('scouting_data');
 
-  // happy easter
-  if (Random().nextInt(500) == 0) {
-    final player = AudioPlayer();
-    await player.play(AssetSource('sounds/jingle.wav'), volume: 1000);
-  }
-
   if (PlatformUtils.isDesktop()) {
-    setWindowMinSize(const Size(500, 600));
+    setWindowMinSize(const Size(400, 600));
     setWindowMaxSize(Size.infinite);
     setWindowTitle('Beariscope');
   }
@@ -103,10 +95,7 @@ Future<void> main() async {
 
 class RouterRefreshNotifier extends ChangeNotifier {
   RouterRefreshNotifier(this.ref) {
-    ref.listen(appBootProvider, (_, _) => notifyListeners());
-    ref.listen(authStatusProvider, (_, _) => notifyListeners());
-    ref.listen(postSignInFlowPendingProvider, (_, _) => notifyListeners());
-    ref.listen(authMeProvider, (_, _) => notifyListeners());
+    ref.listen(appPhaseProvider, (_, _) => notifyListeners());
   }
 
   final Ref ref;
@@ -123,7 +112,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/splash',
         builder: (context, state) => const SplashScreen(),
       ),
-      GoRoute(path: '/welcome', builder: (_, _) => const WelcomePage()),
+      GoRoute(
+        path: '/welcome',
+        builder: (_, _) => const WelcomePage(),
+        routes: [
+          GoRoute(path: 'sign_up', builder: (_, _) => const SignUpFlowPage()),
+        ],
+      ),
       GoRoute(
         path: '/post_sign_in_onboarding',
         builder: (_, _) => const PostSignInOnboardingPage(),
@@ -168,11 +163,6 @@ final routerProvider = Provider<GoRouter>((ref) {
                 builder: (_, _) => const PicklistsCreatePage(),
               ),
             ],
-          ),
-          GoRoute(
-            path: '/corrections',
-            pageBuilder: (_, _) =>
-                const NoTransitionPage(child: CorrectionsPage()),
           ),
           GoRoute(
             path: '/scout_audit',
@@ -257,84 +247,80 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
     ],
     redirect: (_, state) {
-      final auth = ref.read(authStatusProvider);
       final location = state.matchedLocation;
-      final bootReady = ref.read(appBootProvider).isReady;
+      final phase = ref.read(appPhaseProvider);
 
-      // splash while booting
-      if (!bootReady) {
-        return location == '/splash' ? null : '/splash';
-      }
+      // 1. Route based on app phase
+      final phaseRedirect = switch (phase) {
+        AppPhase.splashing => location == '/splash' ? null : '/splash',
+        AppPhase.loginRequired =>
+          location == '/welcome' || location.startsWith('/welcome/')
+              ? null
+              : '/welcome',
+        AppPhase.onboarding =>
+          location == '/post_sign_in_onboarding'
+              ? null
+              : '/post_sign_in_onboarding',
+        AppPhase.ready => null,
+      };
 
-      // go to welcome if not authed
-      if (auth == AuthStatus.unauthenticated) {
-        return location == '/welcome' ? null : '/welcome';
-      }
+      if (phaseRedirect != null) return phaseRedirect;
 
-      // if on welcome and authed then leave
-      if (auth == AuthStatus.authenticated) {
-        final pendingPostSignInFlow = ref.read(postSignInFlowPendingProvider);
+      // 2. AppPhase.ready — permission guards for protected routes
+      final isRoleManagementRoute = location == '/settings/roles';
+      final isScoutManagementRoute = location == '/settings/user_selection';
+      final isPicklistCreateRoute = location == '/picklists/create';
+      final isDeviceProvisioningRoute = location == '/device_provisioning';
+      final needsPermissions =
+          isRoleManagementRoute ||
+          isScoutManagementRoute ||
+          isPicklistCreateRoute ||
+          isDeviceProvisioningRoute;
 
-        if (pendingPostSignInFlow) {
-          if (location != '/post_sign_in_onboarding') {
-            return '/post_sign_in_onboarding';
-          }
+      if (needsPermissions) {
+        final authMe = ref.read(authMeProvider);
+
+        if (authMe.isLoading) {
           return null;
         }
 
-        final isRoleManagementRoute = location == '/settings/roles';
-        final isScoutManagementRoute = location == '/settings/user_selection';
-        final isPicklistCreateRoute = location == '/picklists/create';
-        final isDeviceProvisioningRoute = location == '/device_provisioning';
-        final needsPermissions =
-            isRoleManagementRoute ||
-            isScoutManagementRoute ||
-            isPicklistCreateRoute ||
-            isDeviceProvisioningRoute;
+        final checker = ref.read(permissionCheckerProvider);
 
-        if (needsPermissions) {
-          final authMe = ref.read(authMeProvider);
-
-          if (authMe.isLoading) {
-            return null;
-          }
-
-          final checker = ref.read(permissionCheckerProvider);
-
-          if (isRoleManagementRoute) {
-            final canManageRoles =
-                checker?.hasPermission(PermissionKey.usersRolesManage) ?? false;
-            if (!canManageRoles) return '/settings';
-          }
-
-          if (isScoutManagementRoute) {
-            final canViewScouts =
-                checker?.hasAnyPermission([
-                  PermissionKey.scoutsRead,
-                  PermissionKey.scoutsManage,
-                ]) ??
-                false;
-            if (!canViewScouts) return '/settings';
-          }
-
-          if (isPicklistCreateRoute) {
-            final canManagePicklists =
-                checker?.hasPermission(PermissionKey.picklistsManage) ?? false;
-            if (!canManagePicklists) return '/picklists';
-          }
-
-          if (isDeviceProvisioningRoute) {
-            final canProvision =
-                checker?.hasPermission(PermissionKey.deviceProvision) ?? false;
-            if (!canProvision) return '/up_next';
-          }
+        if (isRoleManagementRoute) {
+          final canManageRoles =
+              checker?.hasPermission(PermissionKey.usersRolesManage) ?? false;
+          if (!canManageRoles) return '/settings';
         }
 
-        if (location == '/welcome' ||
-            location == '/splash' ||
-            location == '/post_sign_in_onboarding') {
-          return '/up_next';
+        if (isScoutManagementRoute) {
+          final canViewScouts =
+              checker?.hasAnyPermission([
+                PermissionKey.scoutsRead,
+                PermissionKey.scoutsManage,
+              ]) ??
+              false;
+          if (!canViewScouts) return '/settings';
         }
+
+        if (isPicklistCreateRoute) {
+          final canManagePicklists =
+              checker?.hasPermission(PermissionKey.picklistsManage) ?? false;
+          if (!canManagePicklists) return '/picklists';
+        }
+
+        if (isDeviceProvisioningRoute) {
+          final canProvision =
+              checker?.hasPermission(PermissionKey.deviceProvision) ?? false;
+          if (!canProvision) return '/up_next';
+        }
+      }
+
+      // 3. If ready and still on a phase-based route, go to main
+      if (phase == AppPhase.ready &&
+          (location == '/splash' ||
+              location == '/welcome' ||
+              location == '/post_sign_in_onboarding')) {
+        return '/up_next';
       }
 
       return null;
@@ -378,9 +364,8 @@ class _BeariscopeState extends ConsumerState<Beariscope> {
           darkTheme: _createTheme(Brightness.dark, accentColor),
           themeMode: themeMode,
           debugShowCheckedModeBanner: false,
-          builder: (context, child) => FlutterMaterialScope(
-            child: child ?? const SizedBox.shrink(),
-          ),
+          builder: (context, child) =>
+              FlutterMaterialScope(child: child ?? const SizedBox.shrink()),
         );
       },
     );
@@ -403,12 +388,27 @@ ThemeData _createTheme(Brightness brightness, Color accentColor) {
     brightness: brightness,
     useMaterial3: true,
     colorScheme: colorScheme,
+    splashFactory: NoSplash.splashFactory,
+    actionIconTheme: ActionIconThemeData(
+      backButtonIconBuilder: (BuildContext context) =>
+          const Icon(LucideIcons.chevronLeft),
+      closeButtonIconBuilder: (BuildContext context) =>
+          const Icon(LucideIcons.x),
+      drawerButtonIconBuilder: (BuildContext context) =>
+          const Icon(LucideIcons.menu),
+      endDrawerButtonIconBuilder: (BuildContext context) =>
+          const Icon(LucideIcons.ellipsisVertical),
+    ),
+    iconButtonTheme: IconButtonThemeData(
+      style: IconButton.styleFrom(iconSize: 20),
+    ),
+    popupMenuTheme: const PopupMenuThemeData(iconSize: 22),
     iconTheme: IconThemeData(
-      fill: 0.0,
       weight: 600,
+      size: 22,
       color: colorScheme.onSurface,
     ),
-    textTheme: _nunitoTextTheme(
+    textTheme: _outfitTextTheme(
       ThemeData(brightness: brightness, colorScheme: colorScheme).textTheme,
     ),
   );
@@ -417,39 +417,39 @@ ThemeData _createTheme(Brightness brightness, Color accentColor) {
     appBarTheme: baseTheme.appBarTheme.copyWith(
       centerTitle: false,
       actionsPadding: EdgeInsets.symmetric(horizontal: 8),
-      scrolledUnderElevation: 2,
-      titleTextStyle: baseTheme.textTheme.titleLarge!.copyWith(
-        fontFamily: 'Xolonium',
-        fontSize: 20,
-      ),
-    ),
-    dialogTheme: baseTheme.dialogTheme.copyWith(
-      titleTextStyle: baseTheme.textTheme.headlineSmall!.copyWith(
-        fontFamily: 'Xolonium',
-        fontSize: 20,
-      ),
+      scrolledUnderElevation: 1,
+      //   titleTextStyle: baseTheme.textTheme.titleLarge!.copyWith(
+      //     fontFamily: 'Xolonium',
+      //     fontSize: 20,
+      //   ),
+      // ),
+      // dialogTheme: baseTheme.dialogTheme.copyWith(
+      //   titleTextStyle: baseTheme.textTheme.headlineSmall!.copyWith(
+      //     fontFamily: 'Xolonium',
+      //     fontSize: 20,
+      //   ),
     ),
   );
 }
 
 // TEMP STUFF UNTIL GOOGLE_FONTS UPDATES TO BE COMPATIBLE WITH MATERIAL_UI
-TextTheme _nunitoTextTheme(TextTheme textTheme) {
+TextTheme _outfitTextTheme(TextTheme textTheme) {
   return TextTheme(
-    displayLarge: GoogleFonts.nunitoSans(textStyle: textTheme.displayLarge),
-    displayMedium: GoogleFonts.nunitoSans(textStyle: textTheme.displayMedium),
-    displaySmall: GoogleFonts.nunitoSans(textStyle: textTheme.displaySmall),
-    headlineLarge: GoogleFonts.nunitoSans(textStyle: textTheme.headlineLarge),
-    headlineMedium: GoogleFonts.nunitoSans(textStyle: textTheme.headlineMedium),
-    headlineSmall: GoogleFonts.nunitoSans(textStyle: textTheme.headlineSmall),
-    titleLarge: GoogleFonts.nunitoSans(textStyle: textTheme.titleLarge),
-    titleMedium: GoogleFonts.nunitoSans(textStyle: textTheme.titleMedium),
-    titleSmall: GoogleFonts.nunitoSans(textStyle: textTheme.titleSmall),
-    bodyLarge: GoogleFonts.nunitoSans(textStyle: textTheme.bodyLarge),
-    bodyMedium: GoogleFonts.nunitoSans(textStyle: textTheme.bodyMedium),
-    bodySmall: GoogleFonts.nunitoSans(textStyle: textTheme.bodySmall),
-    labelLarge: GoogleFonts.nunitoSans(textStyle: textTheme.labelLarge),
-    labelMedium: GoogleFonts.nunitoSans(textStyle: textTheme.labelMedium),
-    labelSmall: GoogleFonts.nunitoSans(textStyle: textTheme.labelSmall),
+    displayLarge: GoogleFonts.outfit(textStyle: textTheme.displayLarge),
+    displayMedium: GoogleFonts.outfit(textStyle: textTheme.displayMedium),
+    displaySmall: GoogleFonts.outfit(textStyle: textTheme.displaySmall),
+    headlineLarge: GoogleFonts.outfit(textStyle: textTheme.headlineLarge),
+    headlineMedium: GoogleFonts.outfit(textStyle: textTheme.headlineMedium),
+    headlineSmall: GoogleFonts.outfit(textStyle: textTheme.headlineSmall),
+    titleLarge: GoogleFonts.outfit(textStyle: textTheme.titleLarge),
+    titleMedium: GoogleFonts.outfit(textStyle: textTheme.titleMedium),
+    titleSmall: GoogleFonts.outfit(textStyle: textTheme.titleSmall),
+    bodyLarge: GoogleFonts.outfit(textStyle: textTheme.bodyLarge),
+    bodyMedium: GoogleFonts.outfit(textStyle: textTheme.bodyMedium),
+    bodySmall: GoogleFonts.outfit(textStyle: textTheme.bodySmall),
+    labelLarge: GoogleFonts.outfit(textStyle: textTheme.labelLarge),
+    labelMedium: GoogleFonts.outfit(textStyle: textTheme.labelMedium),
+    labelSmall: GoogleFonts.outfit(textStyle: textTheme.labelSmall),
   );
 }
 
