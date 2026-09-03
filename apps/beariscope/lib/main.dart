@@ -46,7 +46,6 @@ import 'package:services/providers/permissions_provider.dart';
 import 'package:services/release/release_info.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ui/ui.dart';
-import 'package:beariscope/pages/match_lookup/match_lookup_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -365,9 +364,8 @@ class _BeariscopeState extends ConsumerState<Beariscope> {
           darkTheme: _createTheme(Brightness.dark, accentColor),
           themeMode: themeMode,
           debugShowCheckedModeBanner: false,
-          builder: (context, child) => FlutterMaterialScope(
-            child: child ?? const SizedBox.shrink(),
-          ),
+          builder: (context, child) =>
+              FlutterMaterialScope(child: child ?? const SizedBox.shrink()),
         );
       },
     );

@@ -26,12 +26,10 @@ class FlutterWebAuthBackend implements AuthBackend {
   AuthUser? _user;
 
   FlutterWebAuthBackend({
-    required TokenStorage storage,
-    required Auth0Config config,
-    required String redirectUri,
-  }) : _storage = storage,
-       _config = config,
-       _redirectUri = redirectUri;
+    required this._storage,
+    required this._config,
+    required this._redirectUri,
+  });
 
   // ---------------------------------------------------------------------------
   // AuthBackend
@@ -297,8 +295,7 @@ class FlutterWebAuthBackend implements AuthBackend {
   }
 
   String _codeChallenge(String verifier) {
-    return base64UrlEncode(
-      sha256.convert(utf8.encode(verifier)).bytes,
-    ).replaceAll('=', '');
+    return base64UrlEncode(sha256.convert(utf8.encode(verifier)).bytes)
+        .replaceAll('=', '');
   }
 }

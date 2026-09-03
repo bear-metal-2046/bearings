@@ -23,8 +23,7 @@ import 'package:services/providers/api_provider.dart';
 
 final collectedTeamsProvider = StateProvider<List<String>>((ref) => []);
 final isDraggingProvider = StateProvider<bool>((ref) => false);
-final picklistSheetHoverHapticPlayedProvider =
-StateProvider<bool>((ref) => false);
+final picklistSheetHoverHapticPlayedProvider = StateProvider<bool>((ref) => false);
 final picklistSheetHeaderOnlyProvider = StateProvider<bool>((ref) => true);
 
 enum PicklistSheetState { hidden, dragging, collapsed, expanded }
@@ -37,10 +36,7 @@ class PicklistSheetConfig {
   final double height;
   final bool raiseSearchBar;
 
-  const PicklistSheetConfig({
-    required this.height,
-    required this.raiseSearchBar,
-  });
+  const PicklistSheetConfig({required this.height, required this.raiseSearchBar});
 }
 
 PicklistSheetConfig picklistSheetConfigForState(PicklistSheetState state) {
@@ -63,10 +59,8 @@ class TeamLookupPage extends ConsumerStatefulWidget {
   ConsumerState<TeamLookupPage> createState() => _TeamLookupPageState();
 }
 
-class _TeamLookupPageState extends ConsumerState<TeamLookupPage>
-    with SingleTickerProviderStateMixin {
-  final ValueNotifier<double> _sheetHeightNotifier =
-  ValueNotifier<double>(0);
+class _TeamLookupPageState extends ConsumerState<TeamLookupPage> with SingleTickerProviderStateMixin {
+  final ValueNotifier<double> _sheetHeightNotifier = ValueNotifier<double>(0);
 
   late final AnimationController _sheetAnimationController;
   late Animation<double> _sheetHeightAnimation;
@@ -80,20 +74,12 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage>
   void initState() {
     super.initState();
 
-    _sheetAnimationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 350),
-    );
+    _sheetAnimationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 350));
 
     _sheetHeightAnimation = Tween<double>(
       begin: 0,
       end: 0,
-    ).animate(
-      CurvedAnimation(
-        parent: _sheetAnimationController,
-        curve: Curves.easeOutCirc,
-      ),
-    );
+    ).animate(CurvedAnimation(parent: _sheetAnimationController, curve: Curves.easeOutCirc));
 
     _sheetAnimationController.addListener(() {
       if (!_isUserDraggingSheet) {
@@ -101,16 +87,13 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage>
       }
     });
 
-    ref.listenManual<PicklistSheetState>(
-      picklistSheetStateProvider,
-          (_, next) {
-        if (_isUserDraggingSheet) {
-          return;
-        }
+    ref.listenManual<PicklistSheetState>(picklistSheetStateProvider, (_, next) {
+      if (_isUserDraggingSheet) {
+        return;
+      }
 
-        _animateToState(next);
-      },
-    );
+      _animateToState(next);
+    });
   }
 
   @override
@@ -118,15 +101,13 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage>
     super.didChangeDependencies();
 
     final currentState = ref.read(picklistSheetStateProvider);
-    if (currentState == PicklistSheetState.hidden ||
-        _isUserDraggingSheet) {
+    if (currentState == PicklistSheetState.hidden || _isUserDraggingSheet) {
       return;
     }
 
     final double targetHeight = switch (currentState) {
       PicklistSheetState.collapsed =>
-      picklistSheetConfigForState(currentState).height +
-          MediaQuery.of(context).padding.bottom,
+        picklistSheetConfigForState(currentState).height + MediaQuery.of(context).padding.bottom,
       PicklistSheetState.expanded => _sheetMaxHeight,
       _ => 0,
     };
@@ -144,9 +125,7 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage>
 
   void _animateToState(PicklistSheetState state) {
     final targetHeight = switch (state) {
-      PicklistSheetState.collapsed =>
-      picklistSheetConfigForState(state).height +
-          MediaQuery.of(context).padding.bottom,
+      PicklistSheetState.collapsed => picklistSheetConfigForState(state).height + MediaQuery.of(context).padding.bottom,
       PicklistSheetState.expanded => _sheetMaxHeight,
       _ => picklistSheetConfigForState(state).height,
     };
@@ -154,12 +133,7 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage>
     _sheetHeightAnimation = Tween<double>(
       begin: _sheetHeightNotifier.value,
       end: targetHeight,
-    ).animate(
-      CurvedAnimation(
-        parent: _sheetAnimationController,
-        curve: Curves.easeOutCirc,
-      ),
-    );
+    ).animate(CurvedAnimation(parent: _sheetAnimationController, curve: Curves.easeOutCirc));
 
     _sheetAnimationController
       ..reset()
@@ -167,17 +141,12 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage>
   }
 
   void _snapSheet({required double velocity}) {
-    final collapsedHeight =
-        picklistSheetConfigForState(PicklistSheetState.collapsed).height;
+    final collapsedHeight = picklistSheetConfigForState(PicklistSheetState.collapsed).height;
     final midpoint = (collapsedHeight + _sheetMaxHeight) / 2;
 
     final targetState = velocity.abs() > 150
-        ? (velocity < 0
-        ? PicklistSheetState.expanded
-        : PicklistSheetState.collapsed)
-        : (_sheetHeightNotifier.value >= midpoint
-        ? PicklistSheetState.expanded
-        : PicklistSheetState.collapsed);
+        ? (velocity < 0 ? PicklistSheetState.expanded : PicklistSheetState.collapsed)
+        : (_sheetHeightNotifier.value >= midpoint ? PicklistSheetState.expanded : PicklistSheetState.collapsed);
 
     final currentState = ref.read(picklistSheetStateProvider);
 
@@ -213,20 +182,13 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage>
       _ => const <int, TeamRanking>{},
     };
 
-    bool isAscending =
-    ref.read(teamSortProvider.notifier).getIsAscending();
+    bool isAscending = ref.read(teamSortProvider.notifier).getIsAscending();
 
     Future<void> onRefresh() async {
       final client = ref.read(honeycombClientProvider);
 
-      client.invalidateCache(
-        '/teams',
-        queryParams: {'event': selectedEvent},
-      );
-      client.invalidateCache(
-        '/rankings',
-        queryParams: {'event': selectedEvent},
-      );
+      client.invalidateCache('/teams', queryParams: {'event': selectedEvent});
+      client.invalidateCache('/rankings', queryParams: {'event': selectedEvent});
       client.invalidateCache('/event/$selectedEvent/team_media');
 
       ref.invalidate(teamsProvider);
@@ -248,27 +210,14 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage>
       builder: (context, constraints) {
         final isWide = constraints.maxWidth > 1000;
         final picklistSheetState = ref.watch(picklistSheetStateProvider);
-        final collapsedHeight =
-            picklistSheetConfigForState(
-              PicklistSheetState.collapsed,
-            ).height;
-        final expandedHeight =
-            picklistSheetConfigForState(
-              PicklistSheetState.expanded,
-            ).height;
+        final collapsedHeight = picklistSheetConfigForState(PicklistSheetState.collapsed).height;
+        final expandedHeight = picklistSheetConfigForState(PicklistSheetState.expanded).height;
 
-        _sheetMaxHeight = math.min(
-          expandedHeight,
-          constraints.maxHeight - kToolbarHeight - 24,
-        );
+        _sheetMaxHeight = math.min(expandedHeight, constraints.maxHeight - kToolbarHeight - 24);
 
         final double searchBarBottom = isWide
             ? 8
-            : (picklistSheetConfigForState(
-          picklistSheetState,
-        ).raiseSearchBar
-            ? collapsedHeight + 8
-            : 8);
+            : (picklistSheetConfigForState(picklistSheetState).raiseSearchBar ? collapsedHeight + 8 : 8);
 
         final double targetSidebarWidth = switch (picklistSheetState) {
           PicklistSheetState.hidden => 0.0,
@@ -280,46 +229,32 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage>
             title: const Text('Teams'),
             leading: controller.isDesktop
                 ? null
-                : IconButton(
-              icon: const Icon(LucideIcons.menu),
-              onPressed: controller.openDrawer,
-            ),
+                : IconButton(icon: const Icon(LucideIcons.menu), onPressed: controller.openDrawer),
             actions: [
               PopupMenuButton<TeamSortOptions>(
-                icon: Icon(
-                  isAscending
-                      ? LucideIcons.arrowUpNarrowWide
-                      : LucideIcons.arrowDownWideNarrow,
-                ),
+                icon: Icon(isAscending ? LucideIcons.arrowUpNarrowWide : LucideIcons.arrowDownWideNarrow),
                 tooltip: 'Sort',
                 itemBuilder: (context) => TeamSortOptions.values
                     .map(
                       (sort) => CheckedPopupMenuItem<TeamSortOptions>(
-                    value: sort,
-                    checked: selectedSort.sort == sort,
-                    child: Row(
-                      children: [
-                        Text(sort.label),
-                        if (selectedSort.sort == sort)
-                          Icon(
-                            isAscending
-                                ? Icons.arrow_drop_up
-                                : Icons.arrow_drop_down,
-                          ),
-                      ],
-                    ),
-                  ),
-                )
+                        value: sort,
+                        checked: selectedSort.sort == sort,
+                        child: Row(
+                          children: [
+                            Text(sort.label),
+                            if (selectedSort.sort == sort)
+                              Icon(isAscending ? Icons.arrow_drop_up : Icons.arrow_drop_down),
+                          ],
+                        ),
+                      ),
+                    )
                     .toList(),
                 onSelected: (TeamSortOptions newSort) {
-                  if (ref.read(teamSortProvider.notifier).getSort() ==
-                      newSort) {
+                  if (ref.read(teamSortProvider.notifier).getSort() == newSort) {
                     isAscending = !isAscending;
                   }
 
-                  ref
-                      .read(teamSortProvider.notifier)
-                      .setSort(newSort, isAscending);
+                  ref.read(teamSortProvider.notifier).setSort(newSort, isAscending);
 
                   setState(() {});
                 },
@@ -329,33 +264,26 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage>
           body: Stack(
             children: [
               teamsAsync.when(
-                loading: () =>
-                const Center(child: CircularProgressIndicator()),
-                error: (error, stack) =>
-                    Center(child: Text('Error: $error')),
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (error, stack) => Center(child: Text('Error: $error')),
                 data: (teams) {
-                  final collectedTeams =
-                  ref.watch(collectedTeamsProvider);
+                  final collectedTeams = ref.watch(collectedTeamsProvider);
 
-                  final teamList = teams
-                      .whereType<Map<String, dynamic>>()
-                      .map((json) => Team.fromJson(json))
-                      .toList();
+                  final teamList = teams.whereType<Map<String, dynamic>>().map((json) => Team.fromJson(json)).toList();
 
-                  final searchTerm =
-                  searchTermTEC.text.trim().toLowerCase();
+                  final searchTerm = searchTermTEC.text.trim().toLowerCase();
 
                   var filteredTeams = searchTerm.isEmpty
                       ? teamList
                       : teamList.where((team) {
-                    final teamName = team.name.toLowerCase();
-                    final teamNumber = team.number.toString();
-                    final teamKey = team.key.toLowerCase();
+                          final teamName = team.name.toLowerCase();
+                          final teamNumber = team.number.toString();
+                          final teamKey = team.key.toLowerCase();
 
-                    return teamName.contains(searchTerm) ||
-                        teamNumber.contains(searchTerm) ||
-                        teamKey.contains(searchTerm);
-                  }).toList();
+                          return teamName.contains(searchTerm) ||
+                              teamNumber.contains(searchTerm) ||
+                              teamKey.contains(searchTerm);
+                        }).toList();
 
                   filteredTeams = List.of(filteredTeams);
 
@@ -366,19 +294,13 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage>
 
                     if (value is String) {
                       final lower = value.toLowerCase();
-                      return lower == 'true' ||
-                          lower == '1' ||
-                          lower == 'y';
+                      return lower == 'true' || lower == '1' || lower == 'y';
                     }
 
                     return false;
                   }
 
-                  (
-                  int defenseCount,
-                  int noShowCount,
-                  int breakdownCount
-                  ) getTeamStats(TeamScoutingBundle bundle) {
+                  (int defenseCount, int noShowCount, int breakdownCount) getTeamStats(TeamScoutingBundle bundle) {
                     int defenseCount = 0;
                     int noShowCount = 0;
                     int breakdownCount = 0;
@@ -386,77 +308,41 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage>
                     for (final doc in bundle.matchDocs) {
                       final playedDefense =
                           parseSafetyBool(
-                            TeamScoutingBundle.getMatchField(
-                              doc.raw,
-                              kSectionEndgame,
-                              kEndPlayedDefenseOffShift,
-                            ),
+                            TeamScoutingBundle.getMatchField(doc.raw, kSectionEndgame, kEndPlayedDefenseOffShift),
                           ) ||
-                              parseSafetyBool(
-                                TeamScoutingBundle.getMatchField(
-                                  doc.raw,
-                                  kSectionEndgame,
-                                  kEndPlayedDefenseOnShift,
-                                ),
-                              );
+                          parseSafetyBool(
+                            TeamScoutingBundle.getMatchField(doc.raw, kSectionEndgame, kEndPlayedDefenseOnShift),
+                          );
 
                       final noShow = parseSafetyBool(
-                        TeamScoutingBundle.getMatchField(
-                          doc.raw,
-                          kSectionEndgame,
-                          kEndNoShow,
-                        ),
+                        TeamScoutingBundle.getMatchField(doc.raw, kSectionEndgame, kEndNoShow),
                       );
 
                       final brokeDown =
                           parseSafetyBool(
-                            TeamScoutingBundle.getMatchField(
-                              doc.raw,
-                              kSectionTele,
-                              kTeleStoppedWorking,
-                            ),
+                            TeamScoutingBundle.getMatchField(doc.raw, kSectionTele, kTeleStoppedWorking),
                           ) ||
-                              parseSafetyBool(
-                                TeamScoutingBundle.getMatchField(
-                                  doc.raw,
-                                  kSectionTele,
-                                  kTeleLostComms,
-                                ),
-                              );
+                          parseSafetyBool(TeamScoutingBundle.getMatchField(doc.raw, kSectionTele, kTeleLostComms));
 
                       if (playedDefense) defenseCount++;
                       if (noShow) noShowCount++;
                       if (brokeDown) breakdownCount++;
                     }
 
-                    return (
-                    defenseCount,
-                    noShowCount,
-                    breakdownCount,
-                    );
+                    return (defenseCount, noShowCount, breakdownCount);
                   }
 
                   final customSortScores = <int, double>{};
-                  final safetyStats = <
-                      int,
-                      (int, int, int)
-                  >{};
+                  final safetyStats = <int, (int, int, int)>{};
 
                   for (final team in filteredTeams) {
-                    final bundleAsync =
-                    ref.watch(teamScoutingProvider(team.number));
+                    final bundleAsync = ref.watch(teamScoutingProvider(team.number));
 
                     if (selectedSort.sort == TeamSortOptions.custom) {
                       customSortScores[team.number] = bundleAsync.when(
                         data: (bundle) =>
-                        bundle.avgMatchField(
-                          kSectionTele,
-                          kTeleFuelScored,
-                        ) +
-                            bundle.avgMatchField(
-                              kSectionAuto,
-                              kAutoFuelScored,
-                            ),
+                            bundle.avgMatchField(kSectionTele, kTeleFuelScored) +
+                            bundle.avgMatchField(kSectionAuto, kAutoFuelScored),
                         error: (_, _) => 0,
                         loading: () => 0,
                       );
@@ -464,8 +350,7 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage>
 
                     if (selectedSort.sort == TeamSortOptions.defense ||
                         selectedSort.sort == TeamSortOptions.noShow ||
-                        selectedSort.sort ==
-                            TeamSortOptions.brokeDown) {
+                        selectedSort.sort == TeamSortOptions.brokeDown) {
                       safetyStats[team.number] = bundleAsync.when(
                         data: getTeamStats,
                         error: (_, _) => (0, 0, 0),
@@ -477,22 +362,16 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage>
                   switch (selectedSort.sort) {
                     case TeamSortOptions.teamNumber:
                       if (isAscending) {
-                        filteredTeams.sort(
-                              (a, b) => a.number.compareTo(b.number),
-                        );
+                        filteredTeams.sort((a, b) => a.number.compareTo(b.number));
                       } else {
-                        filteredTeams.sort(
-                              (a, b) => b.number.compareTo(a.number),
-                        );
+                        filteredTeams.sort((a, b) => b.number.compareTo(a.number));
                       }
 
                     case TeamSortOptions.rank:
                       if (isAscending) {
                         filteredTeams.sort((a, b) {
-                          final rankA =
-                              rankings[a.number]?.rank ?? 999999;
-                          final rankB =
-                              rankings[b.number]?.rank ?? 999999;
+                          final rankA = rankings[a.number]?.rank ?? 999999;
+                          final rankB = rankings[b.number]?.rank ?? 999999;
                           return rankA.compareTo(rankB);
                         });
                       } else {
@@ -505,50 +384,34 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage>
 
                     case TeamSortOptions.custom:
                       filteredTeams.sort((a, b) {
-                        final scoreA =
-                            customSortScores[a.number] ?? 0;
-                        final scoreB =
-                            customSortScores[b.number] ?? 0;
+                        final scoreA = customSortScores[a.number] ?? 0;
+                        final scoreB = customSortScores[b.number] ?? 0;
 
-                        return isAscending
-                            ? scoreA.compareTo(scoreB)
-                            : scoreB.compareTo(scoreA);
+                        return isAscending ? scoreA.compareTo(scoreB) : scoreB.compareTo(scoreA);
                       });
 
                     case TeamSortOptions.defense:
                       filteredTeams.sort((a, b) {
-                        final statsA =
-                            safetyStats[a.number] ?? (0, 0, 0);
-                        final statsB =
-                            safetyStats[b.number] ?? (0, 0, 0);
+                        final statsA = safetyStats[a.number] ?? (0, 0, 0);
+                        final statsB = safetyStats[b.number] ?? (0, 0, 0);
 
-                        return isAscending
-                            ? statsA.$1.compareTo(statsB.$1)
-                            : statsB.$1.compareTo(statsA.$1);
+                        return isAscending ? statsA.$1.compareTo(statsB.$1) : statsB.$1.compareTo(statsA.$1);
                       });
 
                     case TeamSortOptions.noShow:
                       filteredTeams.sort((a, b) {
-                        final statsA =
-                            safetyStats[a.number] ?? (0, 0, 0);
-                        final statsB =
-                            safetyStats[b.number] ?? (0, 0, 0);
+                        final statsA = safetyStats[a.number] ?? (0, 0, 0);
+                        final statsB = safetyStats[b.number] ?? (0, 0, 0);
 
-                        return isAscending
-                            ? statsA.$2.compareTo(statsB.$2)
-                            : statsB.$2.compareTo(statsA.$2);
+                        return isAscending ? statsA.$2.compareTo(statsB.$2) : statsB.$2.compareTo(statsA.$2);
                       });
 
                     case TeamSortOptions.brokeDown:
                       filteredTeams.sort((a, b) {
-                        final statsA =
-                            safetyStats[a.number] ?? (0, 0, 0);
-                        final statsB =
-                            safetyStats[b.number] ?? (0, 0, 0);
+                        final statsA = safetyStats[a.number] ?? (0, 0, 0);
+                        final statsB = safetyStats[b.number] ?? (0, 0, 0);
 
-                        return isAscending
-                            ? statsA.$3.compareTo(statsB.$3)
-                            : statsB.$3.compareTo(statsA.$3);
+                        return isAscending ? statsA.$3.compareTo(statsB.$3) : statsB.$3.compareTo(statsA.$3);
                       });
                   }
 
@@ -559,71 +422,41 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage>
                   return RefreshIndicator(
                     onRefresh: onRefresh,
                     child: BeariscopeCardList(
-                      padding: const EdgeInsets.fromLTRB(
-                        16,
-                        16,
-                        16,
-                        120,
-                      ),
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
                       children: filteredTeams.map((team) {
-                        final isCollected =
-                        collectedTeams.contains(team.key);
+                        final isCollected = collectedTeams.contains(team.key);
 
                         return LongPressDraggable<String>(
                           data: team.key,
-                          maxSimultaneousDrags:
-                          isCollected ? 0 : null,
+                          maxSimultaneousDrags: isCollected ? 0 : null,
                           onDragStarted: () {
                             HapticFeedback.selectionClick();
 
-                            ref
-                                .read(isDraggingProvider.notifier)
-                                .state = true;
+                            ref.read(isDraggingProvider.notifier).state = true;
 
-                            ref
-                                .read(
-                              picklistSheetStateProvider.notifier,
-                            )
-                                .state = PicklistSheetState.dragging;
+                            ref.read(picklistSheetStateProvider.notifier).state = PicklistSheetState.dragging;
                           },
                           onDragEnd: (_) {
-                            ref
-                                .read(isDraggingProvider.notifier)
-                                .state = false;
+                            ref.read(isDraggingProvider.notifier).state = false;
 
-                            final currentTeams =
-                            ref.read(collectedTeamsProvider);
+                            final currentTeams = ref.read(collectedTeamsProvider);
 
-                            ref
-                                .read(
-                              picklistSheetStateProvider.notifier,
-                            )
-                                .state =
-                            currentTeams.isEmpty
+                            ref.read(picklistSheetStateProvider.notifier).state = currentTeams.isEmpty
                                 ? PicklistSheetState.hidden
                                 : PicklistSheetState.collapsed;
                           },
                           feedback: SizedBox(
-                            width: math.min(
-                              constraints.maxWidth - 32,
-                              600,
-                            ),
+                            width: math.min(constraints.maxWidth - 32, 600),
                             child: Transform.rotate(
                               angle: 0.05,
                               child: Material(
                                 elevation: 16,
                                 color: Colors.transparent,
-                                child: Opacity(
-                                  opacity: 0.95,
-                                  child: TeamCard(teamKey: team.key),
-                                ),
+                                child: Opacity(opacity: 0.95, child: TeamCard(teamKey: team.key)),
                               ),
                             ),
                           ),
-                          childWhenDragging: Opacity(
-                            opacity: 0.5,
-                            child: TeamCard(teamKey: team.key),
-                          ),
+                          childWhenDragging: Opacity(opacity: 0.5, child: TeamCard(teamKey: team.key)),
                           child: Opacity(
                             opacity: isCollected ? 0.5 : 1,
                             child: TeamCard(teamKey: team.key),
@@ -652,20 +485,18 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage>
                       focusNode: searchFocusNode,
                       controller: searchTermTEC,
                       hintText: 'Team name or number',
-                      padding: const WidgetStatePropertyAll<EdgeInsets>(
-                      EdgeInsets.symmetric(horizontal: 16.0),
-                      ),
+                      padding: const WidgetStatePropertyAll<EdgeInsets>(EdgeInsets.symmetric(horizontal: 16.0)),
                       leading: const Icon(LucideIcons.search),
                       trailing: searchTermTEC.text.isNotEmpty
                           ? [
-                        IconButton(
-                          icon: const Icon(LucideIcons.x),
-                          onPressed: () {
-                            searchTermTEC.clear();
-                            setState(() {});
-                          },
-                        ),
-                      ]
+                              IconButton(
+                                icon: const Icon(LucideIcons.x),
+                                onPressed: () {
+                                  searchTermTEC.clear();
+                                  setState(() {});
+                                },
+                              ),
+                            ]
                           : null,
                       onChanged: (_) {
                         setState(() {});
@@ -690,56 +521,36 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage>
                       child: GestureDetector(
                         behavior: HitTestBehavior.translucent,
                         onVerticalDragStart:
-                        picklistSheetState ==
-                            PicklistSheetState.collapsed ||
-                            picklistSheetState ==
-                                PicklistSheetState.expanded
+                            picklistSheetState == PicklistSheetState.collapsed ||
+                                picklistSheetState == PicklistSheetState.expanded
                             ? (_) {
-                          _isUserDraggingSheet = true;
-                          _sheetAnimationController.stop();
-                        }
+                                _isUserDraggingSheet = true;
+                                _sheetAnimationController.stop();
+                              }
                             : null,
                         onVerticalDragUpdate:
-                        picklistSheetState ==
-                            PicklistSheetState.collapsed ||
-                            picklistSheetState ==
-                                PicklistSheetState.expanded
+                            picklistSheetState == PicklistSheetState.collapsed ||
+                                picklistSheetState == PicklistSheetState.expanded
                             ? (details) {
-                          _sheetHeightNotifier.value =
-                              (_sheetHeightNotifier.value -
-                                  details.delta.dy)
-                                  .clamp(
-                                collapsedHeight,
-                                _sheetMaxHeight,
-                              )
-                                  .toDouble();
-                        }
+                                _sheetHeightNotifier.value = (_sheetHeightNotifier.value - details.delta.dy)
+                                    .clamp(collapsedHeight, _sheetMaxHeight)
+                                    .toDouble();
+                              }
                             : null,
                         onVerticalDragEnd:
-                        picklistSheetState ==
-                            PicklistSheetState.collapsed ||
-                            picklistSheetState ==
-                                PicklistSheetState.expanded
+                            picklistSheetState == PicklistSheetState.collapsed ||
+                                picklistSheetState == PicklistSheetState.expanded
                             ? (details) {
-                          _isUserDraggingSheet = false;
-                          _snapSheet(
-                            velocity:
-                            details.primaryVelocity ?? 0,
-                          );
-                        }
+                                _isUserDraggingSheet = false;
+                                _snapSheet(velocity: details.primaryVelocity ?? 0);
+                              }
                             : null,
                         child: TeamPicklistSheet(
                           state: picklistSheetState,
-                          expanded: math.min(
-                            sheetHeight,
-                            _sheetMaxHeight,
-                          ) >
-                              picklistSheetConfigForState(
-                                PicklistSheetState.collapsed,
-                              ).height +
-                                  MediaQuery.of(context)
-                                      .padding
-                                      .bottom +
+                          expanded:
+                              math.min(sheetHeight, _sheetMaxHeight) >
+                              picklistSheetConfigForState(PicklistSheetState.collapsed).height +
+                                  MediaQuery.of(context).padding.bottom +
                                   2,
                         ),
                       ),
@@ -761,11 +572,10 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage>
                 child: targetSidebarWidth == 0
                     ? const SizedBox.shrink()
                     : TeamPicklistSheet(
-                  state: picklistSheetState,
-                  expanded: picklistSheetState !=
-                      PicklistSheetState.dragging,
-                  isSidebar: true,
-                ),
+                        state: picklistSheetState,
+                        expanded: picklistSheetState != PicklistSheetState.dragging,
+                        isSidebar: true,
+                      ),
               ),
             ],
           );
@@ -782,30 +592,20 @@ class TeamPicklistSheet extends ConsumerStatefulWidget {
   final bool expanded;
   final bool isSidebar;
 
-  const TeamPicklistSheet({
-    super.key,
-    required this.state,
-    required this.expanded,
-    this.isSidebar = false,
-  });
+  const TeamPicklistSheet({super.key, required this.state, required this.expanded, this.isSidebar = false});
 
   @override
-  ConsumerState<TeamPicklistSheet> createState() =>
-      _TeamPicklistSheetState();
+  ConsumerState<TeamPicklistSheet> createState() => _TeamPicklistSheetState();
 }
 
-class _TeamPicklistSheetState
-    extends ConsumerState<TeamPicklistSheet> {
+class _TeamPicklistSheetState extends ConsumerState<TeamPicklistSheet> {
   bool _lastReached = false;
   bool _showCopyCheck = false;
   Timer? _copyIconResetTimer;
 
   void _handleCopyTeamNumbers(List<String> collectedTeams) {
     final teamNumbers = collectedTeams
-        .map(
-          (teamKey) =>
-      RegExp(r'\d+').firstMatch(teamKey)?.group(0) ?? teamKey,
-    )
+        .map((teamKey) => RegExp(r'\d+').firstMatch(teamKey)?.group(0) ?? teamKey)
         .join(',');
 
     Clipboard.setData(ClipboardData(text: teamNumbers));
@@ -842,14 +642,10 @@ class _TeamPicklistSheetState
         loading: () => teamKey,
         error: (_, _) => teamKey,
         data: (teams) {
-          final teamList = teams
-              .whereType<Map<String, dynamic>>()
-              .map((json) => Team.fromJson(json))
-              .toList();
+          final teamList = teams.whereType<Map<String, dynamic>>().map((json) => Team.fromJson(json)).toList();
 
           for (final team in teamList) {
-            if (team.key == teamKey ||
-                team.number.toString() == teamKey) {
+            if (team.key == teamKey || team.number.toString() == teamKey) {
               return '${team.name} (${team.number})';
             }
           }
@@ -869,14 +665,10 @@ class _TeamPicklistSheetState
 
         HapticFeedback.selectionClick();
 
-        ref
-            .read(picklistSheetHoverHapticPlayedProvider.notifier)
-            .state = true;
+        ref.read(picklistSheetHoverHapticPlayedProvider.notifier).state = true;
       },
       onLeave: (data) {
-        ref
-            .read(picklistSheetHoverHapticPlayedProvider.notifier)
-            .state = false;
+        ref.read(picklistSheetHoverHapticPlayedProvider.notifier).state = false;
       },
       onAcceptWithDetails: (details) {
         final teamKey = details.data;
@@ -885,18 +677,11 @@ class _TeamPicklistSheetState
         if (!currentList.contains(teamKey)) {
           HapticFeedback.mediumImpact();
 
-          ref.read(collectedTeamsProvider.notifier).state = [
-            ...currentList,
-            teamKey,
-          ];
+          ref.read(collectedTeamsProvider.notifier).state = [...currentList, teamKey];
 
-          ref
-              .read(picklistSheetHoverHapticPlayedProvider.notifier)
-              .state = false;
+          ref.read(picklistSheetHoverHapticPlayedProvider.notifier).state = false;
 
-          ref
-              .read(picklistSheetStateProvider.notifier)
-              .state = PicklistSheetState.collapsed;
+          ref.read(picklistSheetStateProvider.notifier).state = PicklistSheetState.collapsed;
         }
       },
       builder: (context, candidateData, rejectedData) {
@@ -906,24 +691,16 @@ class _TeamPicklistSheetState
           duration: const Duration(milliseconds: 150),
           curve: Curves.easeInOut,
           decoration: BoxDecoration(
-            color: isHovering
-                ? theme.colorScheme.primaryContainer
-                : theme.colorScheme.surfaceContainerLow,
+            color: isHovering ? theme.colorScheme.primaryContainer : theme.colorScheme.surfaceContainerLow,
             borderRadius: widget.isSidebar
-                ? const BorderRadius.horizontal(
-              left: Radius.circular(16),
-            )
-                : const BorderRadius.vertical(
-              top: Radius.circular(16),
-            ),
+                ? const BorderRadius.horizontal(left: Radius.circular(16))
+                : const BorderRadius.vertical(top: Radius.circular(16)),
             boxShadow: [
               BoxShadow(
                 color: theme.colorScheme.shadow.withValues(alpha: 0.1),
                 blurRadius: 20,
                 spreadRadius: 5,
-                offset: widget.isSidebar
-                    ? const Offset(-5, 0)
-                    : const Offset(0, -5),
+                offset: widget.isSidebar ? const Offset(-5, 0) : const Offset(0, -5),
               ),
             ],
           ),
@@ -931,444 +708,297 @@ class _TeamPicklistSheetState
             duration: const Duration(milliseconds: 250),
             child: isDragging
                 ? Stack(
-              fit: StackFit.expand,
-              alignment: AlignmentGeometry.center,
-              children: [
-                Positioned(
-                  top: 12,
-                  child: Container(
-                    height: 4,
-                    width: 32,
-                    decoration: BoxDecoration(
-                      color: widget.isSidebar
-                          ? Colors.transparent
-                          : theme.colorScheme.onSurfaceVariant,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      LucideIcons.arrowDownToLine,
-                      color: theme.colorScheme.primary,
-                      size: 32,
-                    ),
-                    const SizedBox(height: 8),
-                    Flexible(
-                      child: Text(
-                        collectedTeams.isEmpty
-                            ? 'Drop to start a picklist'
-                            : 'Drop to add below ${describeTeam(collectedTeams.last)}',
-                        textAlign: TextAlign.center,
-                        softWrap: true,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          color: theme.colorScheme.primary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            )
-                : Column(
-              children: [
-                SizedBox(
-                  height: 72,
-                  child: Stack(
+                    fit: StackFit.expand,
                     alignment: AlignmentGeometry.center,
                     children: [
                       Positioned(
-                        top: 0,
-                        child: GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTap: widget.isSidebar
-                              ? null
-                              : () {
-                            final currentState = ref.read(
-                              picklistSheetStateProvider,
-                            );
-
-                            if (currentState ==
-                                PicklistSheetState.hidden ||
-                                currentState ==
-                                    PicklistSheetState.dragging) {
-                              return;
-                            }
-
-                            HapticFeedback.lightImpact();
-
-                            ref
-                                .read(
-                              picklistSheetStateProvider
-                                  .notifier,
-                            )
-                                .state =
-                            currentState ==
-                                PicklistSheetState.expanded
-                                ? PicklistSheetState.collapsed
-                                : PicklistSheetState.expanded;
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.all(12.0),
-                            child: Container(
-                              height: 4,
-                              width: 32,
-                              decoration: BoxDecoration(
-                                color: widget.isSidebar
-                                    ? Colors.transparent
-                                    : theme.colorScheme.onSurfaceVariant,
-                                borderRadius: BorderRadius.circular(2),
-                              ),
-                            ),
+                        top: 12,
+                        child: Container(
+                          height: 4,
+                          width: 32,
+                          decoration: BoxDecoration(
+                            color: widget.isSidebar ? Colors.transparent : theme.colorScheme.onSurfaceVariant,
+                            borderRadius: BorderRadius.circular(2),
                           ),
                         ),
                       ),
-                      Positioned(
-                        left: 16,
-                        child: Row(
-                          children: [
-                            Container(
-                              height: 32,
-                              width: 32,
-                              decoration: BoxDecoration(
-                                color:
-                                theme.colorScheme.primaryContainer,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Icon(
-                                LucideIcons.listOrdered,
-                                size: 20,
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(LucideIcons.arrowDownToLine, color: theme.colorScheme.primary, size: 32),
+                          const SizedBox(height: 8),
+                          Flexible(
+                            child: Text(
+                              collectedTeams.isEmpty
+                                  ? 'Drop to start a picklist'
+                                  : 'Drop to add below ${describeTeam(collectedTeams.last)}',
+                              textAlign: TextAlign.center,
+                              softWrap: true,
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                color: theme.colorScheme.primary,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            Column(
-                              crossAxisAlignment:
-                              CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Picklist',
-                                  style: theme.textTheme.titleMedium,
-                                ),
-                                Text(
-                                  '${collectedTeams.length} team${collectedTeams.length == 1 ? '' : 's'}',
-                                  style: theme.textTheme.bodyMedium
-                                      ?.copyWith(
-                                    color: theme
-                                        .colorScheme.onSurfaceVariant,
+                          ),
+                        ],
+                      ),
+                    ],
+                  )
+                : Column(
+                    children: [
+                      SizedBox(
+                        height: 72,
+                        child: Stack(
+                          alignment: AlignmentGeometry.center,
+                          children: [
+                            Positioned(
+                              top: 0,
+                              child: GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: widget.isSidebar
+                                    ? null
+                                    : () {
+                                        final currentState = ref.read(picklistSheetStateProvider);
+
+                                        if (currentState == PicklistSheetState.hidden ||
+                                            currentState == PicklistSheetState.dragging) {
+                                          return;
+                                        }
+
+                                        HapticFeedback.lightImpact();
+
+                                        ref
+                                            .read(picklistSheetStateProvider.notifier)
+                                            .state = currentState == PicklistSheetState.expanded
+                                            ? PicklistSheetState.collapsed
+                                            : PicklistSheetState.expanded;
+                                      },
+                                child: Padding(
+                                  padding: const EdgeInsets.all(12.0),
+                                  child: Container(
+                                    height: 4,
+                                    width: 32,
+                                    decoration: BoxDecoration(
+                                      color: widget.isSidebar ? Colors.transparent : theme.colorScheme.onSurfaceVariant,
+                                      borderRadius: BorderRadius.circular(2),
+                                    ),
                                   ),
                                 ),
-                              ],
+                              ),
                             ),
+                            Positioned(
+                              left: 16,
+                              child: Row(
+                                children: [
+                                  Container(
+                                    height: 32,
+                                    width: 32,
+                                    decoration: BoxDecoration(
+                                      color: theme.colorScheme.primaryContainer,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Icon(LucideIcons.listOrdered, size: 20),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text('Picklist', style: theme.textTheme.titleMedium),
+                                      Text(
+                                        '${collectedTeams.length} team${collectedTeams.length == 1 ? '' : 's'}',
+                                        style: theme.textTheme.bodyMedium?.copyWith(
+                                          color: theme.colorScheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (collectedTeams.isNotEmpty)
+                              Positioned(
+                                right: 16,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      key: const ValueKey('picklist-header-toggle'),
+                                      tooltip: headerOnly ? 'Show Full Cards' : 'Show Labels Only',
+                                      icon: Icon(
+                                        headerOnly ? LucideIcons.panelTopOpen : LucideIcons.panelTopClose,
+                                        size: 20,
+                                      ),
+                                      onPressed: () {
+                                        ref.read(picklistSheetHeaderOnlyProvider.notifier).state = !headerOnly;
+                                      },
+                                    ),
+                                    IconButton(
+                                      tooltip: 'Clear picklist',
+                                      icon: const Icon(LucideIcons.trash2, size: 20),
+                                      onPressed: () async {
+                                        final shouldClear = await showDialog<bool>(
+                                          context: context,
+                                          builder: (dialogContext) {
+                                            return AlertDialog(
+                                              title: const Text('Clear picklist?'),
+                                              content: const Text('This will remove all teams from the picklist.'),
+                                              actions: [
+                                                TextButton(
+                                                  onPressed: () {
+                                                    Navigator.of(dialogContext).pop(false);
+                                                  },
+                                                  child: const Text('Cancel'),
+                                                ),
+                                                TextButton(
+                                                  onPressed: () {
+                                                    Navigator.of(dialogContext).pop(true);
+                                                  },
+                                                  style: TextButton.styleFrom(foregroundColor: theme.colorScheme.error),
+                                                  child: const Text('Clear'),
+                                                ),
+                                              ],
+                                            );
+                                          },
+                                        );
+
+                                        if (shouldClear != true) {
+                                          return;
+                                        }
+
+                                        ref.read(collectedTeamsProvider.notifier).state = [];
+
+                                        ref.read(picklistSheetStateProvider.notifier).state = PicklistSheetState.hidden;
+                                      },
+                                    ),
+                                    const SizedBox(width: 4),
+                                    IconButton.filledTonal(
+                                      tooltip: 'Copy team numbers',
+                                      icon: Icon(_showCopyCheck ? LucideIcons.check : LucideIcons.copy),
+                                      style: ButtonStyle(
+                                        foregroundColor: WidgetStateProperty.all(theme.colorScheme.onTertiaryContainer),
+                                        backgroundColor: WidgetStateProperty.all(theme.colorScheme.tertiaryContainer),
+                                      ),
+                                      onPressed: () {
+                                        _handleCopyTeamNumbers(collectedTeams);
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
                           ],
                         ),
                       ),
-                      if (collectedTeams.isNotEmpty)
-                        Positioned(
-                          right: 16,
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                key: const ValueKey(
-                                  'picklist-header-toggle',
-                                ),
-                                tooltip: headerOnly
-                                    ? 'Show Full Cards'
-                                    : 'Show Labels Only',
-                                icon: Icon(
-                                  headerOnly
-                                      ? LucideIcons.panelTopOpen
-                                      : LucideIcons.panelTopClose,
-                                  size: 20,
-                                ),
-                                onPressed: () {
-                                  ref
-                                      .read(
-                                    picklistSheetHeaderOnlyProvider
-                                        .notifier,
-                                  )
-                                      .state =
-                                  !headerOnly;
-                                },
-                              ),
-                              IconButton(
-                                tooltip: 'Clear picklist',
-                                icon: const Icon(
-                                  LucideIcons.trash2,
-                                  size: 20,
-                                ),
-                                onPressed: () async {
-                                  final shouldClear =
-                                  await showDialog<bool>(
-                                    context: context,
-                                    builder: (dialogContext) {
-                                      return AlertDialog(
-                                        title: const Text(
-                                          'Clear picklist?',
-                                        ),
-                                        content: const Text(
-                                          'This will remove all teams from the picklist.',
-                                        ),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () {
-                                              Navigator.of(
-                                                dialogContext,
-                                              ).pop(false);
-                                            },
-                                            child: const Text('Cancel'),
-                                          ),
-                                          TextButton(
-                                            onPressed: () {
-                                              Navigator.of(
-                                                dialogContext,
-                                              ).pop(true);
-                                            },
-                                            style: TextButton.styleFrom(
-                                              foregroundColor:
-                                              theme.colorScheme.error,
-                                            ),
-                                            child: const Text('Clear'),
+                      if (widget.expanded) const Divider(height: 2),
+                      if (widget.expanded)
+                        Expanded(
+                          child: ReorderableListView.builder(
+                            key: const PageStorageKey<String>('team_picklist_sheet_list'),
+                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                            buildDefaultDragHandles: false,
+                            proxyDecorator: (child, index, animation) {
+                              final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCirc);
+
+                              return AnimatedBuilder(
+                                animation: curved,
+                                child: child,
+                                builder: (context, child) {
+                                  final t = curved.value;
+
+                                  return Transform.scale(
+                                    scale: lerpDouble(1.0, 1.03, t)!,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(16),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Theme.of(context).colorScheme.shadow
+                                                .withValues(alpha: lerpDouble(0.0, 0.18, t)!),
+                                            blurRadius: lerpDouble(0, 24, t)!,
+                                            spreadRadius: lerpDouble(0, 1, t)!,
+                                            offset: Offset(0, lerpDouble(0, 8, t)!),
                                           ),
                                         ],
-                                      );
-                                    },
-                                  );
-
-                                  if (shouldClear != true) {
-                                    return;
-                                  }
-
-                                  ref
-                                      .read(
-                                    collectedTeamsProvider.notifier,
-                                  )
-                                      .state = [];
-
-                                  ref
-                                      .read(
-                                    picklistSheetStateProvider
-                                        .notifier,
-                                  )
-                                      .state =
-                                      PicklistSheetState.hidden;
-                                },
-                              ),
-                              const SizedBox(width: 4),
-                              IconButton.filledTonal(
-                                tooltip: 'Copy team numbers',
-                                icon: Icon(
-                                  _showCopyCheck
-                                      ? LucideIcons.check
-                                      : LucideIcons.copy,
-                                ),
-                                style: ButtonStyle(
-                                  foregroundColor:
-                                  WidgetStateProperty.all(
-                                    theme.colorScheme
-                                        .onTertiaryContainer,
-                                  ),
-                                  backgroundColor:
-                                  WidgetStateProperty.all(
-                                    theme.colorScheme.tertiaryContainer,
-                                  ),
-                                ),
-                                onPressed: () {
-                                  _handleCopyTeamNumbers(
-                                    collectedTeams,
+                                      ),
+                                      child: child,
+                                    ),
                                   );
                                 },
-                              ),
-                            ],
+                              );
+                            },
+                            onReorderStart: (_) {
+                              HapticFeedback.selectionClick();
+                            },
+                            onReorderEnd: (_) {
+                              HapticFeedback.selectionClick();
+                            },
+                            onReorderItem: (oldIndex, newIndex) {
+                              final updatedTeams = [...collectedTeams];
+                              final moved = updatedTeams.removeAt(oldIndex);
+                              updatedTeams.insert(newIndex, moved);
+
+                              ref.read(collectedTeamsProvider.notifier).state = updatedTeams;
+                            },
+                            itemCount: collectedTeams.length,
+                            itemBuilder: (context, index) {
+                              final teamKey = collectedTeams[index];
+
+                              return Padding(
+                                key: ValueKey(teamKey),
+                                padding: const EdgeInsets.only(bottom: 8),
+                                child: ReorderableDelayedDragStartListener(
+                                  index: index,
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(16),
+                                    child: Dismissible(
+                                      key: ValueKey('dismiss-$teamKey'),
+                                      direction: DismissDirection.endToStart,
+                                      background: Container(
+                                        alignment: Alignment.centerRight,
+                                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                                        decoration: BoxDecoration(
+                                          color: theme.colorScheme.errorContainer,
+                                          borderRadius: BorderRadius.circular(16),
+                                        ),
+                                        child: Icon(LucideIcons.trash2, color: theme.colorScheme.error),
+                                      ),
+                                      onUpdate: (details) {
+                                        if (details.reached != _lastReached) {
+                                          _lastReached = details.reached;
+
+                                          if (details.reached) {
+                                            HapticFeedback.selectionClick();
+                                          }
+                                        }
+                                      },
+                                      onDismissed: (_) {
+                                        final updatedTeams = [...collectedTeams]..remove(teamKey);
+
+                                        ref.read(collectedTeamsProvider.notifier).state = updatedTeams;
+
+                                        if (updatedTeams.isEmpty) {
+                                          ref.read(picklistSheetStateProvider.notifier).state =
+                                              PicklistSheetState.hidden;
+                                        }
+                                      },
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.max,
+                                        children: [
+                                          SizedBox(width: 20, child: Text('${index + 1}', textAlign: TextAlign.center)),
+                                          const SizedBox(width: 16),
+                                          Expanded(
+                                            child: TeamCard(teamKey: teamKey, headerOnly: headerOnly),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                         ),
                     ],
                   ),
-                ),
-                if (widget.expanded) const Divider(height: 2),
-                if (widget.expanded)
-                  Expanded(
-                    child: ReorderableListView.builder(
-                      key: const PageStorageKey<String>(
-                        'team_picklist_sheet_list',
-                      ),
-                      padding: const EdgeInsets.fromLTRB(
-                        16,
-                        16,
-                        16,
-                        8,
-                      ),
-                      buildDefaultDragHandles: false,
-                      proxyDecorator:
-                          (child, index, animation) {
-                        final curved = CurvedAnimation(
-                          parent: animation,
-                          curve: Curves.easeOutCirc,
-                        );
-
-                        return AnimatedBuilder(
-                          animation: curved,
-                          child: child,
-                          builder: (context, child) {
-                            final t = curved.value;
-
-                            return Transform.scale(
-                              scale: lerpDouble(1.0, 1.03, t)!,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  borderRadius:
-                                  BorderRadius.circular(16),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .shadow
-                                          .withValues(
-                                        alpha: lerpDouble(
-                                          0.0,
-                                          0.18,
-                                          t,
-                                        )!,
-                                      ),
-                                      blurRadius: lerpDouble(
-                                        0,
-                                        24,
-                                        t,
-                                      )!,
-                                      spreadRadius: lerpDouble(
-                                        0,
-                                        1,
-                                        t,
-                                      )!,
-                                      offset: Offset(
-                                        0,
-                                        lerpDouble(0, 8, t)!,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                child: child,
-                              ),
-                            );
-                          },
-                        );
-                      },
-                      onReorderStart: (_) {
-                        HapticFeedback.selectionClick();
-                      },
-                      onReorderEnd: (_) {
-                        HapticFeedback.selectionClick();
-                      },
-                      onReorderItem: (oldIndex, newIndex) {
-                        final updatedTeams = [...collectedTeams];
-                        final moved =
-                        updatedTeams.removeAt(oldIndex);
-                        updatedTeams.insert(newIndex, moved);
-
-                        ref
-                            .read(
-                          collectedTeamsProvider.notifier,
-                        )
-                            .state =
-                            updatedTeams;
-                      },
-                      itemCount: collectedTeams.length,
-                      itemBuilder: (context, index) {
-                        final teamKey = collectedTeams[index];
-
-                        return Padding(
-                          key: ValueKey(teamKey),
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: ReorderableDelayedDragStartListener(
-                            index: index,
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(16),
-                              child: Dismissible(
-                                key: ValueKey('dismiss-$teamKey'),
-                                direction:
-                                DismissDirection.endToStart,
-                                background: Container(
-                                  alignment:
-                                  Alignment.centerRight,
-                                  padding:
-                                  const EdgeInsets.symmetric(
-                                    horizontal: 20,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: theme
-                                        .colorScheme.errorContainer,
-                                    borderRadius:
-                                    BorderRadius.circular(16),
-                                  ),
-                                  child: Icon(
-                                    LucideIcons.trash2,
-                                    color: theme.colorScheme.error,
-                                  ),
-                                ),
-                                onUpdate: (details) {
-                                  if (details.reached !=
-                                      _lastReached) {
-                                    _lastReached = details.reached;
-
-                                    if (details.reached) {
-                                      HapticFeedback.selectionClick();
-                                    }
-                                  }
-                                },
-                                onDismissed: (_) {
-                                  final updatedTeams = [
-                                    ...collectedTeams,
-                                  ]..remove(teamKey);
-
-                                  ref
-                                      .read(
-                                    collectedTeamsProvider
-                                        .notifier,
-                                  )
-                                      .state =
-                                      updatedTeams;
-
-                                  if (updatedTeams.isEmpty) {
-                                    ref
-                                        .read(
-                                      picklistSheetStateProvider
-                                          .notifier,
-                                    )
-                                        .state =
-                                        PicklistSheetState.hidden;
-                                  }
-                                },
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.max,
-                                  children: [
-                                    SizedBox(
-                                      width: 20,
-                                      child: Text(
-                                        '${index + 1}',
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 16),
-                                    Expanded(
-                                      child: TeamCard(
-                                        teamKey: teamKey,
-                                        headerOnly: headerOnly,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-              ],
-            ),
           ),
         );
       },
@@ -1380,11 +1010,7 @@ class SortByFieldItem extends StatefulWidget {
   final double total;
   final VoidCallback? onAddNew;
 
-  const SortByFieldItem({
-    super.key,
-    required this.total,
-    this.onAddNew,
-  });
+  const SortByFieldItem({super.key, required this.total, this.onAddNew});
 
   @override
   State<StatefulWidget> createState() {
@@ -1396,18 +1022,11 @@ class SortByFieldItemState extends State<SortByFieldItem> {
   String sectionId = '';
   String dataId = '';
 
-  List<DropdownMenuEntry<String>> generateDropdownMenuItems(
-      List<String> list,
-      ) {
+  List<DropdownMenuEntry<String>> generateDropdownMenuItems(List<String> list) {
     final finalList = <DropdownMenuEntry<String>>[];
 
     for (final item in list) {
-      finalList.add(
-        DropdownMenuEntry(
-          value: item,
-          label: item,
-        ),
-      );
+      finalList.add(DropdownMenuEntry(value: item, label: item));
     }
 
     return finalList;
@@ -1432,8 +1051,7 @@ class SortByFieldItemState extends State<SortByFieldItem> {
       title: Row(
         children: [
           DropdownMenu<String>(
-            dropdownMenuEntries:
-            generateDropdownMenuItems(kSectionsList),
+            dropdownMenuEntries: generateDropdownMenuItems(kSectionsList),
             onSelected: (item) {
               if (item != null) {
                 sectionId = item;
@@ -1441,18 +1059,14 @@ class SortByFieldItemState extends State<SortByFieldItem> {
             },
           ),
           DropdownMenu<String>(
-            dropdownMenuEntries: generateDropdownMenuItems(
-              sectionIdToDataPointsList(sectionId),
-            ),
+            dropdownMenuEntries: generateDropdownMenuItems(sectionIdToDataPointsList(sectionId)),
             onSelected: (item) {
               if (item != null) {
                 dataId = item;
               }
             },
           ),
-          SizedBox.shrink(
-            child: TextField(onChanged: (text) {}),
-          ),
+          SizedBox.shrink(child: TextField(onChanged: (text) {})),
         ],
       ),
       trailing: ElevatedButton(

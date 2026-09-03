@@ -117,22 +117,21 @@ class PicklistsPageState extends ConsumerState<PicklistsPage> {
                                       widthFactor: 0.65,
                                       child: CircleAvatar(
                                         radius: 15,
-                                        backgroundColor: Theme.of(
-                                          context,
-                                        ).cardColor,
+                                        backgroundColor: Theme.of(context)
+                                            .cardColor,
                                         child: CircleAvatar(
                                           radius: 13,
-                                          backgroundColor: Theme.of(
-                                            context,
-                                          ).colorScheme.primaryContainer,
+                                          backgroundColor: Theme.of(context)
+                                              .colorScheme
+                                              .primaryContainer,
                                           child: Text(
                                             item.activeEditors[index],
                                             style: TextStyle(
                                               fontSize: 10,
                                               fontWeight: FontWeight.bold,
-                                              color: Theme.of(
-                                                context,
-                                              ).colorScheme.onPrimaryContainer,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onPrimaryContainer,
                                             ),
                                           ),
                                         ),

@@ -16,11 +16,9 @@ class Auth0NativeBackend implements AuthBackend {
   Auth0NativeBackend({
     required String domain,
     required String clientId,
-    String? scheme,
-    String? audience,
-  }) : _auth0 = Auth0(domain, clientId),
-       _scheme = scheme,
-       _audience = audience;
+    this._scheme,
+    this._audience,
+  }) : _auth0 = Auth0(domain, clientId);
 
   @override
   AuthUser? get user => _credentials?.user.toAuthUser();

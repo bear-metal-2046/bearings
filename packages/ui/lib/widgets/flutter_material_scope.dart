@@ -10,9 +10,6 @@ class FlutterMaterialScope extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return flutter.Material(
-      color: flutter.Colors.transparent,
-      child: child,
-    );
+    return flutter.Material(color: flutter.Colors.transparent, child: child);
   }
 }

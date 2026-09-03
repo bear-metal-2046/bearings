@@ -217,8 +217,7 @@ class _SignUpFlowPageState extends ConsumerState<SignUpFlowPage> {
                         TextSpan(
                           children: [
                             const TextSpan(
-                              text:
-                                  'Locked out or think this workspace was created in error? Contact us at ',
+                              text: 'Locked out or think this workspace was created in error? Contact us at ',
                             ),
                             TextSpan(
                               text: 'scouting-app@bearmet.al',
@@ -233,15 +232,14 @@ class _SignUpFlowPageState extends ConsumerState<SignUpFlowPage> {
                                     await launchUrl(emailLaunchUri);
                                   } else {
                                     if (context.mounted) {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            'Could not open mail app.',
-                                          ),
-                                        ),
-                                      );
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'Could not open mail app.',
+                                              ),
+                                            ),
+                                          );
                                     }
                                   }
                                 },

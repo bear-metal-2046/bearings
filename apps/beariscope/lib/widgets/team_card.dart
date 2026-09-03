@@ -372,11 +372,9 @@ class _SummaryMetrics extends ConsumerWidget {
           ),
         ],
 
-        if (expandToFillHeight && hasEnoughMatchDataForGraph)
-          const Spacer(),
+        if (expandToFillHeight && hasEnoughMatchDataForGraph) const Spacer(),
 
-        if (hasEnoughMatchDataForGraph)
-          const Divider(height: 8, thickness: 1),
+        if (hasEnoughMatchDataForGraph) const Divider(height: 8, thickness: 1),
 
         if (hasZScores) ...[
           const SizedBox(height: 6),

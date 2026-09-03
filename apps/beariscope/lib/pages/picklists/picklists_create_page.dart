@@ -161,10 +161,12 @@ class _PicklistsCreatePageState extends State<PicklistsCreatePage> {
                                 prefixIcon: Icon(LucideIcons.users),
                               ),
                               validator: (value) {
-                                if (value == null || value.isEmpty)
+                                if (value == null || value.isEmpty) {
                                   return 'Please enter a number';
-                                if (int.tryParse(value) == null)
+                                }
+                                if (int.tryParse(value) == null) {
                                   return 'Must be a valid number';
+                                }
                                 return null;
                               },
                             ),

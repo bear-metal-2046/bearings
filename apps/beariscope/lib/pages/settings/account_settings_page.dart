@@ -1,5 +1,7 @@
 import 'package:beariscope/pages/settings/image_crop_dialog.dart';
+
 import 'dart:typed_data';
+
 import 'package:beariscope/utils/image_processor.dart';
 import 'package:beariscope/widgets/settings_group.dart';
 import 'package:file_picker/file_picker.dart';

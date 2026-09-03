@@ -39,9 +39,8 @@ class Auth0Config {
 
   Uri get tokenEndpoint => Uri.parse('https://$domain/oauth/token');
 
-  Uri logoutUri(String returnTo) => Uri.parse(
-    'https://$domain/v2/logout',
-  ).replace(queryParameters: {'client_id': clientId, 'returnTo': returnTo});
+  Uri logoutUri(String returnTo) => Uri.parse('https://$domain/v2/logout')
+      .replace(queryParameters: {'client_id': clientId, 'returnTo': returnTo});
 }
 
 // ---------------------------------------------------------------------------
@@ -146,8 +145,7 @@ class Auth {
   final Ref ref;
   final Auth0Config config;
 
-  Auth({required this.ref, required AuthBackend backend, required this.config})
-    : _backend = backend;
+  Auth({required this.ref, required this._backend, required this.config});
 
   // -------------------------------------------------------------------------
   // User profile (delegates to backend)

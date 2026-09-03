@@ -23,13 +23,10 @@ class Auth0WindowsBackend implements AuthBackend {
   Auth0WindowsBackend({
     required String domain,
     required String clientId,
-    required String appCustomUrl,
-    required TokenStorage storage,
-    String storageKeyPrefix = '',
-  }) : _auth0 = Auth0(domain, clientId),
-       _storage = storage,
-       _appCustomUrl = appCustomUrl,
-       _storageKeyPrefix = storageKeyPrefix;
+    required this._appCustomUrl,
+    required this._storage,
+    this._storageKeyPrefix = '',
+  }) : _auth0 = Auth0(domain, clientId);
 
   String get _refreshTokenKey => '${_storageKeyPrefix}refresh_token';
 
