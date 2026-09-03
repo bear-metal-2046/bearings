@@ -17,6 +17,7 @@ dependencies:
   auto_size_text: ^3.0.0
   core:
     path: ../core
+  material_ui: any
 
 dev_dependencies:
   flutter_test:

@@ -1,5 +1,5 @@
 import 'package:core/providers/device_info_provider.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:services/providers/auth/auth0_native_backend.dart';
