@@ -1,5 +1,6 @@
 import 'package:beariscope/providers/tba_preferences_provider.dart';
 import 'package:beariscope/widgets/settings_group.dart';
+import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -17,6 +18,23 @@ class AboutSettingsPage extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('Could not open $label')));
+      }
+    }
+  }
+
+  Future<void> _copyVersion(BuildContext context) async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      await Clipboard.setData(ClipboardData(text: info.version));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Version copied')));
+      }
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Could not copy version')));
       }
     }
   }
@@ -64,6 +82,7 @@ class AboutSettingsPage extends ConsumerWidget {
                     }
                   },
                 ),
+                onTap: () => _copyVersion(context),
               ),
               ListTile(
                 title: const Text('Beariscope GitHub'),
@@ -122,6 +141,8 @@ class AboutSettingsPage extends ConsumerWidget {
               ),
             ],
           ),
+          const SizedBox(height: 16),
+          const ListTile(title: Text('Made with ❤️ by Bear Metal')),
         ],
       ),
     );
