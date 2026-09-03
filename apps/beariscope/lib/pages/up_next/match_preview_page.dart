@@ -2,6 +2,7 @@ import 'package:beariscope/models/drive_team_note.dart';
 import 'package:beariscope/pages/up_next/up_next_provider.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/drive_team_notes_provider.dart';
+import 'package:beariscope/providers/match_preview_layout_provider.dart';
 import 'package:beariscope/providers/scouting_data_provider.dart';
 import 'package:beariscope/providers/tba_preferences_provider.dart';
 import 'package:beariscope/widgets/team_card.dart';
@@ -14,7 +15,7 @@ import 'package:services/providers/permissions_provider.dart';
 import 'package:services/providers/user_profile_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-enum _TeamAction { openTba, openStatbotics, openYouTube }
+enum _TeamAction { switchLayout, openTba, openStatbotics, openYouTube }
 
 final matchProvider = FutureProvider.family<Map<String, dynamic>, String>((
   ref,
@@ -42,7 +43,6 @@ class _DriveTeamMatchPreviewPageState
     extends ConsumerState<DriveTeamMatchPreviewPage> {
   final ValueNotifier<double> _currentPageNotifier = ValueNotifier(0.0);
   PageController? _pageController;
-  bool _scrollVertical = false;
 
   @override
   void dispose() {
@@ -68,6 +68,8 @@ class _DriveTeamMatchPreviewPageState
     final requestProvider = matchProvider(widget.matchKey);
     final matchAsync = ref.watch(requestProvider);
     final permissionChecker = ref.watch(permissionCheckerProvider);
+    final matchPreviewLayout = ref.watch(matchPreviewLayoutProvider);
+    final scrollVertical = matchPreviewLayout == MatchPreviewLayout.vertical;
 
     return matchAsync.when(
       loading: () => Scaffold(
@@ -94,6 +96,13 @@ class _DriveTeamMatchPreviewPageState
           String key,
         ) {
           switch (action) {
+            case _TeamAction.switchLayout:
+              final nextLayout = scrollVertical
+                  ? MatchPreviewLayout.horizontal
+                  : MatchPreviewLayout.vertical;
+              ref
+                  .read(matchPreviewLayoutProvider.notifier)
+                  .setLayout(nextLayout);
             case _TeamAction.openTba:
               launchUrl(
                 ref.tbaWebsiteUri('/match/${widget.matchKey}'),
@@ -158,27 +167,32 @@ class _DriveTeamMatchPreviewPageState
           appBar: AppBar(
             title: Text(matchTitle),
             actions: [
-              if (MediaQuery.sizeOf(context).width <= 1380)
-                IconButton(
-                  icon: Icon(
-                    _scrollVertical
-                        ? LucideIcons.galleryVertical
-                        : LucideIcons.galleryHorizontal,
-                  ),
-                  tooltip: _scrollVertical
-                      ? 'Tiktok Scroll Style'
-                      : 'Instagram Carousel Style',
-                  onPressed: () => setState(() {
-                    _scrollVertical = !_scrollVertical;
-                  }),
-                ),
               PopupMenuButton<_TeamAction>(
                 icon: const Icon(LucideIcons.ellipsisVertical),
                 tooltip: 'More options',
                 onSelected: (action) =>
                     handleAction(context, action, video['key'].toString()),
-                itemBuilder: (context) => const [
-                  PopupMenuItem(
+                itemBuilder: (context) => [
+                  if (MediaQuery.sizeOf(context).width <= 1100) ...[
+                    PopupMenuItem(
+                      value: _TeamAction.switchLayout,
+                      child: ListTile(
+                        leading: Icon(
+                          scrollVertical
+                              ? LucideIcons.galleryHorizontal
+                              : LucideIcons.galleryVertical,
+                        ),
+                        title: Text(
+                          scrollVertical
+                              ? 'Switch to horizontal layout'
+                              : 'Switch to vertical layout',
+                        ),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                    const PopupMenuDivider(),
+                  ],
+                  const PopupMenuItem(
                     value: _TeamAction.openTba,
                     child: ListTile(
                       leading: Icon(LucideIcons.externalLink),
@@ -186,7 +200,7 @@ class _DriveTeamMatchPreviewPageState
                       contentPadding: EdgeInsets.zero,
                     ),
                   ),
-                  PopupMenuItem(
+                  const PopupMenuItem(
                     value: _TeamAction.openStatbotics,
                     child: ListTile(
                       leading: Icon(LucideIcons.externalLink),
@@ -194,7 +208,7 @@ class _DriveTeamMatchPreviewPageState
                       contentPadding: EdgeInsets.zero,
                     ),
                   ),
-                  PopupMenuItem(
+                  const PopupMenuItem(
                     value: _TeamAction.openYouTube,
                     child: ListTile(
                       leading: Icon(LucideIcons.externalLink),
@@ -285,20 +299,118 @@ class _DriveTeamMatchPreviewPageState
                   ? (cardWidth / width).clamp(0.0, 1.0)
                   : 1.0;
 
-              // vertical fraction
-              final cardHeight = (height - 40).clamp(0.0, height);
-              final vFraction = height > 0
-                  ? (cardHeight / height).clamp(0.0, 1.0)
-                  : 1.0;
+              if (scrollVertical) {
+                final canTakeNotes =
+                    permissionChecker?.hasPermission(
+                      PermissionKey.driveTeamUpload,
+                    ) ??
+                    false;
+                final verticalFooterHeight = canTakeNotes ? 56.0 : 0.0;
+                final verticalViewportHeight = (height - verticalFooterHeight)
+                    .clamp(0.0, height)
+                    .toDouble();
+                final verticalPageHeight = (verticalViewportHeight - 16)
+                    .clamp(0.0, verticalViewportHeight)
+                    .toDouble();
+                final verticalFraction = verticalViewportHeight > 0
+                    ? (verticalPageHeight / verticalViewportHeight).clamp(
+                        0.0,
+                        1.0,
+                      )
+                    : 1.0;
 
-              final fraction = _scrollVertical ? vFraction : hFraction;
-              final stride = _scrollVertical
-                  ? height * vFraction
-                  : width * hFraction;
+                _updatePageController(
+                  verticalFraction,
+                  _currentPageNotifier.value.round().clamp(0, cards.length - 1),
+                );
+
+                const horizontalPadding = 16.0;
+                const verticalPadding = 8.0;
+                final verticalCardHeight =
+                    (verticalPageHeight - verticalPadding * 2)
+                        .clamp(0.0, double.infinity)
+                        .toDouble();
+
+                return Column(
+                  children: [
+                    Expanded(
+                      child: NotificationListener<ScrollNotification>(
+                        onNotification: (notification) {
+                          if (notification is ScrollUpdateNotification &&
+                              _pageController?.hasClients == true) {
+                            _currentPageNotifier.value =
+                                _pageController?.page ?? 0.0;
+                          }
+                          return false;
+                        },
+                        child: PageView.builder(
+                          controller: _pageController,
+                          scrollDirection: Axis.vertical,
+                          itemCount: cards.length,
+                          itemBuilder: (context, index) {
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: horizontalPadding,
+                                vertical: verticalPadding,
+                              ),
+                              child: Align(
+                                alignment: Alignment.topCenter,
+                                child: TeamCard(
+                                  teamKey: cards[index].teamKey,
+                                  allianceColor: cards[index].color,
+                                  height: verticalCardHeight,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    if (canTakeNotes)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        child: SizedBox(
+                          width: double.infinity,
+                          height: 40,
+                          child: FilledButton(
+                            onPressed: () {
+                              final filteredRedTeams = redTeams
+                                  .where(
+                                    (teamKey) =>
+                                        teamNumberFromKey(teamKey) != '2046',
+                                  )
+                                  .toList();
+                              final filteredBlueTeams = blueTeams
+                                  .where(
+                                    (teamKey) =>
+                                        teamNumberFromKey(teamKey) != '2046',
+                                  )
+                                  .toList();
+                              showModalBottomSheet(
+                                context: context,
+                                showDragHandle: true,
+                                isScrollControlled: true,
+                                useSafeArea: true,
+                                builder: (context) => _DriveTeamNotesSheet(
+                                  matchKey: widget.matchKey,
+                                  redAllianceTeamKeys: filteredRedTeams,
+                                  blueAllianceTeamKeys: filteredBlueTeams,
+                                ),
+                              );
+                            },
+                            child: const Text('Take Notes'),
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              }
+
+              final stride = width * hFraction;
               final contentLeftEdge = (width - cardWidth) / 2.0 + 8.0;
 
               _updatePageController(
-                fraction,
+                hFraction,
                 _currentPageNotifier.value.round().clamp(0, cards.length - 1),
               );
 
@@ -306,7 +418,7 @@ class _DriveTeamMatchPreviewPageState
                 return DotsIndicator(
                   dotsCount: cards.length,
                   position: page.clamp(0, cards.length - 1).toDouble(),
-                  axis: _scrollVertical ? Axis.vertical : Axis.horizontal,
+                  axis: scrollVertical ? Axis.vertical : Axis.horizontal,
                   onTap: (position) {
                     _pageController?.animateToPage(
                       position.toInt(),
@@ -342,59 +454,6 @@ class _DriveTeamMatchPreviewPageState
                       builder: (context, page, _) => buildDotsIndicator(page),
                     )
                   : const SizedBox.shrink();
-
-              Widget pageView = NotificationListener<ScrollNotification>(
-                onNotification: (notification) {
-                  if (notification is ScrollUpdateNotification &&
-                      _pageController?.hasClients == true) {
-                    _currentPageNotifier.value = _pageController?.page ?? 0.0;
-                  }
-                  return false;
-                },
-                child: PageView.builder(
-                  controller: _pageController,
-                  scrollDirection: _scrollVertical
-                      ? Axis.vertical
-                      : Axis.horizontal,
-                  itemCount: cards.length,
-                  itemBuilder: (context, index) {
-                    if (_scrollVertical) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 8,
-                        ),
-                        child: buildStyledCard(
-                          index,
-                          showLabel: index == 0 || index == redTeams.length,
-                        ),
-                      );
-                    }
-
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: TeamCard(
-                        teamKey: cards[index].teamKey,
-                        allianceColor: cards[index].color,
-                      ),
-                    );
-                  },
-                ),
-              );
-
-              // vertical layout
-              if (_scrollVertical) {
-                return Column(
-                  children: [
-                    Expanded(
-                      child: Center(
-                        child: SizedBox(width: cardWidth, child: pageView),
-                      ),
-                    ),
-                    dots,
-                  ],
-                );
-              }
 
               // horizontal layout
               return Column(

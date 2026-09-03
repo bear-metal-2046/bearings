@@ -1,3 +1,4 @@
+import 'package:beariscope/providers/match_preview_layout_provider.dart';
 import 'package:beariscope/widgets/settings_group.dart';
 import 'package:flex_color_picker/flex_color_picker.dart';
 import 'package:flutter/foundation.dart';
@@ -158,6 +159,7 @@ class AppearanceSettingsPage extends ConsumerWidget {
     final themeMode = ref.watch(themeModeProvider);
     final selectedColor = ref.watch(accentColorProvider);
     final selectedAppIcon = ref.watch(appIconProvider);
+    final matchPreviewLayout = ref.watch(matchPreviewLayoutProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Appearance')),
@@ -189,6 +191,33 @@ class AppearanceSettingsPage extends ConsumerWidget {
                     DropdownMenuEntry(value: ThemeMode.light, label: 'Light'),
                     DropdownMenuEntry(value: ThemeMode.dark, label: 'Dark'),
                   ],
+                ),
+              ),
+              ListTile(
+                leading: const Icon(LucideIcons.galleryHorizontal),
+                title: const Text('Match Preview Scroll'),
+                contentPadding: const EdgeInsets.all(16),
+                trailing: DropdownMenu<MatchPreviewLayout>(
+                  requestFocusOnTap: false,
+                  initialSelection: matchPreviewLayout,
+                  inputDecorationTheme: const InputDecorationTheme(
+                    border: OutlineInputBorder(),
+                  ),
+                  onSelected: (layout) {
+                    if (layout != null) {
+                      ref
+                          .read(matchPreviewLayoutProvider.notifier)
+                          .setLayout(layout);
+                    }
+                  },
+                  dropdownMenuEntries: MatchPreviewLayout.values
+                      .map(
+                        (layout) => DropdownMenuEntry(
+                          value: layout,
+                          label: layout.label,
+                        ),
+                      )
+                      .toList(),
                 ),
               ),
             ],

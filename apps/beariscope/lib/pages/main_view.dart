@@ -101,16 +101,16 @@ class _MainViewState extends ConsumerState<MainView> {
       label: 'Teams',
       group: 'General',
     ),
-    const _NavItem(
-      route: '/picklists',
-      icon: LucideIcons.notebookText,
-      label: 'Picklists',
-      group: 'General',
-      requiredPermissions: [
-        PermissionKey.picklistsManage,
-        PermissionKey.picklistsRead,
-      ],
-    ),
+    // const _NavItem(
+    //   route: '/picklists',
+    //   icon: LucideIcons.notebookText,
+    //   label: 'Picklists',
+    //   group: 'General',
+    //   requiredPermissions: [
+    //     PermissionKey.picklistsManage,
+    //     PermissionKey.picklistsRead,
+    //   ],
+    // ),
     const _NavItem(
       route: '/scout_audit',
       icon: LucideIcons.clipboardCheck,
