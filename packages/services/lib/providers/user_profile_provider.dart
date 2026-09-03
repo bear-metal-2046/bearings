@@ -6,31 +6,65 @@ import 'package:services/providers/auth_provider.dart';
 
 part 'user_profile_provider.g.dart';
 
-/// Reads the current user's profile from [Auth.user] and optionally
-/// downloads the profile photo bytes.
+/// Reads the current user's profile from Auth0's live `/userinfo` endpoint
+/// and optionally downloads the profile photo bytes.
 ///
-/// This provider is a thin layer over the user info already populated
-/// by the active [AuthBackend] — it does **not** call Auth0's `/userinfo`
-/// endpoint directly.  Photo bytes are loaded lazily from [UserProfile.pictureUrl].
+/// The profile can be changed by the Honeycomb API while the Auth0 session
+/// remains active, so the login-time ID-token profile is not authoritative.
 @Riverpod(keepAlive: true)
 Future<UserInfo?> userInfo(Ref ref) async {
   final auth = await ref.watch(authProvider.future);
   final authStatus = ref.watch(authStatusProvider);
+  final dio = ref.watch(dioProvider);
 
   if (authStatus != AuthStatus.authenticated) return null;
 
-  final user = auth.user;
-  if (user == null) return null;
+  String? accessToken;
+  var isOffline = false;
 
-  // Download photo bytes from the picture URL if present.
+  try {
+    accessToken = await auth.getAccessToken(['openid', 'profile', 'email']);
+  } on OfflineAuthException {
+    isOffline = true;
+  }
+
+  Map<String, dynamic> data;
+  try {
+    final response = await dio.get<Map<String, dynamic>>(
+      'https://${auth.config.domain}/userinfo',
+      options: Options(
+        headers: {
+          if (accessToken != null) 'Authorization': 'Bearer $accessToken',
+        },
+        extra: {
+          'cachePolicy': CachePolicy.networkFirst,
+          'isOffline': isOffline,
+        },
+      ),
+    );
+    data = response.data!;
+  } catch (_) {
+    // Keep the session usable when the profile endpoint is unavailable.
+    final user = auth.user;
+    if (user == null) return null;
+    return UserInfo(
+      name: user.name,
+      email: user.email,
+      emailVerified: user.emailVerified,
+    );
+  }
+
+  // Download photo bytes from the live profile URL if present.
   Uint8List? photoBytes;
-  final pictureUrl = user.pictureUrl;
-  if (pictureUrl != null) {
+  final pictureUrl = data['picture'] as String?;
+  if (pictureUrl != null && pictureUrl.isNotEmpty) {
     try {
-      final dio = ref.watch(dioProvider);
       final photoResponse = await dio.get(
-        pictureUrl.toString(),
-        options: Options(responseType: ResponseType.bytes),
+        pictureUrl,
+        options: Options(
+          responseType: ResponseType.bytes,
+          extra: {'cachePolicy': CachePolicy.networkFirst},
+        ),
       );
 
       if (photoResponse.statusCode == 200 && photoResponse.data != null) {
@@ -44,9 +78,9 @@ Future<UserInfo?> userInfo(Ref ref) async {
   }
 
   return UserInfo(
-    name: user.name,
-    email: user.email,
-    emailVerified: user.emailVerified,
+    name: data['name'] as String?,
+    email: data['email'] as String?,
+    emailVerified: data['email_verified'] as bool?,
     photo: photoBytes,
   );
 }
@@ -65,10 +99,7 @@ UserProfileService userProfileService(Ref ref) {
   return UserProfileService(ref);
 }
 
-/// CRUD service for the user's profile via the honeycomb backend.
-///
-/// This is separate from [Auth.user] — it manages profile fields
-/// (display name, email, photo) through the app's own API, not Auth0.
+/// CRUD service for the user's profile via the Honeycomb backend.
 class UserProfileService {
   final Ref _ref;
 
@@ -97,6 +128,8 @@ class UserProfileService {
     await client.patch('/profile', data: payload);
 
     if (_ref.mounted) {
+      final config = _ref.read(auth0ConfigProvider);
+      client.invalidateCache('https://${config.domain}/userinfo');
       _ref.invalidate(userInfoProvider);
     }
   }
