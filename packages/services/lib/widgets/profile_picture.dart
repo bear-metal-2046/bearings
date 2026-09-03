@@ -1,8 +1,8 @@
 import 'dart:typed_data';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:material_symbols_icons/symbols.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:services/providers/user_profile_provider.dart';
 
 class ProfilePicture extends ConsumerWidget {
@@ -25,7 +25,7 @@ class ProfilePicture extends ConsumerWidget {
         radius: size,
         backgroundColor: Theme.of(context).colorScheme.error,
         child: Icon(
-          Symbols.error_rounded,
+          LucideIcons.circleAlert,
           size: size,
           color: Theme.of(context).colorScheme.onError,
         ),

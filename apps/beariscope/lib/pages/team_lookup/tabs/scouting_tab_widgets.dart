@@ -12,7 +12,7 @@
 //   - scoutingIncidentChip for inline incident badges
 //   - scoutingIncidentCountChip for summary-row incident counters
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 // ─── Spacing constants ────────────────────────────────────────────────────────
 

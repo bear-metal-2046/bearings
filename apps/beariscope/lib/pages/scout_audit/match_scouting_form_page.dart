@@ -3,10 +3,10 @@ import 'dart:convert';
 import 'package:beariscope/models/scouting_document.dart';
 import 'package:beariscope/providers/scouting_data_provider.dart';
 import 'package:core/core.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:material_symbols_icons/symbols.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:services/providers/api_provider.dart';
 import 'package:services/providers/user_profile_provider.dart';
 import 'package:ui/widgets/forms/match_form_renderer.dart';
@@ -143,7 +143,7 @@ class _MatchScoutingFormPageState extends ConsumerState<MatchScoutingFormPage> {
                     height: 16,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Icon(Symbols.save_rounded),
+                : const Icon(LucideIcons.save),
             tooltip: 'Save',
           ),
         ],
@@ -186,10 +186,10 @@ class _MatchScoutingFormPageState extends ConsumerState<MatchScoutingFormPage> {
   }
 
   IconData _iconForPageIndex(int index, int total) {
-    if (total <= 1) return Symbols.description_rounded;
-    if (index == 0) return Symbols.bolt_rounded;
-    if (index == total - 1) return Symbols.sports_score_rounded;
-    return Symbols.stacked_bar_chart_rounded;
+    if (total <= 1) return LucideIcons.fileText;
+    if (index == 0) return LucideIcons.timer;
+    if (index == total - 1) return LucideIcons.flag;
+    return LucideIcons.gamepad2;
   }
 }
 

@@ -2,8 +2,8 @@ import 'dart:typed_data';
 
 import 'package:beariscope/utils/image_processor.dart';
 import 'package:crop_your_image/crop_your_image.dart';
-import 'package:flutter/material.dart';
-import 'package:material_symbols_icons/symbols.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class ImageCropDialog extends StatefulWidget {
   final Uint8List imageBytes;
@@ -42,9 +42,8 @@ class _ImageCropDialogState extends State<ImageCropDialog> {
       debugPrint('Crop error: $e');
       if (mounted) {
         setState(() => _isProcessing = false);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to crop image: $e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Failed to crop image: $e')));
       }
     }
   }
@@ -77,9 +76,8 @@ class _ImageCropDialogState extends State<ImageCropDialog> {
 
         setState(() => _isProcessing = false);
         debugPrint('Crop failed: $cause\n$stackTrace');
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Crop failed: $cause')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Crop failed: $cause')));
     }
   }
 
@@ -92,7 +90,7 @@ class _ImageCropDialogState extends State<ImageCropDialog> {
         foregroundColor: Colors.white,
         title: const Text('Crop Photo'),
         leading: IconButton(
-          icon: const Icon(Symbols.close),
+          icon: const Icon(LucideIcons.x),
           onPressed: _isProcessing ? null : _cancel,
         ),
         actions: [

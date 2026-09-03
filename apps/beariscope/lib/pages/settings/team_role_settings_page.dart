@@ -1,7 +1,7 @@
 import 'package:beariscope/widgets/beariscope_card.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:material_symbols_icons/symbols.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:services/providers/api_provider.dart';
 import 'package:services/providers/rbac_management_provider.dart';
 
@@ -290,7 +290,7 @@ class _TeamRoleSettingsPageState extends ConsumerState<TeamRoleSettingsPage>
                       title: Text(titleText),
                       leading: IconButton(
                         onPressed: () => Navigator.pop(dialogContext),
-                        icon: const Icon(Symbols.close),
+                        icon: const Icon(LucideIcons.x),
                       ),
                       actions: [
                         TextButton(
@@ -521,7 +521,7 @@ class _TeamRoleSettingsPageState extends ConsumerState<TeamRoleSettingsPage>
                     title: const Text('Edit User'),
                     leading: IconButton(
                       onPressed: () => Navigator.pop(dialogContext),
-                      icon: const Icon(Symbols.close),
+                      icon: const Icon(LucideIcons.x),
                     ),
                     actions: [
                       TextButton(
@@ -589,7 +589,7 @@ class _TeamRoleSettingsPageState extends ConsumerState<TeamRoleSettingsPage>
           padding: const WidgetStatePropertyAll<EdgeInsets>(
             EdgeInsets.symmetric(horizontal: 16),
           ),
-          leading: const Icon(Symbols.search_rounded),
+          leading: const Icon(LucideIcons.search),
           hintText: _selectedTab == 0 ? 'Search users' : 'Search roles',
         ),
         bottom: TabBar(
@@ -659,9 +659,9 @@ class _TeamRoleSettingsPageState extends ConsumerState<TeamRoleSettingsPage>
                       children: filteredUsers
                           .map(
                             (user) => Card(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.surfaceContainer,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainer,
                               margin: EdgeInsets.zero,
                               clipBehavior: Clip.antiAlias,
                               elevation: 0,
@@ -679,9 +679,7 @@ class _TeamRoleSettingsPageState extends ConsumerState<TeamRoleSettingsPage>
                                               ? NetworkImage(user.avatarUrl!)
                                               : null,
                                           child: (user.avatarUrl ?? '').isEmpty
-                                              ? const Icon(
-                                                  Symbols.person_rounded,
-                                                )
+                                              ? const Icon(LucideIcons.user)
                                               : null,
                                         ),
                                         const SizedBox(width: 10),
@@ -702,7 +700,7 @@ class _TeamRoleSettingsPageState extends ConsumerState<TeamRoleSettingsPage>
                                             roles: effectiveRolesForUsers,
                                             currentUsers: effectiveUsers,
                                           ),
-                                          icon: Icon(Symbols.edit_rounded),
+                                          icon: Icon(LucideIcons.pencil),
                                         ),
                                       ],
                                     ),
@@ -798,9 +796,9 @@ class _TeamRoleSettingsPageState extends ConsumerState<TeamRoleSettingsPage>
                       children: filteredRoles
                           .map(
                             (role) => Card(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.surfaceContainer,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainer,
                               margin: EdgeInsets.zero,
                               clipBehavior: Clip.antiAlias,
                               elevation: 0,
@@ -851,7 +849,7 @@ class _TeamRoleSettingsPageState extends ConsumerState<TeamRoleSettingsPage>
                                                 value: 'edit',
                                                 child: Row(
                                                   children: [
-                                                    Icon(Symbols.edit_rounded),
+                                                    Icon(LucideIcons.pencil),
                                                     SizedBox(width: 8),
                                                     Text('Edit'),
                                                   ],
@@ -861,10 +859,7 @@ class _TeamRoleSettingsPageState extends ConsumerState<TeamRoleSettingsPage>
                                                 value: 'duplicate',
                                                 child: Row(
                                                   children: [
-                                                    Icon(
-                                                      Symbols
-                                                          .content_copy_rounded,
-                                                    ),
+                                                    Icon(LucideIcons.copy),
                                                     SizedBox(width: 8),
                                                     Text('Duplicate'),
                                                   ],
@@ -876,7 +871,7 @@ class _TeamRoleSettingsPageState extends ConsumerState<TeamRoleSettingsPage>
                                                 child: Row(
                                                   children: [
                                                     const Icon(
-                                                      Symbols.delete_rounded,
+                                                      LucideIcons.trash2,
                                                     ),
                                                     const SizedBox(width: 8),
                                                     Text(
@@ -964,7 +959,7 @@ class _TeamRoleSettingsPageState extends ConsumerState<TeamRoleSettingsPage>
                     const <ManagedRole>[],
               );
             },
-            icon: Icon(Symbols.add_rounded),
+            icon: Icon(LucideIcons.plus),
             label: const Text('New Role'),
           );
         },

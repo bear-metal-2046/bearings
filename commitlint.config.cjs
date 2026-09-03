@@ -1,6 +1,6 @@
 const scopes = [
   'beariscope',
-  'pawfinder',
+  'bearimetric',
   'core',
   'services',
   'ui',

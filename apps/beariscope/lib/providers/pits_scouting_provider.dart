@@ -4,10 +4,10 @@ import 'package:beariscope/pages/team_lookup/team_model.dart';
 import 'package:beariscope/pages/team_lookup/team_providers.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/scouting_data_provider.dart';
-import 'package:flutter/cupertino.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:services/providers/api_provider.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:services/providers/api_provider.dart';
 
 part 'pits_scouting_provider.g.dart';
 
@@ -54,16 +54,29 @@ Set<int> pitsScouted(Ref ref) {
 }
 
 //pits map
-@riverpod
-Future<PitsMapData> pitsMap(Ref ref) async {
-  final eventKey = ref.watch(currentEventProvider);
-  final client = ref.read(honeycombClientProvider);
+@Riverpod(keepAlive: true)
+Future<PitsMapData?> pitsMap(Ref ref) async {
+  try {
+    final tbaEventKey = ref.watch(currentEventProvider);
 
-  final response = await client.get<Map<String, dynamic>>(
-    '/pits',
-    queryParams: {'event': eventKey},
-    cachePolicy: CachePolicy.networkFirst,
-  );
+    final allEvents = await ref.watch(teamEventsProvider.future);
 
-  return PitsMapData.fromJson(response);
+    final matchingEvent = allEvents.firstWhere(
+      (eventOption) => eventOption.key == tbaEventKey,
+      orElse: () => throw Exception('Event $tbaEventKey not found'),
+    );
+
+    final nexusNormalizedEventKey = matchingEvent.firstKey;
+    final client = ref.watch(honeycombClientProvider);
+
+    final response = await client.get<Map<String, dynamic>>(
+      '/pits',
+      queryParams: {'event': nexusNormalizedEventKey},
+      cachePolicy: CachePolicy.networkFirst,
+    );
+
+    return PitsMapData.fromJson(response);
+  } catch (_) {
+    return null;
+  }
 }

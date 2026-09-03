@@ -1,8 +1,8 @@
 import 'package:beariscope/providers/post_sign_in_flow_provider.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:material_symbols_icons/material_symbols_icons.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:services/providers/auth_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -30,13 +30,18 @@ class WelcomePage extends ConsumerWidget {
                 ),
                 const Text(
                   'Welcome to Beariscope!',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
                 ),
                 IntrinsicWidth(
                   child: Column(
-                    spacing: 16,
+                    spacing: 8,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      // FilledButton.icon(
+                      //   onPressed: () => context.push('/welcome/sign_up'),
+                      //   icon: Icon(LucideIcons.userPlus),
+                      //   label: const Text('Sign Up'),
+                      // ),
                       FilledButton.icon(
                         onPressed: () async {
                           ref
@@ -51,7 +56,7 @@ class WelcomePage extends ConsumerWidget {
                               'email',
                               'offline_access',
                               'ORLhqJbHiTfgdF3Q8hqIbmdwT1wTkkP7',
-                            ]);
+                            ], isSignup: false);
                           } on OfflineAuthException {
                             ref
                                 .read(postSignInFlowPendingProvider.notifier)
@@ -77,30 +82,37 @@ class WelcomePage extends ConsumerWidget {
                             }
                           }
                         },
-                        label: const Text('Sign In'),
-                        icon: const Icon(Symbols.open_in_new_rounded),
+                        icon: const Icon(LucideIcons.userKey),
+                        label: const Text('Log In'),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () {},
+                        icon: Icon(LucideIcons.doorOpen),
+                        label: Text('Try Demo'),
+                      ),
+                      TextButton(
+                        onPressed: () async {
+                          final uri = Uri.parse(
+                            'https://bear-metal-2046.github.io/bearings/privacy-policy',
+                          );
+                          if (await canLaunchUrl(uri)) {
+                            await launchUrl(
+                              uri,
+                              mode: LaunchMode.externalApplication,
+                            );
+                          }
+                        },
+                        child: Text(
+                          'Privacy Policy',
+                          style: TextStyle(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
+                            fontSize: 12,
+                          ),
+                        ),
                       ),
                     ],
-                  ),
-                ),
-                TextButton(
-                  onPressed: () async {
-                    final uri = Uri.parse(
-                      'https://bear-metal-2046.github.io/bearings/privacy-policy',
-                    );
-                    if (await canLaunchUrl(uri)) {
-                      await launchUrl(
-                        uri,
-                        mode: LaunchMode.externalApplication,
-                      );
-                    }
-                  },
-                  child: Text(
-                    'Privacy Policy',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      fontSize: 12,
-                    ),
                   ),
                 ),
               ],

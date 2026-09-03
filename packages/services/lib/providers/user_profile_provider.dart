@@ -6,8 +6,11 @@ import 'package:services/providers/auth_provider.dart';
 
 part 'user_profile_provider.g.dart';
 
-const _auth0Domain = 'bearmetal2046.us.auth0.com';
-
+/// Reads the current user's profile from Auth0's live `/userinfo` endpoint
+/// and optionally downloads the profile photo bytes.
+///
+/// The profile can be changed by the Honeycomb API while the Auth0 session
+/// remains active, so the login-time ID-token profile is not authoritative.
 @Riverpod(keepAlive: true)
 Future<UserInfo?> userInfo(Ref ref) async {
   final auth = await ref.watch(authProvider.future);
@@ -17,49 +20,50 @@ Future<UserInfo?> userInfo(Ref ref) async {
   if (authStatus != AuthStatus.authenticated) return null;
 
   String? accessToken;
-  bool isOffline = false;
+  var isOffline = false;
 
   try {
     accessToken = await auth.getAccessToken(['openid', 'profile', 'email']);
   } on OfflineAuthException {
     isOffline = true;
-  } catch (e) {
-    rethrow;
   }
 
-  final headers = {
-    if (accessToken != null) 'Authorization': 'Bearer $accessToken',
-  };
-
-  Map<String, dynamic>? data;
-
+  Map<String, dynamic> data;
   try {
-    final userInfoResponse = await dio.get(
-      'https://$_auth0Domain/userinfo',
+    final response = await dio.get<Map<String, dynamic>>(
+      'https://${auth.config.domain}/userinfo',
       options: Options(
-        headers: headers,
+        headers: {
+          if (accessToken != null) 'Authorization': 'Bearer $accessToken',
+        },
         extra: {
           'cachePolicy': CachePolicy.networkFirst,
           'isOffline': isOffline,
         },
       ),
     );
-    data = userInfoResponse.data as Map<String, dynamic>;
-  } catch (e) {
-    if (isOffline) return null;
-    rethrow;
+    data = response.data!;
+  } catch (_) {
+    // Keep the session usable when the profile endpoint is unavailable.
+    final user = auth.user;
+    if (user == null) return null;
+    return UserInfo(
+      name: user.name,
+      email: user.email,
+      emailVerified: user.emailVerified,
+    );
   }
 
+  // Download photo bytes from the live profile URL if present.
   Uint8List? photoBytes;
-  final photoUrl = data['picture'] as String?;
-
-  if (photoUrl != null) {
+  final pictureUrl = data['picture'] as String?;
+  if (pictureUrl != null && pictureUrl.isNotEmpty) {
     try {
       final photoResponse = await dio.get(
-        photoUrl,
+        pictureUrl,
         options: Options(
           responseType: ResponseType.bytes,
-          extra: {'isOffline': isOffline},
+          extra: {'cachePolicy': CachePolicy.networkFirst},
         ),
       );
 
@@ -69,7 +73,7 @@ Future<UserInfo?> userInfo(Ref ref) async {
         );
       }
     } catch (_) {
-      // no photo just continue without it
+      // Proceed without photo on failure.
     }
   }
 
@@ -95,6 +99,7 @@ UserProfileService userProfileService(Ref ref) {
   return UserProfileService(ref);
 }
 
+/// CRUD service for the user's profile via the Honeycomb backend.
 class UserProfileService {
   final Ref _ref;
 
@@ -123,6 +128,8 @@ class UserProfileService {
     await client.patch('/profile', data: payload);
 
     if (_ref.mounted) {
+      final config = _ref.read(auth0ConfigProvider);
+      client.invalidateCache('https://${config.domain}/userinfo');
       _ref.invalidate(userInfoProvider);
     }
   }
@@ -144,8 +151,8 @@ class UserProfileService {
     final response = await client.post<Map<String, dynamic>>(
       '/profile/photo-upload',
       data: {
-        'contentType': ?contentType,
-        'fileExtension': ?fileExtension,
+        'contentType': contentType,
+        'fileExtension': fileExtension,
         'fileSizeBytes': bytes.length,
       },
     );
@@ -162,7 +169,7 @@ class UserProfileService {
       uploadUrl,
       data: bytes,
       options: Options(
-        headers: {'x-ms-blob-type': 'BlockBlob', 'Content-Type': ?contentType},
+        headers: {'x-ms-blob-type': 'BlockBlob', 'Content-Type': contentType},
       ),
     );
 

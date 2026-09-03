@@ -1,10 +1,13 @@
 import 'package:beariscope/pages/settings/image_crop_dialog.dart';
+
+import 'dart:typed_data';
+
 import 'package:beariscope/utils/image_processor.dart';
 import 'package:beariscope/widgets/settings_group.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:material_symbols_icons/symbols.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:mime/mime.dart';
 import 'package:services/providers/api_provider.dart';
 import 'package:services/providers/auth_provider.dart';
@@ -201,9 +204,8 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
           _nameController.text = _nameController.text.trim();
           _emailController.text = _emailController.text.trim();
         });
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Profile updated')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Profile updated')));
       }
     } catch (error) {
       if (mounted) {
@@ -217,17 +219,17 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
   }
 
   Future<void> _changePhoto() async {
-    final result = await FilePicker.platform.pickFiles(
+    final files = await FilePicker.pickFiles(
       dialogTitle: 'Select Photo',
       type: FileType.image,
-      withData: true,
     );
 
-    if (result == null || result.files.isEmpty) return;
-    final file = result.files.single;
-    final bytes = file.bytes;
-
-    if (bytes == null) {
+    if (files.isEmpty) return;
+    final file = files.single;
+    late final Uint8List bytes;
+    try {
+      bytes = await file.readAsBytes();
+    } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Unable to read image data')),
@@ -450,23 +452,23 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
                               child: Container(
                                 padding: const EdgeInsets.all(3),
                                 decoration: BoxDecoration(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.tertiaryContainer,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .tertiaryContainer,
                                   shape: BoxShape.circle,
                                   border: Border.all(
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.surfaceContainer,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .surfaceContainer,
                                     width: 2,
                                   ),
                                 ),
                                 child: Icon(
-                                  Symbols.photo_camera_rounded,
+                                  LucideIcons.camera,
                                   size: 12,
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onTertiaryContainer,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onTertiaryContainer,
                                 ),
                               ),
                             ),
@@ -490,9 +492,9 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
                           Text(
                             userInfo.value?.email ?? 'No Email',
                             style: TextStyle(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurfaceVariant,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
                             ),
                           ),
                         ],
@@ -553,7 +555,7 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
                                   strokeWidth: 2,
                                 ),
                               )
-                            : const Icon(Symbols.save_rounded),
+                            : const Icon(LucideIcons.save),
                         label: const Text('Save Changes'),
                       ),
                     ),
@@ -567,7 +569,7 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
             title: 'Security',
             children: [
               ListTile(
-                leading: const Icon(Symbols.lock_reset_rounded),
+                leading: const Icon(LucideIcons.rotateCcwKey),
                 title: const Text('Reset Password'),
                 subtitle: const Text('Send a password reset email'),
                 trailing: _isSendingReset
@@ -580,14 +582,14 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
                 onTap: _isSendingReset ? null : _sendPasswordReset,
               ),
               ListTile(
-                leading: Icon(Symbols.logout_rounded),
+                leading: Icon(LucideIcons.logOut),
                 title: Text('Sign Out'),
                 subtitle: Text('Sign out of your account'),
                 onTap: () => _signOut(context),
               ),
               ListTile(
                 leading: Icon(
-                  Symbols.delete_forever_rounded,
+                  LucideIcons.bomb,
                   color: Theme.of(context).colorScheme.error,
                 ),
                 title: Text(

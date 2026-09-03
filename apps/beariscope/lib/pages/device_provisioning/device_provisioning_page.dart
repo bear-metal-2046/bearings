@@ -1,8 +1,8 @@
 import 'package:beariscope/widgets/beariscope_card.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:material_symbols_icons/symbols.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:services/providers/device_credentials_provider.dart';
 import 'package:ui/widgets/text_divider.dart';
@@ -24,7 +24,7 @@ class DeviceProvisioningPage extends ConsumerWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Symbols.error_rounded, size: 48),
+                const Icon(LucideIcons.circleAlert, size: 48),
                 const SizedBox(height: 16),
                 Text(
                   'Could not load device credentials',
@@ -39,7 +39,7 @@ class DeviceProvisioningPage extends ConsumerWidget {
                 const SizedBox(height: 24),
                 FilledButton.icon(
                   onPressed: () => ref.invalidate(deviceCredentialsProvider),
-                  icon: const Icon(Symbols.refresh_rounded),
+                  icon: const Icon(LucideIcons.rotateCw),
                   label: const Text('Retry'),
                 ),
               ],
@@ -55,16 +55,15 @@ class DeviceProvisioningPage extends ConsumerWidget {
               Column(
                 children: [
                   Text(
-                    'Scan this QR code with a Pawfinder device to provision it.',
+                    'Scan this QR code with a Bearimetric device to provision it.',
                     style: Theme.of(context).textTheme.bodyMedium,
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'All devices share the same credentials. Keep this screen private.',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
+                    style: Theme.of(context).textTheme.bodySmall
+                        ?.copyWith(color: colorScheme.onSurfaceVariant),
                     textAlign: TextAlign.center,
                   ),
                 ],
@@ -100,7 +99,7 @@ class DeviceProvisioningPage extends ConsumerWidget {
                     );
                   }
                 },
-                icon: const Icon(Symbols.content_copy_rounded),
+                icon: const Icon(LucideIcons.copy),
                 label: Text('Copy Provisioning Code'),
               ),
             ],

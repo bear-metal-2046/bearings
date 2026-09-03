@@ -3,7 +3,7 @@
 Use conventional commits with one of these scopes:
 
 - `beariscope`
-- `pawfinder`
+- `bearimetric`
 - `core`
 - `services`
 - `ui`

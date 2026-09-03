@@ -5,9 +5,9 @@ import 'package:beariscope/pages/team_lookup/tabs/scouting_tab_widgets.dart';
 import 'package:beariscope/pages/up_next/match_preview_page.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/team_scouting_provider.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:material_symbols_icons/symbols.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:services/providers/api_provider.dart';
 
 String? _scouterNameFromRaw(dynamic rawDoc) {
@@ -276,9 +276,8 @@ class _MatchCard extends ConsumerWidget {
               children: [
                 Text(
                   label,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                  style: Theme.of(context).textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 if (incidents.isNotEmpty) ...[
                   const SizedBox(width: 8),
@@ -302,9 +301,8 @@ class _MatchCard extends ConsumerWidget {
         ),
         subtitle: Text(
           'Auto $autoStr  •  Tele $teleStr  •  Acc $accStr  •  $climbStr',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
+          style: Theme.of(context).textTheme.bodySmall
+              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
         children: [
           const Divider(height: 1),
@@ -321,7 +319,7 @@ class _MatchCard extends ConsumerWidget {
                             DriveTeamMatchPreviewPage(matchKey: matchKey),
                       ),
                     ),
-                icon: const Icon(Symbols.open_in_new_rounded),
+                icon: const Icon(LucideIcons.externalLink),
                 label: const Text('View Match Preview'),
               ),
             ),
@@ -394,7 +392,7 @@ class _MatchDetailSection extends StatelessWidget {
             context,
             header: const ScoutingSubHeader(
               title: 'Auto',
-              icon: Symbols.timer_rounded,
+              icon: LucideIcons.timer,
             ),
             rows: [
               _row(context, 'Fuel Scored', _f(kSectionAuto, kAutoFuelScored)),
@@ -440,7 +438,7 @@ class _MatchDetailSection extends StatelessWidget {
             context,
             header: const ScoutingSubHeader(
               title: 'Teleop',
-              icon: Symbols.gamepad_rounded,
+              icon: LucideIcons.gamepad2,
             ),
             rows: [
               _row(context, 'Fuel Scored', _f(kSectionTele, kTeleFuelScored)),
@@ -470,7 +468,7 @@ class _MatchDetailSection extends StatelessWidget {
             context,
             header: const ScoutingSubHeader(
               title: 'Endgame',
-              icon: Symbols.flag_rounded,
+              icon: LucideIcons.flag,
             ),
             rows: [
               _row(context, 'Climb Level', _f(kSectionEndgame, kEndClimb)),
@@ -497,7 +495,6 @@ class _MatchDetailSection extends StatelessWidget {
               _row(context, 'Play Style', _f(kSectionEndgame, kEndPlayStyle)),
               _row(context, 'No Show', _f(kSectionEndgame, kEndNoShow)),
               _row(context, 'Scout Notes', _f(kSectionEndgame, kEndNotes)),
-              // TODO(strat): add strat fields once strat data is implemented.
             ],
           ),
         ],

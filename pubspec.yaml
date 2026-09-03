@@ -1,24 +1,29 @@
 name: bearings
 publish_to: none
 environment:
-  sdk: ^3.11.0
+  sdk: ^3.13.0
+
+hooks:
+  user_defines:
+    win32:
+      local_build: true
 
 workspace:
   - apps/beariscope
-  - apps/pawfinder
+  - apps/bearimetric
   - packages/core
   - packages/services
   - packages/ui
   - backend/honeycomb
 
 dev_dependencies:
-  build_runner: ^2.12.2
-  melos: ^7.4.0
+  build_runner: 2.15.1
+  melos: 7.8.1
 
 melos:
   packages:
     - apps/beariscope
-    - apps/pawfinder
+    - apps/bearimetric
     - packages/core
     - packages/services
     - packages/ui

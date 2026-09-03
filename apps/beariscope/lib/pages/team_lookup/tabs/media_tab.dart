@@ -1,16 +1,16 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:beariscope/widgets/beariscope_card.dart';
 import 'package:beariscope/pages/team_lookup/tabs/media_save_helper.dart';
 import 'package:beariscope/pages/team_lookup/tabs/scouting_tab_widgets.dart';
 import 'package:beariscope/pages/team_lookup/team_providers.dart';
+import 'package:beariscope/widgets/beariscope_card.dart';
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
-import 'package:material_symbols_icons/symbols.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class MediaTab extends ConsumerStatefulWidget {
@@ -88,7 +88,7 @@ class _MediaTabState extends ConsumerState<MediaTab> {
           children: [
             if (sections.photos.isNotEmpty) ...[
               const ScoutingSectionHeader(
-                icon: Symbols.photo_library_rounded,
+                icon: LucideIcons.image,
                 title: 'Photos',
               ),
               const SizedBox(height: 12),
@@ -100,7 +100,7 @@ class _MediaTabState extends ConsumerState<MediaTab> {
             ],
             if (sections.chiefDelphiThreads.isNotEmpty) ...[
               const ScoutingSectionHeader(
-                icon: Symbols.forum_rounded,
+                icon: LucideIcons.messageSquareCode,
                 title: 'Chief Delphi Threads',
               ),
               const SizedBox(height: 12),
@@ -113,7 +113,7 @@ class _MediaTabState extends ConsumerState<MediaTab> {
             ],
             if (sections.cadReleases.isNotEmpty) ...[
               const ScoutingSectionHeader(
-                icon: Symbols.view_in_ar_rounded,
+                icon: LucideIcons.boxes,
                 title: 'CAD Files',
               ),
               const SizedBox(height: 12),
@@ -126,7 +126,7 @@ class _MediaTabState extends ConsumerState<MediaTab> {
             ],
             if (sections.youtubeVideos.isNotEmpty) ...[
               const ScoutingSectionHeader(
-                icon: Symbols.video_library_rounded,
+                icon: LucideIcons.video,
                 title: 'Videos',
               ),
               const SizedBox(height: 12),
@@ -191,7 +191,7 @@ class _TeamWebsiteSection extends StatelessWidget {
     return Column(
       children: [
         const ScoutingSectionHeader(
-          icon: Symbols.public_rounded,
+          icon: LucideIcons.earth,
           title: 'Team Website',
         ),
         const SizedBox(height: 12),
@@ -238,7 +238,7 @@ class _TeamWebsiteSection extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  const Icon(Icons.open_in_new_rounded),
+                  const Icon(LucideIcons.externalLink),
                 ],
               ),
             ),
@@ -263,7 +263,7 @@ class _WebsiteFavicon extends StatelessWidget {
   Widget build(BuildContext context) {
     final favicon = faviconUrl;
     if (favicon == null) {
-      return Icon(Symbols.public_rounded, color: fallbackColor);
+      return Icon(LucideIcons.earth, color: fallbackColor);
     }
 
     return ClipRRect(
@@ -275,7 +275,7 @@ class _WebsiteFavicon extends StatelessWidget {
           favicon.toString(),
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) =>
-              Icon(Symbols.public_rounded, color: fallbackColor),
+              Icon(LucideIcons.earth, color: fallbackColor),
         ),
       ),
     );
@@ -510,9 +510,12 @@ class _PhotoGrid extends StatelessWidget {
                           initialIndex: index,
                           activeUrlNotifier: activeUrlNotifier,
                         ),
-                    transitionsBuilder:
-                        (context, animation, secondaryAnimation, child) =>
-                            FadeTransition(opacity: animation, child: child),
+                    transitionsBuilder: (
+                      context,
+                      animation,
+                      secondaryAnimation,
+                      child,
+                    ) => FadeTransition(opacity: animation, child: child),
                   ),
                 );
                 activeUrlNotifier.value = null;
@@ -598,7 +601,7 @@ class _MediaLinkCard extends StatelessWidget {
                     ),
                     if (openUrl != null) ...[
                       const SizedBox(width: 12),
-                      Icon(Icons.open_in_new_rounded),
+                      Icon(LucideIcons.externalLink),
                     ],
                   ],
                 ),
@@ -611,9 +614,8 @@ class _MediaLinkCard extends StatelessWidget {
   }
 
   Widget _buildTitle(BuildContext context) {
-    final style = Theme.of(
-      context,
-    ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600);
+    final style = Theme.of(context).textTheme.titleMedium
+        ?.copyWith(fontWeight: FontWeight.w600);
 
     final fallback = switch (record.type) {
       'cd-thread' => 'Chief Delphi thread',
@@ -941,7 +943,7 @@ class _FullscreenImageViewerState extends State<_FullscreenImageViewer>
           ),
           actions: [
             PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert),
+              icon: const Icon(LucideIcons.ellipsisVertical),
               onSelected: (value) async {
                 if (value == 'share') {
                   await _shareCurrentImage(widget.urls[_currentIndex]);
@@ -963,7 +965,7 @@ class _FullscreenImageViewerState extends State<_FullscreenImageViewer>
                   value: 'share',
                   child: Row(
                     children: const [
-                      Icon(Icons.ios_share_rounded),
+                      Icon(LucideIcons.share),
                       SizedBox(width: 12),
                       Text('Share'),
                     ],
@@ -973,7 +975,7 @@ class _FullscreenImageViewerState extends State<_FullscreenImageViewer>
                   value: 'open',
                   child: Row(
                     children: const [
-                      Icon(Icons.open_in_new_rounded),
+                      Icon(LucideIcons.externalLink),
                       SizedBox(width: 12),
                       Text('Open in Browser'),
                     ],
@@ -1226,7 +1228,7 @@ class _NetworkImageWithSkeleton extends StatelessWidget {
       errorBuilder: (context, error, stackTrace) => Container(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
         child: Icon(
-          Icons.broken_image_outlined,
+          LucideIcons.image,
           color: Theme.of(context).colorScheme.onSurfaceVariant,
         ),
       ),
@@ -1259,9 +1261,8 @@ class _PulseSkeletonState extends State<_PulseSkeleton>
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, _) => Container(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(
-          alpha: 0.5 + (_controller.value * 0.2),
-        ),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest
+            .withValues(alpha: 0.5 + (_controller.value * 0.2)),
       ),
     );
   }

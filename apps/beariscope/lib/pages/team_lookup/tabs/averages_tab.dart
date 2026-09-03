@@ -3,9 +3,9 @@ import 'package:beariscope/models/team_scouting_bundle.dart';
 import 'package:beariscope/pages/team_lookup/tabs/scouting_tab_widgets.dart';
 import 'package:beariscope/providers/strat_z_score_provider.dart';
 import 'package:beariscope/providers/team_scouting_provider.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:material_symbols_icons/symbols.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class AveragesTab extends ConsumerWidget {
   final int teamNumber;
@@ -200,10 +200,7 @@ class _AveragesBodyState extends State<_AveragesBody> {
           ),
         ),
         const SizedBox(height: 12),
-        const ScoutingSectionHeader(
-          title: 'Scoring',
-          icon: Symbols.local_fire_department_rounded,
-        ),
+        const ScoutingSectionHeader(title: 'Scoring', icon: LucideIcons.flame),
         const SizedBox(height: kScoutingHeaderGap),
         Card(
           elevation: 0,
@@ -264,7 +261,7 @@ class _AveragesBodyState extends State<_AveragesBody> {
         const SizedBox(height: kScoutingSectionGap),
         const ScoutingSectionHeader(
           title: 'Behaviour',
-          icon: Symbols.settings_rounded,
+          icon: LucideIcons.brain,
         ),
         const SizedBox(height: kScoutingHeaderGap),
         Card(
@@ -323,16 +320,15 @@ class _AveragesBodyState extends State<_AveragesBody> {
           _lastN == null
               ? 'Based on $n match${n == 1 ? '' : 'es'}'
               : 'Last $n of ${widget.bundle.matchDocs.length} match${widget.bundle.matchDocs.length == 1 ? '' : 'es'}',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
+          style: Theme.of(context).textTheme.bodySmall
+              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
           textAlign: TextAlign.center,
         ),
         if (bundle.hasStratData) ...[
           const SizedBox(height: kScoutingSectionGap),
           const ScoutingSectionHeader(
             title: 'Z-Score Metrics',
-            icon: Symbols.analytics_rounded,
+            icon: LucideIcons.chartColumnDecreasing,
           ),
           const SizedBox(height: kScoutingHeaderGap),
           _zScoreCard(context, widget.stratZScores),
@@ -342,6 +338,7 @@ class _AveragesBodyState extends State<_AveragesBody> {
   }
 
   static String _fmtDec(double v) => v.toStringAsFixed(1);
+
   static String _fmtPct(double v) => '${v.toStringAsFixed(1)}%';
 
   // ---------------------------------------------------------------------------

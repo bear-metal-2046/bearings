@@ -8,6 +8,7 @@ export 'providers/api_provider.dart'
         honeycombClientProvider,
         HoneycombClient,
         CachePolicy;
+export 'providers/auth/auth_backend.dart' show AuthBackend, AuthUser;
 export 'providers/auth_provider.dart'
     show
         auth0ConfigProvider,
@@ -16,6 +17,7 @@ export 'providers/auth_provider.dart'
         Auth,
         Auth0Config,
         AuthStatus,
+        OAuthToken,
         OfflineAuthException;
 export 'providers/connectivity_provider.dart'
     show

@@ -3,9 +3,9 @@ import 'package:beariscope/models/team_scouting_bundle.dart';
 import 'package:beariscope/pages/team_lookup/tabs/scouting_tab_widgets.dart';
 import 'package:beariscope/providers/strat_z_score_provider.dart';
 import 'package:beariscope/providers/team_scouting_provider.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:material_symbols_icons/symbols.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class CapabilitiesTab extends ConsumerWidget {
   final int teamNumber;
@@ -53,29 +53,29 @@ class _CapabilitiesBody extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       children: [
         const ScoutingSectionHeader(
-          title: 'Drivebase & Mobility',
-          icon: Symbols.build_rounded,
+          title: 'Drivetrain & Mobility',
+          icon: LucideIcons.car,
         ),
         const SizedBox(height: kScoutingHeaderGap),
         _botCard(context),
         const SizedBox(height: kScoutingSectionGap),
         const ScoutingSectionHeader(
           title: 'Scoring & Ball Handling',
-          icon: Symbols.local_fire_department_rounded,
+          icon: LucideIcons.flame,
         ),
         const SizedBox(height: kScoutingHeaderGap),
         _outtakeCard(context),
         const SizedBox(height: kScoutingSectionGap),
         const ScoutingSectionHeader(
           title: 'Auto & Pathing',
-          icon: Symbols.route_rounded,
+          icon: LucideIcons.route,
         ),
         const SizedBox(height: kScoutingHeaderGap),
         _autoCard(context),
         const SizedBox(height: kScoutingSectionGap),
         const ScoutingSectionHeader(
           title: 'Endgame & Defense',
-          icon: Symbols.moving_rounded,
+          icon: LucideIcons.trendingUp,
         ),
         const SizedBox(height: kScoutingHeaderGap),
         _climbCard(context),

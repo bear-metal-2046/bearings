@@ -3,9 +3,9 @@ import 'package:beariscope/models/scouting_document.dart';
 import 'package:beariscope/models/team_scouting_bundle.dart';
 import 'package:beariscope/pages/team_lookup/tabs/scouting_tab_widgets.dart';
 import 'package:beariscope/providers/team_scouting_provider.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:material_symbols_icons/symbols.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class NotesTab extends ConsumerWidget {
   final int teamNumber;
@@ -154,7 +154,7 @@ class _NotesBody extends StatelessWidget {
         // Incident summary.
         const ScoutingSectionHeader(
           title: 'Incident Summary',
-          icon: Symbols.warning_amber_rounded,
+          icon: LucideIcons.triangleAlert,
         ),
         const SizedBox(height: kScoutingHeaderGap),
         Card(
@@ -191,10 +191,9 @@ class _NotesBody extends StatelessWidget {
         else ...[
           const ScoutingSectionHeader(
             title: 'Notes & Observations',
-            icon: Symbols.notes_rounded,
+            icon: LucideIcons.notepadText,
           ),
           const SizedBox(height: kScoutingHeaderGap),
-          // TODO(strat): insert strat notes section once strat data is available.
           ...feedItems
               .where((f) => f.notes.isNotEmpty || f.incidents.isNotEmpty)
               .map((item) => _FeedItemTile(item: item)),
@@ -252,9 +251,8 @@ class _FeedItemTile extends StatelessWidget {
               children: [
                 Text(
                   item.sourceLabel,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                  style: Theme.of(context).textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 if (item.scoutedBy.isNotEmpty) ...[
                   const SizedBox(width: 8),

@@ -1,8 +1,8 @@
 import 'package:beariscope/widgets/settings_group.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:material_symbols_icons/symbols.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:services/providers/permissions_provider.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
@@ -35,19 +35,19 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             title: 'General',
             children: [
               ListTile(
-                leading: const Icon(Symbols.person_rounded),
+                leading: const Icon(LucideIcons.circleUser),
                 title: const Text('Account'),
                 subtitle: const Text('Your Profile, Picture, Details'),
                 onTap: () => context.push('/settings/account'),
               ),
               ListTile(
-                leading: const Icon(Symbols.palette_rounded),
+                leading: const Icon(LucideIcons.palette),
                 title: const Text('Appearance'),
                 subtitle: const Text('Theme, Accent Color'),
                 onTap: () => context.push('/settings/appearance'),
               ),
               ListTile(
-                leading: const Icon(Symbols.tune_rounded),
+                leading: const Icon(LucideIcons.wrench),
                 title: const Text('Advanced'),
                 subtitle: const Text('Tweaks, Overrides'),
                 onTap: () => context.push('/settings/advanced'),
@@ -63,7 +63,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               children: [
                 if (canViewScouts || canEditScouts)
                   ListTile(
-                    leading: const Icon(Symbols.group_rounded),
+                    leading: const Icon(LucideIcons.userPen),
                     title: const Text('Scouts'),
                     subtitle: Text(
                       canEditScouts ? 'Add, Remove Scouts' : 'View Scouts',
@@ -72,7 +72,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   ),
                 if (canManageUsersRoles)
                   ListTile(
-                    leading: const Icon(Symbols.groups_rounded),
+                    leading: const Icon(LucideIcons.users),
                     title: const Text('Beariscope Users, Roles'),
                     subtitle: const Text('Edit Roles, Permissions, Users'),
                     onTap: () => context.push('/settings/roles'),
@@ -88,13 +88,13 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             title: 'About',
             children: [
               ListTile(
-                leading: const Icon(Symbols.info_rounded),
+                leading: const Icon(LucideIcons.info),
                 title: const Text('About'),
                 subtitle: const Text('Version, Acknowledgements'),
                 onTap: () => context.push('/settings/about'),
               ),
               ListTile(
-                leading: const Icon(Symbols.license_rounded),
+                leading: const Icon(LucideIcons.scroll),
                 title: const Text('Licenses'),
                 subtitle: const Text('Licenses, Open Source'),
                 onTap: () => context.push('/settings/licenses'),

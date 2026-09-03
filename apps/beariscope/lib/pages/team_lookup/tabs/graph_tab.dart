@@ -1,12 +1,11 @@
 import 'package:beariscope/models/match_field_ids.dart';
+import 'package:beariscope/models/processed_scouting_doc.dart';
 import 'package:beariscope/models/team_scouting_bundle.dart';
 import 'package:beariscope/providers/team_scouting_provider.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:material_symbols_icons/symbols.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
-
-import 'package:beariscope/models/processed_scouting_doc.dart';
 
 class GraphTab extends ConsumerWidget {
   final int teamNumber;
@@ -162,9 +161,8 @@ class _GraphMetric extends StatelessWidget {
         children: [
           Text(
             label,
-            style: Theme.of(
-              context,
-            ).textTheme.labelSmall?.copyWith(color: color),
+            style: Theme.of(context).textTheme.labelSmall
+                ?.copyWith(color: color),
           ),
           const SizedBox(height: 4),
           Text(
@@ -273,19 +271,19 @@ List<LineSeries<ProcessedScoutingDoc, String>> _buildLineSeries(
                 children: [
                   if (brokeDown)
                     Icon(
-                      Symbols.build_circle_rounded,
+                      LucideIcons.bomb,
                       color: Theme.of(context).colorScheme.error,
                       size: 14,
                     ),
                   if (playedDefense)
                     Icon(
-                      Symbols.shield_rounded,
+                      LucideIcons.shield,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                       size: 14,
                     ),
                   if (noShow)
                     Icon(
-                      Symbols.help_rounded,
+                      LucideIcons.mapPinXInside,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                       size: 14,
                     ),

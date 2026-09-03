@@ -1,6 +1,6 @@
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:core/core.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'big_number_widget.dart';
 import 'bool_button.dart';
@@ -221,9 +221,9 @@ class _MatchFormRendererState extends State<MatchFormRenderer> {
 
         return Dropdown(
           title: label,
-          backgroundColor: Theme.of(
-            context,
-          ).colorScheme.surfaceContainerHighest,
+          backgroundColor: Theme.of(context)
+              .colorScheme
+              .surfaceContainerHighest,
           items: items,
           onChanged: (v) => _onFieldChanged(sectionId, component.fieldId, v),
           initialIndex: selectedIndex == -1 ? null : selectedIndex,
