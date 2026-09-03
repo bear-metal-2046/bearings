@@ -38,11 +38,11 @@ class WelcomePage extends ConsumerWidget {
                     spacing: 8,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      FilledButton.icon(
-                        onPressed: () => context.push('/welcome/sign_up'),
-                        icon: Icon(LucideIcons.userPlus),
-                        label: const Text('Sign Up'),
-                      ),
+                      // FilledButton.icon(
+                      //   onPressed: () => context.push('/welcome/sign_up'),
+                      //   icon: Icon(LucideIcons.userPlus),
+                      //   label: const Text('Sign Up'),
+                      // ),
                       FilledButton.icon(
                         onPressed: () async {
                           ref
