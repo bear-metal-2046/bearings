@@ -1,6 +1,6 @@
 name: beariscope
 description: "FRC strategy data viewer developed by Bear Metal, team 2046"
-version: 26.5.0+20
+version: 26.6.0+21
 resolution: workspace
 publish_to: none
 
