@@ -3,9 +3,8 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
-  auth0_flutter
-  desktop_webview_window
   flutter_secure_storage_windows
+  oidc_windows
   share_plus
   url_launcher_windows
   window_size
