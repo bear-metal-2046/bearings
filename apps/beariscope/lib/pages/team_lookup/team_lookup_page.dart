@@ -12,6 +12,8 @@ import 'package:beariscope/pages/team_lookup/team_providers.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/rankings_provider.dart';
 import 'package:beariscope/providers/team_scouting_provider.dart';
+import 'package:beariscope/utils/platform_utils_stub.dart'
+    if (dart.library.io) 'package:beariscope/utils/platform_utils.dart';
 import 'package:beariscope/widgets/beariscope_card.dart';
 import 'package:beariscope/widgets/team_card.dart';
 import 'package:material_ui/material_ui.dart';
@@ -167,6 +169,42 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage> with SingleTick
     super.dispose();
   }
 
+  Widget _buildTeamSearchBar({
+    required BuildContext context,
+    required FocusNode searchFocusNode,
+    required TextEditingController searchTermTEC,
+  }) {
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onVerticalDragEnd: (details) {
+        if ((details.primaryVelocity ?? 0) > 0) {
+          FocusScope.of(context).unfocus();
+        }
+      },
+      child: SearchBar(
+        focusNode: searchFocusNode,
+        controller: searchTermTEC,
+        hintText: 'Team name or number',
+        padding: const WidgetStatePropertyAll<EdgeInsets>(EdgeInsets.symmetric(horizontal: 16.0)),
+        leading: const Icon(LucideIcons.search),
+        trailing: searchTermTEC.text.isNotEmpty
+            ? [
+                IconButton(
+                  icon: const Icon(LucideIcons.x),
+                  onPressed: () {
+                    searchTermTEC.clear();
+                    setState(() {});
+                  },
+                ),
+              ]
+            : null,
+        onChanged: (_) {
+          setState(() {});
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = MainViewController.of(context);
@@ -209,15 +247,20 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage> with SingleTick
     return LayoutBuilder(
       builder: (context, constraints) {
         final isWide = constraints.maxWidth > 1000;
+        final searchAtTop = !PlatformUtils.isMobile();
         final picklistSheetState = ref.watch(picklistSheetStateProvider);
         final collapsedHeight = picklistSheetConfigForState(PicklistSheetState.collapsed).height;
         final expandedHeight = picklistSheetConfigForState(PicklistSheetState.expanded).height;
 
         _sheetMaxHeight = math.min(expandedHeight, constraints.maxHeight - kToolbarHeight - 24);
 
-        final double searchBarBottom = isWide
+        final double searchBarBottom = searchAtTop
             ? 8
             : (picklistSheetConfigForState(picklistSheetState).raiseSearchBar ? collapsedHeight + 8 : 8);
+
+        final listPadding = searchAtTop
+            ? const EdgeInsets.fromLTRB(16, 72, 16, 16)
+            : const EdgeInsets.fromLTRB(16, 16, 16, 120);
 
         final double targetSidebarWidth = switch (picklistSheetState) {
           PicklistSheetState.hidden => 0.0,
@@ -422,7 +465,7 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage> with SingleTick
                   return RefreshIndicator(
                     onRefresh: onRefresh,
                     child: BeariscopeCardList(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
+                      padding: listPadding,
                       children: filteredTeams.map((team) {
                         final isCollected = collectedTeams.contains(team.key);
 
@@ -467,44 +510,43 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage> with SingleTick
                   );
                 },
               ),
-              AnimatedPositioned(
-                duration: const Duration(milliseconds: 250),
-                curve: Curves.easeOutBack,
-                left: 8,
-                right: 8,
-                bottom: searchBarBottom,
-                child: SafeArea(
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.translucent,
-                    onVerticalDragEnd: (details) {
-                      if ((details.primaryVelocity ?? 0) > 0) {
-                        FocusScope.of(context).unfocus();
-                      }
-                    },
-                    child: SearchBar(
-                      focusNode: searchFocusNode,
-                      controller: searchTermTEC,
-                      hintText: 'Team name or number',
-                      padding: const WidgetStatePropertyAll<EdgeInsets>(EdgeInsets.symmetric(horizontal: 16.0)),
-                      leading: const Icon(LucideIcons.search),
-                      trailing: searchTermTEC.text.isNotEmpty
-                          ? [
-                              IconButton(
-                                icon: const Icon(LucideIcons.x),
-                                onPressed: () {
-                                  searchTermTEC.clear();
-                                  setState(() {});
-                                },
-                              ),
-                            ]
-                          : null,
-                      onChanged: (_) {
-                        setState(() {});
-                      },
+              if (searchAtTop)
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: SafeArea(
+                    bottom: false,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 720),
+                          child: _buildTeamSearchBar(
+                            context: context,
+                            searchFocusNode: searchFocusNode,
+                            searchTermTEC: searchTermTEC,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                )
+              else
+                AnimatedPositioned(
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeOutBack,
+                  left: 8,
+                  right: 8,
+                  bottom: searchBarBottom,
+                  child: SafeArea(
+                    child: _buildTeamSearchBar(
+                      context: context,
+                      searchFocusNode: searchFocusNode,
+                      searchTermTEC: searchTermTEC,
                     ),
                   ),
                 ),
-              ),
               if (!isWide)
                 ValueListenableBuilder<double>(
                   valueListenable: _sheetHeightNotifier,

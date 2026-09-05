@@ -13,6 +13,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:services/providers/api_provider.dart';
 import 'package:services/providers/permissions_provider.dart';
 import 'package:services/providers/user_profile_provider.dart';
+import 'package:ui/ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 enum _TeamAction { switchLayout, openTba, openStatbotics, openYouTube }
@@ -241,7 +242,8 @@ class _DriveTeamMatchPreviewPageState
                 final card = cards[index];
                 final isRed = index < redTeams.length;
                 final label = isRed ? 'Red Alliance' : 'Blue Alliance';
-                final cardHeight = (height - padding * 2 - gap) / 2;
+                final cardHeight =
+                    ((height - padding * 2 - gap) / 2 - 8).clamp(0.0, double.infinity);
 
                 return Column(
                   mainAxisSize: MainAxisSize.min,
@@ -415,34 +417,36 @@ class _DriveTeamMatchPreviewPageState
               );
 
               Widget buildDotsIndicator(double page) {
-                return DotsIndicator(
-                  dotsCount: cards.length,
-                  position: page.clamp(0, cards.length - 1).toDouble(),
-                  axis: scrollVertical ? Axis.vertical : Axis.horizontal,
-                  onTap: (position) {
-                    _pageController?.animateToPage(
-                      position.toInt(),
-                      duration: const Duration(milliseconds: 250),
-                      curve: Curves.easeInOut,
-                    );
-                  },
-                  decorator: DotsDecorator(
-                    activeColor: Theme.of(context).colorScheme.primary,
-                    color: Theme.of(context)
-                        .colorScheme
-                        .surfaceContainerHighest,
-                    colors: cards
-                        .map((c) => c.color.withValues(alpha: 0.4))
-                        .toList(),
-                    activeColors: cards.map((c) => c.color).toList(),
-                    spacing: const EdgeInsets.symmetric(
-                      horizontal: 4,
-                      vertical: 8,
-                    ),
-                    size: const Size.square(8.0),
-                    activeSize: const Size(24.0, 8.0),
-                    activeShape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(4.0),
+                return FlutterMaterialScope(
+                  child: DotsIndicator(
+                    dotsCount: cards.length,
+                    position: page.clamp(0, cards.length - 1).toDouble(),
+                    axis: scrollVertical ? Axis.vertical : Axis.horizontal,
+                    onTap: (position) {
+                      _pageController?.animateToPage(
+                        position.toInt(),
+                        duration: const Duration(milliseconds: 250),
+                        curve: Curves.easeInOut,
+                      );
+                    },
+                    decorator: DotsDecorator(
+                      activeColor: Theme.of(context).colorScheme.primary,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .surfaceContainerHighest,
+                      colors: cards
+                          .map((c) => c.color.withValues(alpha: 0.4))
+                          .toList(),
+                      activeColors: cards.map((c) => c.color).toList(),
+                      spacing: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 8,
+                      ),
+                      size: const Size.square(8.0),
+                      activeSize: const Size(24.0, 8.0),
+                      activeShape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(4.0),
+                      ),
                     ),
                   ),
                 );
