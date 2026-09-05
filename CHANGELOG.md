@@ -1,5 +1,12 @@
 # Changelog
 
+## v26.6.1
+**Released:** 2026-09-05
+
+### Features
+- services: Change auth backend to oidc (ae03529)
+
+
 ## v26.6.0
 **Released:** 2026-09-04
 
