@@ -242,8 +242,10 @@ class _DriveTeamMatchPreviewPageState
                 final card = cards[index];
                 final isRed = index < redTeams.length;
                 final label = isRed ? 'Red Alliance' : 'Blue Alliance';
-                final cardHeight =
-                    ((height - padding * 2 - gap) / 2 - 8).clamp(0.0, double.infinity);
+                final cardHeight = ((height - padding * 2 - gap) / 2 - 8).clamp(
+                  0.0,
+                  double.infinity,
+                );
 
                 return Column(
                   mainAxisSize: MainAxisSize.min,
