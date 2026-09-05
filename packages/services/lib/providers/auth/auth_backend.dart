@@ -1,13 +1,6 @@
-/// Abstract interface for platform-specific Auth0 authentication backends.
-///
-/// Each platform (native mobile, desktop, web) provides its own implementation
-/// using the most appropriate SDK:
-/// - Android/iOS/macOS: [Auth0NativeBackend] via `auth0_flutter` `webAuthentication()`
-/// - Windows: [Auth0WindowsBackend] via `auth0_flutter` `windowsWebAuthentication()`
-/// - Web: [Auth0WebBackend] via `auth0_flutter` `Auth0Web`
-/// - Linux: [FlutterWebAuthBackend] via `flutter_web_auth_2` (manual PKCE)
+/// Abstract interface for the OIDC authentication backend.
 abstract class AuthBackend {
-  /// Launches browser-based Auth0 Universal Login.
+  /// Launches browser-based OIDC login.
   Future<void> login(List<String> scopes, {bool isSignup = false});
 
   /// Returns a valid access token for the given [scopes], refreshing if needed.
@@ -17,7 +10,7 @@ abstract class AuthBackend {
   /// without showing a browser.
   Future<void> trySilentLogin();
 
-  /// Logs out, optionally clearing the federated Auth0 session.
+  /// Logs out, optionally clearing the federated OIDC session.
   Future<void> logout({bool federated = false});
 
   /// The current user's profile, populated after [login] or [trySilentLogin].
@@ -29,8 +22,8 @@ abstract class AuthBackend {
 
 /// Lightweight user profile from the Auth backend.
 ///
-/// Populated from the ID token (auth0_flutter) or the /userinfo endpoint
-/// (FlutterWebAuth2).  Does not contain binary photo data — that is
+/// Populated from the OIDC ID token or the /userinfo endpoint. Does not contain
+/// binary photo data — that is
 /// loaded separately by [userInfoProvider].
 class AuthUser {
   final String? name;

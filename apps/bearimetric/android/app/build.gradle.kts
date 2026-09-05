@@ -28,6 +28,9 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        // Required by the OIDC Android redirect receiver.
+        manifestPlaceholders["oidcRedirectScheme"] = "org.tahomarobotics.bearimetric"
     }
 
     buildTypes {

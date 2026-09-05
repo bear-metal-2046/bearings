@@ -141,8 +141,12 @@ class AboutSettingsPage extends ConsumerWidget {
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          const ListTile(title: Text('Made with ❤️ by Bear Metal')),
+          const SizedBox(height: 32),
+          SettingsGroup(
+            children: [
+              const ListTile(title: Text('Made with ❤️ by Bear Metal')),
+            ],
+          ),
         ],
       ),
     );

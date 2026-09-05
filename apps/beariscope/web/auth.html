@@ -1,22 +1,66 @@
 <!DOCTYPE html>
-<title>Authentication complete</title>
-<p>Authentication is complete. If this does not happen automatically, please close the window.</p>
-<script>
-    function postAuthenticationMessage() {
-        const message = {
-            'flutter-web-auth-2': window.location.href
-        };
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authentication complete</title>
+</head>
+<body>
+    <p id="status">Completing authentication...</p>
+    <script>
+        (function () {
+            'use strict';
 
-        if (window.opener) {
-            window.opener.postMessage(message, window.location.origin);
-            window.close();
-        } else if (window.parent && window.parent !== window) {
-            window.parent.postMessage(message, window.location.origin);
-        } else {
-            localStorage.setItem('flutter-web-auth-2', window.location.href);
-            window.close();
-        }
-    }
+            var status = document.getElementById('status');
+            var channelName = 'oidc_flutter_web/redirect';
+            if (typeof BroadcastChannel === 'undefined') {
+                status.textContent = 'Your browser does not support authentication callbacks.';
+                return;
+            }
 
-    postAuthenticationMessage();
-</script>
+            try {
+                var channel = new BroadcastChannel(channelName);
+                var settled = false;
+
+                channel.onmessage = function (event) {
+                    var message;
+                    try {
+                        message = JSON.parse(event.data);
+                    } catch (_) {
+                        return;
+                    }
+                    if (!message || message.v !== 2 || message.type !== 'ack') {
+                        return;
+                    }
+
+                    settled = true;
+                    channel.close();
+                    if (message.status === 'ok') {
+                        status.textContent = 'Authentication complete. You can close this tab.';
+                        window.close();
+                    } else {
+                        status.textContent = message.message || 'Authentication failed.';
+                    }
+                };
+
+                channel.postMessage(JSON.stringify({
+                    v: 2,
+                    type: 'redirect',
+                    uri: window.location.href
+                }));
+
+                // Keep the callback page from lingering if the app was closed
+                // before it could acknowledge the redirect.
+                window.setTimeout(function () {
+                    if (!settled) {
+                        channel.close();
+                        status.textContent = 'You can close this tab and return to the app.';
+                    }
+                }, 10000);
+            } catch (_) {
+                status.textContent = 'Authentication callback could not be started.';
+            }
+        }());
+    </script>
+</body>
+</html>

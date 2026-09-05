@@ -2,21 +2,15 @@ import 'package:core/providers/device_info_provider.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:services/providers/auth/auth0_native_backend.dart';
-import 'package:services/providers/auth/auth0_windows_backend.dart';
-import 'package:services/providers/auth/auth0_web_backend_stub.dart'
-    if (dart.library.js) 'package:services/providers/auth/auth0_web_backend.dart';
 import 'package:services/providers/auth/auth_backend.dart';
-import 'package:services/providers/auth/flutter_web_auth_backend.dart';
+import 'package:services/providers/auth/oidc_backend.dart';
 import 'package:services/providers/connectivity_provider.dart';
-import 'package:services/providers/secure_storage_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 part 'auth_provider.g.dart';
 
-// ---------------------------------------------------------------------------
-// Configuration
-// ---------------------------------------------------------------------------
+// This whole system is modular (and we were using seperate systems per platform)
+// but now it's just the odic backend
 
 class Auth0Config {
   final String domain;
@@ -24,7 +18,6 @@ class Auth0Config {
   final String audience;
   final Map<DeviceOS, String> redirectUris;
   final String storageKeyPrefix;
-
   const Auth0Config({
     required this.domain,
     required this.clientId,
@@ -32,20 +25,7 @@ class Auth0Config {
     required this.redirectUris,
     this.storageKeyPrefix = '',
   });
-
-  String get refreshTokenKey => '${storageKeyPrefix}refresh_token';
-
-  Uri get authorizeEndpoint => Uri.parse('https://$domain/authorize');
-
-  Uri get tokenEndpoint => Uri.parse('https://$domain/oauth/token');
-
-  Uri logoutUri(String returnTo) => Uri.parse('https://$domain/v2/logout')
-      .replace(queryParameters: {'client_id': clientId, 'returnTo': returnTo});
 }
-
-// ---------------------------------------------------------------------------
-// Auth status
-// ---------------------------------------------------------------------------
 
 enum AuthStatus { authenticated, unauthenticated, authenticating }
 
@@ -74,10 +54,6 @@ class AuthStatusNotifier extends _$AuthStatusNotifier implements Listenable {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Riverpod providers
-// ---------------------------------------------------------------------------
-
 @Riverpod(keepAlive: true)
 Auth0Config auth0Config(Ref ref) {
   throw UnimplementedError(
@@ -90,44 +66,23 @@ Future<Auth> auth(Ref ref) async {
   final deviceInfo = ref.watch(deviceInfoProvider);
   final config = ref.watch(auth0ConfigProvider);
 
-  final backend = await _createBackend(ref, config, deviceInfo.deviceOS);
+  final backend = await _createBackend(config, deviceInfo.deviceOS);
   return Auth(ref: ref, backend: backend, config: config);
 }
 
-Future<AuthBackend> _createBackend(
-  Ref ref,
-  Auth0Config config,
-  DeviceOS os,
-) async {
-  return switch (os) {
-    DeviceOS.android || DeviceOS.ios || DeviceOS.macos => Auth0NativeBackend(
-      domain: config.domain,
-      clientId: config.clientId,
-      scheme: Uri.parse(config.redirectUris[os]!).scheme,
-      audience: config.audience,
-    ),
-    DeviceOS.windows => Auth0WindowsBackend(
-      domain: config.domain,
-      clientId: config.clientId,
-      appCustomUrl: config.redirectUris[DeviceOS.windows]!,
-      storage: await ref.watch(tokenStorageProvider.future),
-      storageKeyPrefix: config.storageKeyPrefix,
-    ),
-    DeviceOS.web => Auth0WebBackend(
-      domain: config.domain,
-      clientId: config.clientId,
-    ),
-    DeviceOS.linux => FlutterWebAuthBackend(
-      config: config,
-      redirectUri: config.redirectUris[DeviceOS.linux]!,
-      storage: await ref.watch(tokenStorageProvider.future),
-    ),
-  };
-}
+Future<AuthBackend> _createBackend(Auth0Config config, DeviceOS os) async {
+  final redirectUri = config.redirectUris[os];
+  if (redirectUri == null) {
+    throw StateError('No OIDC redirect URI configured for $os.');
+  }
 
-// ---------------------------------------------------------------------------
-// Auth facade
-// ---------------------------------------------------------------------------
+  final backend = OidcAuthBackend(
+    config: config,
+    redirectUri: Uri.parse(redirectUri),
+  );
+  await backend.init();
+  return backend;
+}
 
 /// Unified authentication facade that delegates platform-specific OAuth work
 /// to an [AuthBackend].
@@ -147,18 +102,10 @@ class Auth {
 
   Auth({required this.ref, required this._backend, required this.config});
 
-  // -------------------------------------------------------------------------
-  // User profile (delegates to backend)
-  // -------------------------------------------------------------------------
-
   /// The current user's profile, or `null` if not authenticated.
   ///
   /// Populated after a successful [login] or [trySilentLogin].
   AuthUser? get user => _backend.user;
-
-  // -------------------------------------------------------------------------
-  // Login
-  // -------------------------------------------------------------------------
 
   Future<void> login(List<String> scopes, {bool isSignup = false}) async {
     _setStatus(AuthStatus.authenticating);
@@ -178,17 +125,9 @@ class Auth {
     }
   }
 
-  // -------------------------------------------------------------------------
-  // Access token
-  // -------------------------------------------------------------------------
-
   Future<String> getAccessToken(List<String> scopes) async {
     return _backend.getAccessToken(scopes);
   }
-
-  // -------------------------------------------------------------------------
-  // Silent login
-  // -------------------------------------------------------------------------
 
   Future<void> trySilentLogin() async {
     _setStatus(AuthStatus.authenticating);
@@ -205,10 +144,6 @@ class Auth {
       _setStatus(AuthStatus.unauthenticated);
     }
   }
-
-  // -------------------------------------------------------------------------
-  // Logout
-  // -------------------------------------------------------------------------
 
   Future<void> logout({bool federated = false}) async {
     await _backend.logout(federated: federated);
@@ -231,18 +166,10 @@ class Auth {
     _setStatus(AuthStatus.unauthenticated);
   }
 
-  // -------------------------------------------------------------------------
-  // Internal helpers
-  // -------------------------------------------------------------------------
-
   void _setStatus(AuthStatus status) {
     ref.read(authStatusProvider.notifier).setStatus(status);
   }
 }
-
-// ---------------------------------------------------------------------------
-// Token model
-// ---------------------------------------------------------------------------
 
 class OAuthToken {
   final String accessToken;
@@ -269,10 +196,6 @@ class OAuthToken {
     );
   }
 }
-
-// ---------------------------------------------------------------------------
-// Exceptions
-// ---------------------------------------------------------------------------
 
 class OfflineAuthException implements Exception {
   final String message;
