@@ -1,5 +1,41 @@
 # Changelog
 
+## v26.6.1
+**Released:** 2026-09-05
+
+### Features
+- services: Change auth backend to oidc (ae03529)
+
+
+## v26.6.0
+**Released:** 2026-09-04
+
+### Bug Fixes
+- beariscope: Optimize app icon assets and only include them in ios build (c97cd4a)
+- Store hive data in app-specific support directories (3e705be)
+- workspace: Restore builds and material_ui widget compatibility (8ae5321)
+
+
+### Chores
+- docs: Update README to be more friendly (a8a7f7e)
+- repo: Update all packages and flutter to 3.47 (ac5415d)
+
+
+### Features
+- beariscope: Vertical and horizontal view option for team lookup and search bar autofocuses for team lookup and pits scouting (7a988cc)
+- beariscope: Desktop version automatically shows all six team cards on the match preview page (cd2b9d3)
+- beariscope: Changed the scroll tooltip (0de08aa)
+- beariscope: Add open drawer back in team lookup (855cb40)
+- beariscope: Add observation fab back cause ig it wasn't commited? (0aa38f5)
+- repo: Change references to old github org and update privacy policy (87465c5)
+- beariscope: Update in-app links to privacy policy (c3ecfd6)
+- ci: Add back autocommitting linter fixes (b13a574)
+- beariscope: Adjust sizing of team cards in match_preview_page in desktop mode (5e3802a)
+- beariscope: Add sorting options and match preview navigation (5dccf8b)
+- bearimetric: Rename pawfinder to bearimetric (9780af9)
+- beariscope: Redesign ui (89d6c98)
+
+
 ## v26.5.0
 **Released:** 2026-04-25
 

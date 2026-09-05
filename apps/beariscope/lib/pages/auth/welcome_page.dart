@@ -58,28 +58,26 @@ class WelcomePage extends ConsumerWidget {
                               'ORLhqJbHiTfgdF3Q8hqIbmdwT1wTkkP7',
                             ], isSignup: false);
                           } on OfflineAuthException {
+                            if (!context.mounted) return;
                             ref
                                 .read(postSignInFlowPendingProvider.notifier)
                                 .clearPending();
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('No internet connection'),
-                                ),
-                              );
-                            }
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('No internet connection'),
+                              ),
+                            );
                           } catch (e) {
+                            if (!context.mounted) return;
                             ref
                                 .read(postSignInFlowPendingProvider.notifier)
                                 .clearPending();
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Sign in failed: $e'),
-                                  duration: const Duration(seconds: 8),
-                                ),
-                              );
-                            }
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Sign in failed: $e'),
+                                duration: const Duration(seconds: 8),
+                              ),
+                            );
                           }
                         },
                         icon: const Icon(LucideIcons.userKey),

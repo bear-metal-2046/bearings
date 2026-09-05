@@ -36,9 +36,9 @@ android {
         versionCode = flutter.versionCode
         versionName = flutter.versionName
 
-        // Placeholders required by auth0_flutter for Android manifest merging
-        manifestPlaceholders["auth0Domain"] = "bearmetal2046.us.auth0.com"
-        manifestPlaceholders["auth0Scheme"] = "org.tahomarobotics.beariscope"
+        // Placeholder required by the OIDC Android redirect
+        // receiver. Keep it aligned with the configured custom-scheme URI.
+        manifestPlaceholders["oidcRedirectScheme"] = "org.tahomarobotics.beariscope"
     }
 
     signingConfigs {
