@@ -32,7 +32,13 @@ class OidcAuthBackend implements AuthBackend {
         settings: OidcUserManagerSettings(
           redirectUri: redirectUri,
           postLogoutRedirectUri: redirectUri,
-          scope: const ['openid', 'profile', 'email', 'offline_access', 'ORLhqJbHiTfgdF3Q8hqIbmdwT1wTkkP7'],
+          scope: const [
+            'openid',
+            'profile',
+            'email',
+            'offline_access',
+            'ORLhqJbHiTfgdF3Q8hqIbmdwT1wTkkP7',
+          ],
           supportOfflineAuth: true,
         ),
       );
