@@ -32,7 +32,7 @@ class OidcAuthBackend implements AuthBackend {
         settings: OidcUserManagerSettings(
           redirectUri: redirectUri,
           postLogoutRedirectUri: redirectUri,
-          scope: const ['openid', 'profile', 'email', 'offline_access'],
+          scope: const ['openid', 'profile', 'email', 'offline_access', 'ORLhqJbHiTfgdF3Q8hqIbmdwT1wTkkP7'],
           supportOfflineAuth: true,
         ),
       );
@@ -57,16 +57,8 @@ class OidcAuthBackend implements AuthBackend {
 
   @override
   Future<void> login(List<String> scopes, {bool isSignup = false}) async {
-    final requestedScopes = {
-      ...scopes,
-      'openid',
-      'profile',
-      'email',
-      'offline_access',
-    }.toList();
-
     await _manager.loginAuthorizationCodeFlow(
-      scopeOverride: requestedScopes,
+      scopeOverride: scopes,
       // `audience` and `screen_hint` are Auth0 extensions. Keeping them here
       // preserves the existing Auth0Config behavior while the flow itself is
       // handled as standard OIDC by the package.
