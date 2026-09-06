@@ -1,6 +1,6 @@
 name: bearimetric
 description: "Bear Metal's Scouting App"
-version: 26.6.1+22
+version: 26.6.2+23
 resolution: workspace
 publish_to: none
 

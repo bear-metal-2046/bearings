@@ -1,6 +1,6 @@
 name: honeycomb
 description: A new Dart Frog application
-version: 26.6.1+22
+version: 26.6.2+23
 resolution: workspace
 publish_to: none
 

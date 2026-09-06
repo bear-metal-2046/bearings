@@ -1,5 +1,16 @@
 # Changelog
 
+## v26.6.2
+**Released:** 2026-09-06
+
+### Bug Fixes
+- ci: 2 word codenames trim second word in codename.txt (c7861ba)
+
+
+### Features
+- beariscope: Fix match preview layout, team lookups, and list styling (f224f19)
+
+
 ## v26.6.1
 **Released:** 2026-09-05
 
