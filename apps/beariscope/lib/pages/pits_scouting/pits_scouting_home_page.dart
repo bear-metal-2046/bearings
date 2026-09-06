@@ -214,7 +214,9 @@ class PitsScoutingHomePageState extends ConsumerState<PitsScoutingHomePage>
 
               return TabBarView(
                 controller: _tabController,
-                physics: const PageScrollPhysics(),
+                physics: _tabController.index == 1
+                    ? const PageScrollPhysics()
+                    : const NeverScrollableScrollPhysics(),
                 children: [
                   _buildMapView(
                     context,
