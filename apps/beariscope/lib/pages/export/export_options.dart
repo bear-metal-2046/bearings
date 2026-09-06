@@ -52,6 +52,7 @@ class CorrectionThresholds {
 class ExportSheets {
   final bool rawMatch;
   final bool processedMatch;
+  final bool pitsRaw;
   final bool stratRaw;
   final bool stratZScore;
   final bool correctionTodoList;
@@ -59,6 +60,7 @@ class ExportSheets {
   const ExportSheets({
     this.rawMatch = true,
     this.processedMatch = false,
+    this.pitsRaw = false,
     this.stratRaw = false,
     this.stratZScore = false,
     this.correctionTodoList = false,
@@ -67,6 +69,7 @@ class ExportSheets {
   bool get hasAny =>
       rawMatch ||
       processedMatch ||
+      pitsRaw ||
       stratRaw ||
       stratZScore ||
       correctionTodoList;
@@ -75,9 +78,12 @@ class ExportSheets {
 
   bool get hasStratData => stratRaw || stratZScore;
 
+  bool get hasPitsData => pitsRaw;
+
   ExportSheets copyWith({
     bool? rawMatch,
     bool? processedMatch,
+    bool? pitsRaw,
     bool? stratRaw,
     bool? stratZScore,
     bool? correctionTodoList,
@@ -85,6 +91,7 @@ class ExportSheets {
     return ExportSheets(
       rawMatch: rawMatch ?? this.rawMatch,
       processedMatch: processedMatch ?? this.processedMatch,
+      pitsRaw: pitsRaw ?? this.pitsRaw,
       stratRaw: stratRaw ?? this.stratRaw,
       stratZScore: stratZScore ?? this.stratZScore,
       correctionTodoList: correctionTodoList ?? this.correctionTodoList,

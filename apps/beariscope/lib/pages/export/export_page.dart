@@ -1,6 +1,7 @@
 // dart format width=120
 
 import 'package:beariscope/models/scouting_document.dart';
+import 'package:beariscope/models/pits_form_schema.dart';
 import 'package:beariscope/models/team_scouting_bundle.dart';
 import 'package:beariscope/pages/export/export_options.dart';
 import 'package:beariscope/pages/export/export_service.dart';
@@ -11,6 +12,7 @@ import 'package:beariscope/pages/scout_audit/scout_audit_logic.dart';
 import 'package:beariscope/pages/scout_audit/scout_audit_preferences_provider.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/processed_scouting_provider.dart';
+import 'package:beariscope/providers/pits_form_schema_provider.dart';
 import 'package:beariscope/widgets/settings_group.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
@@ -48,12 +50,14 @@ class _ExportPageState extends ConsumerState<ExportPage> {
   double _incorrectDataThreshold = kDefaultIncorrectDataThreshold;
 
   UiCreatorSchema? _schema;
+  PitsFormSchema? _pitsSchema;
   String? _schemaError;
 
   @override
   void initState() {
     super.initState();
     _loadSchema();
+    _loadPitsSchema();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final savedThreshold = ref.read(scoutAuditIncorrectThresholdProvider);
       if (mounted && savedThreshold != _incorrectDataThreshold) {
@@ -75,6 +79,15 @@ class _ExportPageState extends ConsumerState<ExportPage> {
       if (mounted) setState(() => _schema = schema);
     } catch (e) {
       if (mounted) setState(() => _schemaError = e.toString());
+    }
+  }
+
+  Future<void> _loadPitsSchema() async {
+    try {
+      final schema = await ref.read(pitsFormSchemaProvider.future);
+      if (mounted) setState(() => _pitsSchema = schema);
+    } catch (_) {
+      // The export action reports this if pits export is selected.
     }
   }
 
@@ -105,6 +118,10 @@ class _ExportPageState extends ConsumerState<ExportPage> {
       if (type == 'match') {
         final team = TeamScoutingBundle.teamNumber(doc);
         if (team != null) teams.add(team);
+      } else if (type == 'pits') {
+        final rawTeam = doc.data['teamNumber'];
+        final team = rawTeam is num ? rawTeam.toInt() : int.tryParse(rawTeam?.toString() ?? '');
+        if (team != null) teams.add(team);
       } else if (type == 'strat') {
         for (final key in const [
           'driverSkillRanking',
@@ -134,6 +151,12 @@ class _ExportPageState extends ConsumerState<ExportPage> {
 
     if (_sheets.hasMatchData && _schema == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Schema not loaded yet. Please wait.')));
+      return;
+    }
+
+    if (_sheets.pitsRaw && _pitsSchema == null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Pits schema not loaded yet. Please wait.')));
       return;
     }
 
@@ -191,6 +214,7 @@ class _ExportPageState extends ConsumerState<ExportPage> {
           eventKey: eventKey,
           tbaMatchData: tbaMatchData,
           auditSnapshot: auditSnapshot,
+          pitsSchema: _pitsSchema,
         ),
       );
 
@@ -286,6 +310,14 @@ class _ExportPageState extends ConsumerState<ExportPage> {
                                     value: _sheets.processedMatch,
                                     onChanged: (v) => setState(() {
                                       _sheets = _sheets.copyWith(processedMatch: v);
+                                    }),
+                                  ),
+                                  _SheetCheckbox(
+                                    label: 'Pits Scouting',
+                                    subtitle: '${counts.pits} ${counts.pits == 1 ? 'team' : 'teams'}',
+                                    value: _sheets.pitsRaw,
+                                    onChanged: (v) => setState(() {
+                                      _sheets = _sheets.copyWith(pitsRaw: v);
                                     }),
                                   ),
                                   _SheetCheckbox(
@@ -982,6 +1014,11 @@ class _ExportPageState extends ConsumerState<ExportPage> {
                                               _PreviewChip(
                                                 icon: LucideIcons.chartColumnStacked,
                                                 label: '${counts.stratRaw} Strat Row${counts.stratRaw == 1 ? '' : 's'}',
+                                              ),
+                                            if (_sheets.pitsRaw)
+                                              _PreviewChip(
+                                                icon: LucideIcons.wrench,
+                                                label: '${counts.pits} Pits Team${counts.pits == 1 ? '' : 's'}',
                                               ),
                                             if (_sheets.stratZScore)
                                               _PreviewChip(
