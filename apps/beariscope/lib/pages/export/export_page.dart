@@ -11,6 +11,7 @@ import 'package:beariscope/pages/scout_audit/scout_audit_logic.dart';
 import 'package:beariscope/pages/scout_audit/scout_audit_preferences_provider.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/processed_scouting_provider.dart';
+import 'package:beariscope/widgets/settings_group.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -268,78 +269,72 @@ class _ExportPageState extends ConsumerState<ExportPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              _SectionCard(
+                              SettingsGroup(
                                 title: 'Export Sheets',
-                                child: Column(
-                                  children: [
-                                    _SheetCheckbox(
-                                      label: 'Raw Match Data',
-                                      subtitle: '${counts.match} ${counts.match == 1 ? 'entry' : 'entries'}',
-                                      value: _sheets.rawMatch,
-                                      onChanged: (v) => setState(() {
-                                        _sheets = _sheets.copyWith(rawMatch: v);
-                                      }),
-                                    ),
-                                    _SheetCheckbox(
-                                      label: 'Auto-Corrected Match Data',
-                                      subtitle: 'Auto-corrects fuel counts based on TBA data',
-                                      value: _sheets.processedMatch,
-                                      onChanged: (v) => setState(() {
-                                        _sheets = _sheets.copyWith(processedMatch: v);
-                                      }),
-                                    ),
-                                    const Divider(height: 16),
-                                    _SheetCheckbox(
-                                      label: 'Strat Raw',
-                                      subtitle: '${counts.stratRaw} ${counts.stratRaw == 1 ? 'row' : 'rows'}',
-                                      value: _sheets.stratRaw,
-                                      onChanged: (v) => setState(() {
-                                        _sheets = _sheets.copyWith(stratRaw: v);
-                                      }),
-                                    ),
-                                    _SheetCheckbox(
-                                      label: 'Strat Z-Score',
-                                      subtitle: '${counts.stratZScore} ${counts.stratZScore == 1 ? 'team' : 'teams'}',
-                                      value: _sheets.stratZScore,
-                                      onChanged: (v) => setState(() {
-                                        _sheets = _sheets.copyWith(stratZScore: v);
-                                      }),
-                                    ),
-                                    const Divider(height: 16),
-                                    _SheetCheckbox(
-                                      label: 'Correction To-Do List',
-                                      subtitle: 'Current Scout Audit issues',
-                                      value: _sheets.correctionTodoList,
-                                      onChanged: (v) => setState(() {
-                                        _sheets = _sheets.copyWith(correctionTodoList: v);
-                                      }),
-                                    ),
-                                  ],
-                                ),
+                                children: [
+                                  _SheetCheckbox(
+                                    label: 'Raw Match Data',
+                                    subtitle: '${counts.match} ${counts.match == 1 ? 'entry' : 'entries'}',
+                                    value: _sheets.rawMatch,
+                                    onChanged: (v) => setState(() {
+                                      _sheets = _sheets.copyWith(rawMatch: v);
+                                    }),
+                                  ),
+                                  _SheetCheckbox(
+                                    label: 'Auto-Corrected Match Data',
+                                    subtitle: 'Auto-corrects fuel counts based on TBA data',
+                                    value: _sheets.processedMatch,
+                                    onChanged: (v) => setState(() {
+                                      _sheets = _sheets.copyWith(processedMatch: v);
+                                    }),
+                                  ),
+                                  _SheetCheckbox(
+                                    label: 'Strat Raw',
+                                    subtitle: '${counts.stratRaw} ${counts.stratRaw == 1 ? 'row' : 'rows'}',
+                                    value: _sheets.stratRaw,
+                                    onChanged: (v) => setState(() {
+                                      _sheets = _sheets.copyWith(stratRaw: v);
+                                    }),
+                                  ),
+                                  _SheetCheckbox(
+                                    label: 'Strat Z-Score',
+                                    subtitle: '${counts.stratZScore} ${counts.stratZScore == 1 ? 'team' : 'teams'}',
+                                    value: _sheets.stratZScore,
+                                    onChanged: (v) => setState(() {
+                                      _sheets = _sheets.copyWith(stratZScore: v);
+                                    }),
+                                  ),
+                                  _SheetCheckbox(
+                                    label: 'Correction To-Do List',
+                                    subtitle: 'Current Scout Audit issues',
+                                    value: _sheets.correctionTodoList,
+                                    onChanged: (v) => setState(() {
+                                      _sheets = _sheets.copyWith(correctionTodoList: v);
+                                    }),
+                                  ),
+                                ],
                               ),
                               const SizedBox(height: 16),
 
-                              _SectionCard(
+                              SettingsGroup(
                                 title: 'Filters',
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    SwitchListTile(
-                                      contentPadding: EdgeInsets.zero,
-                                      title: const Text('Match Range'),
-                                      subtitle: const Text('Restrict to specific matches'),
-                                      value: _filterByMatchRange,
-                                      onChanged: (v) => setState(() {
-                                        _filterByMatchRange = v;
-                                        if (!v) {
-                                          _matchFromController.clear();
-                                          _matchToController.clear();
-                                        }
-                                      }),
-                                    ),
-                                    if (_filterByMatchRange) ...[
-                                      const SizedBox(height: 8),
-                                      Row(
+                                children: [
+                                  SwitchListTile(
+                                    title: const Text('Match Range'),
+                                    subtitle: const Text('Restrict to specific matches'),
+                                    value: _filterByMatchRange,
+                                    onChanged: (v) => setState(() {
+                                      _filterByMatchRange = v;
+                                      if (!v) {
+                                        _matchFromController.clear();
+                                        _matchToController.clear();
+                                      }
+                                    }),
+                                  ),
+                                  if (_filterByMatchRange) ...[
+                                    Padding(
+                                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                                      child: Row(
                                         children: [
                                           Expanded(
                                             child: TextField(
@@ -372,104 +367,103 @@ class _ExportPageState extends ConsumerState<ExportPage> {
                                           ),
                                         ],
                                       ),
-                                    ],
-                                    const Divider(height: 24),
-
-                                    SwitchListTile(
-                                      contentPadding: EdgeInsets.zero,
-                                      title: const Text('Team Filter'),
-                                      subtitle: const Text('Select specific teams'),
-                                      value: _filterByTeam,
-                                      onChanged: (v) => setState(() => _filterByTeam = v),
                                     ),
-                                    if (_filterByTeam) ...[
-                                      const SizedBox(height: 8),
-                                      if (allTeams.isEmpty)
-                                        Text(
-                                          'No scouting data loaded yet.',
-                                          style: TextStyle(
-                                            fontStyle: FontStyle.italic,
-                                            color: colorScheme.onSurfaceVariant,
-                                          ),
-                                        )
-                                      else
-                                        Wrap(
-                                          spacing: 8,
-                                          runSpacing: 4,
-                                          children: [
-                                            FilterChip(
-                                              label: const Text('All'),
-                                              selected: _selectedTeams.isEmpty,
-                                              onSelected: (selected) {
-                                                if (selected) {
-                                                  setState(() => _selectedTeams = {});
-                                                }
-                                              },
-                                            ),
-                                            ...allTeams.map(
-                                              (team) => FilterChip(
-                                                label: Text('$team'),
-                                                selected: _selectedTeams.contains(team),
-                                                onSelected: (selected) {
-                                                  setState(() {
-                                                    if (selected) {
-                                                      _selectedTeams = {..._selectedTeams, team};
-                                                    } else {
-                                                      _selectedTeams = {..._selectedTeams}..remove(team);
-                                                    }
-                                                  });
-                                                },
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      if (_selectedTeams.isNotEmpty)
-                                        Padding(
-                                          padding: const EdgeInsets.only(top: 8),
-                                          child: Text(
-                                            '${_selectedTeams.length} of ${allTeams.length} teams',
-                                            style: Theme.of(context).textTheme.bodySmall,
-                                          ),
-                                        ),
-                                    ],
                                   ],
-                                ),
+
+                                  SwitchListTile(
+                                    title: const Text('Team Filter'),
+                                    subtitle: const Text('Select specific teams'),
+                                    value: _filterByTeam,
+                                    onChanged: (v) => setState(() => _filterByTeam = v),
+                                  ),
+                                  if (_filterByTeam) ...[
+                                    Padding(
+                                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                                      child: allTeams.isEmpty
+                                          ? Text(
+                                              'No scouting data loaded yet.',
+                                              style: TextStyle(
+                                                fontStyle: FontStyle.italic,
+                                                color: colorScheme.onSurfaceVariant,
+                                              ),
+                                            )
+                                          : Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Wrap(
+                                                  spacing: 8,
+                                                  runSpacing: 4,
+                                                  children: [
+                                                    FilterChip(
+                                                      label: const Text('All'),
+                                                      selected: _selectedTeams.isEmpty,
+                                                      onSelected: (selected) {
+                                                        if (selected) {
+                                                          setState(() => _selectedTeams = {});
+                                                        }
+                                                      },
+                                                    ),
+                                                    ...allTeams.map(
+                                                      (team) => FilterChip(
+                                                        label: Text('$team'),
+                                                        selected: _selectedTeams.contains(team),
+                                                        onSelected: (selected) {
+                                                          setState(() {
+                                                            if (selected) {
+                                                              _selectedTeams = {..._selectedTeams, team};
+                                                            } else {
+                                                              _selectedTeams = {..._selectedTeams}..remove(team);
+                                                            }
+                                                          });
+                                                        },
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                if (_selectedTeams.isNotEmpty)
+                                                  Padding(
+                                                    padding: const EdgeInsets.only(top: 8),
+                                                    child: Text(
+                                                      '${_selectedTeams.length} of ${allTeams.length} teams',
+                                                      style: Theme.of(context).textTheme.bodySmall,
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
+                                    ),
+                                  ],
+                                ],
                               ),
                               const SizedBox(height: 16),
 
                               if (_sheets.hasMatchData)
-                                _SectionCard(
+                                SettingsGroup(
                                   title: 'Match Content Options',
-                                  child: Column(
-                                    children: [
-                                      SwitchListTile(
-                                        contentPadding: EdgeInsets.zero,
-                                        title: const Text('Include Notes'),
-                                        subtitle: const Text('Endgame free-text field'),
-                                        value: includeNotes,
-                                        onChanged: canExportNotes ? (v) => setState(() => _includeNotes = v) : null,
-                                      ),
-                                      SwitchListTile(
-                                        contentPadding: EdgeInsets.zero,
-                                        title: const Text('Color-code Accuracy'),
-                                        subtitle: const Text('Highlight cells by TBA deviation'),
-                                        value: _colorCodeAccuracy,
-                                        onChanged: (v) => setState(() => _colorCodeAccuracy = v),
-                                      ),
-                                      SwitchListTile(
-                                        contentPadding: EdgeInsets.zero,
-                                        title: const Text('Anonymize Scouters'),
-                                        subtitle: const Text('Remove scouter names from match exports'),
-                                        value: _anonymizeScouters,
-                                        onChanged: (v) => setState(() => _anonymizeScouters = v),
-                                      ),
-                                    ],
-                                  ),
+                                  children: [
+                                    SwitchListTile(
+                                      title: const Text('Include Notes'),
+                                      subtitle: const Text('Endgame free-text field'),
+                                      value: includeNotes,
+                                      onChanged: canExportNotes ? (v) => setState(() => _includeNotes = v) : null,
+                                    ),
+                                    SwitchListTile(
+                                      title: const Text('Color-code Accuracy'),
+                                      subtitle: const Text('Highlight cells by TBA deviation'),
+                                      value: _colorCodeAccuracy,
+                                      onChanged: (v) => setState(() => _colorCodeAccuracy = v),
+                                    ),
+                                    SwitchListTile(
+                                      title: const Text('Anonymize Scouters'),
+                                      subtitle: const Text('Remove scouter names from match exports'),
+                                      value: _anonymizeScouters,
+                                      onChanged: (v) => setState(() => _anonymizeScouters = v),
+                                    ),
+                                  ],
                                 ),
                               if (_sheets.hasMatchData) const SizedBox(height: 16),
 
                               if (_colorCodeAccuracy && _sheets.hasMatchData) ...[
-                                _SectionCard(
+                                _SettingsSection(
                                   title: 'Coloring Thresholds',
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -782,7 +776,7 @@ class _ExportPageState extends ConsumerState<ExportPage> {
                               ],
 
                               if (_sheets.processedMatch) ...[
-                                _SectionCard(
+                                _SettingsSection(
                                   title: 'Auto-Correction Thresholds',
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -903,7 +897,7 @@ class _ExportPageState extends ConsumerState<ExportPage> {
                               ],
 
                               if (_sheets.correctionTodoList) ...[
-                                _SectionCard(
+                                _SettingsSection(
                                   title: 'Correction To-Do Threshold',
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1087,41 +1081,17 @@ class _ExportPageState extends ConsumerState<ExportPage> {
   }
 }
 
-class _SectionCard extends StatelessWidget {
+class _SettingsSection extends StatelessWidget {
   final String title;
   final Widget child;
-  final Widget? trailing;
 
-  const _SectionCard({required this.title, required this.child}) : trailing = null;
+  const _SettingsSection({required this.title, required this.child});
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      color: Theme.of(context).colorScheme.surfaceContainer,
-      elevation: 0,
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    title,
-                    style: Theme.of(context).textTheme.titleSmall
-                        ?.copyWith(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                ?trailing,
-              ],
-            ),
-            const SizedBox(height: 8),
-            child,
-          ],
-        ),
-      ),
+    return SettingsGroup(
+      title: title,
+      children: [Padding(padding: const EdgeInsets.all(16), child: child)],
     );
   }
 }
@@ -1137,7 +1107,6 @@ class _SheetCheckbox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CheckboxListTile(
-      contentPadding: EdgeInsets.zero,
       title: Text(label),
       subtitle: Text(
         subtitle,

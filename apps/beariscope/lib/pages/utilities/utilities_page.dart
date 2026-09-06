@@ -1,5 +1,5 @@
 import 'package:material_ui/material_ui.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:beariscope/widgets/beariscope_search_bar.dart';
 
 class UtilitiesPage extends StatefulWidget {
   const UtilitiesPage({super.key});
@@ -10,6 +10,14 @@ class UtilitiesPage extends StatefulWidget {
 
 class _UtilitiesPageState extends State<UtilitiesPage> {
   final TextEditingController _searchTermTEC = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
+
+  @override
+  void dispose() {
+    _searchTermTEC.dispose();
+    _searchFocusNode.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -17,14 +25,10 @@ class _UtilitiesPageState extends State<UtilitiesPage> {
       appBar: AppBar(
         centerTitle: true,
         titleSpacing: 8.0,
-        title: SearchBar(
+        title: BeariscopeSearchBar(
           controller: _searchTermTEC,
+          focusNode: _searchFocusNode,
           hintText: 'Search...',
-          elevation: WidgetStateProperty.all(0.0),
-          padding: const WidgetStatePropertyAll<EdgeInsets>(
-            EdgeInsets.symmetric(horizontal: 16.0),
-          ),
-          leading: const Icon(LucideIcons.search),
         ),
         actions: [SizedBox(width: 48)],
       ),

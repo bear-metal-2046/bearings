@@ -3,9 +3,10 @@ import 'package:beariscope/models/team_scouting_bundle.dart';
 import 'package:beariscope/pages/team_lookup/tabs/scouting_tab_widgets.dart';
 import 'package:beariscope/providers/strat_z_score_provider.dart';
 import 'package:beariscope/providers/team_scouting_provider.dart';
+import 'package:beariscope/widgets/beariscope_card.dart';
+import 'package:beariscope/widgets/settings_group.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class AveragesTab extends ConsumerWidget {
   final int teamNumber;
@@ -181,158 +182,146 @@ class _AveragesBodyState extends State<_AveragesBody> {
       }
     }
 
-    return ListView(
-      padding: const EdgeInsets.all(16),
+    return BeariscopeCardList(
       children: [
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: _presets.map((preset) {
-              return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: ChoiceChip(
-                  label: Text(_label(preset)),
-                  selected: _lastN == preset,
-                  onSelected: (_) => setState(() => _lastN = preset),
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-        const SizedBox(height: 12),
-        const ScoutingSectionHeader(title: 'Scoring', icon: LucideIcons.flame),
-        const SizedBox(height: kScoutingHeaderGap),
-        Card(
-          elevation: 0,
-          margin: EdgeInsets.zero,
-          color: Theme.of(context).colorScheme.surfaceContainer,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ScoutingDataRow(
-                  label: 'Total Avg Fuel / Match',
-                  value: _fmtDec(totalAvgFuel),
-                  highlight: true,
-                ),
-                const ScoutingDataDivider(),
-                ScoutingDataRow(
-                  label: 'Auto Avg Fuel',
-                  value: _fmtDec(avgAutoFuel),
-                ),
-                ScoutingDataRow(
-                  label: 'Auto Accuracy',
-                  value: avgAutoAccuracy != null
-                      ? _fmtPct(avgAutoAccuracy)
-                      : '—',
-                ),
-                ScoutingDataRow(
-                  label: 'Auto L1 Climb Rate',
-                  value: _fmtPct(autoL1Rate * 100),
-                ),
-                const ScoutingDataDivider(),
-                ScoutingDataRow(
-                  label: 'Tele Avg Fuel',
-                  value: _fmtDec(avgTeleFuel),
-                ),
-                ScoutingDataRow(
-                  label: 'Tele Accuracy',
-                  value: avgTeleAccuracy != null
-                      ? _fmtPct(avgTeleAccuracy)
-                      : '—',
-                ),
-                ScoutingDataRow(
-                  label: 'Avg Fuel Passed (Auto)',
-                  value: _fmtDec(avgAutoFuelPassed),
-                ),
-                ScoutingDataRow(
-                  label: 'Avg Fuel Passed (Tele)',
-                  value: _fmtDec(avgTeleFuelPassed),
-                ),
-                ScoutingDataRow(
-                  label: 'Avg Fuel Poached',
-                  value: _fmtDec(avgTeleFuelPoached),
-                ),
-              ],
+        Align(
+          alignment: Alignment.centerLeft,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: _presets.map((preset) {
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Text(_label(preset)),
+                    selected: _lastN == preset,
+                    onSelected: (_) => setState(() => _lastN = preset),
+                  ),
+                );
+              }).toList(),
             ),
           ),
         ),
-        const SizedBox(height: kScoutingSectionGap),
-        const ScoutingSectionHeader(
+        SettingsGroup(
+          title: 'Scoring',
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ScoutingDataRow(
+                    label: 'Total Avg Fuel / Match',
+                    value: _fmtDec(totalAvgFuel),
+                    highlight: true,
+                  ),
+                  const ScoutingDataDivider(),
+                  ScoutingDataRow(
+                    label: 'Auto Avg Fuel',
+                    value: _fmtDec(avgAutoFuel),
+                  ),
+                  ScoutingDataRow(
+                    label: 'Auto Accuracy',
+                    value: avgAutoAccuracy != null
+                        ? _fmtPct(avgAutoAccuracy)
+                        : '—',
+                  ),
+                  ScoutingDataRow(
+                    label: 'Auto L1 Climb Rate',
+                    value: _fmtPct(autoL1Rate * 100),
+                  ),
+                  const ScoutingDataDivider(),
+                  ScoutingDataRow(
+                    label: 'Tele Avg Fuel',
+                    value: _fmtDec(avgTeleFuel),
+                  ),
+                  ScoutingDataRow(
+                    label: 'Tele Accuracy',
+                    value: avgTeleAccuracy != null
+                        ? _fmtPct(avgTeleAccuracy)
+                        : '—',
+                  ),
+                  ScoutingDataRow(
+                    label: 'Avg Fuel Passed (Auto)',
+                    value: _fmtDec(avgAutoFuelPassed),
+                  ),
+                  ScoutingDataRow(
+                    label: 'Avg Fuel Passed (Tele)',
+                    value: _fmtDec(avgTeleFuelPassed),
+                  ),
+                  ScoutingDataRow(
+                    label: 'Avg Fuel Poached',
+                    value: _fmtDec(avgTeleFuelPoached),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        SettingsGroup(
           title: 'Behaviour',
-          icon: LucideIcons.brain,
-        ),
-        const SizedBox(height: kScoutingHeaderGap),
-        Card(
-          elevation: 0,
-          margin: EdgeInsets.zero,
-          color: Theme.of(context).colorScheme.surfaceContainer,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ScoutingDataRow(
-                  label: 'Endgame Climb Rate',
-                  value: _fmtPct(endgameClimbRate * 100),
-                ),
-                ScoutingDataRow(
-                  label: 'Most Common Climb Level',
-                  value: mostCommonClimb,
-                ),
-                ScoutingDataRow(
-                  label: 'Defense Frequency (on shift)',
-                  value: _fmtPct(defenseRate * 100),
-                ),
-                ScoutingDataRow(
-                  label: 'Defended Against Frequency',
-                  value: _fmtPct(defendedAgainstRate * 100),
-                ),
-                ScoutingDataRow(
-                  label: 'Stopped Working Rate',
-                  value: _fmtPct(stoppedWorkingRate * 100),
-                ),
-                ScoutingDataRow(
-                  label: 'No Show Rate',
-                  value: _fmtPct(noShowRate * 100),
-                ),
-                ScoutingDataRow(
-                  label: 'Beached / High Center Rate',
-                  value: _fmtPct(beachedHighCenterRate * 100),
-                ),
-                ScoutingDataRow(
-                  label: 'Most Common Play Style',
-                  value: mostCommonPlayStyle,
-                ),
-                const ScoutingDataDivider(),
-                ScoutingDataRow(
-                  label: 'Full-Hopper Periods Avg',
-                  value: _fmtDec(avgFullHopper),
-                ),
-                ScoutingDataRow(label: 'Avg Fouls', value: _fmtDec(avgFouls)),
-              ],
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ScoutingDataRow(
+                    label: 'Endgame Climb Rate',
+                    value: _fmtPct(endgameClimbRate * 100),
+                  ),
+                  ScoutingDataRow(
+                    label: 'Most Common Climb Level',
+                    value: mostCommonClimb,
+                  ),
+                  ScoutingDataRow(
+                    label: 'Defense Frequency (on shift)',
+                    value: _fmtPct(defenseRate * 100),
+                  ),
+                  ScoutingDataRow(
+                    label: 'Defended Against Frequency',
+                    value: _fmtPct(defendedAgainstRate * 100),
+                  ),
+                  ScoutingDataRow(
+                    label: 'Stopped Working Rate',
+                    value: _fmtPct(stoppedWorkingRate * 100),
+                  ),
+                  ScoutingDataRow(
+                    label: 'No Show Rate',
+                    value: _fmtPct(noShowRate * 100),
+                  ),
+                  ScoutingDataRow(
+                    label: 'Beached / High Center Rate',
+                    value: _fmtPct(beachedHighCenterRate * 100),
+                  ),
+                  ScoutingDataRow(
+                    label: 'Most Common Play Style',
+                    value: mostCommonPlayStyle,
+                  ),
+                  const ScoutingDataDivider(),
+                  ScoutingDataRow(
+                    label: 'Full-Hopper Periods Avg',
+                    value: _fmtDec(avgFullHopper),
+                  ),
+                  ScoutingDataRow(label: 'Avg Fouls', value: _fmtDec(avgFouls)),
+                ],
+              ),
             ),
+          ],
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Text(
+            _lastN == null
+                ? 'Based on $n match${n == 1 ? '' : 'es'}'
+                : 'Last $n of ${widget.bundle.matchDocs.length} match${widget.bundle.matchDocs.length == 1 ? '' : 'es'}',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+            textAlign: TextAlign.center,
           ),
         ),
-        const SizedBox(height: 8),
-        Text(
-          _lastN == null
-              ? 'Based on $n match${n == 1 ? '' : 'es'}'
-              : 'Last $n of ${widget.bundle.matchDocs.length} match${widget.bundle.matchDocs.length == 1 ? '' : 'es'}',
-          style: Theme.of(context).textTheme.bodySmall
-              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-          textAlign: TextAlign.center,
-        ),
-        if (bundle.hasStratData) ...[
-          const SizedBox(height: kScoutingSectionGap),
-          const ScoutingSectionHeader(
-            title: 'Z-Score Metrics',
-            icon: LucideIcons.chartColumnDecreasing,
-          ),
-          const SizedBox(height: kScoutingHeaderGap),
-          _zScoreCard(context, widget.stratZScores),
-        ],
+        if (bundle.hasStratData) _zScoreCard(context, widget.stratZScores),
       ],
     );
   }
@@ -349,6 +338,7 @@ class _AveragesBodyState extends State<_AveragesBody> {
     var stratRanks = stratZScores.changeToRanks();
     return _specsCard(
       context,
+      title: 'Z-Score Metrics',
       rows: [
         ScoutingDataRow(
           label: 'Driver Skill',
@@ -378,18 +368,22 @@ class _AveragesBodyState extends State<_AveragesBody> {
     );
   }
 
-  Widget _specsCard(BuildContext context, {required List<Widget> rows}) {
-    return Card(
-      elevation: 0,
-      margin: EdgeInsets.zero,
-      color: Theme.of(context).colorScheme.surfaceContainer,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: rows,
+  Widget _specsCard(
+    BuildContext context, {
+    required String title,
+    required List<Widget> rows,
+  }) {
+    return SettingsGroup(
+      title: title,
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: rows,
+          ),
         ),
-      ),
+      ],
     );
   }
 }

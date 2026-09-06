@@ -2,9 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:beariscope/pages/team_lookup/tabs/media_save_helper.dart';
-import 'package:beariscope/pages/team_lookup/tabs/scouting_tab_widgets.dart';
 import 'package:beariscope/pages/team_lookup/team_providers.dart';
 import 'package:beariscope/widgets/beariscope_card.dart';
+import 'package:beariscope/widgets/settings_group.dart';
 import 'package:flutter/gestures.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
@@ -74,7 +74,6 @@ class _MediaTabState extends ConsumerState<MediaTab> {
               }
 
               return BeariscopeCardList(
-                spacing: 0,
                 children: [
                   _TeamWebsiteSection(uri: websiteUri!, metadata: metadata),
                 ],
@@ -84,57 +83,43 @@ class _MediaTabState extends ConsumerState<MediaTab> {
         }
 
         return BeariscopeCardList(
-          spacing: 0,
           children: [
             if (sections.photos.isNotEmpty) ...[
-              const ScoutingSectionHeader(
-                icon: LucideIcons.image,
+              SettingsGroup(
                 title: 'Photos',
-              ),
-              const SizedBox(height: 12),
-              _PhotoGrid(
-                photos: sections.photos,
-                activeUrlNotifier: _activeUrlNotifier,
-              ),
-              const SizedBox(height: 12),
-            ],
-            if (sections.chiefDelphiThreads.isNotEmpty) ...[
-              const ScoutingSectionHeader(
-                icon: LucideIcons.messageSquareCode,
-                title: 'Chief Delphi Threads',
-              ),
-              const SizedBox(height: 12),
-              ...sections.chiefDelphiThreads.map(
-                (record) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: _MediaLinkCard(record: record),
-                ),
-              ),
-            ],
-            if (sections.cadReleases.isNotEmpty) ...[
-              const ScoutingSectionHeader(
-                icon: LucideIcons.boxes,
-                title: 'CAD Files',
-              ),
-              const SizedBox(height: 12),
-              ...sections.cadReleases.map(
-                (record) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: _MediaLinkCard(record: record),
-                ),
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: _PhotoGrid(
+                      photos: sections.photos,
+                      activeUrlNotifier: _activeUrlNotifier,
+                    ),
+                  ),
+                ],
               ),
             ],
             if (sections.youtubeVideos.isNotEmpty) ...[
-              const ScoutingSectionHeader(
-                icon: LucideIcons.video,
+              SettingsGroup(
                 title: 'Videos',
+                children: sections.youtubeVideos
+                    .map((record) => _MediaLinkTile(record: record))
+                    .toList(),
               ),
-              const SizedBox(height: 12),
-              ...sections.youtubeVideos.map(
-                (record) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: _MediaLinkCard(record: record),
-                ),
+            ],
+            if (sections.chiefDelphiThreads.isNotEmpty) ...[
+              SettingsGroup(
+                title: 'Threads',
+                children: sections.chiefDelphiThreads
+                    .map((record) => _MediaLinkTile(record: record))
+                    .toList(),
+              ),
+            ],
+            if (sections.cadReleases.isNotEmpty) ...[
+              SettingsGroup(
+                title: 'CAD Files',
+                children: sections.cadReleases
+                    .map((record) => _MediaLinkTile(record: record))
+                    .toList(),
               ),
             ],
             if (websiteUri != null && websiteMetadataFuture != null) ...[
@@ -188,63 +173,19 @@ class _TeamWebsiteSection extends StatelessWidget {
         _cleanWebsiteTitle(metadata.title) ??
         (uri.host.isNotEmpty ? uri.host : uri.toString());
 
-    return Column(
+    return SettingsGroup(
+      title: 'Team Website',
       children: [
-        const ScoutingSectionHeader(
-          icon: LucideIcons.earth,
-          title: 'Team Website',
-        ),
-        const SizedBox(height: 12),
-        InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: () => _MediaLinkCard._openUri(context, uri),
-          child: Ink(
-            decoration: BoxDecoration(
-              color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(13),
-              border: Border.all(
-                color: scheme.outlineVariant.withValues(alpha: 0.4),
-              ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              child: Row(
-                children: [
-                  _WebsiteFavicon(
-                    faviconUrl: metadata.faviconUrl,
-                    fallbackColor: scheme.primary,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          uri.toString(),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(color: scheme.onSurfaceVariant),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Icon(LucideIcons.externalLink),
-                ],
-              ),
-            ),
+        ListTile(
+          leading: _WebsiteFavicon(
+            faviconUrl: metadata.faviconUrl,
+            fallbackColor: scheme.primary,
           ),
+          title: Text(title),
+          subtitle: Text(uri.toString()),
+          trailing: const Icon(LucideIcons.externalLink),
+          onTap: () => _MediaLinkTile._openUri(context, uri),
         ),
-        const SizedBox(height: 12),
       ],
     );
   }
@@ -473,8 +414,8 @@ class _PhotoGrid extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
         maxCrossAxisExtent: 200,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
         childAspectRatio: 1,
       ),
       itemCount: photos.length,
@@ -489,7 +430,7 @@ class _PhotoGrid extends StatelessWidget {
             final shouldBeHero = !isViewerOpen || isViewingThis;
 
             Widget imageContent = ClipRRect(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(8),
               child: _NetworkImageWithSkeleton(url: url, fit: BoxFit.cover),
             );
 
@@ -532,10 +473,10 @@ class _PhotoGrid extends StatelessWidget {
   }
 }
 
-class _MediaLinkCard extends StatelessWidget {
+class _MediaLinkTile extends StatelessWidget {
   final TeamMediaRecord record;
 
-  const _MediaLinkCard({required this.record});
+  const _MediaLinkTile({required this.record});
 
   @override
   Widget build(BuildContext context) {
@@ -549,74 +490,60 @@ class _MediaLinkCard extends StatelessWidget {
       _ => record.type,
     };
 
-    return InkWell(
+    return Material(
+      color: Colors.transparent,
       borderRadius: BorderRadius.circular(12),
-      onTap: openUrl == null ? null : () => _openUrl(context, openUrl),
-      child: Ink(
-        decoration: BoxDecoration(
-          color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(13),
-          border: Border.all(
-            color: scheme.outlineVariant.withValues(alpha: 0.4),
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHighest.withValues(alpha: 0.6),
+                border: Border.all(
+                  color: scheme.outlineVariant.withValues(alpha: 0.45),
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
           ),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Stack(
-            children: [
-              // Faded Background Image Layer
-              if (record.previewImageUrl != null)
-                Positioned.fill(
-                  child: Opacity(
-                    opacity: 0.3,
-                    child: _NetworkImageWithSkeleton(
-                      url: record.previewImageUrl!,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                ),
-              // Content Layer
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 16,
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          _buildTitle(context),
-                          const SizedBox(height: 4),
-                          Text(
-                            subtitleText,
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(color: scheme.onSurfaceVariant),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (openUrl != null) ...[
-                      const SizedBox(width: 12),
-                      Icon(LucideIcons.externalLink),
-                    ],
-                  ],
+          if (record.previewImageUrl != null)
+            Positioned.fill(
+              child: Opacity(
+                opacity: 0.3,
+                child: _NetworkImageWithSkeleton(
+                  url: record.previewImageUrl!,
+                  fit: BoxFit.cover,
                 ),
               ),
-            ],
+            ),
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: scheme.surface.withValues(alpha: 0.35),
+              ),
+            ),
           ),
-        ),
+          ListTile(
+            titleAlignment: ListTileTitleAlignment.center,
+            minVerticalPadding: 16,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 8,
+            ),
+            title: _buildTitle(),
+            subtitle: Text(subtitleText),
+            trailing: openUrl == null
+                ? null
+                : const Icon(LucideIcons.externalLink),
+            onTap: openUrl == null ? null : () => _openUrl(context, openUrl),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildTitle(BuildContext context) {
-    final style = Theme.of(context).textTheme.titleMedium
-        ?.copyWith(fontWeight: FontWeight.w600);
-
+  Widget _buildTitle() {
     final fallback = switch (record.type) {
       'cd-thread' => 'Chief Delphi thread',
       'onshape' => 'CAD release',
@@ -639,18 +566,12 @@ class _MediaLinkCard extends StatelessWidget {
             displayTitle,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: style,
           );
         },
       );
     }
 
-    return Text(
-      defaultTitle,
-      maxLines: 2,
-      overflow: TextOverflow.ellipsis,
-      style: style,
-    );
+    return Text(defaultTitle, maxLines: 2, overflow: TextOverflow.ellipsis);
   }
 
   Future<void> _openUrl(BuildContext context, String url) async {

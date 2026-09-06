@@ -3,9 +3,10 @@ import 'package:beariscope/models/team_scouting_bundle.dart';
 import 'package:beariscope/pages/team_lookup/tabs/scouting_tab_widgets.dart';
 import 'package:beariscope/providers/strat_z_score_provider.dart';
 import 'package:beariscope/providers/team_scouting_provider.dart';
+import 'package:beariscope/widgets/beariscope_card.dart';
+import 'package:beariscope/widgets/settings_group.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class CapabilitiesTab extends ConsumerWidget {
   final int teamNumber;
@@ -49,35 +50,11 @@ class _CapabilitiesBody extends StatelessWidget {
       );
     }
 
-    return ListView(
-      padding: const EdgeInsets.all(16),
+    return BeariscopeCardList(
       children: [
-        const ScoutingSectionHeader(
-          title: 'Drivetrain & Mobility',
-          icon: LucideIcons.car,
-        ),
-        const SizedBox(height: kScoutingHeaderGap),
         _botCard(context),
-        const SizedBox(height: kScoutingSectionGap),
-        const ScoutingSectionHeader(
-          title: 'Scoring & Ball Handling',
-          icon: LucideIcons.flame,
-        ),
-        const SizedBox(height: kScoutingHeaderGap),
         _outtakeCard(context),
-        const SizedBox(height: kScoutingSectionGap),
-        const ScoutingSectionHeader(
-          title: 'Auto & Pathing',
-          icon: LucideIcons.route,
-        ),
-        const SizedBox(height: kScoutingHeaderGap),
         _autoCard(context),
-        const SizedBox(height: kScoutingSectionGap),
-        const ScoutingSectionHeader(
-          title: 'Endgame & Defense',
-          icon: LucideIcons.trendingUp,
-        ),
-        const SizedBox(height: kScoutingHeaderGap),
         _climbCard(context),
       ],
     );
@@ -108,6 +85,7 @@ class _CapabilitiesBody extends StatelessWidget {
 
     return _specsCard(
       context,
+      title: 'Drivetrain & Mobility',
       rows: [
         ScoutingDataRow(label: 'Drivetrain', value: drivetrainType),
         if (showSwerve && swerveBrand != null)
@@ -175,6 +153,7 @@ class _CapabilitiesBody extends StatelessWidget {
 
     return _specsCard(
       context,
+      title: 'Auto & Pathing',
       rows: [
         ScoutingDataRow(label: 'Auto Paths', value: _textOrDash(autoPaths)),
         ScoutingDataRow(label: 'Auto Climb', value: autoClimb),
@@ -227,6 +206,7 @@ class _CapabilitiesBody extends StatelessWidget {
 
     return _specsCard(
       context,
+      title: 'Scoring & Ball Handling',
       rows: [
         ScoutingDataRow(label: 'Shooter Type', value: shooterType),
         ScoutingDataRow(
@@ -310,6 +290,7 @@ class _CapabilitiesBody extends StatelessWidget {
 
     return _specsCard(
       context,
+      title: 'Endgame & Defense',
       rows: [
         ScoutingDataRow(label: 'Mechanism', value: climbMethod),
         ScoutingDataRow(
@@ -404,18 +385,22 @@ class _CapabilitiesBody extends StatelessWidget {
 
   String _fmtPct(double v) => '${v.toStringAsFixed(1)}%';
 
-  Widget _specsCard(BuildContext context, {required List<Widget> rows}) {
-    return Card(
-      elevation: 0,
-      margin: EdgeInsets.zero,
-      color: Theme.of(context).colorScheme.surfaceContainer,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: rows,
+  Widget _specsCard(
+    BuildContext context, {
+    required String title,
+    required List<Widget> rows,
+  }) {
+    return SettingsGroup(
+      title: title,
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: rows,
+          ),
         ),
-      ),
+      ],
     );
   }
 }

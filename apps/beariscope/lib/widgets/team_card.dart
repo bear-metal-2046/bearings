@@ -348,26 +348,35 @@ class _SummaryMetrics extends ConsumerWidget {
           const SizedBox(height: 8),
           if (expandToFillHeight)
             Expanded(
-              child: SfCartesianChart(
-                margin: EdgeInsets.zero,
-                primaryXAxis: CategoryAxis(
-                  labelPlacement: LabelPlacement.onTicks,
-                  labelStyle: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 300),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: SfCartesianChart(
+                      margin: EdgeInsets.zero,
+                      primaryXAxis: CategoryAxis(
+                        labelPlacement: LabelPlacement.onTicks,
+                        labelStyle: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                        majorGridLines: MajorGridLines(width: 0),
+                      ),
+                      primaryYAxis: NumericAxis(
+                        labelStyle: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                        majorGridLines: MajorGridLines(
+                          color: Theme.of(context).colorScheme.outlineVariant,
+                          width: 2,
+                        ),
+                      ),
+                      plotAreaBorderWidth: 0,
+                      series: _buildLineSeries(context, bundle.matchDocs),
+                    ),
                   ),
-                  majorGridLines: MajorGridLines(width: 0),
                 ),
-                primaryYAxis: NumericAxis(
-                  labelStyle: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                  majorGridLines: MajorGridLines(
-                    color: Theme.of(context).colorScheme.outlineVariant,
-                    width: 2,
-                  ),
-                ),
-                plotAreaBorderWidth: 0,
-                series: _buildLineSeries(context, bundle.matchDocs),
               ),
             )
           else

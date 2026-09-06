@@ -211,9 +211,6 @@ class _MainViewState extends ConsumerState<MainView> {
 
   @override
   Widget build(BuildContext context) {
-    final searchFocusNode = ref.watch(searchFocusNodeProvider);
-    final searchController = ref.watch(searchControllerProvider);
-
     return LayoutBuilder(
       builder: (context, constraints) {
         final isDesktop = constraints.maxWidth >= _desktopBreakpoint;
@@ -270,7 +267,6 @@ class _MainViewState extends ConsumerState<MainView> {
 
             final isTeamLookup = location.startsWith('/team_lookup');
             final isPitsScouting = location.startsWith('/pits_scouting');
-
             if (isTeamLookup || isPitsScouting) {
               final focusNode = ref.read(
                 isTeamLookup
