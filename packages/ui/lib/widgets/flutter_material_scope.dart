@@ -1,7 +1,7 @@
-import 'package:material_ui/material_ui.dart' as flutter;
+import 'package:flutter/material.dart' as material;
 import 'package:flutter/widgets.dart';
 
-/// Inserts a [flutter.Material] ancestor for widgets that still import
+/// Inserts a [material.Material] ancestor for widgets that still import
 /// `package:flutter/material.dart` after apps migrated to `material_ui`.
 class FlutterMaterialScope extends StatelessWidget {
   const FlutterMaterialScope({super.key, required this.child});
@@ -10,6 +10,9 @@ class FlutterMaterialScope extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return flutter.Material(color: flutter.Colors.transparent, child: child);
+    return material.Material(
+      type: material.MaterialType.transparency,
+      child: child,
+    );
   }
 }

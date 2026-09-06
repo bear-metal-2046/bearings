@@ -346,33 +346,65 @@ class _SummaryMetrics extends ConsumerWidget {
         ],
         if (hasEnoughMatchDataForGraph) ...[
           const SizedBox(height: 8),
-          SizedBox(
-            height: expandToFillHeight ? 240 : 180,
-            child: SfCartesianChart(
-              margin: EdgeInsets.zero,
-              primaryXAxis: CategoryAxis(
-                labelPlacement: LabelPlacement.onTicks,
-                labelStyle: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+          if (expandToFillHeight)
+            Expanded(
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 300),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: SfCartesianChart(
+                      margin: EdgeInsets.zero,
+                      primaryXAxis: CategoryAxis(
+                        labelPlacement: LabelPlacement.onTicks,
+                        labelStyle: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                        majorGridLines: MajorGridLines(width: 0),
+                      ),
+                      primaryYAxis: NumericAxis(
+                        labelStyle: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                        majorGridLines: MajorGridLines(
+                          color: Theme.of(context).colorScheme.outlineVariant,
+                          width: 2,
+                        ),
+                      ),
+                      plotAreaBorderWidth: 0,
+                      series: _buildLineSeries(context, bundle.matchDocs),
+                    ),
+                  ),
                 ),
-                majorGridLines: MajorGridLines(width: 0),
               ),
-              primaryYAxis: NumericAxis(
-                labelStyle: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+            )
+          else
+            SizedBox(
+              height: 180,
+              child: SfCartesianChart(
+                margin: EdgeInsets.zero,
+                primaryXAxis: CategoryAxis(
+                  labelPlacement: LabelPlacement.onTicks,
+                  labelStyle: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                  majorGridLines: MajorGridLines(width: 0),
                 ),
-                majorGridLines: MajorGridLines(
-                  color: Theme.of(context).colorScheme.outlineVariant,
-                  width: 2,
+                primaryYAxis: NumericAxis(
+                  labelStyle: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                  majorGridLines: MajorGridLines(
+                    color: Theme.of(context).colorScheme.outlineVariant,
+                    width: 2,
+                  ),
                 ),
+                plotAreaBorderWidth: 0,
+                series: _buildLineSeries(context, bundle.matchDocs),
               ),
-              plotAreaBorderWidth: 0,
-              series: _buildLineSeries(context, bundle.matchDocs),
             ),
-          ),
         ],
-
-        if (expandToFillHeight && hasEnoughMatchDataForGraph) const Spacer(),
 
         if (hasEnoughMatchDataForGraph) const Divider(height: 8, thickness: 1),
 

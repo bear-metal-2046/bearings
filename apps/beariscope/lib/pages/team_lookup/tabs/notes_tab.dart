@@ -3,9 +3,10 @@ import 'package:beariscope/models/scouting_document.dart';
 import 'package:beariscope/models/team_scouting_bundle.dart';
 import 'package:beariscope/pages/team_lookup/tabs/scouting_tab_widgets.dart';
 import 'package:beariscope/providers/team_scouting_provider.dart';
+import 'package:beariscope/widgets/beariscope_card.dart';
+import 'package:beariscope/widgets/settings_group.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class NotesTab extends ConsumerWidget {
   final int teamNumber;
@@ -148,56 +149,56 @@ class _NotesBody extends StatelessWidget {
       (f) => f.notes.isNotEmpty || f.incidents.isNotEmpty,
     );
 
-    return ListView(
-      padding: const EdgeInsets.all(16),
+    return BeariscopeCardList(
       children: [
-        // Incident summary.
-        const ScoutingSectionHeader(
+        SettingsGroup(
           title: 'Incident Summary',
-          icon: LucideIcons.triangleAlert,
-        ),
-        const SizedBox(height: kScoutingHeaderGap),
-        Card(
-          elevation: 0,
-          margin: EdgeInsets.zero,
-          color: Theme.of(context).colorScheme.surfaceContainer,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 4,
-              children: [
-                scoutingIncidentCountChip(context, 'A-Stops', totalAStop),
-                scoutingIncidentCountChip(context, 'E-Stops', totalEStop),
-                scoutingIncidentCountChip(
-                  context,
-                  'Comms Loss',
-                  totalCommsLoss,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Wrap(
+                  alignment: WrapAlignment.start,
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: [
+                    scoutingIncidentCountChip(context, 'A-Stops', totalAStop),
+                    scoutingIncidentCountChip(context, 'E-Stops', totalEStop),
+                    scoutingIncidentCountChip(
+                      context,
+                      'Comms Loss',
+                      totalCommsLoss,
+                    ),
+                    scoutingIncidentCountChip(
+                      context,
+                      'Collisions',
+                      totalCollisions,
+                    ),
+                    scoutingIncidentCountChip(
+                      context,
+                      'Total Fouls',
+                      totalFouls,
+                    ),
+                    scoutingIncidentCountChip(
+                      context,
+                      'No Shows',
+                      totalNoShows,
+                    ),
+                  ],
                 ),
-                scoutingIncidentCountChip(
-                  context,
-                  'Collisions',
-                  totalCollisions,
-                ),
-                scoutingIncidentCountChip(context, 'Total Fouls', totalFouls),
-                scoutingIncidentCountChip(context, 'No Shows', totalNoShows),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
-        const SizedBox(height: kScoutingSectionGap),
-        if (!hasAnyContent)
-          const Center(heightFactor: 5, child: Text('No notes recorded.'))
-        else ...[
-          const ScoutingSectionHeader(
+        if (hasAnyContent)
+          SettingsGroup(
             title: 'Notes & Observations',
-            icon: LucideIcons.notepadText,
+            children: feedItems
+                .where((f) => f.notes.isNotEmpty || f.incidents.isNotEmpty)
+                .map((item) => _FeedItemTile(item: item))
+                .toList(),
           ),
-          const SizedBox(height: kScoutingHeaderGap),
-          ...feedItems
-              .where((f) => f.notes.isNotEmpty || f.incidents.isNotEmpty)
-              .map((item) => _FeedItemTile(item: item)),
-        ],
       ],
     );
   }
@@ -238,49 +239,44 @@ class _FeedItemTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      color: Theme.of(context).colorScheme.surfaceContainer,
-      margin: const EdgeInsets.only(bottom: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text(
-                  item.sourceLabel,
-                  style: Theme.of(context).textTheme.titleSmall
-                      ?.copyWith(fontWeight: FontWeight.bold),
-                ),
-                if (item.scoutedBy.isNotEmpty) ...[
-                  const SizedBox(width: 8),
-                  Text(
-                    '— ${item.scoutedBy}',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-            if (item.incidents.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 4,
-                runSpacing: 4,
-                children: item.incidents
-                    .map((i) => scoutingIncidentChip(context, i))
-                    .toList(),
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                item.sourceLabel,
+                style: Theme.of(context).textTheme.titleSmall
+                    ?.copyWith(fontWeight: FontWeight.bold),
               ),
+              if (item.scoutedBy.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                Text(
+                  '— ${item.scoutedBy}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
             ],
-            if (item.notes.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text(item.notes, style: Theme.of(context).textTheme.bodyMedium),
-            ],
+          ),
+          if (item.incidents.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 4,
+              runSpacing: 4,
+              children: item.incidents
+                  .map((i) => scoutingIncidentChip(context, i))
+                  .toList(),
+            ),
           ],
-        ),
+          if (item.notes.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(item.notes, style: Theme.of(context).textTheme.bodyMedium),
+          ],
+        ],
       ),
     );
   }

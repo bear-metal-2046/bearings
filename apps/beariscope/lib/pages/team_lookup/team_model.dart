@@ -46,3 +46,12 @@ class Team {
     return Uri.parse(text).host.contains('firstinspires.org') ? null : text;
   }
 }
+
+bool teamMatchesSearch(Team team, String query) {
+  final normalizedQuery = query.trim().toLowerCase();
+  if (normalizedQuery.isEmpty) return true;
+
+  return team.name.toLowerCase().contains(normalizedQuery) ||
+      team.number.toString().contains(normalizedQuery) ||
+      team.key.toLowerCase().contains(normalizedQuery);
+}

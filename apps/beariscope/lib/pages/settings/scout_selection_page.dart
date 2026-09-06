@@ -1,10 +1,13 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
+import 'package:beariscope/utils/platform_utils_stub.dart'
+    if (dart.library.io) 'package:beariscope/utils/platform_utils.dart';
 import 'package:beariscope/widgets/beariscope_card.dart';
+import 'package:beariscope/widgets/beariscope_search_bar.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:services/providers/api_provider.dart';
 import 'package:services/providers/permissions_provider.dart';
@@ -24,7 +27,9 @@ class ScoutSelectionPage extends ConsumerStatefulWidget {
 }
 
 class _ScoutSelectionPageState extends ConsumerState<ScoutSelectionPage> {
+  final FocusNode _pageFocusNode = FocusNode();
   final TextEditingController _searchTEC = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
   final TextEditingController _addScoutTEC = TextEditingController();
   final TextEditingController newNameTEC = TextEditingController();
   List<Map<String, String>>? _optimisticScouts;
@@ -58,14 +63,22 @@ class _ScoutSelectionPageState extends ConsumerState<ScoutSelectionPage> {
   @override
   void initState() {
     super.initState();
-    _searchTEC.addListener(() {
-      setState(() {});
+    _searchTEC.addListener(_handleSearchChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _pageFocusNode.requestFocus();
     });
+  }
+
+  void _handleSearchChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    _searchTEC.removeListener(_handleSearchChanged);
     _searchTEC.dispose();
+    _searchFocusNode.dispose();
+    _pageFocusNode.dispose();
     _addScoutTEC.dispose();
     newNameTEC.dispose();
     super.dispose();
@@ -283,149 +296,253 @@ class _ScoutSelectionPageState extends ConsumerState<ScoutSelectionPage> {
     ).showSnackBar(SnackBar(content: Text('Imported ${names.length} scouts.')));
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final scoutsAsync = ref.watch(_scoutsProvider);
-    final permissionChecker = ref.watch(permissionCheckerProvider);
-    final canManageScouts =
-        permissionChecker?.hasPermission(PermissionKey.scoutsManage) ?? false;
-    return Scaffold(
-      appBar: AppBar(
-        centerTitle: true,
-        titleSpacing: 8.0,
-        title: SearchBar(
-          controller: _searchTEC,
-          elevation: WidgetStateProperty.all(0.0),
-          padding: const WidgetStatePropertyAll<EdgeInsets>(
-            EdgeInsets.symmetric(horizontal: 16.0),
-          ),
-          leading: Icon(LucideIcons.search),
-          hintText: 'Search scouts',
+  Widget _buildSearchBar() {
+    return BeariscopeSearchBar(
+      controller: _searchTEC,
+      focusNode: _searchFocusNode,
+      hintText: 'Search scouts',
+    );
+  }
+
+  KeyEventResult _handleTypeToSearch(KeyEvent event) {
+    if (event is! KeyDownEvent ||
+        event.character == null ||
+        _searchFocusNode.hasFocus) {
+      return KeyEventResult.ignored;
+    }
+
+    final character = event.character!;
+    _searchFocusNode.requestFocus();
+    Future.microtask(() {
+      if (!mounted) return;
+      _searchTEC.text += character;
+      _searchTEC.selection = TextSelection.fromPosition(
+        TextPosition(offset: _searchTEC.text.length),
+      );
+    });
+    return KeyEventResult.handled;
+  }
+
+  Future<void> _showAddScoutDialog() async {
+    _addScoutTEC.clear();
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add Scout'),
+        content: TextField(
+          controller: _addScoutTEC,
+          decoration: const InputDecoration(labelText: 'Scout name'),
         ),
         actions: [
-          if (canManageScouts)
-            PopupMenuButton(
-              itemBuilder: (context) => [
-                PopupMenuItem(
-                  value: 'import',
-                  child: Row(
-                    children: [
-                      Icon(LucideIcons.import),
-                      const SizedBox(width: 8),
-                      const Text('Import From CSV'),
-                    ],
-                  ),
-                ),
-              ],
-              onSelected: (value) {
-                if (value == 'import') {
-                  _importFromCsv();
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              if (_addScoutTEC.text.isNotEmpty) {
+                final previous = List<Map<String, String>>.from(
+                  _optimisticScouts ??
+                      _normalizeScouts(
+                        ref.read(_scoutsProvider).asData?.value ?? const [],
+                      ),
+                );
+                setState(() {
+                  _optimisticScouts = [
+                    ...previous,
+                    {
+                      'name': _addScoutTEC.text,
+                      'uuid': 'temp-${DateTime.now().microsecondsSinceEpoch}',
+                    },
+                  ]..sort((a, b) => a['name']!.compareTo(b['name']!));
+                });
+
+                try {
+                  await ref
+                      .read(honeycombClientProvider)
+                      .post('/scouts', data: {"name": _addScoutTEC.text});
+                  await _refreshScouts();
+                  if (mounted) {
+                    Navigator.of(this.context).pop();
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    setState(() => _optimisticScouts = previous);
+                    ScaffoldMessenger.of(this.context).showSnackBar(
+                      SnackBar(content: Text('Failed to add scout: $e')),
+                    );
+                  }
                 }
-              },
-            )
-          else
-            SizedBox(width: 48),
+              }
+            },
+            child: const Text('Add'),
+          ),
         ],
       ),
-      body: scoutsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(
-          child: FilledButton(
-            onPressed: _refreshScouts,
-            child: const Text('Retry'),
-          ),
-        ),
-        data: (data) {
-          final scoutData = _normalizeScouts(data);
-          final source = _optimisticScouts ?? scoutData;
+    );
+  }
 
-          final filteredScouts = source
-              .where(
-                (scout) => scout["name"]!.toLowerCase().contains(
-                  _searchTEC.text.toLowerCase(),
-                ),
-              )
-              .toList();
-
-          return RefreshIndicator(
-            onRefresh: _refreshScouts,
-            child: BeariscopeCardList(children: buildScoutList(filteredScouts)),
-          );
-        },
-      ),
-      floatingActionButton: canManageScouts
-          ? FloatingActionButton(
-              onPressed: () async {
-                _addScoutTEC.clear();
-                await showDialog(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('Add Scout'),
-                    content: TextField(
-                      controller: _addScoutTEC,
-                      decoration: const InputDecoration(
-                        labelText: 'Scout name',
-                      ),
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: const Text('Cancel'),
-                      ),
-                      TextButton(
-                        onPressed: () async {
-                          if (_addScoutTEC.text.isNotEmpty) {
-                            final previous = List<Map<String, String>>.from(
-                              _optimisticScouts ??
-                                  _normalizeScouts(
-                                    ref.read(_scoutsProvider).asData?.value ??
-                                        const [],
-                                  ),
-                            );
-                            setState(() {
-                              _optimisticScouts = [
-                                ...previous,
-                                {
-                                  'name': _addScoutTEC.text,
-                                  'uuid':
-                                      'temp-${DateTime.now().microsecondsSinceEpoch}',
-                                },
-                              ]..sort((a, b) => a['name']!.compareTo(b['name']!));
-                            });
-
-                            try {
-                              await ref
-                                  .read(honeycombClientProvider)
-                                  .post(
-                                    '/scouts',
-                                    data: {"name": _addScoutTEC.text},
-                                  );
-                              await _refreshScouts();
-                              if (mounted) {
-                                Navigator.of(this.context).pop();
-                              }
-                            } catch (e) {
-                              if (mounted) {
-                                setState(() => _optimisticScouts = previous);
-                                ScaffoldMessenger.of(this.context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Failed to add scout: $e'),
-                                  ),
-                                );
-                              }
-                            }
-                          }
-                        },
-                        child: const Text('Add'),
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final scoutsAsync = ref.watch(_scoutsProvider);
+        final permissionChecker = ref.watch(permissionCheckerProvider);
+        final canManageScouts =
+            permissionChecker?.hasPermission(PermissionKey.scoutsManage) ??
+            false;
+        final isMobile = PlatformUtils.isMobile();
+        final searchInAppBar = !isMobile && constraints.maxWidth > 900;
+        final searchAtTop = !isMobile && !searchInAppBar;
+        final safeAreaBottom = MediaQuery.of(context).padding.bottom;
+        final listPadding = searchInAppBar
+            ? const EdgeInsets.all(16)
+            : searchAtTop
+            ? const EdgeInsets.fromLTRB(16, 72, 16, 16)
+            : EdgeInsets.fromLTRB(16, 16, 16, 120 + safeAreaBottom);
+        return Focus(
+          focusNode: _pageFocusNode,
+          autofocus: true,
+          onKeyEvent: (node, event) => _handleTypeToSearch(event),
+          child: Scaffold(
+            appBar: AppBar(
+              titleSpacing: 8.0,
+              title: const Text('Scouts'),
+              flexibleSpace: searchInAppBar
+                  ? BeariscopeCenteredAppBarSearch(searchBar: _buildSearchBar())
+                  : null,
+              actions: [
+                if (canManageScouts)
+                  PopupMenuButton(
+                    itemBuilder: (context) => [
+                      PopupMenuItem(
+                        value: 'import',
+                        child: Row(
+                          children: [
+                            Icon(LucideIcons.import),
+                            const SizedBox(width: 8),
+                            const Text('Import From CSV'),
+                          ],
+                        ),
                       ),
                     ],
+                    onSelected: (value) {
+                      if (value == 'import') {
+                        _importFromCsv();
+                      }
+                    },
+                  )
+                else
+                  SizedBox(width: 48),
+              ],
+            ),
+            body: Stack(
+              children: [
+                Positioned.fill(
+                  child: scoutsAsync.when(
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
+                    error: (err, stack) => Center(
+                      child: FilledButton(
+                        onPressed: _refreshScouts,
+                        child: const Text('Retry'),
+                      ),
+                    ),
+                    data: (data) {
+                      final scoutData = _normalizeScouts(data);
+                      final source = _optimisticScouts ?? scoutData;
+
+                      final searchQuery = _searchTEC.text.trim().toLowerCase();
+                      final filteredScouts = source.where((scout) {
+                        return scout['name']!.toLowerCase().contains(
+                          searchQuery,
+                        );
+                      }).toList();
+
+                      return RefreshIndicator(
+                        onRefresh: _refreshScouts,
+                        child: BeariscopeCardList(
+                          padding: listPadding,
+                          children: buildScoutList(filteredScouts),
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
-              tooltip: 'Add Scout',
-              child: const Icon(LucideIcons.plus),
-            )
-          : null,
+                ),
+                if (!searchInAppBar && searchAtTop)
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: SafeArea(
+                      bottom: false,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+                        child: Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 720),
+                            child: _buildSearchBar(),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                if (!searchInAppBar && !searchAtTop)
+                  Positioned(
+                    left: 8,
+                    right: 8,
+                    bottom: 8,
+                    child: SafeArea(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (canManageScouts)
+                            Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    FloatingActionButton(
+                                      onPressed: _showAddScoutDialog,
+                                      tooltip: 'Add Scout',
+                                      child: const Icon(LucideIcons.plus),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                              ],
+                            ),
+                          _buildSearchBar(),
+                        ],
+                      ),
+                    ),
+                  ),
+                if ((searchAtTop || searchInAppBar) && canManageScouts)
+                  Positioned(
+                    left: 8,
+                    right: 8,
+                    bottom: 8,
+                    child: SafeArea(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          FloatingActionButton(
+                            onPressed: _showAddScoutDialog,
+                            tooltip: 'Add Scout',
+                            child: const Icon(LucideIcons.plus),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

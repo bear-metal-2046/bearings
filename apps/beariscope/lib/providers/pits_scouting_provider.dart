@@ -11,8 +11,17 @@ import 'package:services/providers/api_provider.dart';
 
 part 'pits_scouting_provider.g.dart';
 
-final pitsSearchControllerProvider = Provider((ref) => TextEditingController());
-final pitsSearchFocusNodeProvider = Provider((ref) => FocusNode());
+final pitsSearchControllerProvider = Provider((ref) {
+  final controller = TextEditingController();
+  ref.onDispose(controller.dispose);
+  return controller;
+});
+
+final pitsSearchFocusNodeProvider = Provider((ref) {
+  final focusNode = FocusNode();
+  ref.onDispose(focusNode.dispose);
+  return focusNode;
+});
 
 //teams that are eligible for pits scouting (at the event and not already scouted)
 final pitsTeamsProvider = Provider<AsyncValue<List<Team>>>((ref) {

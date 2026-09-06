@@ -5,6 +5,8 @@ import 'package:beariscope/pages/team_lookup/tabs/scouting_tab_widgets.dart';
 import 'package:beariscope/pages/up_next/match_preview_page.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/team_scouting_provider.dart';
+import 'package:beariscope/widgets/beariscope_card.dart';
+import 'package:beariscope/widgets/settings_group.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -124,17 +126,14 @@ class _MatchesBody extends StatelessWidget {
       return const Center(child: Text('No match data recorded for this team.'));
     }
 
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: items.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 8),
-      itemBuilder: (context, i) {
-        final item = items[i];
-        if (item.doc != null) {
-          return _MatchCard(doc: item.doc!);
-        }
-        return _UnscoutedMatchCard(matchNumber: item.matchNumber);
-      },
+    return BeariscopeCardList(
+      spacing: 8,
+      children: [
+        for (final item in items)
+          item.doc != null
+              ? _MatchCard(doc: item.doc!)
+              : _UnscoutedMatchCard(matchNumber: item.matchNumber),
+      ],
     );
   }
 }
@@ -163,33 +162,32 @@ class _UnscoutedMatchCard extends StatelessWidget {
         : 'Match (unknown)';
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Card(
-      elevation: 0,
-      margin: EdgeInsets.zero,
-      color: colorScheme.surfaceContainer,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                label,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: colorScheme.onSurface,
+    return SettingsGroup(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.onSurface,
+                  ),
                 ),
               ),
-            ),
-            Text(
-              'Not Scouted',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-                fontStyle: FontStyle.italic,
+              Text(
+                'Not Scouted',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                  fontStyle: FontStyle.italic,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
+      ],
     );
   }
 }
@@ -260,71 +258,74 @@ class _MatchCard extends ConsumerWidget {
 
     final matchKey = _getMatchKey(context, ref);
 
-    return Card(
-      elevation: 0,
-      margin: EdgeInsets.zero,
-      color: Theme.of(context).colorScheme.surfaceContainer,
-      clipBehavior: Clip.antiAlias,
-      child: ExpansionTile(
-        tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        visualDensity: const VisualDensity(vertical: -2),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text(
-                  label,
-                  style: Theme.of(context).textTheme.titleSmall
-                      ?.copyWith(fontWeight: FontWeight.bold),
-                ),
-                if (incidents.isNotEmpty) ...[
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Wrap(spacing: 4, runSpacing: 2, children: incidents),
+    return SettingsGroup(
+      children: [
+        ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          visualDensity: const VisualDensity(vertical: -2),
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    label,
+                    style: Theme.of(context).textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.bold),
                   ),
+                  if (incidents.isNotEmpty) ...[
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Wrap(
+                        spacing: 4,
+                        runSpacing: 2,
+                        children: incidents,
+                      ),
+                    ),
+                  ],
                 ],
-              ],
-            ),
-            if (scouterName != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: Text(
-                  'Scouted by $scouterName',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+              if (scouterName != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    'Scouted by $scouterName',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
+                ),
+            ],
+          ),
+          subtitle: Text(
+            'Auto $autoStr  •  Tele $teleStr  •  Acc $accStr  •  $climbStr',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          children: [
+            const Divider(height: 1),
+            _MatchDetailSection(doc: doc),
+            if (matchKey != null) ...[const SizedBox(height: 12)],
+            if (matchKey != null)
+              Align(
+                alignment: Alignment.centerRight,
+                child: FilledButton.icon(
+                  onPressed: () =>
+                      Navigator.of(context, rootNavigator: true).push(
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              DriveTeamMatchPreviewPage(matchKey: matchKey),
+                        ),
+                      ),
+                  icon: const Icon(LucideIcons.externalLink),
+                  label: const Text('View Match Preview'),
                 ),
               ),
           ],
         ),
-        subtitle: Text(
-          'Auto $autoStr  •  Tele $teleStr  •  Acc $accStr  •  $climbStr',
-          style: Theme.of(context).textTheme.bodySmall
-              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-        ),
-        children: [
-          const Divider(height: 1),
-          _MatchDetailSection(doc: doc),
-          if (matchKey != null) ...[const SizedBox(height: 12)],
-          if (matchKey != null)
-            Align(
-              alignment: Alignment.centerRight,
-              child: FilledButton.icon(
-                onPressed: () =>
-                    Navigator.of(context, rootNavigator: true).push(
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            DriveTeamMatchPreviewPage(matchKey: matchKey),
-                      ),
-                    ),
-                icon: const Icon(LucideIcons.externalLink),
-                label: const Text('View Match Preview'),
-              ),
-            ),
-        ],
-      ),
+      ],
     );
   }
 }
@@ -367,16 +368,22 @@ class _MatchDetailSection extends StatelessWidget {
 
   Widget _phaseSection(
     BuildContext context, {
-    required Widget header,
+    required String title,
     required List<Widget> rows,
   }) {
-    return Card(
-      elevation: 0,
-      margin: const EdgeInsets.only(bottom: 8),
-      color: Theme.of(context).colorScheme.surfaceContainer,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [header, ...rows],
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: SettingsGroup(
+        title: title,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: rows,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -390,10 +397,7 @@ class _MatchDetailSection extends StatelessWidget {
         children: [
           _phaseSection(
             context,
-            header: const ScoutingSubHeader(
-              title: 'Auto',
-              icon: LucideIcons.timer,
-            ),
+            title: 'Auto',
             rows: [
               _row(context, 'Fuel Scored', _f(kSectionAuto, kAutoFuelScored)),
               _row(context, 'Fuel Passed', _f(kSectionAuto, kAutoFuelPassed)),
@@ -436,10 +440,7 @@ class _MatchDetailSection extends StatelessWidget {
           ),
           _phaseSection(
             context,
-            header: const ScoutingSubHeader(
-              title: 'Teleop',
-              icon: LucideIcons.gamepad2,
-            ),
+            title: 'Teleop',
             rows: [
               _row(context, 'Fuel Scored', _f(kSectionTele, kTeleFuelScored)),
               _row(context, 'Fuel Passed', _f(kSectionTele, kTeleFuelPassed)),
@@ -466,10 +467,7 @@ class _MatchDetailSection extends StatelessWidget {
           ),
           _phaseSection(
             context,
-            header: const ScoutingSubHeader(
-              title: 'Endgame',
-              icon: LucideIcons.flag,
-            ),
+            title: 'Endgame',
             rows: [
               _row(context, 'Climb Level', _f(kSectionEndgame, kEndClimb)),
               _row(

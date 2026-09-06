@@ -35,7 +35,7 @@ class _MatchLookupPageState extends ConsumerState<MatchLookupPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Match Lookup'),
+        title: const Text('Match Compare'),
         leading: controller.isDesktop
             ? null
             : IconButton(

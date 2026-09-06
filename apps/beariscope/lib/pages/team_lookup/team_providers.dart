@@ -6,8 +6,17 @@ import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:services/providers/api_provider.dart';
 
-final searchControllerProvider = Provider((ref) => TextEditingController());
-final searchFocusNodeProvider = Provider((ref) => FocusNode());
+final searchControllerProvider = Provider((ref) {
+  final controller = TextEditingController();
+  ref.onDispose(controller.dispose);
+  return controller;
+});
+
+final searchFocusNodeProvider = Provider((ref) {
+  final focusNode = FocusNode();
+  ref.onDispose(focusNode.dispose);
+  return focusNode;
+});
 
 class TeamSort {
   TeamSortOptions sort = TeamSortOptions.teamNumber;

@@ -32,7 +32,7 @@ class BeariscopeCardList extends StatelessWidget {
         return Center(
           child: ConstrainedBox(
             constraints: BoxConstraints(maxWidth: maxWidth),
-            child: children[index],
+            child: SizedBox(width: double.infinity, child: children[index]),
           ),
         );
       },
