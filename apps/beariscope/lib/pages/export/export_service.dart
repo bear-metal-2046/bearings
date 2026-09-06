@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:beariscope/models/match_field_ids.dart';
+import 'package:beariscope/models/pits_form_schema.dart';
 import 'package:beariscope/models/processed_scouting_doc.dart';
 import 'package:beariscope/models/scouting_document.dart';
 import 'package:beariscope/models/team_scouting_bundle.dart';
@@ -11,6 +12,12 @@ import 'package:excel/excel.dart';
 
 class ExportService {
   ExportService._();
+
+  static const _pitsStorageAliases = {
+    'swerveGearRatio': ['swerveGR'],
+    'shootingRange': ['rangeFromField'],
+    'pathwayDetails': ['pathwayPreference'],
+  };
 
   static const _stratRankingKeys = [
     'driverSkillRanking',
@@ -33,6 +40,7 @@ class ExportService {
     required UiCreatorSchema schema,
     required ExportOptions options,
     required String eventKey,
+    PitsFormSchema? pitsSchema,
     Map<int, Map<String, ({int auto, int tele, List<int> teams})>>?
     tbaMatchData,
     ScoutAuditSnapshot? auditSnapshot,
@@ -75,6 +83,25 @@ class ExportService {
         eventKey: eventKey,
         tbaMatchData: tbaMatchData,
         applyScalars: true,
+      );
+    }
+
+    if (options.sheets.pitsRaw) {
+      final sheetName = 'Pits Scouting';
+      if (isFirstSheet) {
+        excel.rename('Sheet1', sheetName);
+        isFirstSheet = false;
+      }
+      if (pitsSchema == null) {
+        throw StateError('Pits form schema is required for pits export');
+      }
+      _buildPitsSheet(
+        excel: excel,
+        sheetName: sheetName,
+        docs: rawDocs,
+        options: options,
+        eventKey: eventKey,
+        schema: pitsSchema,
       );
     }
 
@@ -505,6 +532,97 @@ class ExportService {
     }
   }
 
+  static void _buildPitsSheet({
+    required Excel excel,
+    required String sheetName,
+    required List<ScoutingDocument> docs,
+    required ExportOptions options,
+    required String eventKey,
+    required PitsFormSchema schema,
+  }) {
+    final latestByTeam = <int, ScoutingDocument>{};
+    for (final doc in docs) {
+      if (doc.meta?['type']?.toString() != 'pits') continue;
+      if (doc.meta?['event']?.toString() != eventKey) continue;
+
+      final teamNumber = _pitsTeamNumber(doc);
+      if (teamNumber == null) continue;
+      if (options.teamFilter != null &&
+          options.teamFilter!.isNotEmpty &&
+          !options.teamFilter!.contains(teamNumber)) {
+        continue;
+      }
+
+      final existing = latestByTeam[teamNumber];
+      if (existing == null || doc.timestamp.isAfter(existing.timestamp)) {
+        latestByTeam[teamNumber] = doc;
+      }
+    }
+
+    final fieldColumns = [
+      for (final section in schema.sections)
+        for (final field in section.fields)
+          if (options.includeNotes || field.id != 'notes')
+            (section: section.displayName, field: field),
+    ];
+    final headers = [
+      'Team #',
+      'Team Name',
+      'Scouter',
+      'Scouted At',
+      ...fieldColumns.map(
+        (entry) => '${entry.section} ${entry.field.displayName}',
+      ),
+    ];
+
+    final sheet = excel[sheetName];
+    final headerStyle = CellStyle(
+      bold: true,
+      backgroundColorHex: ExcelColor.fromHexString('#DBEAFE'),
+    );
+    for (var col = 0; col < headers.length; col++) {
+      final cell = sheet.cell(
+        CellIndex.indexByColumnRow(columnIndex: col, rowIndex: 0),
+      );
+      cell.value = TextCellValue(headers[col]);
+      cell.cellStyle = headerStyle;
+    }
+
+    final teamDocs = latestByTeam.values.toList()
+      ..sort((a, b) => _pitsTeamNumber(a)!.compareTo(_pitsTeamNumber(b)!));
+    for (var rowIndex = 0; rowIndex < teamDocs.length; rowIndex++) {
+      final doc = teamDocs[rowIndex];
+      final row = rowIndex + 1;
+      final teamNumber = _pitsTeamNumber(doc)!;
+
+      void writeCell(int column, CellValue value) {
+        sheet
+                .cell(
+                  CellIndex.indexByColumnRow(
+                    columnIndex: column,
+                    rowIndex: row,
+                  ),
+                )
+                .value =
+            value;
+      }
+
+      writeCell(0, IntCellValue(teamNumber));
+      writeCell(1, _toCellValue(doc.data['teamName']));
+      writeCell(2, TextCellValue(doc.meta?['scoutedBy']?.toString() ?? ''));
+      writeCell(3, TextCellValue(doc.timestamp.toIso8601String()));
+
+      for (
+        var columnIndex = 0;
+        columnIndex < fieldColumns.length;
+        columnIndex++
+      ) {
+        final field = fieldColumns[columnIndex].field;
+        writeCell(4 + columnIndex, _toCellValue(_pitsFieldValue(doc, field)));
+      }
+    }
+  }
+
   static void _buildStratZScoreSheet({
     required Excel excel,
     required String sheetName,
@@ -782,7 +900,13 @@ class ExportService {
   }
 
   /// Preview counts for the export summary.
-  static ({int match, int stratRaw, int stratZScore, int correctionTodo})
+  static ({
+    int match,
+    int pits,
+    int stratRaw,
+    int stratZScore,
+    int correctionTodo,
+  })
   previewCounts(
     List<ScoutingDocument> docs,
     ExportOptions options,
@@ -790,6 +914,7 @@ class ExportService {
   ) {
     return (
       match: previewCount(docs, options, eventKey),
+      pits: previewPitsCount(docs, options, eventKey),
       stratRaw: previewStratRawCount(docs, options, eventKey),
       stratZScore: previewStratZScoreCount(docs, options, eventKey),
       correctionTodo: options.sheets.correctionTodoList ? 1 : 0,
@@ -823,6 +948,27 @@ class ExportService {
       }
       return true;
     }).length;
+  }
+
+  static int previewPitsCount(
+    List<ScoutingDocument> docs,
+    ExportOptions options,
+    String eventKey,
+  ) {
+    final teams = <int>{};
+    for (final doc in docs) {
+      if (doc.meta?['type']?.toString() != 'pits') continue;
+      if (doc.meta?['event']?.toString() != eventKey) continue;
+      final teamNumber = _pitsTeamNumber(doc);
+      if (teamNumber == null) continue;
+      if (options.teamFilter != null &&
+          options.teamFilter!.isNotEmpty &&
+          !options.teamFilter!.contains(teamNumber)) {
+        continue;
+      }
+      teams.add(teamNumber);
+    }
+    return teams.length;
   }
 
   static int previewStratRawCount(
@@ -977,6 +1123,26 @@ class ExportService {
       return TextCellValue(raw.map((e) => e.toString()).join(', '));
     }
     return TextCellValue(raw.toString());
+  }
+
+  static int? _pitsTeamNumber(ScoutingDocument doc) {
+    final raw = doc.data['teamNumber'];
+    if (raw is int) return raw;
+    if (raw is num) return raw.toInt();
+    return int.tryParse(raw?.toString() ?? '');
+  }
+
+  static dynamic _pitsFieldValue(ScoutingDocument doc, PitsFormField field) {
+    final keys = [
+      field.id,
+      if (field.storageKey != null && field.storageKey!.isNotEmpty)
+        field.storageKey!,
+      ...?_pitsStorageAliases[field.id],
+    ];
+    for (final key in keys) {
+      if (doc.data.containsKey(key)) return doc.data[key];
+    }
+    return null;
   }
 
   static int _toInt(dynamic raw) {
