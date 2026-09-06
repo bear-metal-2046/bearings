@@ -31,7 +31,6 @@ import 'package:beariscope/utils/hive_storage.dart';
 import 'package:beariscope/utils/window_size_stub.dart'
     if (dart.library.io) 'package:window_size/window_size.dart';
 import 'package:core/providers/device_info_provider.dart';
-import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
