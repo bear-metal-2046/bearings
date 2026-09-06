@@ -88,10 +88,13 @@ jobs:
           echo "version=${version}" >> "$GITHUB_OUTPUT"
 
       - name: Apply unified release version
+        env:
+          RELEASE_VERSION: ${{ steps.meta.outputs.version }}
+          RELEASE_CODENAME: ${{ inputs.codename }}
         run: |
           dart run tool/update_workspace_release.dart \
-            --version=${{ steps.meta.outputs.version }} \
-            --codename=${{ inputs.codename }}
+            "--version=$RELEASE_VERSION" \
+            "--codename=$RELEASE_CODENAME"
 
       - name: Read build number
         id: build
