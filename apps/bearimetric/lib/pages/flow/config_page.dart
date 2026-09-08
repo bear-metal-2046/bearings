@@ -311,9 +311,9 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
                             ),
                           ),
                         if (scheduleEvent != null)
-                          _ScheduleDownloadTile(
-                            eventKey: scheduleEvent.key,
-                          ).animate().fadeIn(delay: 500.ms, duration: 300.ms),
+                          _ScheduleDownloadTile(eventKey: scheduleEvent.key)
+                              .animate()
+                              .fadeIn(delay: 500.ms, duration: 300.ms),
                       ],
                     ],
                   ),
