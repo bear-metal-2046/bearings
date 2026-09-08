@@ -226,7 +226,10 @@ class ScoutingSessionNotifier extends _$ScoutingSessionNotifier {
       isTrainingMode: true,
     );
     prefs.setString(_eventKey, jsonEncode(trainingEvent.toJson()));
-    prefs.setString(_trainingScheduleEventKey, jsonEncode(sourceEvent.toJson()));
+    prefs.setString(
+      _trainingScheduleEventKey,
+      jsonEncode(sourceEvent.toJson()),
+    );
     prefs.setBool(_trainingModeKey, true);
   }
 

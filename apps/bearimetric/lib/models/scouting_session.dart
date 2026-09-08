@@ -27,8 +27,7 @@ class ScoutingSession {
       event != null && position != null && scout != null && matchNumber != null;
 
   /// The real event used for schedules and team assignments.
-  ScoutingEvent? get dataSourceEvent =>
-      isTrainingMode ? scheduleEvent : event;
+  ScoutingEvent? get dataSourceEvent => isTrainingMode ? scheduleEvent : event;
 
   ScoutingSession copyWith({
     ScoutingEvent? event,
