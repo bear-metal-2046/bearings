@@ -217,13 +217,13 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
                                       ),
                                     )
                                     .toList(),
-                                 onChanged: (event) {
-                                   setState(() => _selectedEvent = event);
-                                   if (event != null) {
-                                     ref
-                                         .read(scoutingSessionProvider.notifier)
-                                         .setEvent(event);
-                                   }
+                                onChanged: (event) {
+                                  setState(() => _selectedEvent = event);
+                                  if (event != null) {
+                                    ref
+                                        .read(scoutingSessionProvider.notifier)
+                                        .setEvent(event);
+                                  }
                                 },
                               )
                               .animate()
