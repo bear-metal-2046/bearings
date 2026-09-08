@@ -3,6 +3,9 @@ import 'package:core/core.dart' show Scout, ScoutPosition, ScoutingEvent;
 export 'package:core/core.dart'
     show MatchAlliance, Scout, ScoutPosition, ScoutingEvent, ScoutingMatch;
 
+/// Local-only event key used to isolate practice records from real events.
+const trainingEventKey = 'training';
+
 class ScoutingSession {
   final ScoutingEvent? event;
   final ScoutPosition? position;

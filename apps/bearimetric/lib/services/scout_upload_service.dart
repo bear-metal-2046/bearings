@@ -2,6 +2,7 @@ import 'package:core/core.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:bearimetric/data/local_data.dart';
 import 'package:bearimetric/data/upload_queue.dart';
+import 'package:bearimetric/models/scouting_session.dart';
 import 'package:bearimetric/providers/scouting_providers.dart';
 import 'package:bearimetric/store/strat_state.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -45,6 +46,11 @@ class ScoutUploadService {
     for (final queueId in pendingIds) {
       final matchDoc = store.loadById(queueId);
       if (matchDoc != null) {
+        if (matchDoc.eventKey == trainingEventKey) {
+          // Training records are local-only, even if a stale queue item exists.
+          uploadedIds.add(matchDoc.id);
+          continue;
+        }
         final payload = _withTeamNumber(matchDoc);
         entryById[payload.id] = payload.toJson();
         uploadedIds.add(matchDoc.id);
@@ -53,6 +59,10 @@ class ScoutUploadService {
 
       final stratDoc = loadStratFormDataById(queueId);
       if (stratDoc != null) {
+        if (stratDoc.eventKey == trainingEventKey) {
+          uploadedIds.add(queueId);
+          continue;
+        }
         entryById[stratDoc.id] = stratDoc.toJson();
         uploadedIds.add(queueId);
         continue;
@@ -64,7 +74,10 @@ class ScoutUploadService {
 
     final entries = entryById.values.toList(growable: false);
 
-    if (entries.isEmpty) return 0;
+    if (entries.isEmpty) {
+      _ref.read(uploadQueueProvider.notifier).markUploaded(uploadedIds);
+      return 0;
+    }
 
     await _client.post('/scout/ingest', data: {'entries': entries});
     _ref.read(uploadQueueProvider.notifier).markUploaded(uploadedIds);

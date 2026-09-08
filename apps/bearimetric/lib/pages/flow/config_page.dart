@@ -56,6 +56,13 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
   @override
   Widget build(BuildContext context) {
     final eventsAsync = ref.watch(eventsProvider);
+    final session = ref.watch(scoutingSessionProvider);
+    final scheduleEvent = session.event;
+    final hasTrainingSource = eventsAsync.value?.isNotEmpty == true;
+    final canContinue =
+        _selectedEvent != null &&
+        _selectedPosition != null &&
+        (_selectedEvent!.key != trainingEventKey || hasTrainingSource);
 
     return Scaffold(
       appBar: AppBar(
@@ -135,18 +142,30 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
                       const SizedBox(height: 8),
                       eventsAsync.when(
                         data: (events) {
+                          final trainingEvent = events.isEmpty
+                              ? null
+                              : ScoutingEvent(
+                                  key: trainingEventKey,
+                                  name: 'Training (no uploads)',
+                                  year: events.first.year,
+                                );
                           // Ensure displayEvents has unique event keys and, if we
                           // need to include a custom/previously-selected event,
                           // prepend it only once. This prevents multiple
                           // DropdownMenuItems from comparing equal and tripping the
                           // Dropdown assertion.
-                          final combined =
-                              (_selectedEvent != null &&
-                                  !events.any(
-                                    (e) => e.key == _selectedEvent!.key,
-                                  ))
-                              ? [_selectedEvent!, ...events]
-                              : events;
+                          final combined = <ScoutingEvent>[
+                            if (_selectedEvent != null &&
+                                !events.any(
+                                  (e) => e.key == _selectedEvent!.key,
+                                ))
+                              _selectedEvent!,
+                            ...events,
+                          ];
+
+                          if (trainingEvent != null) {
+                            combined.add(trainingEvent);
+                          }
 
                           final displayEvents = <ScoutingEvent>[];
                           final seenKeys = <String>{};
@@ -275,9 +294,19 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
 
                       if (_selectedEvent != null) ...[
                         const SizedBox(height: 16),
-                        _ScheduleDownloadTile(eventKey: _selectedEvent!.key)
-                            .animate()
-                            .fadeIn(delay: 500.ms, duration: 300.ms),
+                        if (_selectedEvent?.key == trainingEventKey)
+                          const Padding(
+                            padding: EdgeInsets.only(bottom: 12),
+                            child: Text(
+                              'Training mode uses the first competition\'s schedule. '
+                              'Scouting records stay on this device and are not uploaded.',
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        if (scheduleEvent != null)
+                          _ScheduleDownloadTile(eventKey: scheduleEvent.key)
+                              .animate()
+                              .fadeIn(delay: 500.ms, duration: 300.ms),
                       ],
                     ],
                   ),
@@ -291,9 +320,7 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
                           height: 56,
                           child: FilledButton.icon(
                             style: ButtonStyle(
-                              backgroundColor:
-                                  _selectedEvent != null &&
-                                      _selectedPosition != null
+                              backgroundColor: canContinue
                                   ? WidgetStateProperty.all(
                                       Theme.of(context).colorScheme.primary,
                                     )
@@ -301,9 +328,7 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
                                       Theme.of(context).colorScheme.surface,
                                     ),
                             ),
-                            onPressed:
-                                _selectedEvent != null &&
-                                    _selectedPosition != null
+                            onPressed: canContinue
                                 ? () {
                                     final notifier = ref.read(
                                       scoutingSessionProvider.notifier,
@@ -455,11 +480,17 @@ class _ScheduleDownloadTileState extends ConsumerState<_ScheduleDownloadTile> {
     try {
       ref.invalidate(matchesProvider(widget.eventKey));
       await ref.read(matchesProvider(widget.eventKey).future);
-      await ref.read(scoutSyncServiceProvider).syncDownEvent(widget.eventKey);
+      if (widget.eventKey != trainingEventKey) {
+        await ref.read(scoutSyncServiceProvider).syncDownEvent(widget.eventKey);
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Schedule refreshed and scouting synced'),
+          SnackBar(
+            content: Text(
+              widget.eventKey == trainingEventKey
+                  ? 'Schedule refreshed'
+                  : 'Schedule refreshed and scouting synced',
+            ),
             duration: Duration(seconds: 2),
           ),
         );

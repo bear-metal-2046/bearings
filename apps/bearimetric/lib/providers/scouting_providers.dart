@@ -63,10 +63,18 @@ Future<List<ScoutingEvent>> events(Ref ref) async {
 @Riverpod(keepAlive: true)
 Future<List<ScoutingMatch>> matches(Ref ref, String eventKey) async {
   final client = ref.read(honeycombClientProvider);
+  var sourceEventKey = eventKey;
+  if (eventKey == trainingEventKey) {
+    final events = await ref.watch(eventsProvider.future);
+    if (events.isEmpty) {
+      throw StateError('No event is available for training schedules');
+    }
+    sourceEventKey = events.first.key;
+  }
 
   final rawData = await client.get<List<dynamic>>(
     '/matches',
-    queryParams: {'event': eventKey},
+    queryParams: {'event': sourceEventKey},
     cachePolicy: CachePolicy.networkFirst,
   );
 

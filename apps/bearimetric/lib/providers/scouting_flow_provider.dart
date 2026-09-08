@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:bearimetric/data/upload_queue.dart';
+import 'package:bearimetric/models/scouting_session.dart';
 import 'package:bearimetric/services/scout_upload_service.dart';
 import 'package:bearimetric/store/strat_state.dart';
 
@@ -24,6 +25,7 @@ class ScoutingFlowController {
 
   bool markCurrentMatchForUpload() {
     final session = _ref.read(scoutingSessionProvider);
+    if (session.event?.key == trainingEventKey) return false;
     final eventKey = session.event?.key;
     final matchNumber = session.matchNumber;
     final pos = session.position?.posIndex;
@@ -39,6 +41,9 @@ class ScoutingFlowController {
   }
 
   bool markCurrentStratForUpload() {
+    if (_ref.read(scoutingSessionProvider).event?.key == trainingEventKey) {
+      return false;
+    }
     final identity = _ref
         .read(scoutingSessionProvider.notifier)
         .createMatchIdentity();
@@ -52,9 +57,13 @@ class ScoutingFlowController {
   }
 
   bool nextMatch() {
+    final isTrainingMode =
+        _ref.read(scoutingSessionProvider).event?.key == trainingEventKey;
     markCurrentMatchForUpload();
     markCurrentStratForUpload();
-    unawaited(_ref.read(scoutUploadServiceProvider).drainIfOnline());
+    if (!isTrainingMode) {
+      unawaited(_ref.read(scoutUploadServiceProvider).drainIfOnline());
+    }
     _ref.read(scoutingSessionProvider.notifier).nextMatch();
     return true;
   }
@@ -63,9 +72,13 @@ class ScoutingFlowController {
     final current = _ref.read(scoutingSessionProvider).matchNumber;
     if (current == null || current <= 1) return false;
 
+    final isTrainingMode =
+        _ref.read(scoutingSessionProvider).event?.key == trainingEventKey;
     markCurrentMatchForUpload();
     markCurrentStratForUpload();
-    unawaited(_ref.read(scoutUploadServiceProvider).drainIfOnline());
+    if (!isTrainingMode) {
+      unawaited(_ref.read(scoutUploadServiceProvider).drainIfOnline());
+    }
     _ref.read(scoutingSessionProvider.notifier).previousMatch();
     return true;
   }
