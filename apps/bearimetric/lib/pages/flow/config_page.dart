@@ -16,7 +16,6 @@ class ConfigPage extends ConsumerStatefulWidget {
 }
 
 class _ConfigPageState extends ConsumerState<ConfigPage> {
-  static const _trainingEventKey = '__training__';
   ScoutingEvent? _selectedEvent;
   ScoutPosition? _selectedPosition;
   final _customKeyController = TextEditingController();
@@ -28,9 +27,7 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
       final session = ref.read(scoutingSessionProvider);
       if (mounted) {
         setState(() {
-          _selectedEvent = session.isTrainingMode && session.event != null
-              ? _trainingEventFor(session.event!)
-              : session.event;
+          _selectedEvent = session.event;
           _selectedPosition = session.position;
         });
       }
@@ -56,26 +53,16 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
     ref.read(scoutingSessionProvider.notifier).setEvent(customEvent);
   }
 
-  ScoutingEvent _trainingEventFor(ScoutingEvent sourceEvent) {
-    return ScoutingEvent(
-      key: _trainingEventKey,
-      name: 'Training (no uploads)',
-      year: sourceEvent.year,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final eventsAsync = ref.watch(eventsProvider);
     final session = ref.watch(scoutingSessionProvider);
-    final scheduleEvent = session.isTrainingMode
-        ? eventsAsync.value?.first
-        : session.event;
+    final scheduleEvent = session.dataSourceEvent;
     final hasTrainingSource = eventsAsync.value?.isNotEmpty == true;
     final canContinue =
         _selectedEvent != null &&
         _selectedPosition != null &&
-        (_selectedEvent!.key != _trainingEventKey || hasTrainingSource);
+        (_selectedEvent!.key != trainingEventKey || hasTrainingSource);
 
     return Scaffold(
       appBar: AppBar(
@@ -157,7 +144,11 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
                         data: (events) {
                           final trainingEvent = events.isEmpty
                               ? null
-                              : _trainingEventFor(events.first);
+                              : ScoutingEvent(
+                                  key: trainingEventKey,
+                                  name: 'Training (no uploads)',
+                                  year: events.first.year,
+                                );
                           // Ensure displayEvents has unique event keys and, if we
                           // need to include a custom/previously-selected event,
                           // prepend it only once. This prevents multiple
@@ -168,7 +159,7 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
                                 !events.any(
                                   (e) =>
                                       e.key == _selectedEvent!.key ||
-                                      _selectedEvent!.key == _trainingEventKey,
+                                      _selectedEvent!.key == trainingEventKey,
                                 ))
                               _selectedEvent!,
                             ...events,
@@ -230,14 +221,11 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
                                     .toList(),
                                 onChanged: (event) {
                                   setState(() => _selectedEvent = event);
-                                  if (event?.key == _trainingEventKey &&
+                                  if (event?.key == trainingEventKey &&
                                       events.isNotEmpty) {
                                     ref
                                         .read(scoutingSessionProvider.notifier)
-                                        .setEvent(
-                                          events.first,
-                                          isTrainingMode: true,
-                                        );
+                                        .setTrainingEvent(events.first);
                                   } else if (event != null) {
                                     ref
                                         .read(scoutingSessionProvider.notifier)
@@ -323,9 +311,10 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
                             ),
                           ),
                         if (scheduleEvent != null)
-                          _ScheduleDownloadTile(eventKey: scheduleEvent.key)
-                              .animate()
-                              .fadeIn(delay: 500.ms, duration: 300.ms),
+                          _ScheduleDownloadTile(
+                            eventKey: scheduleEvent.key,
+                            isTrainingMode: session.isTrainingMode,
+                          ).animate().fadeIn(delay: 500.ms, duration: 300.ms),
                       ],
                     ],
                   ),
@@ -353,11 +342,10 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
                                       scoutingSessionProvider.notifier,
                                     );
                                     if (_selectedEvent!.key ==
-                                            _trainingEventKey &&
+                                            trainingEventKey &&
                                         hasTrainingSource) {
-                                      notifier.setEvent(
+                                      notifier.setTrainingEvent(
                                         eventsAsync.value!.first,
-                                        isTrainingMode: true,
                                       );
                                     } else {
                                       notifier.setEvent(_selectedEvent!);
@@ -492,8 +480,12 @@ class _PositionSelector extends StatelessWidget {
 
 class _ScheduleDownloadTile extends ConsumerStatefulWidget {
   final String eventKey;
+  final bool isTrainingMode;
 
-  const _ScheduleDownloadTile({required this.eventKey});
+  const _ScheduleDownloadTile({
+    required this.eventKey,
+    required this.isTrainingMode,
+  });
 
   @override
   ConsumerState<_ScheduleDownloadTile> createState() =>
@@ -508,11 +500,17 @@ class _ScheduleDownloadTileState extends ConsumerState<_ScheduleDownloadTile> {
     try {
       ref.invalidate(matchesProvider(widget.eventKey));
       await ref.read(matchesProvider(widget.eventKey).future);
-      await ref.read(scoutSyncServiceProvider).syncDownEvent(widget.eventKey);
+      if (!widget.isTrainingMode) {
+        await ref.read(scoutSyncServiceProvider).syncDownEvent(widget.eventKey);
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Schedule refreshed and scouting synced'),
+          SnackBar(
+            content: Text(
+              widget.isTrainingMode
+                  ? 'Schedule refreshed'
+                  : 'Schedule refreshed and scouting synced',
+            ),
             duration: Duration(seconds: 2),
           ),
         );

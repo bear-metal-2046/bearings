@@ -28,7 +28,7 @@ class _ScoutingShellState extends ConsumerState<ScoutingShell> {
     final notifier = ref.read(scoutingSessionProvider.notifier);
     final matchNumber = session.matchNumber ?? 0;
     final position = session.position;
-    final event = session.event;
+    final event = session.dataSourceEvent;
 
     final upcomingMatchOptions =
         event != null && position != null && !position.isStrategy
