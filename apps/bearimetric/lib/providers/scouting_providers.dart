@@ -133,6 +133,7 @@ Future<List<Scout>> scouts(Ref ref) async {
 class ScoutingSessionNotifier extends _$ScoutingSessionNotifier {
   static const _eventKey = 'selected_event';
   static const _positionKey = 'selected_position';
+  static const _trainingModeKey = 'training_mode';
 
   @override
   ScoutingSession build() {
@@ -155,7 +156,11 @@ class ScoutingSessionNotifier extends _$ScoutingSessionNotifier {
       } catch (_) {}
     }
 
-    return ScoutingSession(event: savedEvent, position: savedPosition);
+    return ScoutingSession(
+      event: savedEvent,
+      position: savedPosition,
+      isTrainingMode: prefs.getBool(_trainingModeKey) ?? false,
+    );
   }
 
   void setMatchNumber(int matchNumber) {
@@ -174,9 +179,10 @@ class ScoutingSessionNotifier extends _$ScoutingSessionNotifier {
     }
   }
 
-  void setEvent(ScoutingEvent event) {
-    state = state.copyWith(event: event);
+  void setEvent(ScoutingEvent event, {bool isTrainingMode = false}) {
+    state = state.copyWith(event: event, isTrainingMode: isTrainingMode);
     prefs.setString(_eventKey, jsonEncode(event.toJson()));
+    prefs.setBool(_trainingModeKey, isTrainingMode);
   }
 
   void setPosition(ScoutPosition position) {
@@ -209,6 +215,7 @@ class ScoutingSessionNotifier extends _$ScoutingSessionNotifier {
       event: state.event,
       position: state.position,
       matchNumber: state.matchNumber,
+      isTrainingMode: state.isTrainingMode,
     );
   }
 

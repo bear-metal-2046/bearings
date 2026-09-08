@@ -8,12 +8,14 @@ class ScoutingSession {
   final ScoutPosition? position;
   final Scout? scout;
   final int? matchNumber;
+  final bool isTrainingMode;
 
   const ScoutingSession({
     this.event,
     this.position,
     this.scout,
     this.matchNumber,
+    this.isTrainingMode = false,
   });
 
   bool get isConfigured =>
@@ -24,12 +26,14 @@ class ScoutingSession {
     ScoutPosition? position,
     Scout? scout,
     int? matchNumber,
+    bool? isTrainingMode,
   }) {
     return ScoutingSession(
       event: event ?? this.event,
       position: position ?? this.position,
       scout: scout ?? this.scout,
       matchNumber: matchNumber ?? this.matchNumber,
+      isTrainingMode: isTrainingMode ?? this.isTrainingMode,
     );
   }
 }
