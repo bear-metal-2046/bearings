@@ -157,9 +157,7 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
                           final combined = <ScoutingEvent>[
                             if (_selectedEvent != null &&
                                 !events.any(
-                                  (e) =>
-                                      e.key == _selectedEvent!.key ||
-                                      _selectedEvent!.key == trainingEventKey,
+                                  (e) => e.key == _selectedEvent!.key,
                                 ))
                               _selectedEvent!,
                             ...events,
