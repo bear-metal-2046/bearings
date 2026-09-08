@@ -168,8 +168,7 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
                                 !events.any(
                                   (e) =>
                                       e.key == _selectedEvent!.key ||
-                                      _selectedEvent!.key ==
-                                          _trainingEventKey,
+                                      _selectedEvent!.key == _trainingEventKey,
                                 ))
                               _selectedEvent!,
                             ...events,
@@ -325,8 +324,8 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
                           ),
                         if (scheduleEvent != null)
                           _ScheduleDownloadTile(eventKey: scheduleEvent.key)
-                            .animate()
-                            .fadeIn(delay: 500.ms, duration: 300.ms),
+                              .animate()
+                              .fadeIn(delay: 500.ms, duration: 300.ms),
                       ],
                     ],
                   ),
@@ -340,8 +339,7 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
                           height: 56,
                           child: FilledButton.icon(
                             style: ButtonStyle(
-                              backgroundColor:
-                                  canContinue
+                              backgroundColor: canContinue
                                   ? WidgetStateProperty.all(
                                       Theme.of(context).colorScheme.primary,
                                     )
@@ -355,7 +353,7 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
                                       scoutingSessionProvider.notifier,
                                     );
                                     if (_selectedEvent!.key ==
-                                        _trainingEventKey &&
+                                            _trainingEventKey &&
                                         hasTrainingSource) {
                                       notifier.setEvent(
                                         eventsAsync.value!.first,
