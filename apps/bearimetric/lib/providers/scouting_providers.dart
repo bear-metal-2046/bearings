@@ -63,10 +63,18 @@ Future<List<ScoutingEvent>> events(Ref ref) async {
 @Riverpod(keepAlive: true)
 Future<List<ScoutingMatch>> matches(Ref ref, String eventKey) async {
   final client = ref.read(honeycombClientProvider);
+  var sourceEventKey = eventKey;
+  if (eventKey == trainingEventKey) {
+    final events = await ref.watch(eventsProvider.future);
+    if (events.isEmpty) {
+      throw StateError('No event is available for training schedules');
+    }
+    sourceEventKey = events.first.key;
+  }
 
   final rawData = await client.get<List<dynamic>>(
     '/matches',
-    queryParams: {'event': eventKey},
+    queryParams: {'event': sourceEventKey},
     cachePolicy: CachePolicy.networkFirst,
   );
 
@@ -133,28 +141,16 @@ Future<List<Scout>> scouts(Ref ref) async {
 class ScoutingSessionNotifier extends _$ScoutingSessionNotifier {
   static const _eventKey = 'selected_event';
   static const _positionKey = 'selected_position';
-  static const _trainingModeKey = 'training_mode';
-  static const _trainingScheduleEventKey = 'training_schedule_event';
 
   @override
   ScoutingSession build() {
     ScoutingEvent? savedEvent;
-    ScoutingEvent? savedScheduleEvent;
     ScoutPosition? savedPosition;
 
     final savedEventJson = prefs.getString(_eventKey);
     if (savedEventJson != null) {
       try {
         savedEvent = ScoutingEvent.fromJson(jsonDecode(savedEventJson));
-      } catch (_) {}
-    }
-
-    final savedScheduleEventJson = prefs.getString(_trainingScheduleEventKey);
-    if (savedScheduleEventJson != null) {
-      try {
-        savedScheduleEvent = ScoutingEvent.fromJson(
-          jsonDecode(savedScheduleEventJson),
-        );
       } catch (_) {}
     }
 
@@ -167,24 +163,7 @@ class ScoutingSessionNotifier extends _$ScoutingSessionNotifier {
       } catch (_) {}
     }
 
-    final isTrainingMode = prefs.getBool(_trainingModeKey) ?? false;
-    if (isTrainingMode &&
-        savedEvent != null &&
-        savedEvent.key != trainingEventKey) {
-      // Migrate sessions created before training had its own local event key.
-      savedScheduleEvent = savedEvent;
-      savedEvent = _trainingEventFor(savedScheduleEvent);
-    }
-
-    return ScoutingSession(
-      event: savedEvent,
-      scheduleEvent: savedScheduleEvent,
-      position: savedPosition,
-      isTrainingMode:
-          isTrainingMode &&
-          savedEvent?.key == trainingEventKey &&
-          savedScheduleEvent != null,
-    );
+    return ScoutingSession(event: savedEvent, position: savedPosition);
   }
 
   void setMatchNumber(int matchNumber) {
@@ -204,33 +183,8 @@ class ScoutingSessionNotifier extends _$ScoutingSessionNotifier {
   }
 
   void setEvent(ScoutingEvent event) {
-    state = ScoutingSession(
-      event: event,
-      position: state.position,
-      scout: state.scout,
-      matchNumber: state.matchNumber,
-    );
+    state = state.copyWith(event: event);
     prefs.setString(_eventKey, jsonEncode(event.toJson()));
-    prefs.remove(_trainingScheduleEventKey);
-    prefs.setBool(_trainingModeKey, false);
-  }
-
-  void setTrainingEvent(ScoutingEvent sourceEvent) {
-    final trainingEvent = _trainingEventFor(sourceEvent);
-    state = ScoutingSession(
-      event: trainingEvent,
-      scheduleEvent: sourceEvent,
-      position: state.position,
-      scout: state.scout,
-      matchNumber: state.matchNumber,
-      isTrainingMode: true,
-    );
-    prefs.setString(_eventKey, jsonEncode(trainingEvent.toJson()));
-    prefs.setString(
-      _trainingScheduleEventKey,
-      jsonEncode(sourceEvent.toJson()),
-    );
-    prefs.setBool(_trainingModeKey, true);
   }
 
   void setPosition(ScoutPosition position) {
@@ -261,24 +215,14 @@ class ScoutingSessionNotifier extends _$ScoutingSessionNotifier {
   void exitToScoutSelect() {
     state = ScoutingSession(
       event: state.event,
-      scheduleEvent: state.scheduleEvent,
       position: state.position,
       matchNumber: state.matchNumber,
-      isTrainingMode: state.isTrainingMode,
     );
   }
 
   void clear() {
     state = const ScoutingSession();
   }
-}
-
-ScoutingEvent _trainingEventFor(ScoutingEvent sourceEvent) {
-  return ScoutingEvent(
-    key: trainingEventKey,
-    name: 'Training (no uploads)',
-    year: sourceEvent.year,
-  );
 }
 
 ScoutingMatch? _findMatch(List<ScoutingMatch> matches, int matchNumber) {
@@ -297,7 +241,7 @@ ScoutingMatch? _findMatch(List<ScoutingMatch> matches, int matchNumber) {
 @riverpod
 Future<int?> teamNumberForSession(Ref ref) async {
   final session = ref.watch(scoutingSessionProvider);
-  final event = session.dataSourceEvent;
+  final event = session.event;
   final position = session.position;
   final matchNumber = session.matchNumber;
 
@@ -317,7 +261,7 @@ Future<int?> teamNumberForSession(Ref ref) async {
 @riverpod
 Future<List<String>> allianceTeamsForSession(Ref ref) async {
   final session = ref.watch(scoutingSessionProvider);
-  final event = session.dataSourceEvent;
+  final event = session.event;
   final position = session.position;
   final matchNumber = session.matchNumber;
 

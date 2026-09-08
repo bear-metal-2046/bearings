@@ -57,7 +57,7 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
   Widget build(BuildContext context) {
     final eventsAsync = ref.watch(eventsProvider);
     final session = ref.watch(scoutingSessionProvider);
-    final scheduleEvent = session.dataSourceEvent;
+    final scheduleEvent = session.event;
     final hasTrainingSource = eventsAsync.value?.isNotEmpty == true;
     final canContinue =
         _selectedEvent != null &&
@@ -225,7 +225,7 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
                                       events.isNotEmpty) {
                                     ref
                                         .read(scoutingSessionProvider.notifier)
-                                        .setTrainingEvent(events.first);
+                                        .setEvent(event);
                                   } else if (event != null) {
                                     ref
                                         .read(scoutingSessionProvider.notifier)
@@ -301,7 +301,7 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
 
                       if (_selectedEvent != null) ...[
                         const SizedBox(height: 16),
-                        if (session.isTrainingMode)
+                        if (_selectedEvent?.key == trainingEventKey)
                           const Padding(
                             padding: EdgeInsets.only(bottom: 12),
                             child: Text(
@@ -313,7 +313,6 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
                         if (scheduleEvent != null)
                           _ScheduleDownloadTile(
                             eventKey: scheduleEvent.key,
-                            isTrainingMode: session.isTrainingMode,
                           ).animate().fadeIn(delay: 500.ms, duration: 300.ms),
                       ],
                     ],
@@ -341,15 +340,7 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
                                     final notifier = ref.read(
                                       scoutingSessionProvider.notifier,
                                     );
-                                    if (_selectedEvent!.key ==
-                                            trainingEventKey &&
-                                        hasTrainingSource) {
-                                      notifier.setTrainingEvent(
-                                        eventsAsync.value!.first,
-                                      );
-                                    } else {
-                                      notifier.setEvent(_selectedEvent!);
-                                    }
+                                    notifier.setEvent(_selectedEvent!);
                                     notifier.setPosition(_selectedPosition!);
                                     context.go('/scout');
                                   }
@@ -480,12 +471,8 @@ class _PositionSelector extends StatelessWidget {
 
 class _ScheduleDownloadTile extends ConsumerStatefulWidget {
   final String eventKey;
-  final bool isTrainingMode;
 
-  const _ScheduleDownloadTile({
-    required this.eventKey,
-    required this.isTrainingMode,
-  });
+  const _ScheduleDownloadTile({required this.eventKey});
 
   @override
   ConsumerState<_ScheduleDownloadTile> createState() =>
@@ -500,14 +487,14 @@ class _ScheduleDownloadTileState extends ConsumerState<_ScheduleDownloadTile> {
     try {
       ref.invalidate(matchesProvider(widget.eventKey));
       await ref.read(matchesProvider(widget.eventKey).future);
-      if (!widget.isTrainingMode) {
+      if (widget.eventKey != trainingEventKey) {
         await ref.read(scoutSyncServiceProvider).syncDownEvent(widget.eventKey);
       }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              widget.isTrainingMode
+              widget.eventKey == trainingEventKey
                   ? 'Schedule refreshed'
                   : 'Schedule refreshed and scouting synced',
             ),
