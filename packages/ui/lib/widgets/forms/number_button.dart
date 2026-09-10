@@ -1,4 +1,5 @@
 import 'package:auto_size_text/auto_size_text.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'form_style.dart';
@@ -133,7 +134,7 @@ class _DecrementButton extends StatelessWidget {
           ),
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(),
-          icon: Icon(Icons.remove, color: theme.colorScheme.onSurface),
+          icon: Icon(LucideIcons.minus, color: theme.colorScheme.onSurface),
           onPressed: onPressed,
         ),
       ),

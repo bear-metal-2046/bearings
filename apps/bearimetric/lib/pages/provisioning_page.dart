@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:bearimetric/services/device_auth_service.dart';
 import 'package:services/providers/device_credentials_provider.dart';
@@ -214,7 +215,7 @@ class _ProvisioningPageState extends ConsumerState<ProvisioningPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Icon(Icons.qr_code_scanner, size: 64, color: Colors.grey)
+            const Icon(LucideIcons.scanQrCode, size: 64, color: Colors.grey)
                 .animate()
                 .fadeIn(duration: 600.ms)
                 .scale(
@@ -259,7 +260,7 @@ class _ProvisioningPageState extends ConsumerState<ProvisioningPage> {
             ],
             FilledButton.icon(
                   onPressed: _provisioning ? null : _showPasteDialog,
-                  icon: const Icon(Icons.paste),
+                  icon: const Icon(LucideIcons.clipboardPaste),
                   label: const Text('Paste Provisioning code'),
                 )
                 .animate()

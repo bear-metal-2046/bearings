@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:bearimetric/providers/app_provider.dart';
 import 'package:services/release/release_info.dart';
 
@@ -120,7 +121,7 @@ class _AboutPageState extends ConsumerState<AboutPage> {
                               ),
                             ],
                       child: Icon(
-                        Icons.pets,
+                        LucideIcons.pawPrint,
                         size: 100,
                         color: Color.lerp(
                           Theme.of(context).colorScheme.primary,
@@ -339,14 +340,14 @@ class _AboutPageState extends ConsumerState<AboutPage> {
                                   applicationVersion: '1.0.0',
                                   applicationIcon: Padding(
                                     padding: EdgeInsets.all(16.0),
-                                    child: Icon(Icons.pets, size: 48),
+                                    child: Icon(LucideIcons.pawPrint, size: 48),
                                   ),
                                 ),
                               ),
                             ),
                           );
                         },
-                        icon: const Icon(Icons.article_outlined),
+                        icon: const Icon(LucideIcons.fileText),
                         label: const Text('View Licenses & Credits'),
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(

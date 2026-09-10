@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:bearimetric/custom_widgets/upload_status_indicator.dart';
 import 'package:bearimetric/models/scouting_session.dart';
 import 'package:bearimetric/pages/flow/about_page.dart';
@@ -72,7 +73,7 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
           const UploadStatusIndicator(),
           const SizedBox(width: 5),
           IconButton(
-            icon: const Icon(Icons.info_outline),
+            icon: const Icon(LucideIcons.info),
             tooltip: 'About',
             onPressed: () {
               Navigator.of(context).push(
@@ -81,7 +82,7 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.settings),
+            icon: const Icon(LucideIcons.settings),
             tooltip: 'Settings',
             onPressed: () => context.push('/config/settings'),
           ),
@@ -338,7 +339,7 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
                                     context.go('/scout');
                                   }
                                 : null,
-                            icon: const Icon(Icons.arrow_forward),
+                            icon: const Icon(LucideIcons.arrowRight),
                             label: const Text('Next'),
                           ),
                         )
@@ -523,7 +524,7 @@ class _ScheduleDownloadTileState extends ConsumerState<_ScheduleDownloadTile> {
     return Row(
       children: [
         Icon(
-          loaded ? Icons.cloud_done_outlined : Icons.cloud_off_outlined,
+          loaded ? LucideIcons.cloudCheck : LucideIcons.cloudOff,
           size: 18,
           color: loaded ? theme.colorScheme.primary : theme.colorScheme.error,
         ),
@@ -538,7 +539,7 @@ class _ScheduleDownloadTileState extends ConsumerState<_ScheduleDownloadTile> {
               )
             : OutlinedButton.icon(
                 onPressed: _download,
-                icon: const Icon(Icons.download, size: 16),
+                icon: const Icon(LucideIcons.download, size: 16),
                 label: const Text('Refresh schedule'),
                 style: OutlinedButton.styleFrom(
                   visualDensity: VisualDensity.compact,
@@ -571,7 +572,7 @@ class _ErrorRetry extends StatelessWidget {
         const SizedBox(height: 8),
         TextButton.icon(
           onPressed: onRetry,
-          icon: const Icon(Icons.refresh),
+          icon: const Icon(LucideIcons.refreshCw),
           label: const Text('Retry'),
         ),
       ],

@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hive_ce/hive.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:bearimetric/custom_widgets/upload_status_indicator.dart';
 import 'package:bearimetric/data/local_data.dart';
 import 'package:bearimetric/data/match_json_gen.dart';
@@ -78,7 +79,7 @@ class _ScoutingShellState extends ConsumerState<ScoutingShell> {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.close),
+          icon: const Icon(LucideIcons.x),
           tooltip: 'Exit to Scout Selection',
           onPressed: () async {
             final shouldExit = await showDialog<bool>(
@@ -121,7 +122,7 @@ class _ScoutingShellState extends ConsumerState<ScoutingShell> {
               style: Theme.of(context).textTheme.bodyMedium
                   ?.copyWith(fontSize: dropdownFontSize),
             ),
-            icon: const Icon(Icons.arrow_drop_down),
+            icon: const Icon(LucideIcons.chevronDown),
             onChanged: upcomingMatchOptions.isEmpty
                 ? null
                 : (selectedMatch) {
@@ -149,7 +150,7 @@ class _ScoutingShellState extends ConsumerState<ScoutingShell> {
           ),
           const LightSwitch(),
           IconButton(
-            icon: const Icon(Icons.skip_previous),
+            icon: const Icon(LucideIcons.skipBack),
             tooltip: 'Previous Match',
             visualDensity: VisualDensity.compact,
             constraints: BoxConstraints.tightFor(width: 36, height: 36),
@@ -159,7 +160,7 @@ class _ScoutingShellState extends ConsumerState<ScoutingShell> {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.skip_next),
+            icon: const Icon(LucideIcons.skipForward),
             tooltip: 'Next Match',
             visualDensity: VisualDensity.compact,
             constraints: BoxConstraints.tightFor(width: 36, height: 36),
@@ -221,19 +222,19 @@ class _ScoutingShellState extends ConsumerState<ScoutingShell> {
           }
         },
         destinations: [
-          NavigationDestination(icon: Icon(Icons.bolt), label: 'Auto'),
+          NavigationDestination(icon: Icon(LucideIcons.zap), label: 'Auto'),
           NavigationDestination(
             icon: _shouldFlashTele
                 ? Flash(
                     infinite: true,
                     delay: const Duration(seconds: 20),
-                    child: const Icon(Icons.stacked_bar_chart_sharp),
+                    child: const Icon(LucideIcons.chartColumnStacked),
                   )
-                : const Icon(Icons.stacked_bar_chart_sharp),
+                : const Icon(LucideIcons.chartColumnStacked),
             label: 'Tele',
           ),
           NavigationDestination(
-            icon: Icon(Icons.view_array),
+            icon: Icon(LucideIcons.table2),
             label: 'Post-Match',
           ),
         ],
@@ -272,8 +273,8 @@ class LightSwitch extends ConsumerWidget {
       visualDensity: VisualDensity.compact,
       constraints: const BoxConstraints.tightFor(width: 34, height: 34),
       color: scheme.onSurfaceVariant,
-      selectedIcon: Icon(Icons.dark_mode, color: scheme.primary),
-      icon: const Icon(Icons.light_mode_outlined),
+      selectedIcon: Icon(LucideIcons.moon, color: scheme.primary),
+      icon: const Icon(LucideIcons.sun),
       onPressed: () {
         ref.read(brightnessNotifierProvider.notifier).changeBrightness(!isDark);
       },

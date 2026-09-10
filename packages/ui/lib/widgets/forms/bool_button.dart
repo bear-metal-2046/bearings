@@ -1,4 +1,5 @@
 import 'package:auto_size_text/auto_size_text.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'form_style.dart';
@@ -83,7 +84,7 @@ class _BoolButtonState extends State<BoolButton> {
               transitionBuilder: (child, animation) =>
                   FadeTransition(opacity: animation, child: child),
               child: Icon(
-                isEnabled ? Icons.check_rounded : Icons.close_rounded,
+                isEnabled ? LucideIcons.check : LucideIcons.x,
                 key: ValueKey(isEnabled),
                 size: 18,
                 color: foregroundColor,

@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:bearimetric/custom_widgets/upload_status_indicator.dart';
 import 'package:bearimetric/models/scouting_session.dart';
 import 'package:bearimetric/providers/scouting_providers.dart';
@@ -44,7 +45,7 @@ class _ScoutPageState extends ConsumerState<ScoutPage> {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(LucideIcons.arrowLeft),
           onPressed: () => context.go('/config'),
         ),
         title: const Text('Select Scout'),
@@ -72,7 +73,7 @@ class _ScoutPageState extends ConsumerState<ScoutPage> {
                   padding: WidgetStatePropertyAll<EdgeInsetsGeometry>(
                     const EdgeInsets.symmetric(horizontal: 16.0),
                   ),
-                  leading: const Icon(Icons.search),
+                  leading: const Icon(LucideIcons.search),
                   onChanged: (value) {
                     setState(() => _searchQuery = value);
                   },
@@ -170,7 +171,7 @@ class _ScoutPageState extends ConsumerState<ScoutPage> {
                                 context.go('/match-select');
                               }
                             : null,
-                        icon: const Icon(Icons.arrow_forward),
+                        icon: const Icon(LucideIcons.arrowRight),
                         label: const Text('Next'),
                       ),
                     )
@@ -202,7 +203,7 @@ class _ScoutPageState extends ConsumerState<ScoutPage> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            Icons.cloud_off,
+            LucideIcons.cloudOff,
             size: 48,
             color: Theme.of(context).colorScheme.error,
           ),
@@ -223,7 +224,7 @@ class _ScoutPageState extends ConsumerState<ScoutPage> {
               setState(() => _showTimeout = false);
               ref.invalidate(scoutsProvider);
             },
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(LucideIcons.refreshCw),
             label: const Text('Retry'),
           ),
           const SizedBox(height: 8),
@@ -233,7 +234,7 @@ class _ScoutPageState extends ConsumerState<ScoutPage> {
               setState(() => _selectedScout = guestScout);
               ref.read(scoutingSessionProvider.notifier).setScout(guestScout);
             },
-            icon: const Icon(Icons.person_outline),
+            icon: const Icon(LucideIcons.userRound),
             label: const Text('Continue as Guest'),
           ),
         ],
