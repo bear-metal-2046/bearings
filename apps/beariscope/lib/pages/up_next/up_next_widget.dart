@@ -28,6 +28,60 @@ class UpNextMatchCard extends StatelessWidget {
   }
 }
 
+class NexusMatchCard extends StatelessWidget {
+  final String label;
+  final String time;
+  final String? status;
+  final bool includes2046;
+
+  const NexusMatchCard({
+    super.key,
+    required this.label,
+    required this.time,
+    this.status,
+    this.includes2046 = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return BeariscopeCard(
+      title: label,
+      subtitle: time,
+      trailing: status == null
+          ? null
+          : Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: _statusColor(colorScheme, status!).withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                status!,
+                style: TextStyle(
+                  color: _statusColor(colorScheme, status!),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+      color: includes2046
+          ? colorScheme.primaryContainer.withValues(alpha: 0.35)
+          : null,
+    );
+  }
+
+  Color _statusColor(ColorScheme colorScheme, String status) {
+    return switch (status) {
+      'Now queuing' => colorScheme.primary,
+      'On deck' => colorScheme.tertiary,
+      'On field' => colorScheme.secondary,
+      _ => colorScheme.onSurfaceVariant,
+    };
+  }
+}
+
 class UpNextEventCard extends ConsumerWidget {
   final String eventKey;
   final String name;
