@@ -29,7 +29,9 @@ Dio dio(Ref ref) {
   return dio;
 }
 
-@riverpod
+// Services can retain the client while requests are in flight. Keep its Ref
+// alive so a read-only client is not disposed between async operations.
+@Riverpod(keepAlive: true)
 HoneycombClient honeycombClient(Ref ref) {
   return HoneycombClient(ref);
 }

@@ -62,7 +62,7 @@ final class HoneycombClientProvider
         argument: null,
         retry: null,
         name: r'honeycombClientProvider',
-        isAutoDispose: true,
+        isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
