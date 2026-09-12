@@ -46,6 +46,9 @@ import 'package:services/providers/permissions_provider.dart';
 import 'package:services/release/release_info.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ui/ui.dart';
+import 'package:firebase_core/firebase_core.dart';
+
+import 'firebase_options.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -66,6 +69,11 @@ Future<void> main() async {
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
+
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
 
   runApp(
     ProviderScope(

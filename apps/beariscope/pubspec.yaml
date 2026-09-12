@@ -56,6 +56,8 @@ dependencies:
   material_ui: ^1.1.0
   cupertino_ui: ^1.0.1
   stupid_simple_sheet: ^0.9.1+1
+  firebase_core: ^4.14.0
+  firebase_messaging: ^16.6.0
 
 dev_dependencies:
   flutter_test:

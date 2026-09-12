@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "307539979285",
+    "project_id": "beariscope",
+    "storage_bucket": "beariscope.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:307539979285:android:d51d44b9927a8ca3d8321c",
+        "android_client_info": {
+          "package_name": "org.tahomarobotics.beariscope"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDRCoUblUrKSY3dW1k7ZWMqpJ7AE4bifKo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
