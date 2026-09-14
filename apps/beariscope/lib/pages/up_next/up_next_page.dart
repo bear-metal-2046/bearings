@@ -24,15 +24,25 @@ class UpNextPage extends ConsumerStatefulWidget {
 class _UpNextPageState extends ConsumerState<UpNextPage>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
+  bool _nexusTabActive = false;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 2, vsync: this)
+      ..addListener(_handleTabChanged);
+  }
+
+  void _handleTabChanged() {
+    if (_tabController.indexIsChanging) return;
+    final isNexusTab = _tabController.index == 1;
+    if (_nexusTabActive == isNexusTab) return;
+    setState(() => _nexusTabActive = isNexusTab);
   }
 
   @override
   void dispose() {
+    _tabController.removeListener(_handleTabChanged);
     _tabController.dispose();
     super.dispose();
   }
@@ -104,7 +114,7 @@ class _UpNextPageState extends ConsumerState<UpNextPage>
         controller: _tabController,
         children: [
           ScheduleUpNextTab(timeFormat: UpNextPage.timeFormat),
-          const NexusUpNextTab(),
+          NexusUpNextTab(isActive: _nexusTabActive),
         ],
       ),
     );

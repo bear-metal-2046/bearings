@@ -1,29 +1,80 @@
+import 'dart:async';
+
 import 'package:beariscope/models/nexus_live_status.dart';
 import 'package:beariscope/pages/up_next/nexus_live_provider.dart';
+import 'package:beariscope/pages/up_next/nexus_match_utils.dart';
 import 'package:beariscope/pages/up_next/up_next_page.dart';
+import 'package:beariscope/pages/up_next/up_next_provider.dart';
 import 'package:beariscope/pages/up_next/up_next_widget.dart';
 import 'package:beariscope/providers/nexus_event_key_provider.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 enum NexusMatchFilter { all, bearMetal }
 
 class NexusUpNextTab extends ConsumerStatefulWidget {
-  const NexusUpNextTab({super.key});
+  const NexusUpNextTab({super.key, required this.isActive});
+
+  final bool isActive;
 
   @override
   ConsumerState<NexusUpNextTab> createState() => _NexusUpNextTabState();
 }
 
 class _NexusUpNextTabState extends ConsumerState<NexusUpNextTab> {
+  static const _refreshInterval = Duration(seconds: 45);
+
   NexusMatchFilter _filter = NexusMatchFilter.bearMetal;
+  Timer? _refreshTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.isActive) {
+      _startRefreshTimer();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant NexusUpNextTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (widget.isActive && !oldWidget.isActive) {
+      ref.invalidate(nexusLiveProvider);
+      _startRefreshTimer();
+    } else if (!widget.isActive && oldWidget.isActive) {
+      _stopRefreshTimer();
+    }
+  }
+
+  @override
+  void dispose() {
+    _stopRefreshTimer();
+    super.dispose();
+  }
+
+  void _startRefreshTimer() {
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(_refreshInterval, (_) {
+      if (!mounted || !widget.isActive) return;
+      ref.invalidate(nexusLiveProvider);
+    });
+  }
+
+  void _stopRefreshTimer() {
+    _refreshTimer?.cancel();
+    _refreshTimer = null;
+  }
 
   @override
   Widget build(BuildContext context) {
     final nexusLive = ref.watch(nexusLiveProvider);
+    final schedule = ref.watch(upNextProvider);
     final nexusEventKey = ref.watch(nexusEventKeyProvider);
+    final scheduleMatches = schedule.asData?.value ?? const <Map<String, dynamic>>[];
 
     Future<void> refreshNexus() async {
       ref.invalidate(nexusLiveProvider);
@@ -133,6 +184,10 @@ class _NexusUpNextTabState extends ConsumerState<NexusUpNextTab> {
                 final timeLabel = time == null
                     ? 'Time TBD'
                     : UpNextPage.timeFormat.format(time);
+                final matchKey = tbaMatchKeyForNexusMatch(
+                  match,
+                  scheduleMatches,
+                );
 
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 8),
@@ -144,18 +199,33 @@ class _NexusUpNextTabState extends ConsumerState<NexusUpNextTab> {
                         time: timeLabel,
                         status: match.status,
                         includes2046: match.includesTeam(2046),
+                        onTap: matchKey == null
+                            ? null
+                            : () => context.push('/up_next/$matchKey'),
                       ),
                     ),
                   ),
                 );
               }),
+              Align(
+                alignment: Alignment.center,
+                child: TextButton.icon(
+                  onPressed: () {
+                    launchUrl(
+                      Uri.parse('https://frc.nexus'),
+                      mode: LaunchMode.externalApplication,
+                    );
+                  },
+                  icon: const Icon(LucideIcons.externalLink, size: 16),
+                  label: const Text('Data from FRC Nexus'),
+                ),
+              ),
             ],
           ),
         );
       },
     );
   }
-
 }
 
 PopupMenuItem<NexusMatchFilter> _filterMenuItem({
@@ -263,7 +333,7 @@ class _NexusMessageView extends StatelessWidget {
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
-          if (header != null) header!,
+          ?header,
           SizedBox(height: 320, child: Center(child: Text(message))),
         ],
       ),

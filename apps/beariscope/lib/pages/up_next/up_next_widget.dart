@@ -10,19 +10,26 @@ class UpNextMatchCard extends StatelessWidget {
   final String displayName;
   final String matchKey;
   final String time;
+  final String? status;
 
   const UpNextMatchCard({
     super.key,
     required this.displayName,
     required this.matchKey,
     required this.time,
+    this.status,
   });
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return BeariscopeCard(
       title: displayName,
       subtitle: time,
+      trailing: status == null
+          ? null
+          : _MatchStatusChip(status: status!, colorScheme: colorScheme),
       onTap: () => context.push('/up_next/$matchKey'),
     );
   }
@@ -33,6 +40,7 @@ class NexusMatchCard extends StatelessWidget {
   final String time;
   final String? status;
   final bool includes2046;
+  final VoidCallback? onTap;
 
   const NexusMatchCard({
     super.key,
@@ -40,6 +48,7 @@ class NexusMatchCard extends StatelessWidget {
     required this.time,
     this.status,
     this.includes2046 = false,
+    this.onTap,
   });
 
   @override
@@ -51,34 +60,45 @@ class NexusMatchCard extends StatelessWidget {
       subtitle: time,
       trailing: status == null
           ? null
-          : Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: _statusColor(colorScheme, status!).withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Text(
-                status!,
-                style: TextStyle(
-                  color: _statusColor(colorScheme, status!),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
+          : _MatchStatusChip(status: status!, colorScheme: colorScheme),
       color: includes2046
           ? colorScheme.primaryContainer.withValues(alpha: 0.35)
           : null,
+      onTap: onTap,
     );
   }
+}
 
-  Color _statusColor(ColorScheme colorScheme, String status) {
-    return switch (status) {
+class _MatchStatusChip extends StatelessWidget {
+  const _MatchStatusChip({required this.status, required this.colorScheme});
+
+  final String status;
+  final ColorScheme colorScheme;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = switch (status) {
       'Now queuing' => colorScheme.primary,
       'On deck' => colorScheme.tertiary,
       'On field' => colorScheme.secondary,
       _ => colorScheme.onSurfaceVariant,
     };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        status,
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
   }
 }
 

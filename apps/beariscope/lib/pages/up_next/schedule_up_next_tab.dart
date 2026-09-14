@@ -1,3 +1,6 @@
+import 'package:beariscope/models/nexus_live_status.dart';
+import 'package:beariscope/pages/up_next/nexus_live_provider.dart';
+import 'package:beariscope/pages/up_next/nexus_match_utils.dart';
 import 'package:beariscope/pages/up_next/up_next_provider.dart';
 import 'package:beariscope/pages/up_next/up_next_widget.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
@@ -27,9 +30,12 @@ class _ScheduleUpNextTabState extends ConsumerState<ScheduleUpNextTab> {
   @override
   Widget build(BuildContext context) {
     final schedule = ref.watch(upNextProvider);
+    final nexusLive = ref.watch(nexusLiveProvider);
+    final liveStatus = nexusLive.asData?.value;
 
     Future<void> refreshSchedule() async {
       ref.invalidate(upNextProvider);
+      ref.invalidate(nexusLiveProvider);
       ref.invalidate(teamEventsProvider);
       try {
         await ref.read(upNextProvider.future);
@@ -78,6 +84,7 @@ class _ScheduleUpNextTabState extends ConsumerState<ScheduleUpNextTab> {
 
               return _MatchList(
                 matches: filteredMatches,
+                liveStatus: liveStatus,
                 emptyMessage: 'No matches found. Is the schedule released?',
                 timeFormat: widget.timeFormat,
                 onRefresh: refreshSchedule,
@@ -130,12 +137,14 @@ bool _is2046Match(Map<String, dynamic> match) {
 
 class _MatchList extends StatelessWidget {
   final List<Map<String, dynamic>> matches;
+  final NexusLiveStatus? liveStatus;
   final String emptyMessage;
   final DateFormat timeFormat;
   final Future<void> Function() onRefresh;
 
   const _MatchList({
     required this.matches,
+    this.liveStatus,
     required this.emptyMessage,
     required this.timeFormat,
     required this.onRefresh,
@@ -159,7 +168,8 @@ class _MatchList extends StatelessWidget {
       onRefresh: onRefresh,
       child: BeariscopeCardList(
         children: matches.map((match) {
-          final matchTime = _parseMatchTime(match);
+          final nexusMatch = nexusMatchForScheduleMatch(match, liveStatus);
+          final matchTime = resolveScheduleMatchTime(match, nexusMatch);
           final timeLabel = matchTime == null
               ? 'Time TBD'
               : timeFormat.format(matchTime);
@@ -168,6 +178,7 @@ class _MatchList extends StatelessWidget {
             matchKey: match['key']?.toString() ?? '',
             displayName: matchDisplayName(match),
             time: timeLabel,
+            status: nexusMatch?.status,
           );
         }).toList(),
       ),
@@ -175,9 +186,3 @@ class _MatchList extends StatelessWidget {
   }
 }
 
-DateTime? _parseMatchTime(Map<String, dynamic> match) {
-  final value = match['predictedTime'] ?? match['predicted_time'];
-  if (value is String) return DateTime.tryParse(value);
-  if (value is int) return DateTime.fromMillisecondsSinceEpoch(value * 1000);
-  return null;
-}
