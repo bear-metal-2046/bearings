@@ -29,7 +29,10 @@ ParsedNexusLabel? parseNexusMatchLabel(String label) {
   final trimmed = label.trim();
   if (trimmed.isEmpty) return null;
 
-  final isReplay = RegExp(r'\breplay\b', caseSensitive: false).hasMatch(trimmed);
+  final isReplay = RegExp(
+    r'\breplay\b',
+    caseSensitive: false,
+  ).hasMatch(trimmed);
 
   final qualification = RegExp(
     r'^qualification\s+(\d+)',

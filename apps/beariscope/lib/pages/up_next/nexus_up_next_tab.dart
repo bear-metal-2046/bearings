@@ -74,7 +74,8 @@ class _NexusUpNextTabState extends ConsumerState<NexusUpNextTab> {
     final nexusLive = ref.watch(nexusLiveProvider);
     final schedule = ref.watch(upNextProvider);
     final nexusEventKey = ref.watch(nexusEventKeyProvider);
-    final scheduleMatches = schedule.asData?.value ?? const <Map<String, dynamic>>[];
+    final scheduleMatches =
+        schedule.asData?.value ?? const <Map<String, dynamic>>[];
 
     Future<void> refreshNexus() async {
       ref.invalidate(nexusLiveProvider);
@@ -100,7 +101,9 @@ class _NexusUpNextTabState extends ConsumerState<NexusUpNextTab> {
 
         final filteredMatches = _filter == NexusMatchFilter.all
             ? status.matches
-            : status.matches.where((match) => match.includesTeam(2046)).toList();
+            : status.matches
+                  .where((match) => match.includesTeam(2046))
+                  .toList();
 
         if (filteredMatches.isEmpty) {
           return _NexusMessageView(
@@ -305,9 +308,7 @@ class _AnnouncementsBanner extends StatelessWidget {
                 ),
               ],
             ),
-            ...announcements.map(
-              (announcement) => Text(announcement.message),
-            ),
+            ...announcements.map((announcement) => Text(announcement.message)),
           ],
         ),
       ),

@@ -13,10 +13,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 enum ScheduleMatchFilter { all, bearMetal }
 
 class ScheduleUpNextTab extends ConsumerStatefulWidget {
-  const ScheduleUpNextTab({
-    super.key,
-    required this.timeFormat,
-  });
+  const ScheduleUpNextTab({super.key, required this.timeFormat});
 
   final DateFormat timeFormat;
 
@@ -185,4 +182,3 @@ class _MatchList extends StatelessWidget {
     );
   }
 }
-
