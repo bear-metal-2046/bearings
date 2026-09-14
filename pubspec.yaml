@@ -18,6 +18,7 @@ workspace:
 
 dev_dependencies:
   build_runner: 2.15.1
+  image: 4.3.0
   melos: 7.8.1
 
 melos:
@@ -32,11 +33,19 @@ melos:
   scripts:
     format:
       description: Apply formatting across the workspace.
-      run: dart format apps packages backend
+      run: dart format apps packages backend tool
 
     format:check:
       description: Check formatting across the workspace.
-      run: dart format --output=none --set-exit-if-changed apps packages backend
+      run: dart format --output=none --set-exit-if-changed apps packages backend tool
+
+    icons:
+      description: Generate application icons for every platform.
+      run: dart run tool/generate_icons.dart
+
+    icons:check:
+      description: Check that generated application icons are current.
+      run: dart run tool/generate_icons.dart --check
 
     analyze:
       description: Run static analysis in every package.

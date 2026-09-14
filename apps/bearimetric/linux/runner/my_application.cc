@@ -7,6 +7,64 @@
 
 #include "flutter/generated_plugin_registrant.h"
 
+static gchar* find_icon_file() {
+  GPtrArray* candidates = g_ptr_array_new_with_free_func(g_free);
+
+  const gchar* appdir = g_getenv("APPDIR");
+  if (appdir != nullptr) {
+    g_ptr_array_add(
+        candidates,
+        g_build_filename(appdir, "usr", "share", "icons", "hicolor",
+                         "64x64", "apps", "bearimetric.png", nullptr));
+  }
+
+  gchar* current_directory = g_get_current_dir();
+  g_ptr_array_add(
+      candidates,
+      g_build_filename(current_directory, "linux", "icon.png", nullptr));
+  g_ptr_array_add(
+      candidates,
+      g_build_filename(current_directory, "apps", "bearimetric", "linux",
+                       "icon.png", nullptr));
+  g_free(current_directory);
+
+  gchar* executable = g_file_read_link("/proc/self/exe", nullptr);
+  if (executable != nullptr) {
+    gchar* executable_directory = g_path_get_dirname(executable);
+    g_ptr_array_add(
+        candidates,
+        g_build_filename(executable_directory, "icons", "icon.png", nullptr));
+    g_free(executable_directory);
+    g_free(executable);
+  }
+
+  for (guint i = 0; i < candidates->len; i++) {
+    const gchar* candidate =
+        static_cast<const gchar*>(g_ptr_array_index(candidates, i));
+    if (g_file_test(candidate, G_FILE_TEST_IS_REGULAR)) {
+      gchar* result = g_strdup(candidate);
+      g_ptr_array_free(candidates, TRUE);
+      return result;
+    }
+  }
+
+  g_ptr_array_free(candidates, TRUE);
+  return nullptr;
+}
+
+static void set_window_icon(GtkWindow* window) {
+  g_autofree gchar* icon_file = find_icon_file();
+  if (icon_file == nullptr) {
+    g_warning("Could not find the Bearimetric Linux icon.");
+    return;
+  }
+
+  g_autoptr(GError) error = nullptr;
+  if (!gtk_window_set_icon_from_file(window, icon_file, &error)) {
+    g_warning("Could not set the Bearimetric Linux icon: %s", error->message);
+  }
+}
+
 struct _MyApplication {
   GtkApplication parent_instance;
   char** dart_entrypoint_arguments;
@@ -25,6 +83,7 @@ static void my_application_activate(GApplication* application) {
   MyApplication* self = MY_APPLICATION(application);
   GtkWindow* window =
       GTK_WINDOW(gtk_application_window_new(GTK_APPLICATION(application)));
+  set_window_icon(window);
 
   // Use a header bar when running in GNOME as this is the common style used
   // by applications and is the setup most users will be using (e.g. Ubuntu
@@ -46,11 +105,11 @@ static void my_application_activate(GApplication* application) {
   if (use_header_bar) {
     GtkHeaderBar* header_bar = GTK_HEADER_BAR(gtk_header_bar_new());
     gtk_widget_show(GTK_WIDGET(header_bar));
-    gtk_header_bar_set_title(header_bar, "bearimetric");
+    gtk_header_bar_set_title(header_bar, "Bearimetric");
     gtk_header_bar_set_show_close_button(header_bar, TRUE);
     gtk_window_set_titlebar(window, GTK_WIDGET(header_bar));
   } else {
-    gtk_window_set_title(window, "bearimetric");
+    gtk_window_set_title(window, "Bearimetric");
   }
 
   gtk_window_set_default_size(window, 1280, 720);
@@ -131,10 +190,8 @@ static void my_application_class_init(MyApplicationClass* klass) {
 static void my_application_init(MyApplication* self) {}
 
 MyApplication* my_application_new() {
-  // Set the program name to the application ID, which helps various systems
-  // like GTK and desktop environments map this running application to its
-  // corresponding .desktop file. This ensures better integration by allowing
-  // the application to be recognized beyond its binary name.
+  g_set_application_name("Bearimetric");
+  // Keep the reverse-DNS program name as the stable Linux application identity.
   g_set_prgname(APPLICATION_ID);
 
   return MY_APPLICATION(g_object_new(my_application_get_type(),
