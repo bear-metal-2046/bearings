@@ -276,7 +276,8 @@ class _MatchList extends StatelessWidget {
                     displayName: match.displayName,
                     time: timeLabel,
                     status: match.queueStatus,
-                    highlighted: match.includes2046 &&
+                    highlighted:
+                        match.includes2046 &&
                         isActiveQueueStatus(match.queueStatus),
                   ),
                 ),
@@ -322,7 +323,10 @@ class _EventContextHeader extends StatelessWidget {
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-                  Icon(LucideIcons.radio, color: colorScheme.onPrimaryContainer),
+                  Icon(
+                    LucideIcons.radio,
+                    color: colorScheme.onPrimaryContainer,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(

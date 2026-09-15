@@ -98,9 +98,7 @@ class UpNextEventContext {
 
   static UpNextEventContext? fromEventJson(Map<String, dynamic> json) {
     final nested = json['nexus'];
-    final source = nested is Map
-        ? Map<String, dynamic>.from(nested)
-        : json;
+    final source = nested is Map ? Map<String, dynamic>.from(nested) : json;
 
     final nowQueuing = _string(
       source['nowQueuing'] ??

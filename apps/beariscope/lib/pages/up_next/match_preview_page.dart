@@ -228,355 +228,384 @@ class _DriveTeamMatchPreviewPageState
               MatchNexusDetails(match: match),
               Expanded(
                 child: LayoutBuilder(
-            builder: (context, constraints) {
-              if (cards.isEmpty) {
-                return const Center(child: Text('No teams available.'));
-              }
+                  builder: (context, constraints) {
+                    if (cards.isEmpty) {
+                      return const Center(child: Text('No teams available.'));
+                    }
 
-              final width = constraints.maxWidth;
-              final height = constraints.maxHeight;
+                    final width = constraints.maxWidth;
+                    final height = constraints.maxHeight;
 
-              final labelStyle = Theme.of(context).textTheme.titleMedium
-                  ?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  );
+                    final labelStyle = Theme.of(context).textTheme.titleMedium
+                        ?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        );
 
-              Widget buildStyledCard(int index, {bool showLabel = false}) {
-                const padding = 60.0;
-                const gap = 10.0;
-                final card = cards[index];
-                final isRed = index < redTeams.length;
-                final label = isRed ? 'Red Alliance' : 'Blue Alliance';
-                final cardHeight = ((height - padding * 2 - gap) / 2 - 8).clamp(
-                  0.0,
-                  double.infinity,
-                );
+                    Widget buildStyledCard(
+                      int index, {
+                      bool showLabel = false,
+                    }) {
+                      const padding = 60.0;
+                      const gap = 10.0;
+                      final card = cards[index];
+                      final isRed = index < redTeams.length;
+                      final label = isRed ? 'Red Alliance' : 'Blue Alliance';
+                      final cardHeight = ((height - padding * 2 - gap) / 2 - 8)
+                          .clamp(0.0, double.infinity);
 
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (showLabel)
-                      Padding(
-                        padding: const EdgeInsets.only(left: 4, bottom: 0),
-                        child: Text(
-                          label,
-                          style: labelStyle?.copyWith(color: Colors.white),
-                        ),
-                      ),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.all(4),
-                        child: TeamCard(
-                          teamKey: card.teamKey,
-                          allianceColor: card.color,
-                          height: cardHeight,
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              }
-
-              if (width > 1100) {
-                const padding = 60.0;
-                const gap = 10.0;
-                return Padding(
-                  padding: const EdgeInsets.all(padding),
-                  child: GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    padding: EdgeInsets.zero,
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      crossAxisSpacing: gap,
-                      mainAxisSpacing: gap,
-                      childAspectRatio:
-                          (width - padding * 2 - gap * 2) /
-                          3 /
-                          ((height - padding * 2 - gap) / 2),
-                    ),
-                    itemCount: cards.length,
-                    itemBuilder: (context, index) => buildStyledCard(index),
-                  ),
-                );
-              }
-
-              // horizontal fraction
-              final cardWidth = (width - 16).clamp(0.0, 600.0);
-              final hFraction = width > 0
-                  ? (cardWidth / width).clamp(0.0, 1.0)
-                  : 1.0;
-
-              if (scrollVertical) {
-                final canTakeNotes =
-                    permissionChecker?.hasPermission(
-                      PermissionKey.driveTeamUpload,
-                    ) ??
-                    false;
-                final verticalFooterHeight = canTakeNotes ? 56.0 : 0.0;
-                final verticalViewportHeight = (height - verticalFooterHeight)
-                    .clamp(0.0, height)
-                    .toDouble();
-                final verticalPageHeight = (verticalViewportHeight - 16)
-                    .clamp(0.0, verticalViewportHeight)
-                    .toDouble();
-                final verticalFraction = verticalViewportHeight > 0
-                    ? (verticalPageHeight / verticalViewportHeight).clamp(
-                        0.0,
-                        1.0,
-                      )
-                    : 1.0;
-
-                _updatePageController(
-                  verticalFraction,
-                  _currentPageNotifier.value.round().clamp(0, cards.length - 1),
-                );
-
-                const horizontalPadding = 16.0;
-                const verticalPadding = 8.0;
-                final verticalCardHeight =
-                    (verticalPageHeight - verticalPadding * 2)
-                        .clamp(0.0, double.infinity)
-                        .toDouble();
-
-                return Column(
-                  children: [
-                    Expanded(
-                      child: NotificationListener<ScrollNotification>(
-                        onNotification: (notification) {
-                          if (notification is ScrollUpdateNotification &&
-                              _pageController?.hasClients == true) {
-                            _currentPageNotifier.value =
-                                _pageController?.page ?? 0.0;
-                          }
-                          return false;
-                        },
-                        child: PageView.builder(
-                          controller: _pageController,
-                          scrollDirection: Axis.vertical,
-                          itemCount: cards.length,
-                          itemBuilder: (context, index) {
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: horizontalPadding,
-                                vertical: verticalPadding,
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (showLabel)
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                left: 4,
+                                bottom: 0,
                               ),
-                              child: Align(
-                                alignment: Alignment.topCenter,
-                                child: TeamCard(
-                                  teamKey: cards[index].teamKey,
-                                  allianceColor: cards[index].color,
-                                  height: verticalCardHeight,
+                              child: Text(
+                                label,
+                                style: labelStyle?.copyWith(
+                                  color: Colors.white,
                                 ),
                               ),
+                            ),
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.all(4),
+                              child: TeamCard(
+                                teamKey: card.teamKey,
+                                allianceColor: card.color,
+                                height: cardHeight,
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    }
+
+                    if (width > 1100) {
+                      const padding = 60.0;
+                      const gap = 10.0;
+                      return Padding(
+                        padding: const EdgeInsets.all(padding),
+                        child: GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          padding: EdgeInsets.zero,
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 3,
+                                crossAxisSpacing: gap,
+                                mainAxisSpacing: gap,
+                                childAspectRatio:
+                                    (width - padding * 2 - gap * 2) /
+                                    3 /
+                                    ((height - padding * 2 - gap) / 2),
+                              ),
+                          itemCount: cards.length,
+                          itemBuilder: (context, index) =>
+                              buildStyledCard(index),
+                        ),
+                      );
+                    }
+
+                    // horizontal fraction
+                    final cardWidth = (width - 16).clamp(0.0, 600.0);
+                    final hFraction = width > 0
+                        ? (cardWidth / width).clamp(0.0, 1.0)
+                        : 1.0;
+
+                    if (scrollVertical) {
+                      final canTakeNotes =
+                          permissionChecker?.hasPermission(
+                            PermissionKey.driveTeamUpload,
+                          ) ??
+                          false;
+                      final verticalFooterHeight = canTakeNotes ? 56.0 : 0.0;
+                      final verticalViewportHeight =
+                          (height - verticalFooterHeight)
+                              .clamp(0.0, height)
+                              .toDouble();
+                      final verticalPageHeight = (verticalViewportHeight - 16)
+                          .clamp(0.0, verticalViewportHeight)
+                          .toDouble();
+                      final verticalFraction = verticalViewportHeight > 0
+                          ? (verticalPageHeight / verticalViewportHeight).clamp(
+                              0.0,
+                              1.0,
+                            )
+                          : 1.0;
+
+                      _updatePageController(
+                        verticalFraction,
+                        _currentPageNotifier.value.round().clamp(
+                          0,
+                          cards.length - 1,
+                        ),
+                      );
+
+                      const horizontalPadding = 16.0;
+                      const verticalPadding = 8.0;
+                      final verticalCardHeight =
+                          (verticalPageHeight - verticalPadding * 2)
+                              .clamp(0.0, double.infinity)
+                              .toDouble();
+
+                      return Column(
+                        children: [
+                          Expanded(
+                            child: NotificationListener<ScrollNotification>(
+                              onNotification: (notification) {
+                                if (notification is ScrollUpdateNotification &&
+                                    _pageController?.hasClients == true) {
+                                  _currentPageNotifier.value =
+                                      _pageController?.page ?? 0.0;
+                                }
+                                return false;
+                              },
+                              child: PageView.builder(
+                                controller: _pageController,
+                                scrollDirection: Axis.vertical,
+                                itemCount: cards.length,
+                                itemBuilder: (context, index) {
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: horizontalPadding,
+                                      vertical: verticalPadding,
+                                    ),
+                                    child: Align(
+                                      alignment: Alignment.topCenter,
+                                      child: TeamCard(
+                                        teamKey: cards[index].teamKey,
+                                        allianceColor: cards[index].color,
+                                        height: verticalCardHeight,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                          if (canTakeNotes)
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                              child: SizedBox(
+                                width: double.infinity,
+                                height: 40,
+                                child: FilledButton(
+                                  onPressed: () {
+                                    final filteredRedTeams = redTeams
+                                        .where(
+                                          (teamKey) =>
+                                              teamNumberFromKey(teamKey) !=
+                                              '2046',
+                                        )
+                                        .toList();
+                                    final filteredBlueTeams = blueTeams
+                                        .where(
+                                          (teamKey) =>
+                                              teamNumberFromKey(teamKey) !=
+                                              '2046',
+                                        )
+                                        .toList();
+                                    showModalBottomSheet(
+                                      context: context,
+                                      showDragHandle: true,
+                                      isScrollControlled: true,
+                                      useSafeArea: true,
+                                      builder: (context) =>
+                                          _DriveTeamNotesSheet(
+                                            matchKey: widget.matchKey,
+                                            redAllianceTeamKeys:
+                                                filteredRedTeams,
+                                            blueAllianceTeamKeys:
+                                                filteredBlueTeams,
+                                          ),
+                                    );
+                                  },
+                                  child: const Text('Take Notes'),
+                                ),
+                              ),
+                            ),
+                        ],
+                      );
+                    }
+
+                    final stride = width * hFraction;
+                    final contentLeftEdge = (width - cardWidth) / 2.0 + 8.0;
+
+                    _updatePageController(
+                      hFraction,
+                      _currentPageNotifier.value.round().clamp(
+                        0,
+                        cards.length - 1,
+                      ),
+                    );
+
+                    Widget buildDotsIndicator(double page) {
+                      return FlutterMaterialScope(
+                        child: DotsIndicator(
+                          dotsCount: cards.length,
+                          position: page.clamp(0, cards.length - 1).toDouble(),
+                          axis: scrollVertical
+                              ? Axis.vertical
+                              : Axis.horizontal,
+                          onTap: (position) {
+                            _pageController?.animateToPage(
+                              position.toInt(),
+                              duration: const Duration(milliseconds: 250),
+                              curve: Curves.easeInOut,
                             );
                           },
-                        ),
-                      ),
-                    ),
-                    if (canTakeNotes)
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                        child: SizedBox(
-                          width: double.infinity,
-                          height: 40,
-                          child: FilledButton(
-                            onPressed: () {
-                              final filteredRedTeams = redTeams
-                                  .where(
-                                    (teamKey) =>
-                                        teamNumberFromKey(teamKey) != '2046',
-                                  )
-                                  .toList();
-                              final filteredBlueTeams = blueTeams
-                                  .where(
-                                    (teamKey) =>
-                                        teamNumberFromKey(teamKey) != '2046',
-                                  )
-                                  .toList();
-                              showModalBottomSheet(
-                                context: context,
-                                showDragHandle: true,
-                                isScrollControlled: true,
-                                useSafeArea: true,
-                                builder: (context) => _DriveTeamNotesSheet(
-                                  matchKey: widget.matchKey,
-                                  redAllianceTeamKeys: filteredRedTeams,
-                                  blueAllianceTeamKeys: filteredBlueTeams,
-                                ),
-                              );
-                            },
-                            child: const Text('Take Notes'),
+                          decorator: DotsDecorator(
+                            activeColor: Theme.of(context).colorScheme.primary,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .surfaceContainerHighest,
+                            colors: cards
+                                .map((c) => c.color.withValues(alpha: 0.4))
+                                .toList(),
+                            activeColors: cards.map((c) => c.color).toList(),
+                            spacing: const EdgeInsets.symmetric(
+                              horizontal: 4,
+                              vertical: 8,
+                            ),
+                            size: const Size.square(8.0),
+                            activeSize: const Size(24.0, 8.0),
+                            activeShape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(4.0),
+                            ),
                           ),
                         ),
-                      ),
-                  ],
-                );
-              }
-
-              final stride = width * hFraction;
-              final contentLeftEdge = (width - cardWidth) / 2.0 + 8.0;
-
-              _updatePageController(
-                hFraction,
-                _currentPageNotifier.value.round().clamp(0, cards.length - 1),
-              );
-
-              Widget buildDotsIndicator(double page) {
-                return FlutterMaterialScope(
-                  child: DotsIndicator(
-                    dotsCount: cards.length,
-                    position: page.clamp(0, cards.length - 1).toDouble(),
-                    axis: scrollVertical ? Axis.vertical : Axis.horizontal,
-                    onTap: (position) {
-                      _pageController?.animateToPage(
-                        position.toInt(),
-                        duration: const Duration(milliseconds: 250),
-                        curve: Curves.easeInOut,
                       );
-                    },
-                    decorator: DotsDecorator(
-                      activeColor: Theme.of(context).colorScheme.primary,
-                      color: Theme.of(context)
-                          .colorScheme
-                          .surfaceContainerHighest,
-                      colors: cards
-                          .map((c) => c.color.withValues(alpha: 0.4))
-                          .toList(),
-                      activeColors: cards.map((c) => c.color).toList(),
-                      spacing: const EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 8,
-                      ),
-                      size: const Size.square(8.0),
-                      activeSize: const Size(24.0, 8.0),
-                      activeShape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(4.0),
-                      ),
-                    ),
-                  ),
-                );
-              }
+                    }
 
-              Widget dots = cards.length > 1
-                  ? ValueListenableBuilder<double>(
-                      valueListenable: _currentPageNotifier,
-                      builder: (context, page, _) => buildDotsIndicator(page),
-                    )
-                  : const SizedBox.shrink();
+                    Widget dots = cards.length > 1
+                        ? ValueListenableBuilder<double>(
+                            valueListenable: _currentPageNotifier,
+                            builder: (context, page, _) =>
+                                buildDotsIndicator(page),
+                          )
+                        : const SizedBox.shrink();
 
-              // horizontal layout
-              return Column(
-                children: [
-                  SizedBox(
-                    height: 40,
-                    width: double.infinity,
-                    child: ValueListenableBuilder<double>(
-                      valueListenable: _currentPageNotifier,
-                      builder: (context, page, _) {
-                        return Stack(
-                          children: [
-                            if (redTeams.isNotEmpty)
-                              _buildStickyLabel(
-                                context: context,
-                                label: 'Red Alliance',
-                                groupStartIndex: 0,
-                                groupEndIndex: redTeams.length - 1,
-                                page: page,
-                                stride: stride,
-                                cardWidth: cardWidth,
-                                baseOffset: contentLeftEdge,
-                                style: labelStyle,
-                              ),
-                            if (blueTeams.isNotEmpty)
-                              _buildStickyLabel(
-                                context: context,
-                                label: 'Blue Alliance',
-                                groupStartIndex: redTeams.length,
-                                groupEndIndex:
-                                    redTeams.length + blueTeams.length - 1,
-                                page: page,
-                                stride: stride,
-                                cardWidth: cardWidth,
-                                baseOffset: contentLeftEdge,
-                                style: labelStyle,
-                              ),
-                          ],
-                        );
-                      },
-                    ),
-                  ),
-                  Expanded(
-                    child: NotificationListener<ScrollNotification>(
-                      onNotification: (notification) {
-                        if (notification is ScrollUpdateNotification &&
-                            _pageController?.hasClients == true) {
-                          _currentPageNotifier.value =
-                              _pageController?.page ?? 0.0;
-                        }
-                        return false;
-                      },
-                      child: PageView.builder(
-                        controller: _pageController,
-                        itemCount: cards.length,
-                        itemBuilder: (context, index) {
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                            child: TeamCard(
-                              teamKey: cards[index].teamKey,
-                              allianceColor: cards[index].color,
-                              height: constraints.maxHeight,
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-
-                  dots,
-                  if (permissionChecker?.hasPermission(
-                        PermissionKey.driveTeamUpload,
-                      ) ??
-                      false)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                      child: SizedBox(
-                        width: 586,
-                        child: FilledButton(
-                          onPressed: () {
-                            final filteredRedTeams = redTeams
-                                .where(
-                                  (teamKey) =>
-                                      teamNumberFromKey(teamKey) != '2046',
-                                )
-                                .toList();
-                            final filteredBlueTeams = blueTeams
-                                .where(
-                                  (teamKey) =>
-                                      teamNumberFromKey(teamKey) != '2046',
-                                )
-                                .toList();
-                            showModalBottomSheet(
-                              context: context,
-                              showDragHandle: true,
-                              isScrollControlled: true,
-                              useSafeArea: true,
-                              builder: (context) => _DriveTeamNotesSheet(
-                                matchKey: widget.matchKey,
-                                redAllianceTeamKeys: filteredRedTeams,
-                                blueAllianceTeamKeys: filteredBlueTeams,
-                              ),
-                            );
-                          },
-                          child: const Text('Take Notes'),
+                    // horizontal layout
+                    return Column(
+                      children: [
+                        SizedBox(
+                          height: 40,
+                          width: double.infinity,
+                          child: ValueListenableBuilder<double>(
+                            valueListenable: _currentPageNotifier,
+                            builder: (context, page, _) {
+                              return Stack(
+                                children: [
+                                  if (redTeams.isNotEmpty)
+                                    _buildStickyLabel(
+                                      context: context,
+                                      label: 'Red Alliance',
+                                      groupStartIndex: 0,
+                                      groupEndIndex: redTeams.length - 1,
+                                      page: page,
+                                      stride: stride,
+                                      cardWidth: cardWidth,
+                                      baseOffset: contentLeftEdge,
+                                      style: labelStyle,
+                                    ),
+                                  if (blueTeams.isNotEmpty)
+                                    _buildStickyLabel(
+                                      context: context,
+                                      label: 'Blue Alliance',
+                                      groupStartIndex: redTeams.length,
+                                      groupEndIndex:
+                                          redTeams.length +
+                                          blueTeams.length -
+                                          1,
+                                      page: page,
+                                      stride: stride,
+                                      cardWidth: cardWidth,
+                                      baseOffset: contentLeftEdge,
+                                      style: labelStyle,
+                                    ),
+                                ],
+                              );
+                            },
+                          ),
                         ),
-                      ),
-                    ),
-                ],
-              );
-            },
+                        Expanded(
+                          child: NotificationListener<ScrollNotification>(
+                            onNotification: (notification) {
+                              if (notification is ScrollUpdateNotification &&
+                                  _pageController?.hasClients == true) {
+                                _currentPageNotifier.value =
+                                    _pageController?.page ?? 0.0;
+                              }
+                              return false;
+                            },
+                            child: PageView.builder(
+                              controller: _pageController,
+                              itemCount: cards.length,
+                              itemBuilder: (context, index) {
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                  ),
+                                  child: TeamCard(
+                                    teamKey: cards[index].teamKey,
+                                    allianceColor: cards[index].color,
+                                    height: constraints.maxHeight,
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+
+                        dots,
+                        if (permissionChecker?.hasPermission(
+                              PermissionKey.driveTeamUpload,
+                            ) ??
+                            false)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                            child: SizedBox(
+                              width: 586,
+                              child: FilledButton(
+                                onPressed: () {
+                                  final filteredRedTeams = redTeams
+                                      .where(
+                                        (teamKey) =>
+                                            teamNumberFromKey(teamKey) !=
+                                            '2046',
+                                      )
+                                      .toList();
+                                  final filteredBlueTeams = blueTeams
+                                      .where(
+                                        (teamKey) =>
+                                            teamNumberFromKey(teamKey) !=
+                                            '2046',
+                                      )
+                                      .toList();
+                                  showModalBottomSheet(
+                                    context: context,
+                                    showDragHandle: true,
+                                    isScrollControlled: true,
+                                    useSafeArea: true,
+                                    builder: (context) => _DriveTeamNotesSheet(
+                                      matchKey: widget.matchKey,
+                                      redAllianceTeamKeys: filteredRedTeams,
+                                      blueAllianceTeamKeys: filteredBlueTeams,
+                                    ),
+                                  );
+                                },
+                                child: const Text('Take Notes'),
+                              ),
+                            ),
+                          ),
+                      ],
+                    );
+                  },
                 ),
               ),
             ],

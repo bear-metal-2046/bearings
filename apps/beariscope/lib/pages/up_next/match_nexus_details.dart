@@ -43,7 +43,10 @@ class MatchNexusDetails extends StatelessWidget {
                       ),
                       if (nexus.status != null) ...[
                         const Spacer(),
-                        _StatusChip(status: nexus.status!, colorScheme: colorScheme),
+                        _StatusChip(
+                          status: nexus.status!,
+                          colorScheme: colorScheme,
+                        ),
                       ],
                     ],
                   ),

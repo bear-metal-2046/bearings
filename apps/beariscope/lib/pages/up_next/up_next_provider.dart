@@ -26,7 +26,9 @@ final upNextProvider = FutureProvider<List<UpNextMatch>>((ref) async {
   return eventMatches;
 });
 
-final upNextEventContextProvider = FutureProvider<UpNextEventContext?>((ref) async {
+final upNextEventContextProvider = FutureProvider<UpNextEventContext?>((
+  ref,
+) async {
   final currentEventKey = ref.watch(currentEventProvider);
   final client = ref.watch(honeycombClientProvider);
   final year = DateTime.now().year;

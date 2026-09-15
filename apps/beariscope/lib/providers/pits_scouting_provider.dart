@@ -67,8 +67,9 @@ Set<int> pitsScouted(Ref ref) {
 @Riverpod(keepAlive: true)
 Future<PitsMapData?> pitsMap(Ref ref) async {
   try {
-    final nexusNormalizedEventKey =
-        await ref.watch(nexusEventKeyProvider.future);
+    final nexusNormalizedEventKey = await ref.watch(
+      nexusEventKeyProvider.future,
+    );
     if (nexusNormalizedEventKey == null || nexusNormalizedEventKey.isEmpty) {
       throw Exception('Unable to resolve Nexus event key');
     }
