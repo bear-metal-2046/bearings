@@ -1,8 +1,10 @@
+import 'package:beariscope/models/match_nexus_info.dart';
+import 'package:beariscope/models/up_next_match.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:services/providers/api_provider.dart';
 
-final upNextProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+final upNextProvider = FutureProvider<List<UpNextMatch>>((ref) async {
   final client = ref.watch(honeycombClientProvider);
   final currentEventKey = ref.watch(currentEventProvider);
 
@@ -17,10 +19,35 @@ final upNextProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
           .whereType<Map>()
           .map((match) => Map<String, dynamic>.from(match))
           .where((match) => eventKeyForMatch(match) == currentEventKey)
+          .map(UpNextMatch.fromMap)
           .toList()
-        ..sort(compareMatchesForUpNext);
+        ..sort((a, b) => compareMatchesForUpNext(a.raw, b.raw));
 
   return eventMatches;
+});
+
+final upNextEventContextProvider = FutureProvider<UpNextEventContext?>((
+  ref,
+) async {
+  final currentEventKey = ref.watch(currentEventProvider);
+  final client = ref.watch(honeycombClientProvider);
+  final year = DateTime.now().year;
+
+  try {
+    final response = await client.get<List<dynamic>>(
+      '/events',
+      queryParams: {'team': 'frc2046', 'year': year, 'enrich': true},
+      cachePolicy: CachePolicy.networkFirst,
+    );
+
+    for (final raw in response.whereType<Map>()) {
+      final event = Map<String, dynamic>.from(raw);
+      if (event['key']?.toString() != currentEventKey) continue;
+      return UpNextEventContext.fromEventJson(event);
+    }
+  } catch (_) {}
+
+  return null;
 });
 
 String? eventKeyForMatch(Map<String, dynamic> match) {

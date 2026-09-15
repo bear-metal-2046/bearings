@@ -1,9 +1,13 @@
+import 'dart:async';
+
+import 'package:beariscope/models/match_nexus_info.dart';
+import 'package:beariscope/models/up_next_match.dart';
 import 'package:beariscope/pages/main_view.dart';
 import 'package:beariscope/pages/up_next/up_next_provider.dart';
 import 'package:beariscope/pages/up_next/up_next_widget.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
+import 'package:beariscope/providers/nexus_event_key_provider.dart';
 import 'package:beariscope/providers/tba_preferences_provider.dart';
-import 'package:beariscope/widgets/beariscope_card.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -24,16 +28,37 @@ class UpNextPage extends ConsumerStatefulWidget {
 }
 
 class _UpNextPageState extends ConsumerState<UpNextPage> {
+  static const _refreshInterval = Duration(seconds: 45);
+
   _MatchFilter _filter = _MatchFilter.bearMetal;
+  Timer? _refreshTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshTimer = Timer.periodic(_refreshInterval, (_) {
+      if (!mounted) return;
+      ref.invalidate(upNextProvider);
+      ref.invalidate(upNextEventContextProvider);
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final controller = MainViewController.of(context);
     final schedule = ref.watch(upNextProvider);
+    final eventContext = ref.watch(upNextEventContextProvider);
     final currentEventKey = ref.watch(currentEventProvider);
 
     Future<void> refreshSchedule() async {
       ref.invalidate(upNextProvider);
+      ref.invalidate(upNextEventContextProvider);
       ref.invalidate(teamEventsProvider);
       try {
         await ref.read(upNextProvider.future);
@@ -122,10 +147,11 @@ class _UpNextPageState extends ConsumerState<UpNextPage> {
         data: (matches) {
           final filteredMatches = _filter == _MatchFilter.all
               ? matches
-              : matches.where(_is2046Match).toList();
+              : matches.where((match) => match.includes2046).toList();
 
           return _MatchList(
             matches: filteredMatches,
+            eventContext: eventContext.asData?.value,
             emptyMessage: 'No matches found. Is the schedule released?',
             timeFormat: UpNextPage.timeFormat,
             onRefresh: refreshSchedule,
@@ -135,7 +161,11 @@ class _UpNextPageState extends ConsumerState<UpNextPage> {
     );
   }
 
-  void _handleAction(_EventAction action, String eventKey, WidgetRef ref) {
+  Future<void> _handleAction(
+    _EventAction action,
+    String eventKey,
+    WidgetRef ref,
+  ) async {
     switch (action) {
       case _EventAction.openTba:
         launchUrl(
@@ -148,8 +178,12 @@ class _UpNextPageState extends ConsumerState<UpNextPage> {
           mode: LaunchMode.externalApplication,
         );
       case _EventAction.openNexus:
+        final nexusEventKey =
+            await ref.read(nexusEventKeyProvider.future) ?? eventKey;
         launchUrl(
-          Uri.parse('https://frc.nexus/en/event/$eventKey/team/2046/matches'),
+          Uri.parse(
+            'https://frc.nexus/en/event/$nexusEventKey/team/2046/matches',
+          ),
           mode: LaunchMode.externalApplication,
         );
       case _EventAction.openFrcEvents:
@@ -184,35 +218,20 @@ PopupMenuItem<_MatchFilter> _filterMenuItem({
   );
 }
 
-bool _is2046Match(Map<String, dynamic> match) {
-  final alliances = match['alliances'] as Map?;
-  if (alliances == null) return false;
-
-  for (final alliance in alliances.values) {
-    if (alliance is! Map) continue;
-    final keys =
-        (alliance['team_keys'] ?? alliance['teamKeys'] ?? alliance['teams'])
-            as List?;
-    if (keys != null && keys.any((k) => k?.toString() == 'frc2046')) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
 class _MatchList extends StatelessWidget {
-  final List<Map<String, dynamic>> matches;
-  final String emptyMessage;
-  final DateFormat timeFormat;
-  final Future<void> Function() onRefresh;
-
   const _MatchList({
     required this.matches,
+    required this.eventContext,
     required this.emptyMessage,
     required this.timeFormat,
     required this.onRefresh,
   });
+
+  final List<UpNextMatch> matches;
+  final UpNextEventContext? eventContext;
+  final String emptyMessage;
+  final DateFormat timeFormat;
+  final Future<void> Function() onRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -222,6 +241,8 @@ class _MatchList extends StatelessWidget {
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           children: [
+            if (eventContext != null)
+              _EventContextHeader(eventContext: eventContext!),
             SizedBox(height: 320, child: Center(child: Text(emptyMessage))),
           ],
         ),
@@ -230,27 +251,120 @@ class _MatchList extends StatelessWidget {
 
     return RefreshIndicator(
       onRefresh: onRefresh,
-      child: BeariscopeCardList(
-        children: matches.map((match) {
-          final matchTime = _parseMatchTime(match);
-          final timeLabel = matchTime == null
-              ? 'Time TBD'
-              : timeFormat.format(matchTime);
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.only(bottom: 24),
+        children: [
+          if (eventContext != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: _EventContextHeader(eventContext: eventContext!),
+            ),
+          ...matches.map((match) {
+            final matchTime = match.displayTime;
+            final timeLabel = matchTime == null
+                ? 'Time TBD'
+                : timeFormat.format(matchTime);
 
-          return UpNextMatchCard(
-            matchKey: match['key']?.toString() ?? '',
-            displayName: matchDisplayName(match),
-            time: timeLabel,
-          );
-        }).toList(),
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 600),
+                  child: UpNextMatchCard(
+                    matchKey: match.key,
+                    displayName: match.displayName,
+                    time: timeLabel,
+                    status: match.queueStatus,
+                    highlighted:
+                        match.includes2046 &&
+                        isActiveQueueStatus(match.queueStatus),
+                  ),
+                ),
+              ),
+            );
+          }),
+          Align(
+            alignment: Alignment.center,
+            child: TextButton.icon(
+              onPressed: () {
+                launchUrl(
+                  Uri.parse('https://frc.nexus'),
+                  mode: LaunchMode.externalApplication,
+                );
+              },
+              icon: const Icon(LucideIcons.externalLink, size: 16),
+              label: const Text('Queue data from FRC Nexus'),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-DateTime? _parseMatchTime(Map<String, dynamic> match) {
-  final value = match['predictedTime'] ?? match['predicted_time'];
-  if (value is String) return DateTime.tryParse(value);
-  if (value is int) return DateTime.fromMillisecondsSinceEpoch(value * 1000);
-  return null;
+class _EventContextHeader extends StatelessWidget {
+  const _EventContextHeader({required this.eventContext});
+
+  final UpNextEventContext eventContext;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: 12,
+      children: [
+        if (eventContext.nowQueuing != null)
+          Card(
+            color: colorScheme.primaryContainer,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Icon(
+                    LucideIcons.radio,
+                    color: colorScheme.onPrimaryContainer,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Now queuing: ${eventContext.nowQueuing}',
+                      style: TextStyle(
+                        color: colorScheme.onPrimaryContainer,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        if (eventContext.announcements.isNotEmpty)
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                spacing: 8,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(LucideIcons.megaphone, size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Announcements',
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                    ],
+                  ),
+                  ...eventContext.announcements.map(Text.new),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
 }
