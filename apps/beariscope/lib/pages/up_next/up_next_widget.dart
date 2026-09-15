@@ -11,6 +11,7 @@ class UpNextMatchCard extends StatelessWidget {
   final String matchKey;
   final String time;
   final String? status;
+  final bool highlighted;
 
   const UpNextMatchCard({
     super.key,
@@ -18,6 +19,7 @@ class UpNextMatchCard extends StatelessWidget {
     required this.matchKey,
     required this.time,
     this.status,
+    this.highlighted = false,
   });
 
   @override
@@ -30,41 +32,10 @@ class UpNextMatchCard extends StatelessWidget {
       trailing: status == null
           ? null
           : _MatchStatusChip(status: status!, colorScheme: colorScheme),
-      onTap: () => context.push('/up_next/$matchKey'),
-    );
-  }
-}
-
-class NexusMatchCard extends StatelessWidget {
-  final String label;
-  final String time;
-  final String? status;
-  final bool includes2046;
-  final VoidCallback? onTap;
-
-  const NexusMatchCard({
-    super.key,
-    required this.label,
-    required this.time,
-    this.status,
-    this.includes2046 = false,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return BeariscopeCard(
-      title: label,
-      subtitle: time,
-      trailing: status == null
-          ? null
-          : _MatchStatusChip(status: status!, colorScheme: colorScheme),
-      color: includes2046
+      color: highlighted
           ? colorScheme.primaryContainer.withValues(alpha: 0.35)
           : null,
-      onTap: onTap,
+      onTap: () => context.push('/up_next/$matchKey'),
     );
   }
 }

@@ -3,6 +3,7 @@ import 'package:beariscope/models/pits_scouting_models.dart';
 import 'package:beariscope/pages/team_lookup/team_model.dart';
 import 'package:beariscope/pages/team_lookup/team_providers.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
+import 'package:beariscope/providers/nexus_event_key_provider.dart';
 import 'package:beariscope/providers/scouting_data_provider.dart';
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -66,16 +67,11 @@ Set<int> pitsScouted(Ref ref) {
 @Riverpod(keepAlive: true)
 Future<PitsMapData?> pitsMap(Ref ref) async {
   try {
-    final tbaEventKey = ref.watch(currentEventProvider);
-
-    final allEvents = await ref.watch(teamEventsProvider.future);
-
-    final matchingEvent = allEvents.firstWhere(
-      (eventOption) => eventOption.key == tbaEventKey,
-      orElse: () => throw Exception('Event $tbaEventKey not found'),
-    );
-
-    final nexusNormalizedEventKey = matchingEvent.firstKey;
+    final nexusNormalizedEventKey =
+        await ref.watch(nexusEventKeyProvider.future);
+    if (nexusNormalizedEventKey == null || nexusNormalizedEventKey.isEmpty) {
+      throw Exception('Unable to resolve Nexus event key');
+    }
     final client = ref.watch(honeycombClientProvider);
 
     final response = await client.get<Map<String, dynamic>>(

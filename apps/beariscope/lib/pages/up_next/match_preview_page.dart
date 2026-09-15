@@ -1,4 +1,5 @@
 import 'package:beariscope/models/drive_team_note.dart';
+import 'package:beariscope/pages/up_next/match_nexus_details.dart';
 import 'package:beariscope/pages/up_next/up_next_provider.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/drive_team_notes_provider.dart';
@@ -221,7 +222,12 @@ class _DriveTeamMatchPreviewPageState
               ),
             ],
           ),
-          body: LayoutBuilder(
+          body: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              MatchNexusDetails(match: match),
+              Expanded(
+                child: LayoutBuilder(
             builder: (context, constraints) {
               if (cards.isEmpty) {
                 return const Center(child: Text('No teams available.'));
@@ -571,6 +577,9 @@ class _DriveTeamMatchPreviewPageState
                 ],
               );
             },
+                ),
+              ),
+            ],
           ),
         );
       },
