@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:bearimetric/custom_widgets/upload_status_indicator.dart';
 import 'package:bearimetric/providers/scouting_flow_provider.dart';
 import 'package:bearimetric/providers/scouting_providers.dart';
@@ -20,7 +21,7 @@ class StratShell extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.close),
+          icon: const Icon(LucideIcons.x),
           tooltip: 'Exit to Scout Selection',
           onPressed: () async {
             final shouldExit = await showDialog<bool>(
@@ -65,12 +66,12 @@ class StratShell extends ConsumerWidget {
           Row(
             children: [
               IconButton(
-                icon: const Icon(Icons.skip_previous),
+                icon: const Icon(LucideIcons.skipBack),
                 tooltip: 'Previous Match',
                 onPressed: matchNumber > 1 ? () => flow.previousMatch() : null,
               ),
               IconButton(
-                icon: const Icon(Icons.skip_next),
+                icon: const Icon(LucideIcons.skipForward),
                 tooltip: 'Next Match',
                 onPressed: () async {
                   if (flow.shouldWarnForRapidNextMatchTaps()) {

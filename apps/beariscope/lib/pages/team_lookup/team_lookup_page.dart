@@ -272,7 +272,7 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage> with SingleTick
                           children: [
                             Text(sort.label),
                             if (selectedSort.sort == sort)
-                              Icon(isAscending ? Icons.arrow_drop_up : Icons.arrow_drop_down),
+                              Icon(isAscending ? LucideIcons.chevronUp : LucideIcons.chevronDown),
                           ],
                         ),
                       ),
@@ -1079,7 +1079,7 @@ class SortByFieldItemState extends State<SortByFieldItem> {
         onPressed: () {
           widget.onAddNew;
         },
-        child: const Icon(Icons.add_circle_outline),
+        child: const Icon(LucideIcons.circlePlus),
       ),
     );
   }

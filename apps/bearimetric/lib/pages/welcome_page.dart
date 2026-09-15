@@ -1,7 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:material_symbols_icons/material_symbols_icons.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:services/providers/auth_provider.dart';
 
 class WelcomePage extends ConsumerWidget {
@@ -57,7 +57,7 @@ class WelcomePage extends ConsumerWidget {
                             }
                           },
                           label: const Text('Sign In'),
-                          icon: const Icon(Symbols.open_in_new_rounded),
+                          icon: const Icon(LucideIcons.externalLink),
                         )
                         .animate()
                         .fadeIn(delay: 300.ms, duration: 600.ms)

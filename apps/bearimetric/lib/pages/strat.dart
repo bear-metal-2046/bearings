@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:bearimetric/providers/scouting_flow_provider.dart';
 import 'package:bearimetric/providers/scouting_providers.dart';
 import 'package:bearimetric/store/strat_state.dart';
@@ -141,7 +142,7 @@ class _StratPageState extends ConsumerState<StratPage> {
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
                         icon: Icon(
-                          Icons.remove,
+                          LucideIcons.minus,
                           color: Theme.of(context).colorScheme.onSurface,
                         ),
                         onPressed: notifier.decrementAutoHumanPlayer,
@@ -185,7 +186,7 @@ class _StratPageState extends ConsumerState<StratPage> {
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
                         icon: Icon(
-                          Icons.remove,
+                          LucideIcons.minus,
                           color: Theme.of(context).colorScheme.onSurface,
                         ),
                         onPressed: notifier.decrementTeleHumanPlayer,
@@ -238,7 +239,7 @@ class _RankingList extends StatelessWidget {
                 ListTile(
                   key: ValueKey(item),
                   title: Text(item),
-                  trailing: const Icon(Icons.drag_handle),
+                  trailing: const Icon(LucideIcons.gripVertical),
                 ),
             ],
           ),

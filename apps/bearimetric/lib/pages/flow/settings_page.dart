@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hive_ce/hive.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:bearimetric/data/local_data.dart';
 import 'package:bearimetric/providers/app_provider.dart';
 import 'package:bearimetric/services/device_auth_service.dart';
@@ -21,7 +22,7 @@ class SettingsPage extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Settings'),
         leading: IconButton(
-          icon: const Icon(Icons.close),
+          icon: const Icon(LucideIcons.x),
           onPressed: () {
             context.pop();
           },
@@ -46,7 +47,7 @@ class SettingsPage extends ConsumerWidget {
                   Row(
                     children: [
                       Icon(
-                        isDarkMode ? Icons.dark_mode : Icons.light_mode,
+                        isDarkMode ? LucideIcons.moon : LucideIcons.sun,
                         size: 32,
                         color: Theme.of(context).colorScheme.primary,
                       ),
@@ -142,7 +143,7 @@ class SettingsPage extends ConsumerWidget {
           ),
           const SizedBox(height: 24),
           ListTile(
-            leading: const Icon(Icons.link_off),
+            leading: const Icon(LucideIcons.link2Off),
             title: const Text('Deprovision Device'),
             subtitle: const Text('Remove stored credentials from this device'),
             onTap: () => _showPasswordDialog(
@@ -153,7 +154,7 @@ class SettingsPage extends ConsumerWidget {
           ),
 
           ListTile(
-            leading: const Icon(Icons.delete_outline),
+            leading: const Icon(LucideIcons.trash2),
             title: const Text('Delete Local Data'),
             subtitle: const Text(
               'Clears all cached match data from this device',

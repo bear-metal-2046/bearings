@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:bearimetric/data/upload_queue.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class UploadStatusIndicator extends ConsumerWidget {
   const UploadStatusIndicator({super.key});
@@ -14,7 +15,7 @@ class UploadStatusIndicator extends ConsumerWidget {
     if (pendingCount == 0) {
       return const Tooltip(
         message: 'All uploads synced',
-        child: Icon(Icons.cloud_done, color: Colors.green),
+        child: Icon(LucideIcons.cloudCheck, color: Colors.green),
       );
     }
 
@@ -23,7 +24,7 @@ class UploadStatusIndicator extends ConsumerWidget {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          const Icon(Icons.cloud_upload),
+          const Icon(LucideIcons.cloudUpload),
           Positioned(
             right: -8,
             top: -8,

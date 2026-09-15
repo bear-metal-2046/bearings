@@ -17,6 +17,7 @@ dependencies:
   auto_size_text: ^3.0.0
   core:
     path: ../core
+  lucide_icons_flutter: ^3.1.17
   material_ui: any
 
 dev_dependencies:

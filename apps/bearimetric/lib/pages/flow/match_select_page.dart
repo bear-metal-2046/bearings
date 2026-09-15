@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hive_ce/hive.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:bearimetric/custom_widgets/upload_status_indicator.dart';
 import 'package:bearimetric/data/local_data.dart';
 import 'package:bearimetric/data/match_json_gen.dart';
@@ -59,7 +60,7 @@ class _MatchSelectPageState extends ConsumerState<MatchSelectPage> {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(LucideIcons.arrowLeft),
           onPressed: () => context.go('/scout'),
         ),
         title: const Text('Select Match'),
@@ -182,7 +183,7 @@ class _MatchSelectPageState extends ConsumerState<MatchSelectPage> {
                                 border: const OutlineInputBorder(),
                                 hintText: 'Match number',
                                 prefixIcon: IconButton(
-                                  icon: const Icon(Icons.remove),
+                                  icon: const Icon(LucideIcons.minus),
                                   onPressed: () {
                                     final current =
                                         int.tryParse(
@@ -204,7 +205,7 @@ class _MatchSelectPageState extends ConsumerState<MatchSelectPage> {
                                   },
                                 ),
                                 suffixIcon: IconButton(
-                                  icon: const Icon(Icons.add),
+                                  icon: const Icon(LucideIcons.plus),
                                   onPressed: () {
                                     final current =
                                         int.tryParse(
@@ -280,7 +281,7 @@ class _MatchSelectPageState extends ConsumerState<MatchSelectPage> {
                                     }
                                   }
                                 : null,
-                            icon: const Icon(Icons.play_arrow),
+                            icon: const Icon(LucideIcons.play),
                             label: const Text('Go'),
                           ),
                         )
