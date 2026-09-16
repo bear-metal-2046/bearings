@@ -13,6 +13,7 @@ import 'package:beariscope/pages/scout_audit/scout_audit_preferences_provider.da
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/processed_scouting_provider.dart';
 import 'package:beariscope/providers/pits_form_schema_provider.dart';
+import 'package:beariscope/widgets/beariscope_status_view.dart';
 import 'package:beariscope/widgets/settings_group.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
@@ -266,18 +267,11 @@ class _ExportPageState extends ConsumerState<ExportPage> {
             : IconButton(icon: const Icon(LucideIcons.menu), onPressed: controller.openDrawer),
       ),
       body: _schemaError != null
-          ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(LucideIcons.circleAlert, size: 48),
-                    const SizedBox(height: 12),
-                    Text('Failed to load schema: $_schemaError', textAlign: TextAlign.center),
-                  ],
-                ),
-              ),
+          ? BeariscopeStatusView(
+              icon: LucideIcons.circleAlert,
+              iconColor: Theme.of(context).colorScheme.error,
+              title: 'Export unavailable',
+              subtitle: 'Failed to load schema: $_schemaError',
             )
           : _schema == null
           ? const Center(child: CircularProgressIndicator())

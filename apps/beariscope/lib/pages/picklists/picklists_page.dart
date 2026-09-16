@@ -2,6 +2,7 @@ import 'package:beariscope/pages/main_view.dart';
 import 'package:beariscope/pages/picklists/picklist_model.dart';
 import 'package:beariscope/pages/picklists/picklist_provider.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
+import 'package:beariscope/widgets/beariscope_status_view.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -104,7 +105,7 @@ class _OfflineBanner extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'Offline library for $eventName • changes autosave on this device',
+              'Offline library for $eventName',
               style: TextStyle(color: colors.onSecondaryContainer),
             ),
           ),
@@ -270,29 +271,11 @@ class _EmptyLibrary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 460),
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(LucideIcons.notebookTabs, size: 60),
-              const SizedBox(height: 18),
-              Text(
-                'No picklists yet',
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Create a picklist for $eventName. It will stay local to this device.',
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      ),
+    return BeariscopeStatusView(
+      icon: LucideIcons.notebookTabs,
+      title: 'No picklists yet',
+      subtitle:
+          'Create a picklist for $eventName. It will stay local to this device.',
     );
   }
 }

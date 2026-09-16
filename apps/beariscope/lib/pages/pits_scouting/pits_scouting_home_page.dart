@@ -11,6 +11,7 @@ import 'package:beariscope/utils/platform_utils_stub.dart'
     if (dart.library.io) 'package:beariscope/utils/platform_utils.dart';
 import 'package:beariscope/widgets/beariscope_card.dart';
 import 'package:beariscope/widgets/beariscope_search_bar.dart';
+import 'package:beariscope/widgets/beariscope_status_view.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -198,10 +199,15 @@ class PitsScoutingHomePageState extends ConsumerState<PitsScoutingHomePage>
           ),
           body: teamsAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (err, stack) => Center(
-              child: FilledButton(
+            error: (err, stack) => BeariscopeStatusView(
+              icon: LucideIcons.circleAlert,
+              iconColor: Theme.of(context).colorScheme.error,
+              title: 'Teams unavailable',
+              subtitle: 'Error loading teams: $err',
+              action: FilledButton.icon(
                 onPressed: () => ref.invalidate(pitsTeamsProvider),
-                child: const Text('Retry'),
+                icon: const Icon(LucideIcons.rotateCw),
+                label: const Text('Retry'),
               ),
             ),
             data: (teams) {
@@ -287,31 +293,11 @@ class PitsScoutingHomePageState extends ConsumerState<PitsScoutingHomePage>
   }
 
   Widget _buildMapError(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              LucideIcons.mapPinXInside,
-              size: 56,
-              color: Theme.of(context).colorScheme.error,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Pits map unavailable',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'No pits map published by Nexus for this event',
-              style: Theme.of(context).textTheme.bodySmall,
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
+    return BeariscopeStatusView(
+      icon: LucideIcons.mapPinXInside,
+      iconColor: Theme.of(context).colorScheme.error,
+      title: 'Pits map unavailable',
+      subtitle: 'No pits map published by Nexus for this event',
     );
   }
 
@@ -406,6 +392,29 @@ class PitsScoutingHomePageState extends ConsumerState<PitsScoutingHomePage>
     Set<int> scoutedNums, {
     EdgeInsetsGeometry? padding,
   }) {
+    if (filteredTeams.isEmpty) {
+      final hasFilters =
+          _statusFilter != PitsScoutingFilter.allTeams ||
+          ref.read(pitsSearchControllerProvider).text.trim().isNotEmpty;
+
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: padding,
+        children: [
+          SizedBox(
+            height: 320,
+            child: BeariscopeStatusView(
+              icon: LucideIcons.users,
+              title: hasFilters ? 'No matching teams' : 'No teams found',
+              subtitle: hasFilters
+                  ? 'Try adjusting your search or filters.'
+                  : 'No teams are available for this event.',
+            ),
+          ),
+        ],
+      );
+    }
+
     return BeariscopeCardList(
       padding: padding,
       children: filteredTeams

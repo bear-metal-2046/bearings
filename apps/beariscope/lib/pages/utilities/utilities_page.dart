@@ -1,5 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:beariscope/widgets/beariscope_search_bar.dart';
+import 'package:beariscope/widgets/beariscope_status_view.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class UtilitiesPage extends StatefulWidget {
   const UtilitiesPage({super.key});
@@ -32,10 +34,10 @@ class _UtilitiesPageState extends State<UtilitiesPage> {
         ),
         actions: [SizedBox(width: 48)],
       ),
-      body: Center(
-        child: SingleChildScrollView(
-          child: Padding(padding: const EdgeInsets.all(16)),
-        ),
+      body: const BeariscopeStatusView(
+        icon: LucideIcons.wrench,
+        title: 'No utilities available',
+        subtitle: 'There are no utilities to display.',
       ),
     );
   }

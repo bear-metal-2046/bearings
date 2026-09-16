@@ -4,7 +4,9 @@ import 'package:beariscope/models/team_scouting_bundle.dart';
 import 'package:beariscope/pages/team_lookup/tabs/scouting_tab_widgets.dart';
 import 'package:beariscope/providers/team_scouting_provider.dart';
 import 'package:beariscope/widgets/beariscope_card.dart';
+import 'package:beariscope/widgets/beariscope_status_view.dart';
 import 'package:beariscope/widgets/settings_group.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -19,7 +21,12 @@ class NotesTab extends ConsumerWidget {
 
     return async.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Error: $e')),
+      error: (e, _) => BeariscopeStatusView(
+        icon: LucideIcons.circleAlert,
+        iconColor: Theme.of(context).colorScheme.error,
+        title: 'Scouting data unavailable',
+        subtitle: 'Error loading scouting data: $e',
+      ),
       data: (bundle) => _NotesBody(bundle: bundle, teamNumber: teamNumber),
     );
   }

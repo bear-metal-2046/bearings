@@ -7,6 +7,7 @@ import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/team_scouting_provider.dart';
 import 'package:beariscope/widgets/beariscope_card.dart';
 import 'package:beariscope/widgets/settings_group.dart';
+import 'package:beariscope/widgets/beariscope_status_view.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -69,7 +70,12 @@ class MatchesTab extends ConsumerWidget {
 
     return scoutingAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Error: $e')),
+      error: (e, _) => BeariscopeStatusView(
+        icon: LucideIcons.circleAlert,
+        iconColor: Theme.of(context).colorScheme.error,
+        title: 'Scouting data unavailable',
+        subtitle: 'Error loading scouting data: $e',
+      ),
       data: (bundle) {
         final scheduledMatchNumbers = scheduleAsync.asData?.value ?? const [];
         return _MatchesBody(
@@ -123,7 +129,12 @@ class _MatchesBody extends StatelessWidget {
     ];
 
     if (items.isEmpty) {
-      return const Center(child: Text('No match data recorded for this team.'));
+      return const BeariscopeStatusView(
+        icon: LucideIcons.fileText,
+        title: 'No match data recorded',
+        subtitle:
+            'No scheduled or scouted matches are available for this team.',
+      );
     }
 
     return BeariscopeCardList(

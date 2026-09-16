@@ -72,7 +72,7 @@ class PicklistLibraryNotifier extends Notifier<List<Picklist>> {
   Picklist? duplicate(String id) {
     final source = state.where((picklist) => picklist.id == id).firstOrNull;
     if (source == null) return null;
-    return create(title: '${source.title} Copy', teamKeys: source.teamKeys);
+    return create(title: 'Copy of ${source.title}', teamKeys: source.teamKeys);
   }
 
   void delete(String id) {

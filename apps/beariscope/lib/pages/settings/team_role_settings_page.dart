@@ -2,6 +2,7 @@ import 'package:beariscope/utils/platform_utils_stub.dart'
     if (dart.library.io) 'package:beariscope/utils/platform_utils.dart';
 import 'package:beariscope/widgets/beariscope_card.dart';
 import 'package:beariscope/widgets/beariscope_search_bar.dart';
+import 'package:beariscope/widgets/beariscope_status_view.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
@@ -574,13 +575,12 @@ class _TeamRoleSettingsPageState extends ConsumerState<TeamRoleSettingsPage>
     );
   }
 
-  Widget _emptyState({required String text}) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Text(text, style: Theme.of(context).textTheme.titleMedium),
-      ),
-    );
+  Widget _emptyState({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
+    return BeariscopeStatusView(icon: icon, title: title, subtitle: subtitle);
   }
 
   Widget _buildSearchBar() {
@@ -704,8 +704,12 @@ class _TeamRoleSettingsPageState extends ConsumerState<TeamRoleSettingsPage>
                   child: metadataAsync.when(
                     loading: () =>
                         const Center(child: CircularProgressIndicator()),
-                    error: (error, _) =>
-                        Center(child: Text('Failed to load metadata: $error')),
+                    error: (error, _) => BeariscopeStatusView(
+                      icon: LucideIcons.circleAlert,
+                      iconColor: Theme.of(context).colorScheme.error,
+                      title: 'RBAC metadata unavailable',
+                      subtitle: 'Failed to load metadata: $error',
+                    ),
                     data: (metadata) {
                       final permissionMap = {
                         for (final permission in metadata.permissions)
@@ -719,8 +723,11 @@ class _TeamRoleSettingsPageState extends ConsumerState<TeamRoleSettingsPage>
                             loading: () => const Center(
                               child: CircularProgressIndicator(),
                             ),
-                            error: (error, _) => Center(
-                              child: Text('Failed to load users: $error'),
+                            error: (error, _) => BeariscopeStatusView(
+                              icon: LucideIcons.circleAlert,
+                              iconColor: Theme.of(context).colorScheme.error,
+                              title: 'Users unavailable',
+                              subtitle: 'Failed to load users: $error',
                             ),
                             data: (users) {
                               final effectiveUsers = _optimisticUsers ?? users;
@@ -758,7 +765,11 @@ class _TeamRoleSettingsPageState extends ConsumerState<TeamRoleSettingsPage>
                                       SizedBox(
                                         height: 320,
                                         child: _emptyState(
-                                          text: 'No users found',
+                                          icon: LucideIcons.users,
+                                          title: 'No users found',
+                                          subtitle: _searchQuery.isEmpty
+                                              ? 'No users have been added yet.'
+                                              : 'Try adjusting your search.',
                                         ),
                                       ),
                                     ],
@@ -887,8 +898,11 @@ class _TeamRoleSettingsPageState extends ConsumerState<TeamRoleSettingsPage>
                             loading: () => const Center(
                               child: CircularProgressIndicator(),
                             ),
-                            error: (error, _) => Center(
-                              child: Text('Failed to load roles: $error'),
+                            error: (error, _) => BeariscopeStatusView(
+                              icon: LucideIcons.circleAlert,
+                              iconColor: Theme.of(context).colorScheme.error,
+                              title: 'Roles unavailable',
+                              subtitle: 'Failed to load roles: $error',
                             ),
                             data: (roles) {
                               final effectiveRoles = _optimisticRoles ?? roles;
@@ -928,7 +942,11 @@ class _TeamRoleSettingsPageState extends ConsumerState<TeamRoleSettingsPage>
                                       SizedBox(
                                         height: 320,
                                         child: _emptyState(
-                                          text: 'No roles defined',
+                                          icon: LucideIcons.shield,
+                                          title: 'No roles defined',
+                                          subtitle: _searchQuery.isEmpty
+                                              ? 'Create a role to control team access.'
+                                              : 'Try adjusting your search.',
                                         ),
                                       ),
                                     ],

@@ -12,6 +12,7 @@ import 'package:beariscope/utils/platform_utils_stub.dart'
     if (dart.library.io) 'package:beariscope/utils/platform_utils.dart';
 import 'package:beariscope/widgets/beariscope_card.dart';
 import 'package:beariscope/widgets/beariscope_search_bar.dart';
+import 'package:beariscope/widgets/beariscope_status_view.dart';
 import 'package:beariscope/widgets/team_card.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -78,14 +79,25 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage> {
             children: [
               teamsAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (error, _) => Center(child: Text('Error: $error')),
+                error: (error, _) => BeariscopeStatusView(
+                  icon: LucideIcons.circleAlert,
+                  iconColor: Theme.of(context).colorScheme.error,
+                  title: 'Teams unavailable',
+                  subtitle: 'Error loading teams: $error',
+                ),
                 data: (rawTeams) {
                   final teams = rawTeams
                       .map(Team.fromJson)
                       .where((team) => teamMatchesSearch(team, searchController.text))
                       .toList();
                   _sortTeams(teams, selectedSort, rankings);
-                  if (teams.isEmpty) return const Center(child: Text('No teams found'));
+                  if (teams.isEmpty) {
+                    return const BeariscopeStatusView(
+                      icon: LucideIcons.users,
+                      title: 'No teams found',
+                      subtitle: 'Try adjusting your search or selecting another event.',
+                    );
+                  }
 
                   return RefreshIndicator(
                     onRefresh: _refresh,

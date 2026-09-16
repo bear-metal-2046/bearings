@@ -12,6 +12,7 @@ import 'package:beariscope/pages/team_lookup/team_providers.dart';
 import 'package:beariscope/providers/rankings_provider.dart';
 import 'package:beariscope/providers/team_scouting_provider.dart';
 import 'package:beariscope/widgets/beariscope_search_bar.dart';
+import 'package:beariscope/widgets/beariscope_status_view.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -359,9 +360,11 @@ class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage> with Si
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(LucideIcons.listX, size: 44),
-            const SizedBox(height: 12),
-            const Text('This picklist is not available for the current event.'),
+            const BeariscopeStatusView(
+              icon: LucideIcons.listX,
+              title: 'Picklist unavailable',
+              subtitle: 'This picklist is not available for the current event.',
+            ),
             const SizedBox(height: 16),
             FilledButton(onPressed: () => context.go('/picklists'), child: const Text('Back to Picklists')),
           ],
@@ -576,7 +579,13 @@ class _TeamLibraryState extends ConsumerState<_TeamLibrary> {
                         .where((team) => teamMatchesSearch(team, _searchController.text))
                         .toList();
                     _sortTeams(teams, selectedSort, rankings);
-                    if (teams.isEmpty) return const Center(child: Text('No teams found'));
+                    if (teams.isEmpty) {
+                      return const BeariscopeStatusView(
+                        icon: LucideIcons.users,
+                        title: 'No teams found',
+                        subtitle: 'Try adjusting your search or selecting another event.',
+                      );
+                    }
                     return ListView.separated(
                       padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
                       itemCount: teams.length,
@@ -1170,7 +1179,6 @@ class _PicklistSurfaceState extends ConsumerState<_PicklistSurface> {
                                 onDraggingChanged: widget.onDraggingChanged,
                                 onDragUpdate: (position) => widget.dragPosition.value = position,
                                 action: PopupMenuButton<String>(
-                                  tooltip: 'Team ${teams[index].replaceFirst('frc', '')} actions',
                                   icon: const Icon(LucideIcons.gripVertical, size: 20),
                                   onSelected: (value) {
                                     if (value == 'remove') widget.onRemoveTeam(teams[index]);
@@ -1335,18 +1343,11 @@ class _InsertionDropZone extends StatelessWidget {
           ),
           alignment: Alignment.center,
           child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(LucideIcons.listPlus, size: 40, color: colors.primary),
-                const SizedBox(height: 12),
-                Text(
-                  hovering ? 'Drop to add first' : 'Picklist is empty',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 8),
-                Text(hovering ? '' : 'Drag from the library to add', textAlign: TextAlign.center),
-              ],
+            child: BeariscopeStatusView(
+              icon: LucideIcons.listPlus,
+              iconColor: colors.primary,
+              title: hovering ? 'Drop to add first' : 'Picklist is empty',
+              subtitle: hovering ? null : 'Drag from the library to add',
             ),
           ),
         );
