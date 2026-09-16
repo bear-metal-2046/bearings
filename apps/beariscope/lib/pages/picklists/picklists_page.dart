@@ -1,62 +1,28 @@
 import 'package:beariscope/pages/main_view.dart';
-import 'package:material_ui/material_ui.dart';
+import 'package:beariscope/pages/picklists/picklist_model.dart';
+import 'package:beariscope/pages/picklists/picklist_provider.dart';
+import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:services/providers/permissions_provider.dart';
+import 'package:material_ui/material_ui.dart';
 
-// Mock data model for the POC stage
-class MockPicklist {
-  final String title;
-  final List<String> activeEditors; // Initials or image URLs
-  final Color themeColor;
-  MockPicklist({
-    required this.title,
-    required this.activeEditors,
-    required this.themeColor,
-  });
-}
-
-class PicklistsPage extends ConsumerStatefulWidget {
+class PicklistsPage extends ConsumerWidget {
   const PicklistsPage({super.key});
-  @override
-  ConsumerState<PicklistsPage> createState() => PicklistsPageState();
-}
 
-class PicklistsPageState extends ConsumerState<PicklistsPage> {
-  // Mock data representing shared items
-  final List<MockPicklist> samplePicklists = [
-    MockPicklist(
-      title: 'Championship Strategy',
-      activeEditors: ['JJ', 'NG', 'JB'],
-      themeColor: Colors.blue.shade100,
-    ),
-    MockPicklist(
-      title: 'Quals Defense Focus',
-      activeEditors: ['MS'],
-      themeColor: Colors.green.shade100,
-    ),
-    MockPicklist(
-      title: 'Playoff Underdogs',
-      activeEditors: [],
-      themeColor: Colors.purple.shade100,
-    ),
-    MockPicklist(
-      title: 'High Note Scorers',
-      activeEditors: ['WP', 'JS'],
-      themeColor: Colors.orange.shade100,
-    ),
-  ];
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final controller = MainViewController.of(context);
-    final permissionChecker = ref.watch(permissionCheckerProvider);
-    final canCreatePicklists =
-        permissionChecker?.hasPermission(PermissionKey.picklistsManage) ??
-        false;
-    const minCardWidth = 280.0;
-    const cardHeight = 240.0;
-    const spacing = 16.0;
+    final picklists = ref.watch(picklistLibraryProvider);
+    final eventKey = ref.watch(currentEventProvider);
+    final eventName =
+        ref
+            .watch(teamEventsProvider)
+            .value
+            ?.where((event) => event.key == eventKey)
+            .firstOrNull
+            ?.displayShortName ??
+        eventKey;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Picklists'),
@@ -68,141 +34,273 @@ class PicklistsPageState extends ConsumerState<PicklistsPage> {
               ),
       ),
       body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final crossAxisCount =
-                ((constraints.maxWidth + spacing) / (minCardWidth + spacing))
-                    .floor()
-                    .clamp(1, 999);
-            return GridView.builder(
-              padding: const EdgeInsets.all(16),
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: crossAxisCount,
-                mainAxisSpacing: spacing,
-                crossAxisSpacing: spacing,
-                mainAxisExtent: cardHeight,
-              ),
-              itemCount: samplePicklists.length,
-              itemBuilder: (context, index) {
-                final item = samplePicklists[index];
-                return Card(
-                  margin: EdgeInsets.zero,
-                  clipBehavior: Clip.antiAlias,
-                  elevation: 2,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Expanded(
-                        child: Stack(
-                          children: [
-                            Container(
-                              color: item.themeColor,
-                              child: const Center(
-                                child: Icon(
-                                  LucideIcons.listOrdered,
-                                  size: 40,
-                                  color: Colors.black38,
-                                ),
+        top: false,
+        child: picklists.isEmpty
+            ? _EmptyLibrary(
+                eventName: eventName,
+                onCreate: () => context.push('/picklists/create'),
+              )
+            : LayoutBuilder(
+                builder: (context, constraints) {
+                  const minCardWidth = 280.0;
+                  const spacing = 16.0;
+                  final count =
+                      ((constraints.maxWidth + spacing) /
+                              (minCardWidth + spacing))
+                          .floor()
+                          .clamp(1, 4);
+                  return CustomScrollView(
+                    slivers: [
+                      SliverToBoxAdapter(
+                        child: _OfflineBanner(eventName: eventName),
+                      ),
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
+                        sliver: SliverGrid.builder(
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: count,
+                                mainAxisSpacing: spacing,
+                                crossAxisSpacing: spacing,
+                                mainAxisExtent: 220,
                               ),
-                            ),
-                            if (item.activeEditors.isNotEmpty)
-                              Positioned(
-                                top: 8,
-                                right: 8,
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: List.generate(
-                                    item.activeEditors.length,
-                                    (index) => Align(
-                                      widthFactor: 0.65,
-                                      child: CircleAvatar(
-                                        radius: 15,
-                                        backgroundColor: Theme.of(context)
-                                            .cardColor,
-                                        child: CircleAvatar(
-                                          radius: 13,
-                                          backgroundColor: Theme.of(context)
-                                              .colorScheme
-                                              .primaryContainer,
-                                          child: Text(
-                                            item.activeEditors[index],
-                                            style: TextStyle(
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.bold,
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .onPrimaryContainer,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                          ],
+                          itemCount: picklists.length,
+                          itemBuilder: (context, index) =>
+                              _PicklistCard(item: picklists[index]),
                         ),
                       ),
-                      Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                item.title,
-                                style: Theme.of(context).textTheme.titleMedium
-                                    ?.copyWith(fontWeight: FontWeight.w600),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
+                    ],
+                  );
+                },
+              ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => context.push('/picklists/create'),
+        icon: const Icon(LucideIcons.plus),
+        label: const Text('New Picklist'),
+      ),
+    );
+  }
+}
+
+class _OfflineBanner extends StatelessWidget {
+  final String eventName;
+
+  const _OfflineBanner({required this.eventName});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colors.secondaryContainer,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Icon(LucideIcons.hardDrive, color: colors.onSecondaryContainer),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Offline library for $eventName • changes autosave on this device',
+              style: TextStyle(color: colors.onSecondaryContainer),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PicklistCard extends ConsumerWidget {
+  final Picklist item;
+
+  const _PicklistCard({required this.item});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = Theme.of(context).colorScheme;
+    return Card(
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => context.push('/picklists/${item.id}'),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: Container(
+                color: colors.primaryContainer,
+                padding: const EdgeInsets.all(20),
+                child: Stack(
+                  children: [
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Icon(
+                        LucideIcons.listOrdered,
+                        size: 48,
+                        color: colors.onPrimaryContainer,
+                      ),
+                    ),
+                    Align(
+                      alignment: Alignment.bottomRight,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colors.surface.withValues(alpha: .8),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text('${item.teamKeys.length} teams'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Last edited ${_relativeTime(item.updatedAt)}',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: colors.onSurfaceVariant),
+                        ),
+                      ],
+                    ),
+                  ),
+                  PopupMenuButton<String>(
+                    onSelected: (value) async {
+                      if (value == 'duplicate') {
+                        final copy = ref
+                            .read(picklistLibraryProvider.notifier)
+                            .duplicate(item.id);
+                        if (copy != null && context.mounted) {
+                          context.push('/picklists/${copy.id}');
+                        }
+                      }
+                      if (value == 'delete') {
+                        final confirmed = await showDialog<bool>(
+                          context: context,
+                          builder: (dialogContext) => AlertDialog(
+                            title: const Text('Delete picklist?'),
+                            content: Text(
+                              '“${item.title}” will be removed from this device.',
                             ),
-                            PopupMenuButton<String>(
-                              padding: EdgeInsets.zero,
-                              icon: const Icon(
-                                LucideIcons.moreVertical,
-                                size: 20,
+                            actions: [
+                              TextButton(
+                                onPressed: () =>
+                                    Navigator.pop(dialogContext, false),
+                                child: const Text('Cancel'),
                               ),
-                              onSelected: (value) {
-                                if (value == 'delete') {
-                                  // POC Action placeholder
-                                }
-                              },
-                              itemBuilder: (BuildContext context) => [
-                                const PopupMenuItem(
-                                  value: 'open',
-                                  child: Text('Open'),
-                                ),
-                                const PopupMenuItem(
-                                  value: 'duplicate',
-                                  child: Text('Duplicate'),
-                                ),
-                                const PopupMenuItem(
-                                  value: 'delete',
-                                  child: Text(
-                                    'Delete',
-                                    style: TextStyle(color: Colors.red),
+                              FilledButton(
+                                onPressed: () =>
+                                    Navigator.pop(dialogContext, true),
+                                style: ButtonStyle(
+                                  backgroundColor: WidgetStateProperty.all(
+                                    colors.error,
+                                  ),
+                                  foregroundColor: WidgetStateProperty.all(
+                                    colors.onError,
                                   ),
                                 ),
-                              ],
-                            ),
-                          ],
+                                child: const Text('Delete'),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (confirmed == true) {
+                          ref
+                              .read(picklistLibraryProvider.notifier)
+                              .delete(item.id);
+                        }
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'duplicate',
+                        child: ListTile(
+                          leading: Icon(LucideIcons.copyPlus),
+                          title: Text('Duplicate'),
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: ListTile(
+                          leading: Icon(LucideIcons.trash, color: colors.error),
+                          title: Text(
+                            'Delete',
+                            style: TextStyle(color: colors.error),
+                          ),
                         ),
                       ),
                     ],
                   ),
-                );
-              },
-            );
-          },
+                ],
+              ),
+            ),
+          ],
         ),
       ),
-      floatingActionButton: canCreatePicklists
-          ? FloatingActionButton.extended(
-              onPressed: () => context.push('/picklists/create'),
-              icon: const Icon(LucideIcons.plus),
-              label: const Text('New Picklist'),
-            )
-          : null,
     );
   }
+}
+
+class _EmptyLibrary extends StatelessWidget {
+  final String eventName;
+  final VoidCallback onCreate;
+
+  const _EmptyLibrary({required this.eventName, required this.onCreate});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 460),
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(LucideIcons.notebookTabs, size: 60),
+              const SizedBox(height: 18),
+              Text(
+                'No picklists yet',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Create a picklist for $eventName. It will stay local to this device.',
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+String _relativeTime(DateTime time) {
+  final elapsed = DateTime.now().difference(time);
+  if (elapsed.inMinutes < 1) return 'just now';
+  if (elapsed.inHours < 1) return '${elapsed.inMinutes}m ago';
+  if (elapsed.inDays < 1) return '${elapsed.inHours}h ago';
+  return '${elapsed.inDays}d ago';
 }

@@ -6,6 +6,7 @@ import 'package:beariscope/pages/device_provisioning/device_provisioning_page.da
 import 'package:beariscope/pages/export/export_page.dart';
 import 'package:beariscope/pages/main_view.dart';
 import 'package:beariscope/pages/match_lookup/match_lookup_page.dart';
+import 'package:beariscope/pages/picklists/picklist_editor_page.dart';
 import 'package:beariscope/pages/picklists/picklists_create_page.dart';
 import 'package:beariscope/pages/picklists/picklists_page.dart';
 import 'package:beariscope/pages/pits_scouting/pits_scouting_home_page.dart';
@@ -162,6 +163,12 @@ final routerProvider = Provider<GoRouter>((ref) {
                 path: 'create',
                 builder: (_, _) => const PicklistsCreatePage(),
               ),
+              GoRoute(
+                path: ':picklistId',
+                builder: (_, state) => PicklistEditorPage(
+                  picklistId: state.pathParameters['picklistId'] ?? '',
+                ),
+              ),
             ],
           ),
           GoRoute(
@@ -269,12 +276,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       // 2. AppPhase.ready — permission guards for protected routes
       final isRoleManagementRoute = location == '/settings/roles';
       final isScoutManagementRoute = location == '/settings/user_selection';
-      final isPicklistCreateRoute = location == '/picklists/create';
       final isDeviceProvisioningRoute = location == '/device_provisioning';
       final needsPermissions =
           isRoleManagementRoute ||
           isScoutManagementRoute ||
-          isPicklistCreateRoute ||
           isDeviceProvisioningRoute;
 
       if (needsPermissions) {
@@ -300,12 +305,6 @@ final routerProvider = Provider<GoRouter>((ref) {
               ]) ??
               false;
           if (!canViewScouts) return '/settings';
-        }
-
-        if (isPicklistCreateRoute) {
-          final canManagePicklists =
-              checker?.hasPermission(PermissionKey.picklistsManage) ?? false;
-          if (!canManagePicklists) return '/picklists';
         }
 
         if (isDeviceProvisioningRoute) {
