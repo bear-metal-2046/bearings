@@ -22,12 +22,6 @@ class MatchNexusInfo {
   });
 
   DateTime? get displayTime {
-    if (isActiveQueueStatus(status)) {
-      return estimatedQueueTime ??
-          actualQueueTime ??
-          estimatedStartTime ??
-          estimatedOnDeckTime;
-    }
     return estimatedQueueTime ??
         actualQueueTime ??
         estimatedStartTime ??
@@ -179,9 +173,6 @@ String? _string(Object? value) {
 
 DateTime? _parseTimestamp(Object? value) {
   if (value == null) return null;
-  if (value is int) {
-    return DateTime.fromMillisecondsSinceEpoch(value);
-  }
   if (value is num) {
     final ms = value.toInt();
     if (ms < 1e12) {

@@ -6,24 +6,19 @@ import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:services/providers/api_provider.dart';
 
-final upNextEventContextProvider = FutureProvider<UpNextEventContext?>((
-  ref,
-) async {
-  final enriched = await ref.watch(enrichedCurrentEventProvider.future);
-  return enriched?.context;
-});
-
 final upNextProvider = FutureProvider<List<UpNextMatch>>((ref) async {
   final client = ref.watch(honeycombClientProvider);
   final currentEventKey = ref.watch(currentEventProvider);
-  final enriched = await ref.watch(enrichedCurrentEventProvider.future);
-  final nexusMatches = enriched?.nexusMatches ?? const <MatchNexusInfo>[];
+  final enrichedFuture = ref.watch(enrichedCurrentEventProvider.future);
 
-  final matches = await client.get<List<dynamic>>(
+  final matchesFuture = client.get<List<dynamic>>(
     '/matches',
     queryParams: {'event': currentEventKey},
     cachePolicy: CachePolicy.networkFirst,
   );
+  final matches = await matchesFuture;
+  final enriched = await enrichedFuture;
+  final nexusMatches = enriched?.nexusMatches ?? const <MatchNexusInfo>[];
 
   final eventMatches =
       matches

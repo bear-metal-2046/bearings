@@ -9,6 +9,7 @@ import 'package:beariscope/pages/up_next/up_next_widget.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/nexus_event_key_provider.dart';
 import 'package:beariscope/providers/tba_preferences_provider.dart';
+import 'package:beariscope/widgets/beariscope_card.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -40,8 +41,6 @@ class _UpNextPageState extends ConsumerState<UpNextPage> {
     _refreshTimer = Timer.periodic(_refreshInterval, (_) {
       if (!mounted) return;
       ref.invalidate(enrichedCurrentEventProvider);
-      ref.invalidate(upNextProvider);
-      ref.invalidate(upNextEventContextProvider);
     });
   }
 
@@ -55,13 +54,11 @@ class _UpNextPageState extends ConsumerState<UpNextPage> {
   Widget build(BuildContext context) {
     final controller = MainViewController.of(context);
     final schedule = ref.watch(upNextProvider);
-    final eventContext = ref.watch(upNextEventContextProvider);
+    final enrichedEvent = ref.watch(enrichedCurrentEventProvider);
     final currentEventKey = ref.watch(currentEventProvider);
 
     Future<void> refreshSchedule() async {
       ref.invalidate(enrichedCurrentEventProvider);
-      ref.invalidate(upNextProvider);
-      ref.invalidate(upNextEventContextProvider);
       ref.invalidate(teamEventsProvider);
       try {
         await ref.read(upNextProvider.future);
@@ -151,10 +148,9 @@ class _UpNextPageState extends ConsumerState<UpNextPage> {
           final filteredMatches = _filter == _MatchFilter.all
               ? matches
               : matches.where((match) => match.includes2046).toList();
-
           return _MatchList(
             matches: filteredMatches,
-            eventContext: eventContext.asData?.value,
+            eventContext: enrichedEvent.asData?.value?.context,
             emptyMessage: 'No matches found. Is the schedule released?',
             timeFormat: UpNextPage.timeFormat,
             onRefresh: refreshSchedule,
@@ -238,69 +234,36 @@ class _MatchList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (matches.isEmpty) {
-      return RefreshIndicator(
-        onRefresh: onRefresh,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          children: [
-            if (eventContext != null)
-              _EventContextHeader(eventContext: eventContext!),
-            SizedBox(height: 320, child: Center(child: Text(emptyMessage))),
-          ],
-        ),
-      );
-    }
+    final children = <Widget>[
+      if (eventContext != null)
+        _EventContextHeader(eventContext: eventContext!),
+      if (matches.isEmpty)
+        SizedBox(height: 320, child: Center(child: Text(emptyMessage)))
+      else
+        ...matches.map((match) {
+          final matchTime = match.displayTime;
+          final timeLabel = matchTime == null
+              ? 'Time TBD'
+              : timeFormat.format(matchTime);
+
+          return UpNextMatchCard(
+            matchKey: match.key,
+            displayName: match.displayName,
+            time: timeLabel,
+            status: match.queueStatus,
+            highlighted:
+                match.includes2046 && isActiveQueueStatus(match.queueStatus),
+          );
+        }),
+    ];
 
     return RefreshIndicator(
       onRefresh: onRefresh,
-      child: ListView(
+      child: BeariscopeCardList(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+        spacing: 8,
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.only(bottom: 24),
-        children: [
-          if (eventContext != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-              child: _EventContextHeader(eventContext: eventContext!),
-            ),
-          ...matches.map((match) {
-            final matchTime = match.displayTime;
-            final timeLabel = matchTime == null
-                ? 'Time TBD'
-                : timeFormat.format(matchTime);
-
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 600),
-                  child: UpNextMatchCard(
-                    matchKey: match.key,
-                    displayName: match.displayName,
-                    time: timeLabel,
-                    status: match.queueStatus,
-                    highlighted:
-                        match.includes2046 &&
-                        isActiveQueueStatus(match.queueStatus),
-                  ),
-                ),
-              ),
-            );
-          }),
-          Align(
-            alignment: Alignment.center,
-            child: TextButton.icon(
-              onPressed: () {
-                launchUrl(
-                  Uri.parse('https://frc.nexus'),
-                  mode: LaunchMode.externalApplication,
-                );
-              },
-              icon: const Icon(LucideIcons.externalLink, size: 16),
-              label: const Text('Queue data from FRC Nexus'),
-            ),
-          ),
-        ],
+        children: children,
       ),
     );
   }
@@ -317,55 +280,26 @@ class _EventContextHeader extends StatelessWidget {
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      spacing: 12,
+      spacing: 8,
       children: [
         if (eventContext.nowQueuing != null)
-          Card(
+          BeariscopeCard(
+            title: 'Now queuing: ${eventContext.nowQueuing}',
             color: colorScheme.primaryContainer,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Icon(
-                    LucideIcons.radio,
-                    color: colorScheme.onPrimaryContainer,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Now queuing: ${eventContext.nowQueuing}',
-                      style: TextStyle(
-                        color: colorScheme.onPrimaryContainer,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+            leading: Icon(
+              LucideIcons.radio,
+              color: colorScheme.onPrimaryContainer,
+            ),
+            titleStyle: TextStyle(
+              color: colorScheme.onPrimaryContainer,
+              fontWeight: FontWeight.w600,
             ),
           ),
         if (eventContext.announcements.isNotEmpty)
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                spacing: 8,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(LucideIcons.megaphone, size: 18),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Announcements',
-                        style: Theme.of(context).textTheme.titleSmall,
-                      ),
-                    ],
-                  ),
-                  ...eventContext.announcements.map(Text.new),
-                ],
-              ),
-            ),
+          BeariscopeCard(
+            title: 'Announcements',
+            subtitle: eventContext.announcements.join('\n'),
+            leading: const Icon(LucideIcons.megaphone, size: 18),
           ),
       ],
     );

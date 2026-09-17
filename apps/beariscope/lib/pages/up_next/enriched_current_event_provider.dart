@@ -4,8 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:services/providers/api_provider.dart';
 
 /// Honeycomb Nexus snapshot for the selected TBA event (`/events?event=&enrich=true`).
-final enrichedCurrentEventProvider =
-    FutureProvider<HoneycombEnrichedEvent?>((ref) async {
+final enrichedCurrentEventProvider = FutureProvider<HoneycombEnrichedEvent?>((
+  ref,
+) async {
   final currentEventKey = ref.watch(currentEventProvider);
   final client = ref.watch(honeycombClientProvider);
 
@@ -16,10 +17,23 @@ final enrichedCurrentEventProvider =
       cachePolicy: CachePolicy.networkFirst,
     );
 
-    if (response is! Map) return null;
-    return HoneycombEnrichedEvent.fromHoneycombJson(
-      Map<String, dynamic>.from(response),
-    );
+    final eventJson = switch (response) {
+      Map() => Map<String, dynamic>.from(response),
+      List() =>
+        response
+            .whereType<Map>()
+            .map((event) => Map<String, dynamic>.from(event))
+            .where(
+              (event) =>
+                  event['key']?.toString() == currentEventKey ||
+                  event['eventKey']?.toString() == currentEventKey ||
+                  event['event_key']?.toString() == currentEventKey,
+            )
+            .firstOrNull,
+      _ => null,
+    };
+    if (eventJson == null) return null;
+    return HoneycombEnrichedEvent.fromHoneycombJson(eventJson);
   } catch (_) {
     return null;
   }
