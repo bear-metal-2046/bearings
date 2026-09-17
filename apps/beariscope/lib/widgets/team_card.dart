@@ -11,6 +11,7 @@ import 'package:beariscope/pages/team_lookup/team_providers.dart';
 import 'package:beariscope/providers/rankings_provider.dart';
 import 'package:beariscope/providers/tba_preferences_provider.dart';
 import 'package:beariscope/providers/team_scouting_provider.dart';
+import 'package:beariscope/widgets/beariscope_status_view.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -657,7 +658,12 @@ class TeamDetailsPage extends ConsumerWidget {
           const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (e, _) => Scaffold(
         appBar: AppBar(title: Text('$teamName — $teamNumber')),
-        body: Center(child: Text('Error: $e')),
+        body: BeariscopeStatusView(
+          icon: LucideIcons.circleAlert,
+          iconColor: Theme.of(context).colorScheme.error,
+          title: 'Team details unavailable',
+          subtitle: 'Error loading team details: $e',
+        ),
       ),
       data: (media) {
         final hasMedia = media.any((record) {

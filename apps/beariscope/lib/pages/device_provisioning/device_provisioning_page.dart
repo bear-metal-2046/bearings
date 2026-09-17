@@ -1,4 +1,5 @@
 import 'package:beariscope/widgets/beariscope_card.dart';
+import 'package:beariscope/widgets/beariscope_status_view.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,32 +19,15 @@ class DeviceProvisioningPage extends ConsumerWidget {
       appBar: AppBar(title: const Text('Provision Device')),
       body: credentialsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(LucideIcons.circleAlert, size: 48),
-                const SizedBox(height: 16),
-                Text(
-                  'Could not load device credentials',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  error.toString(),
-                  style: Theme.of(context).textTheme.bodySmall,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 24),
-                FilledButton.icon(
-                  onPressed: () => ref.invalidate(deviceCredentialsProvider),
-                  icon: const Icon(LucideIcons.rotateCw),
-                  label: const Text('Retry'),
-                ),
-              ],
-            ),
+        error: (error, _) => BeariscopeStatusView(
+          icon: LucideIcons.circleAlert,
+          iconColor: Theme.of(context).colorScheme.error,
+          title: 'Could not load device credentials',
+          subtitle: error.toString(),
+          action: FilledButton.icon(
+            onPressed: () => ref.invalidate(deviceCredentialsProvider),
+            icon: const Icon(LucideIcons.rotateCw),
+            label: const Text('Retry'),
           ),
         ),
         data: (credentials) {

@@ -37,12 +37,14 @@ class BeariscopeSearchBar extends StatelessWidget {
   final TextEditingController controller;
   final FocusNode? focusNode;
   final String hintText;
+  final double elevation;
 
   const BeariscopeSearchBar({
     super.key,
     required this.controller,
     this.focusNode,
     required this.hintText,
+    this.elevation = 8.0,
   });
 
   @override
@@ -61,7 +63,7 @@ class BeariscopeSearchBar extends StatelessWidget {
             focusNode: focusNode,
             controller: controller,
             hintText: hintText,
-            elevation: WidgetStateProperty.all(8.0),
+            elevation: WidgetStateProperty.all(elevation),
             padding: const WidgetStatePropertyAll<EdgeInsets>(
               EdgeInsets.symmetric(horizontal: 16.0),
             ),

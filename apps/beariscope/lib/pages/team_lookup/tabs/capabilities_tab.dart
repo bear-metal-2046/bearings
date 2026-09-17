@@ -5,8 +5,10 @@ import 'package:beariscope/providers/strat_z_score_provider.dart';
 import 'package:beariscope/providers/team_scouting_provider.dart';
 import 'package:beariscope/widgets/beariscope_card.dart';
 import 'package:beariscope/widgets/settings_group.dart';
+import 'package:beariscope/widgets/beariscope_status_view.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class CapabilitiesTab extends ConsumerWidget {
   final int teamNumber;
@@ -21,7 +23,12 @@ class CapabilitiesTab extends ConsumerWidget {
 
     return async.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Error: $e')),
+      error: (e, _) => BeariscopeStatusView(
+        icon: LucideIcons.circleAlert,
+        iconColor: Theme.of(context).colorScheme.error,
+        title: 'Scouting data unavailable',
+        subtitle: 'Error loading scouting data: $e',
+      ),
       data: (bundle) => _CapabilitiesBody(
         bundle: bundle,
         teamNumber: teamNumber,
@@ -45,8 +52,10 @@ class _CapabilitiesBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!bundle.hasPitsData && !bundle.hasMatchData) {
-      return const Center(
-        child: Text('No scouting data recorded for this team.'),
+      return const BeariscopeStatusView(
+        icon: LucideIcons.fileText,
+        title: 'No scouting data recorded',
+        subtitle: 'No scouting data has been recorded for this team.',
       );
     }
 

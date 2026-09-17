@@ -5,6 +5,7 @@ import 'package:beariscope/pages/team_lookup/tabs/media_save_helper.dart';
 import 'package:beariscope/pages/team_lookup/team_providers.dart';
 import 'package:beariscope/widgets/beariscope_card.dart';
 import 'package:beariscope/widgets/settings_group.dart';
+import 'package:beariscope/widgets/beariscope_status_view.dart';
 import 'package:flutter/gestures.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
@@ -48,14 +49,23 @@ class _MediaTabState extends ConsumerState<MediaTab> {
 
     return mediaAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Error: $e')),
+      error: (e, _) => BeariscopeStatusView(
+        icon: LucideIcons.circleAlert,
+        iconColor: Theme.of(context).colorScheme.error,
+        title: 'Media unavailable',
+        subtitle: 'Error loading media: $e',
+      ),
       data: (media) {
         final sections = _MediaSections.fromRecords(
           media.where((record) => !record.isAvatar),
         );
 
         if (sections.isEmpty && websiteMetadataFuture == null) {
-          return const Center(child: Text('No media recorded for this team.'));
+          return const BeariscopeStatusView(
+            icon: LucideIcons.images,
+            title: 'No media recorded',
+            subtitle: 'No media has been recorded for this team.',
+          );
         }
 
         if (sections.isEmpty && websiteMetadataFuture != null) {
@@ -68,8 +78,10 @@ class _MediaTabState extends ConsumerState<MediaTab> {
 
               final metadata = snapshot.data;
               if (metadata == null) {
-                return const Center(
-                  child: Text('No media recorded for this team.'),
+                return const BeariscopeStatusView(
+                  icon: LucideIcons.images,
+                  title: 'No media recorded',
+                  subtitle: 'No media has been recorded for this team.',
                 );
               }
 

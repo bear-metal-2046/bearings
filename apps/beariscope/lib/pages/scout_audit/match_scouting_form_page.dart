@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:beariscope/models/scouting_document.dart';
 import 'package:beariscope/providers/scouting_data_provider.dart';
+import 'package:beariscope/widgets/beariscope_status_view.dart';
 import 'package:core/core.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
@@ -149,7 +150,12 @@ class _MatchScoutingFormPageState extends ConsumerState<MatchScoutingFormPage> {
         ],
       ),
       body: _configError != null
-          ? Center(child: Text('Failed to load match form: $_configError'))
+          ? BeariscopeStatusView(
+              icon: LucideIcons.circleAlert,
+              iconColor: Theme.of(context).colorScheme.error,
+              title: 'Match form unavailable',
+              subtitle: 'Failed to load match form: $_configError',
+            )
           : (config == null || data == null)
           ? const Center(child: CircularProgressIndicator())
           : Padding(

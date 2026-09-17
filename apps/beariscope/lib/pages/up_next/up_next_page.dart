@@ -10,6 +10,7 @@ import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/nexus_event_key_provider.dart';
 import 'package:beariscope/providers/tba_preferences_provider.dart';
 import 'package:beariscope/widgets/beariscope_card.dart';
+import 'package:beariscope/widgets/beariscope_status_view.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -151,7 +152,6 @@ class _UpNextPageState extends ConsumerState<UpNextPage> {
           return _MatchList(
             matches: filteredMatches,
             eventContext: enrichedEvent.asData?.value?.context,
-            emptyMessage: 'No matches found. Is the schedule released?',
             timeFormat: UpNextPage.timeFormat,
             onRefresh: refreshSchedule,
           );
@@ -221,14 +221,12 @@ class _MatchList extends StatelessWidget {
   const _MatchList({
     required this.matches,
     required this.eventContext,
-    required this.emptyMessage,
     required this.timeFormat,
     required this.onRefresh,
   });
 
   final List<UpNextMatch> matches;
   final UpNextEventContext? eventContext;
-  final String emptyMessage;
   final DateFormat timeFormat;
   final Future<void> Function() onRefresh;
 
@@ -238,7 +236,14 @@ class _MatchList extends StatelessWidget {
       if (eventContext != null)
         _EventContextHeader(eventContext: eventContext!),
       if (matches.isEmpty)
-        SizedBox(height: 320, child: Center(child: Text(emptyMessage)))
+        const SizedBox(
+          height: 320,
+          child: BeariscopeStatusView(
+            icon: LucideIcons.calendar,
+            title: 'No matches found',
+            subtitle: 'Is the schedule released?',
+          ),
+        )
       else
         ...matches.map((match) {
           final matchTime = match.displayTime;
