@@ -16,10 +16,7 @@ class HoneycombEnrichedEvent {
 
     if (context == null && nexusMatches.isEmpty) return null;
 
-    return HoneycombEnrichedEvent(
-      context: context,
-      nexusMatches: nexusMatches,
-    );
+    return HoneycombEnrichedEvent(context: context, nexusMatches: nexusMatches);
   }
 }
 
