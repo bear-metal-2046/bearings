@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:beariscope/models/match_nexus_info.dart';
 import 'package:beariscope/models/up_next_match.dart';
 import 'package:beariscope/pages/main_view.dart';
+import 'package:beariscope/pages/up_next/enriched_current_event_provider.dart';
 import 'package:beariscope/pages/up_next/up_next_provider.dart';
 import 'package:beariscope/pages/up_next/up_next_widget.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
@@ -38,6 +39,7 @@ class _UpNextPageState extends ConsumerState<UpNextPage> {
     super.initState();
     _refreshTimer = Timer.periodic(_refreshInterval, (_) {
       if (!mounted) return;
+      ref.invalidate(enrichedCurrentEventProvider);
       ref.invalidate(upNextProvider);
       ref.invalidate(upNextEventContextProvider);
     });
@@ -57,6 +59,7 @@ class _UpNextPageState extends ConsumerState<UpNextPage> {
     final currentEventKey = ref.watch(currentEventProvider);
 
     Future<void> refreshSchedule() async {
+      ref.invalidate(enrichedCurrentEventProvider);
       ref.invalidate(upNextProvider);
       ref.invalidate(upNextEventContextProvider);
       ref.invalidate(teamEventsProvider);

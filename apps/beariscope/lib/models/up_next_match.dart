@@ -7,8 +7,14 @@ class UpNextMatch {
 
   const UpNextMatch({required this.raw, this.nexus});
 
-  factory UpNextMatch.fromMap(Map<String, dynamic> map) {
-    return UpNextMatch(raw: map, nexus: MatchNexusInfo.fromMatchJson(map));
+  factory UpNextMatch.fromMap(
+    Map<String, dynamic> map, {
+    MatchNexusInfo? nexus,
+  }) {
+    return UpNextMatch(
+      raw: map,
+      nexus: nexus ?? MatchNexusInfo.fromMatchJson(map),
+    );
   }
 
   String get key => raw['key']?.toString() ?? '';

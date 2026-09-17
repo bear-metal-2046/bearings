@@ -4,21 +4,22 @@ import 'package:material_ui/material_ui.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class MatchNexusDetails extends StatelessWidget {
-  const MatchNexusDetails({super.key, required this.match});
+  const MatchNexusDetails({super.key, required this.match, this.nexus});
 
   final Map<String, dynamic> match;
+  final MatchNexusInfo? nexus;
 
   @override
   Widget build(BuildContext context) {
-    final nexus = MatchNexusInfo.fromMatchJson(match);
-    if (nexus == null) return const SizedBox.shrink();
+    final info = nexus ?? MatchNexusInfo.fromMatchJson(match);
+    if (info == null) return const SizedBox.shrink();
 
     final colorScheme = Theme.of(context).colorScheme;
     final rows = <({String label, DateTime? time})>[
-      (label: 'Estimated queue', time: nexus.estimatedQueueTime),
-      (label: 'On deck', time: nexus.estimatedOnDeckTime),
-      (label: 'On field', time: nexus.estimatedOnFieldTime),
-      (label: 'Estimated start', time: nexus.estimatedStartTime),
+      (label: 'Estimated queue', time: info.estimatedQueueTime),
+      (label: 'On deck', time: info.estimatedOnDeckTime),
+      (label: 'On field', time: info.estimatedOnFieldTime),
+      (label: 'Estimated start', time: info.estimatedStartTime),
     ].where((row) => row.time != null).toList();
 
     return Padding(
@@ -41,16 +42,16 @@ class MatchNexusDetails extends StatelessWidget {
                         'Nexus queue',
                         style: Theme.of(context).textTheme.titleSmall,
                       ),
-                      if (nexus.status != null) ...[
+                      if (info.status != null) ...[
                         const Spacer(),
                         _StatusChip(
-                          status: nexus.status!,
+                          status: info.status!,
                           colorScheme: colorScheme,
                         ),
                       ],
                     ],
                   ),
-                  if (nexus.label != null) Text(nexus.label!),
+                  if (info.label != null) Text(info.label!),
                   ...rows.map(
                     (row) => Text(
                       '${row.label}: ${UpNextPage.timeFormat.format(row.time!)}',

@@ -1,12 +1,23 @@
 import 'package:beariscope/models/match_nexus_info.dart';
 import 'package:beariscope/models/up_next_match.dart';
+import 'package:beariscope/pages/up_next/enriched_current_event_provider.dart';
+import 'package:beariscope/pages/up_next/nexus_match_merge.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:services/providers/api_provider.dart';
 
+final upNextEventContextProvider = FutureProvider<UpNextEventContext?>((
+  ref,
+) async {
+  final enriched = await ref.watch(enrichedCurrentEventProvider.future);
+  return enriched?.context;
+});
+
 final upNextProvider = FutureProvider<List<UpNextMatch>>((ref) async {
   final client = ref.watch(honeycombClientProvider);
   final currentEventKey = ref.watch(currentEventProvider);
+  final enriched = await ref.watch(enrichedCurrentEventProvider.future);
+  final nexusMatches = enriched?.nexusMatches ?? const <MatchNexusInfo>[];
 
   final matches = await client.get<List<dynamic>>(
     '/matches',
@@ -19,35 +30,16 @@ final upNextProvider = FutureProvider<List<UpNextMatch>>((ref) async {
           .whereType<Map>()
           .map((match) => Map<String, dynamic>.from(match))
           .where((match) => eventKeyForMatch(match) == currentEventKey)
-          .map(UpNextMatch.fromMap)
+          .map(
+            (match) => UpNextMatch.fromMap(
+              match,
+              nexus: nexusMatchForTbaMatch(match, nexusMatches),
+            ),
+          )
           .toList()
         ..sort((a, b) => compareMatchesForUpNext(a.raw, b.raw));
 
   return eventMatches;
-});
-
-final upNextEventContextProvider = FutureProvider<UpNextEventContext?>((
-  ref,
-) async {
-  final currentEventKey = ref.watch(currentEventProvider);
-  final client = ref.watch(honeycombClientProvider);
-  final year = DateTime.now().year;
-
-  try {
-    final response = await client.get<List<dynamic>>(
-      '/events',
-      queryParams: {'team': 'frc2046', 'year': year, 'enrich': true},
-      cachePolicy: CachePolicy.networkFirst,
-    );
-
-    for (final raw in response.whereType<Map>()) {
-      final event = Map<String, dynamic>.from(raw);
-      if (event['key']?.toString() != currentEventKey) continue;
-      return UpNextEventContext.fromEventJson(event);
-    }
-  } catch (_) {}
-
-  return null;
 });
 
 String? eventKeyForMatch(Map<String, dynamic> match) {

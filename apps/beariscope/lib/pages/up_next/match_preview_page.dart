@@ -1,5 +1,7 @@
 import 'package:beariscope/models/drive_team_note.dart';
 import 'package:beariscope/pages/up_next/match_nexus_details.dart';
+import 'package:beariscope/pages/up_next/enriched_current_event_provider.dart';
+import 'package:beariscope/pages/up_next/nexus_match_merge.dart';
 import 'package:beariscope/pages/up_next/up_next_provider.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/drive_team_notes_provider.dart';
@@ -72,6 +74,7 @@ class _DriveTeamMatchPreviewPageState
     final permissionChecker = ref.watch(permissionCheckerProvider);
     final matchPreviewLayout = ref.watch(matchPreviewLayoutProvider);
     final scrollVertical = matchPreviewLayout == MatchPreviewLayout.vertical;
+    final enrichedEvent = ref.watch(enrichedCurrentEventProvider);
 
     return matchAsync.when(
       loading: () => Scaffold(
@@ -225,7 +228,15 @@ class _DriveTeamMatchPreviewPageState
           body: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              MatchNexusDetails(match: match),
+              MatchNexusDetails(
+                match: match,
+                nexus: enrichedEvent.maybeWhen(
+                  data: (enriched) => enriched == null
+                      ? null
+                      : nexusMatchForTbaMatch(match, enriched.nexusMatches),
+                  orElse: () => null,
+                ),
+              ),
               Expanded(
                 child: LayoutBuilder(
                   builder: (context, constraints) {

@@ -1,6 +1,8 @@
 class MatchNexusInfo {
   final String? label;
   final String? status;
+  final List<String> redTeams;
+  final List<String> blueTeams;
   final DateTime? estimatedQueueTime;
   final DateTime? estimatedOnDeckTime;
   final DateTime? estimatedOnFieldTime;
@@ -10,6 +12,8 @@ class MatchNexusInfo {
   const MatchNexusInfo({
     this.label,
     this.status,
+    this.redTeams = const [],
+    this.blueTeams = const [],
     this.estimatedQueueTime,
     this.estimatedOnDeckTime,
     this.estimatedOnFieldTime,
@@ -66,6 +70,8 @@ class MatchNexusInfo {
     return MatchNexusInfo(
       label: label,
       status: status,
+      redTeams: _parseTeamList(json['redTeams'] ?? json['red_teams']),
+      blueTeams: _parseTeamList(json['blueTeams'] ?? json['blue_teams']),
       estimatedQueueTime: _parseTimestamp(
         times['estimatedQueueTime'] ?? times['estimated_queue_time'],
       ),
@@ -115,7 +121,8 @@ class UpNextEventContext {
       source['dataAsOfTime'] ??
           source['data_as_of_time'] ??
           json['dataAsOfTime'] ??
-          json['data_as_of_time'],
+          json['data_as_of_time'] ??
+          json['nexusDataAsOfTime'],
     );
 
     if (nowQueuing == null && announcements.isEmpty && dataAsOfTime == null) {
@@ -148,7 +155,8 @@ List<String> _parseAnnouncements(Object? value) {
       .map((entry) {
         if (entry is String) return entry;
         if (entry is Map) {
-          return entry['message']?.toString() ??
+          return entry['announcement']?.toString() ??
+              entry['message']?.toString() ??
               entry['text']?.toString() ??
               '';
         }
@@ -156,6 +164,11 @@ List<String> _parseAnnouncements(Object? value) {
       })
       .where((message) => message.isNotEmpty)
       .toList();
+}
+
+List<String> _parseTeamList(Object? value) {
+  if (value is! List) return const [];
+  return value.map((team) => team.toString()).toList();
 }
 
 String? _string(Object? value) {
