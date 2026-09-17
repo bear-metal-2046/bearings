@@ -1,21 +1,18 @@
-import 'package:beariscope/pages/picklists/picklist_provider.dart';
 import 'package:beariscope/models/match_field_ids.dart';
 import 'package:beariscope/models/team_scouting_bundle.dart';
+import 'package:beariscope/pages/picklists/picklist_model.dart';
+import 'package:beariscope/pages/picklists/picklist_provider.dart';
 import 'package:beariscope/pages/team_lookup/team_model.dart';
 import 'package:beariscope/pages/team_lookup/team_providers.dart';
-import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/rankings_provider.dart';
 import 'package:beariscope/providers/team_scouting_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:services/providers/permissions_provider.dart';
 
-enum _StartingOrder {
-  blank,
-  totalAverage,
-  eventRank,
-}
+enum _StartingOrder { blank, totalAverage, eventRank }
 
 extension on _StartingOrder {
   String get label => switch (this) {
@@ -52,6 +49,7 @@ class _PicklistsCreatePageState extends ConsumerState<PicklistsCreatePage> {
   final _titleController = TextEditingController(text: 'My Picklist');
   final _teamCountController = TextEditingController(text: '24');
   _StartingOrder _order = _StartingOrder.blank;
+  PicklistMode _mode = PicklistMode.offline;
   bool _creating = false;
 
   @override
@@ -63,9 +61,14 @@ class _PicklistsCreatePageState extends ConsumerState<PicklistsCreatePage> {
 
   @override
   Widget build(BuildContext context) {
-    final eventKey = ref.watch(currentEventProvider);
+    final canCreateMultiplayer =
+        ref
+            .watch(permissionCheckerProvider)
+            ?.hasPermission(PermissionKey.picklistsManage) ??
+        false;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('New Offline Picklist')),
+      appBar: AppBar(title: const Text('New Picklist')),
       body: SafeArea(
         child: Form(
           key: _formKey,
@@ -90,6 +93,33 @@ class _PicklistsCreatePageState extends ConsumerState<PicklistsCreatePage> {
                             ? 'Enter a name'
                             : null,
                       ),
+                      const SizedBox(height: 26),
+                      Text(
+                        'Picklist type',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      const SizedBox(height: 10),
+                      ...PicklistMode.values.map(
+                        (mode) => Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: _ModeCard(
+                            mode: mode,
+                            selected: mode == _mode,
+                            enabled:
+                                mode == PicklistMode.offline ||
+                                canCreateMultiplayer,
+                            onTap: () => setState(() => _mode = mode),
+                          ),
+                        ),
+                      ),
+                      if (!canCreateMultiplayer)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 18),
+                          child: Text(
+                            'Multiplayer picklists require the picklists.manage permission.',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ),
                       const SizedBox(height: 26),
                       Text(
                         'Choose a starting point',
@@ -117,7 +147,7 @@ class _PicklistsCreatePageState extends ConsumerState<PicklistsCreatePage> {
                                   controller: _teamCountController,
                                   keyboardType: TextInputType.number,
                                   decoration: const InputDecoration(
-                                    labelText: 'Maximum teams',
+                                    labelText: 'Amount to add',
                                     helperText: 'You can add, remove, and reorder teams later.',
                                     border: OutlineInputBorder(),
                                     prefixIcon: Icon(LucideIcons.users),
@@ -175,9 +205,20 @@ class _PicklistsCreatePageState extends ConsumerState<PicklistsCreatePage> {
     setState(() => _creating = true);
     try {
       final teams = await _prepopulatedTeams();
+      final canCreateMultiplayer =
+          ref
+              .read(permissionCheckerProvider)
+              ?.hasPermission(PermissionKey.picklistsManage) ??
+          false;
       final picklist = ref
           .read(picklistLibraryProvider.notifier)
-          .create(title: _titleController.text, teamKeys: teams);
+          .create(
+            title: _titleController.text,
+            teamKeys: teams,
+            mode: _mode == PicklistMode.multiplayer && canCreateMultiplayer
+                ? PicklistMode.multiplayer
+                : PicklistMode.offline,
+          );
       if (mounted) context.go('/picklists/${picklist.id}');
     } catch (error) {
       if (!mounted) return;
@@ -287,6 +328,94 @@ class _OrderCard extends StatelessWidget {
                   ),
                 ),
                 child: selected
+                    ? Icon(LucideIcons.check, size: 14, color: colors.onPrimary)
+                    : null,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ModeCard extends StatelessWidget {
+  final PicklistMode mode;
+  final bool selected;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  const _ModeCard({
+    required this.mode,
+    required this.selected,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final foreground = enabled
+        ? (selected ? colors.onPrimaryContainer : colors.onSurface)
+        : colors.onSurface.withValues(alpha: .45);
+    return Material(
+      color: selected && enabled
+          ? colors.primaryContainer
+          : colors.surfaceContainerLow,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: enabled ? onTap : null,
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Icon(
+                mode == PicklistMode.multiplayer
+                    ? LucideIcons.users
+                    : LucideIcons.hardDrive,
+                color: foreground,
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      mode.label,
+                      style: TextStyle(
+                        color: foreground,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      enabled
+                          ? mode.description
+                          : 'Requires multiplayer access.',
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: foreground),
+                    ),
+                  ],
+                ),
+              ),
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: selected && enabled
+                      ? colors.primary
+                      : Colors.transparent,
+                  border: Border.all(
+                    color: selected && enabled
+                        ? colors.primary
+                        : colors.outline,
+                    width: 2,
+                  ),
+                ),
+                child: selected && enabled
                     ? Icon(LucideIcons.check, size: 14, color: colors.onPrimary)
                     : null,
               ),

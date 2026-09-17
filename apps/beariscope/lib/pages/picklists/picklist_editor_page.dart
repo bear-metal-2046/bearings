@@ -1,6 +1,13 @@
+import 'package:beariscope/pages/picklists/picklist_emoji.dart';
 // dart format width=120
 
 import 'dart:async';
+
+import 'package:beariscope/pages/picklists/picklist_options_sheet.dart';
+
+import 'package:beariscope/pages/picklists/picklist_duplicate_dialog.dart';
+import 'package:beariscope/pages/picklists/picklist_presence_stack.dart';
+
 import 'dart:math' as math;
 
 import 'package:beariscope/models/match_field_ids.dart';
@@ -18,6 +25,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:sheet/sheet.dart';
 
 class PicklistEditorPage extends ConsumerStatefulWidget {
   final String picklistId;
@@ -28,54 +36,41 @@ class PicklistEditorPage extends ConsumerStatefulWidget {
   ConsumerState<PicklistEditorPage> createState() => _PicklistEditorPageState();
 }
 
-class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage> with SingleTickerProviderStateMixin {
+class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage> {
   static const _collapsedSheetHeight = 64.0;
 
   final _dragPosition = ValueNotifier<Offset?>(null);
   final _dragPresentation = _DragPresentation();
-  final _titleController = TextEditingController();
-  final _sheetHeight = ValueNotifier<double>(_collapsedSheetHeight);
-  late final AnimationController _sheetController;
-  late Animation<double> _sheetAnimation;
+  final _sheetController = SheetController();
   Timer? _copyResetTimer;
-  bool _didSetTitle = false;
+  PicklistLibraryNotifier? _library;
   bool _showCopyCheck = false;
   bool _mobileLibraryExpanded = false;
   bool _isDesktopLayout = false;
-  bool _draggingSheet = false;
   String? _draggingTeam;
   bool get _isDraggingTeam => _draggingTeam != null;
   double _mobileMaxHeight = 560;
 
   @override
-  void initState() {
-    super.initState();
-    _sheetController = AnimationController(vsync: this, duration: const Duration(milliseconds: 350));
-    _sheetAnimation = const AlwaysStoppedAnimation(_collapsedSheetHeight);
-    _sheetController.addListener(() {
-      if (!_draggingSheet) _sheetHeight.value = _sheetAnimation.value;
-    });
-  }
-
-  @override
   void dispose() {
+    _library?.close(widget.picklistId);
     _copyResetTimer?.cancel();
     _sheetController.dispose();
-    _sheetHeight.dispose();
     _dragPosition.dispose();
-    _titleController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final picklist = ref.watch(picklistLibraryProvider).where((item) => item.id == widget.picklistId).firstOrNull;
+    final picklist = ref
+        .watch(picklistLibraryProvider)
+        .where((item) => item.id == widget.picklistId)
+        .firstOrNull;
     if (picklist == null) return _missingPicklist();
 
-    if (!_didSetTitle) {
-      _didSetTitle = true;
-      _titleController.text = picklist.title;
-    }
+    _library = ref.read(picklistLibraryProvider.notifier);
+    final session = _library!.open(picklist.id);
+    final canEdit = _library!.canEdit(picklist);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -84,10 +79,12 @@ class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage> with Si
 
         final editor = _PicklistSurface(
           picklist: picklist,
+          canEdit: canEdit,
           isDraggingTeam: _isDraggingTeam,
           dragPosition: _dragPosition,
           onDraggingChanged: _setTeamDragging,
-          onInsertTeam: (teamKey, index) => _insertTeam(picklist, teamKey, index),
+          onInsertTeam: (teamKey, index) =>
+              _insertTeam(picklist, teamKey, index),
           onRemoveTeam: (teamKey) => _removeTeam(picklist, teamKey),
         );
 
@@ -100,50 +97,104 @@ class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage> with Si
                 onPressed: () => context.go('/picklists'),
                 icon: const Icon(LucideIcons.arrowLeft),
               ),
-              title: TextField(
-                controller: _titleController,
-                maxLines: 1,
-                decoration: const InputDecoration(border: InputBorder.none, hintText: 'Untitled Picklist'),
-                style: Theme.of(context).textTheme.titleLarge,
-                onChanged: (value) => ref.read(picklistLibraryProvider.notifier).rename(picklist.id, value),
+              titleSpacing: 0,
+              title: Tooltip(
+                message: canEdit
+                    ? 'Edit picklist name and emoji'
+                    : picklist.title,
+                child: TextButton(
+                  onPressed: canEdit
+                      ? () => showPicklistOptions(context, ref, picklist)
+                      : null,
+                  style: TextButton.styleFrom(
+                    foregroundColor: Theme.of(context).colorScheme.onSurface,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    minimumSize: const Size(48, 48),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      PicklistEmoji(picklist.emoji, size: 26),
+                      const SizedBox(width: 10),
+                      Flexible(
+                        child: Text(
+                          picklist.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                      ),
+                      if (canEdit) ...[
+                        const SizedBox(width: 6),
+                        const Icon(Icons.expand_more, size: 20),
+                      ],
+                    ],
+                  ),
+                ),
               ),
               actions: [
+                if (session != null)
+                  PicklistPresenceStack(presence: session.presence),
                 if (desktop)
                   IconButton(
                     tooltip: 'Copy team numbers',
-                    onPressed: picklist.teamKeys.isEmpty ? null : () => _copyTeams(picklist.teamKeys),
+                    onPressed: picklist.teamKeys.isEmpty
+                        ? null
+                        : () => _copyTeams(picklist.teamKeys),
                     icon: AnimatedSwitcher(
                       duration: _motionDuration(context),
-                      child: Icon(_showCopyCheck ? LucideIcons.check : LucideIcons.copy, key: ValueKey(_showCopyCheck)),
+                      child: Icon(
+                        _showCopyCheck ? LucideIcons.check : LucideIcons.copy,
+                        key: ValueKey(_showCopyCheck),
+                      ),
                     ),
                   ),
-                PopupMenuButton<String>(
-                  onSelected: (value) {
-                    if (value == 'clear') _confirmClear(picklist);
-                    if (value == 'copy') _copyTeams(picklist.teamKeys);
-                  },
-                  tooltip: 'Picklist options',
-                  itemBuilder: (context) => [
-                    if (!desktop)
-                      PopupMenuItem(
-                        value: 'copy',
-                        enabled: picklist.teamKeys.isNotEmpty,
-                        child: const Text('Copy team numbers'),
+                if (canEdit)
+                  PopupMenuButton<String>(
+                    onSelected: (value) {
+                      if (value == 'duplicate')
+                        duplicatePicklist(context, ref, picklist);
+                      if (value == 'clear') _confirmClear(picklist);
+                      if (value == 'copy') _copyTeams(picklist.teamKeys);
+                    },
+                    tooltip: 'Picklist options',
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'duplicate',
+                        child: Text('Duplicate…'),
                       ),
-                    const PopupMenuItem(
-                      value: 'clear',
-                      child: Row(children: [Icon(LucideIcons.trash2), SizedBox(width: 12), Text('Clear teams')]),
-                    ),
-                  ],
-                ),
+                      if (!desktop)
+                        PopupMenuItem(
+                          value: 'copy',
+                          enabled: picklist.teamKeys.isNotEmpty,
+                          child: const Text('Copy team numbers'),
+                        ),
+                      PopupMenuItem(
+                        enabled: canEdit,
+                        value: 'clear',
+                        child: Row(
+                          children: [
+                            Icon(LucideIcons.trash2),
+                            SizedBox(width: 12),
+                            Text('Clear teams'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
               ],
             ),
             body: SafeArea(
               top: false,
               child: LayoutBuilder(
                 builder: (context, bodyConstraints) {
-                  _mobileMaxHeight = math.max(_collapsedSheetHeight, math.min(700, bodyConstraints.maxHeight * .8));
-                  return desktop ? _desktopBody(picklist, editor) : _mobileBody(picklist, editor);
+                  _mobileMaxHeight = math.max(
+                    _collapsedSheetHeight,
+                    math.min(700, bodyConstraints.maxHeight * .8),
+                  );
+                  return desktop
+                      ? _desktopBody(picklist, editor, canEdit)
+                      : _mobileBody(picklist, editor, canEdit);
                 },
               ),
             ),
@@ -153,7 +204,8 @@ class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage> with Si
     );
   }
 
-  Widget _desktopBody(Picklist picklist, Widget editor) {
+  Widget _desktopBody(Picklist picklist, Widget editor, bool canEdit) {
+    if (!canEdit) return editor;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -164,19 +216,25 @@ class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage> with Si
             _TeamLibrary(
               returning: _isDraggingTeam,
               selectedTeamKeys: picklist.teamKeys.toSet(),
-              onAdd: (teamKey) => _insertTeam(picklist, teamKey, picklist.teamKeys.length),
+              onAdd: (teamKey) =>
+                  _insertTeam(picklist, teamKey, picklist.teamKeys.length),
               onDraggingChanged: _setTeamDragging,
               onDragUpdate: (position) => _dragPosition.value = position,
             ),
           ),
         ),
-        VerticalDivider(width: 1, thickness: 1, color: Theme.of(context).colorScheme.outlineVariant),
+        VerticalDivider(
+          width: 1,
+          thickness: 1,
+          color: Theme.of(context).colorScheme.outlineVariant,
+        ),
         Expanded(child: editor),
       ],
     );
   }
 
-  Widget _mobileBody(Picklist picklist, Widget editor) {
+  Widget _mobileBody(Picklist picklist, Widget editor, bool canEdit) {
+    if (!canEdit) return editor;
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -184,21 +242,28 @@ class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage> with Si
           padding: const EdgeInsets.only(bottom: _collapsedSheetHeight),
           child: editor,
         ),
-        ValueListenableBuilder<double>(
-          valueListenable: _sheetHeight,
-          builder: (context, height, _) => Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: height.clamp(_collapsedSheetHeight, _mobileMaxHeight),
+        Sheet.raw(
+          controller: _sheetController,
+          initialExtent: _collapsedSheetHeight,
+          minExtent: _collapsedSheetHeight,
+          maxExtent: _mobileMaxHeight,
+          physics: SnapSheetPhysics(
+            stops: <double>[_collapsedSheetHeight, _mobileMaxHeight],
+            relative: false,
+          ),
+          child: SizedBox(
+            height: _mobileMaxHeight,
             child: _returnTarget(
               picklist,
               DecoratedBox(
                 decoration: BoxDecoration(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(20),
+                  ),
                   boxShadow: [
                     BoxShadow(
-                      color: Theme.of(context).colorScheme.shadow.withValues(alpha: .22),
+                      color: Theme.of(context).colorScheme.shadow
+                          .withValues(alpha: .22),
                       blurRadius: 24,
                       offset: const Offset(0, -4),
                     ),
@@ -207,54 +272,41 @@ class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage> with Si
                 child: Material(
                   color: Theme.of(context).colorScheme.surfaceContainerLow,
                   surfaceTintColor: Colors.transparent,
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(20),
+                  ),
                   clipBehavior: Clip.antiAlias,
                   child: Column(
                     children: [
                       GestureDetector(
                         behavior: HitTestBehavior.opaque,
                         onTap: _toggleMobileLibrary,
-                        onVerticalDragStart: (_) {
-                          _draggingSheet = true;
-                          _sheetController.stop();
-                        },
-                        onVerticalDragUpdate: (details) {
-                          _sheetHeight.value = (_sheetHeight.value - details.delta.dy)
-                              .clamp(_collapsedSheetHeight, _mobileMaxHeight)
-                              .toDouble();
-                        },
-                        onVerticalDragCancel: () {
-                          _draggingSheet = false;
-                          _snapMobileLibrary(0);
-                        },
-                        onVerticalDragEnd: (details) {
-                          _draggingSheet = false;
-                          _snapMobileLibrary(details.primaryVelocity ?? 0);
-                        },
-                        child: Semantics(
-                          button: true,
-                          label: 'Toggle team library',
-                          child: _TeamLibraryHeader(
-                            selectedCount: picklist.teamKeys.length,
-                            expanded: height > _collapsedSheetHeight + 10,
-                            returning: _isDraggingTeam,
+                        child: AnimatedBuilder(
+                          animation: _sheetController.animation,
+                          builder: (context, _) => Semantics(
+                            button: true,
+                            label: 'Toggle team library',
+                            child: _TeamLibraryHeader(
+                              selectedCount: picklist.teamKeys.length,
+                              expanded:
+                                  _sheetExtent > _collapsedSheetHeight + 10,
+                              returning: _isDraggingTeam,
+                            ),
                           ),
                         ),
                       ),
                       Expanded(
-                        child: ClipRect(
-                          child: OverflowBox(
-                            alignment: Alignment.topCenter,
-                            minHeight: math.max(160, _mobileMaxHeight - _collapsedSheetHeight),
-                            maxHeight: math.max(160, _mobileMaxHeight - _collapsedSheetHeight),
-                            child: _TeamLibrary(
-                              selectedTeamKeys: picklist.teamKeys.toSet(),
-                              onAdd: (teamKey) => _insertTeam(picklist, teamKey, picklist.teamKeys.length),
-                              onDraggingChanged: _setTeamDragging,
-                              onDragUpdate: (position) => _dragPosition.value = position,
-                              showHeader: false,
-                            ),
+                        child: _TeamLibrary(
+                          selectedTeamKeys: picklist.teamKeys.toSet(),
+                          onAdd: (teamKey) => _insertTeam(
+                            picklist,
+                            teamKey,
+                            picklist.teamKeys.length,
                           ),
+                          onDraggingChanged: _setTeamDragging,
+                          onDragUpdate: (position) =>
+                              _dragPosition.value = position,
+                          showHeader: false,
                         ),
                       ),
                     ],
@@ -268,14 +320,26 @@ class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage> with Si
     );
   }
 
+  double get _sheetExtent => _sheetController.hasClients
+      ? _sheetController.position.pixels
+      : _collapsedSheetHeight;
+
   void _setTeamDragging(String? value) {
     if (!mounted || _draggingTeam == value) return;
+    if (!_isDesktopLayout && value != null) {
+      _mobileLibraryExpanded =
+          _sheetExtent >= (_mobileMaxHeight + _collapsedSheetHeight) / 2;
+    }
     setState(() => _draggingTeam = value);
     if (value == null) _dragPosition.value = null;
     if (value != null) FocusManager.instance.primaryFocus?.unfocus();
     if (!_isDesktopLayout) {
       _animateSheet(
-        value != null ? _collapsedSheetHeight : (_mobileLibraryExpanded ? _mobileMaxHeight : _collapsedSheetHeight),
+        value != null
+            ? _collapsedSheetHeight
+            : (_mobileLibraryExpanded
+                  ? _mobileMaxHeight
+                  : _collapsedSheetHeight),
       );
     }
   }
@@ -292,7 +356,9 @@ class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage> with Si
               ? Theme.of(context).colorScheme.primary.withValues(alpha: .12)
               : Colors.transparent,
           border: Border.all(
-            color: candidates.isNotEmpty ? Theme.of(context).colorScheme.primary : Colors.transparent,
+            color: candidates.isNotEmpty
+                ? Theme.of(context).colorScheme.primary
+                : Colors.transparent,
             width: 2,
           ),
           borderRadius: BorderRadius.circular(16),
@@ -303,6 +369,7 @@ class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage> with Si
   }
 
   void _removeTeam(Picklist picklist, String teamKey) {
+    if (!(_library?.canEdit(picklist) ?? false)) return;
     _setTeamDragging(null);
     final index = picklist.teamKeys.indexOf(teamKey);
     if (index < 0) return;
@@ -311,6 +378,7 @@ class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage> with Si
   }
 
   void _insertTeam(Picklist picklist, String teamKey, int index) {
+    if (!(_library?.canEdit(picklist) ?? false)) return;
     if (!_isDesktopLayout && _isDraggingTeam) _mobileLibraryExpanded = false;
     _setTeamDragging(null);
     HapticFeedback.mediumImpact();
@@ -326,31 +394,19 @@ class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage> with Si
 
   void _toggleMobileLibrary() {
     HapticFeedback.lightImpact();
-    _mobileLibraryExpanded = !_mobileLibraryExpanded;
-    _animateSheet(_mobileLibraryExpanded ? _mobileMaxHeight : _collapsedSheetHeight);
-  }
-
-  void _snapMobileLibrary(double velocity) {
-    final midpoint = (_mobileMaxHeight + _collapsedSheetHeight) / 2;
-    final expand = velocity.abs() > 150 ? velocity < 0 : _sheetHeight.value >= midpoint;
-    _mobileLibraryExpanded = expand;
-    HapticFeedback.lightImpact();
-    _animateSheet(expand ? _mobileMaxHeight : _collapsedSheetHeight);
+    _mobileLibraryExpanded =
+        _sheetExtent < (_mobileMaxHeight + _collapsedSheetHeight) / 2;
+    _animateSheet(
+      _mobileLibraryExpanded ? _mobileMaxHeight : _collapsedSheetHeight,
+    );
   }
 
   void _animateSheet(double target) {
-    if (MediaQuery.disableAnimationsOf(context)) {
-      _sheetController.stop();
-      _sheetHeight.value = target;
-      return;
-    }
-    _sheetAnimation = Tween<double>(
-      begin: _sheetHeight.value,
-      end: target,
-    ).animate(CurvedAnimation(parent: _sheetController, curve: Curves.easeOutCubic));
-    _sheetController
-      ..reset()
-      ..forward();
+    _sheetController.animateTo(
+      target,
+      duration: _motionDuration(context),
+      curve: Curves.easeOutCubic,
+    );
   }
 
   Widget _missingPicklist() {
@@ -366,7 +422,10 @@ class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage> with Si
               subtitle: 'This picklist is not available for the current event.',
             ),
             const SizedBox(height: 16),
-            FilledButton(onPressed: () => context.go('/picklists'), child: const Text('Back to Picklists')),
+            FilledButton(
+              onPressed: () => context.go('/picklists'),
+              child: const Text('Back to Picklists'),
+            ),
           ],
         ),
       ),
@@ -374,7 +433,9 @@ class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage> with Si
   }
 
   void _copyTeams(List<String> teamKeys) {
-    final numbers = teamKeys.map((key) => RegExp(r'\d+').firstMatch(key)?.group(0) ?? key).join(',');
+    final numbers = teamKeys
+        .map((key) => RegExp(r'\d+').firstMatch(key)?.group(0) ?? key)
+        .join(',');
     Clipboard.setData(ClipboardData(text: numbers));
     setState(() => _showCopyCheck = true);
     _copyResetTimer?.cancel();
@@ -388,14 +449,23 @@ class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage> with Si
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Clear this picklist?'),
-        content: const Text('All teams will be removed. The empty picklist will remain in your library.'),
+        content: const Text(
+          'All teams will be removed. The empty picklist will remain in your library.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Clear')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Clear'),
+          ),
         ],
       ),
     );
-    if (clear == true) ref.read(picklistLibraryProvider.notifier).setTeams(picklist.id, []);
+    if (clear == true)
+      ref.read(picklistLibraryProvider.notifier).setTeams(picklist.id, []);
   }
 }
 
@@ -404,7 +474,11 @@ class _TeamLibraryHeader extends StatelessWidget {
   final bool? expanded;
   final bool returning;
 
-  const _TeamLibraryHeader({required this.selectedCount, this.expanded, this.returning = false});
+  const _TeamLibraryHeader({
+    required this.selectedCount,
+    this.expanded,
+    this.returning = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -452,16 +526,25 @@ class _TeamLibraryHeader extends StatelessWidget {
                       ),
                       if (MediaQuery.textScalerOf(context).scale(14) <= 17)
                         Text(
-                          returning ? 'Return to team library' : '$selectedCount teams in picklist',
+                          returning
+                              ? 'Return to team library'
+                              : '$selectedCount teams in picklist',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                              ?.copyWith(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                              ),
                         ),
                     ],
                   ),
                 ),
-                if (expanded != null) Icon(expanded! ? LucideIcons.chevronDown : LucideIcons.chevronUp),
+                if (expanded != null)
+                  Icon(
+                    expanded! ? LucideIcons.chevronDown : LucideIcons.chevronUp,
+                  ),
               ],
             ),
           ),
@@ -516,13 +599,16 @@ class _TeamLibraryState extends ConsumerState<_TeamLibrary> {
   @override
   Widget build(BuildContext context) {
     final selectedSort = ref.watch(teamSortProvider);
-    final rankings = ref.watch(eventRankingsProvider).value ?? const <int, TeamRanking>{};
-    final mediaRecords = ref.watch(eventTeamMediaProvider).value ?? const <TeamMediaRecord>[];
+    final rankings =
+        ref.watch(eventRankingsProvider).value ?? const <int, TeamRanking>{};
+    final mediaRecords =
+        ref.watch(eventTeamMediaProvider).value ?? const <TeamMediaRecord>[];
     final avatarByTeam = <String, Uint8List>{};
     for (final record in mediaRecords) {
       if (!record.isAvatar || record.base64Image == null) continue;
       for (final key in record.teamKeys) {
-        if (record.preferred || !avatarByTeam.containsKey(key)) avatarByTeam[key] = record.base64Image!;
+        if (record.preferred || !avatarByTeam.containsKey(key))
+          avatarByTeam[key] = record.base64Image!;
       }
     }
     return ColoredBox(
@@ -530,7 +616,10 @@ class _TeamLibraryState extends ConsumerState<_TeamLibrary> {
       child: Column(
         children: [
           if (widget.showHeader)
-            _TeamLibraryHeader(selectedCount: widget.selectedTeamKeys.length, returning: widget.returning),
+            _TeamLibraryHeader(
+              selectedCount: widget.selectedTeamKeys.length,
+              returning: widget.returning,
+            ),
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
             child: Row(
@@ -545,7 +634,9 @@ class _TeamLibraryState extends ConsumerState<_TeamLibrary> {
                 PopupMenuButton<TeamSortOptions>(
                   tooltip: 'Sort teams',
                   icon: Icon(
-                    selectedSort.isAscending ? LucideIcons.arrowUpNarrowWide : LucideIcons.arrowDownWideNarrow,
+                    selectedSort.isAscending
+                        ? LucideIcons.arrowUpNarrowWide
+                        : LucideIcons.arrowDownWideNarrow,
                   ),
                   itemBuilder: (context) => TeamSortOptions.values
                       .map(
@@ -559,8 +650,11 @@ class _TeamLibraryState extends ConsumerState<_TeamLibrary> {
                   onSelected: (sort) {
                     final ascending = selectedSort.sort == sort
                         ? !selectedSort.isAscending
-                        : sort == TeamSortOptions.teamNumber || sort == TeamSortOptions.rank;
-                    ref.read(teamSortProvider.notifier).setSort(sort, ascending);
+                        : sort == TeamSortOptions.teamNumber ||
+                              sort == TeamSortOptions.rank;
+                    ref
+                        .read(teamSortProvider.notifier)
+                        .setSort(sort, ascending);
                   },
                 ),
               ],
@@ -571,12 +665,17 @@ class _TeamLibraryState extends ConsumerState<_TeamLibrary> {
             child: ref
                 .watch(teamsProvider)
                 .when(
-                  loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (error, _) => Center(child: Text('Could not load teams: $error')),
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (error, _) =>
+                      Center(child: Text('Could not load teams: $error')),
                   data: (rawTeams) {
                     final teams = rawTeams
                         .map(Team.fromJson)
-                        .where((team) => teamMatchesSearch(team, _searchController.text))
+                        .where(
+                          (team) =>
+                              teamMatchesSearch(team, _searchController.text),
+                        )
                         .toList();
                     _sortTeams(teams, selectedSort, rankings);
                     if (teams.isEmpty) {
@@ -589,11 +688,15 @@ class _TeamLibraryState extends ConsumerState<_TeamLibrary> {
                     return ListView.separated(
                       padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
                       itemCount: teams.length,
-                      separatorBuilder: (context, index) => const SizedBox(height: 8),
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(height: 8),
                       itemBuilder: (context, index) => Center(
                         child: ConstrainedBox(
                           constraints: const BoxConstraints(maxWidth: 600),
-                          child: _draggableTeam(teams[index], avatarByTeam[teams[index].key]),
+                          child: _draggableTeam(
+                            teams[index],
+                            avatarByTeam[teams[index].key],
+                          ),
                         ),
                       ),
                     );
@@ -622,10 +725,16 @@ class _TeamLibraryState extends ConsumerState<_TeamLibrary> {
     );
   }
 
-  void _sortTeams(List<Team> teams, TeamSort selectedSort, Map<int, TeamRanking> rankings) {
+  void _sortTeams(
+    List<Team> teams,
+    TeamSort selectedSort,
+    Map<int, TeamRanking> rankings,
+  ) {
     final scores = <int, double>{};
     final safety = <int, (int, int, int)>{};
-    final needsScouting = selectedSort.sort != TeamSortOptions.teamNumber && selectedSort.sort != TeamSortOptions.rank;
+    final needsScouting =
+        selectedSort.sort != TeamSortOptions.teamNumber &&
+        selectedSort.sort != TeamSortOptions.rank;
     if (needsScouting) {
       for (final team in teams) {
         final bundle = ref.watch(teamScoutingProvider(team.number)).value;
@@ -637,11 +746,21 @@ class _TeamLibraryState extends ConsumerState<_TeamLibrary> {
     teams.sort((a, b) {
       final comparison = switch (selectedSort.sort) {
         TeamSortOptions.teamNumber => a.number.compareTo(b.number),
-        TeamSortOptions.rank => (rankings[a.number]?.rank ?? 999999).compareTo(rankings[b.number]?.rank ?? 999999),
-        TeamSortOptions.custom => (scores[a.number] ?? 0).compareTo(scores[b.number] ?? 0),
-        TeamSortOptions.defense => (safety[a.number]?.$1 ?? 0).compareTo(safety[b.number]?.$1 ?? 0),
-        TeamSortOptions.noShow => (safety[a.number]?.$2 ?? 0).compareTo(safety[b.number]?.$2 ?? 0),
-        TeamSortOptions.brokeDown => (safety[a.number]?.$3 ?? 0).compareTo(safety[b.number]?.$3 ?? 0),
+        TeamSortOptions.rank => (rankings[a.number]?.rank ?? 999999).compareTo(
+          rankings[b.number]?.rank ?? 999999,
+        ),
+        TeamSortOptions.custom => (scores[a.number] ?? 0).compareTo(
+          scores[b.number] ?? 0,
+        ),
+        TeamSortOptions.defense => (safety[a.number]?.$1 ?? 0).compareTo(
+          safety[b.number]?.$1 ?? 0,
+        ),
+        TeamSortOptions.noShow => (safety[a.number]?.$2 ?? 0).compareTo(
+          safety[b.number]?.$2 ?? 0,
+        ),
+        TeamSortOptions.brokeDown => (safety[a.number]?.$3 ?? 0).compareTo(
+          safety[b.number]?.$3 ?? 0,
+        ),
       };
       return selectedSort.isAscending ? comparison : -comparison;
     });
@@ -649,7 +768,9 @@ class _TeamLibraryState extends ConsumerState<_TeamLibrary> {
 }
 
 Duration _motionDuration(BuildContext context) =>
-    MediaQuery.disableAnimationsOf(context) ? Duration.zero : const Duration(milliseconds: 220);
+    MediaQuery.disableAnimationsOf(context)
+    ? Duration.zero
+    : const Duration(milliseconds: 220);
 
 class _PicklistTeamCard extends StatelessWidget {
   final String teamKey;
@@ -675,7 +796,8 @@ class _PicklistTeamCard extends StatelessWidget {
                     avatarBytes!,
                     fit: BoxFit.contain,
                     gaplessPlayback: true,
-                    errorBuilder: (context, error, stackTrace) => Icon(LucideIcons.bot, color: colors.onSurfaceVariant),
+                    errorBuilder: (context, error, stackTrace) =>
+                        Icon(LucideIcons.bot, color: colors.onSurfaceVariant),
                   ),
           ),
           const SizedBox(width: 12),
@@ -686,7 +808,8 @@ class _PicklistTeamCard extends StatelessWidget {
               children: [
                 Text(
                   team?.number.toString() ?? teamKey.replaceFirst('frc', ''),
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                  style: Theme.of(context).textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 Text(
                   team?.name ?? 'Team',
@@ -711,13 +834,18 @@ class _DragPresentation {
 class _DragPresentationScope extends InheritedWidget {
   final _DragPresentation presentation;
 
-  const _DragPresentationScope({required this.presentation, required super.child});
+  const _DragPresentationScope({
+    required this.presentation,
+    required super.child,
+  });
 
-  static _DragPresentation of(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<_DragPresentationScope>()!.presentation;
+  static _DragPresentation of(BuildContext context) => context
+      .dependOnInheritedWidgetOfExactType<_DragPresentationScope>()!
+      .presentation;
 
   @override
-  bool updateShouldNotify(_DragPresentationScope oldWidget) => presentation != oldWidget.presentation;
+  bool updateShouldNotify(_DragPresentationScope oldWidget) =>
+      presentation != oldWidget.presentation;
 }
 
 /// Continue the drag in the overlay until the real destination card is ready.
@@ -740,16 +868,20 @@ class _LandingTeamCard extends StatefulWidget {
   State<_LandingTeamCard> createState() => _LandingTeamCardState();
 }
 
-class _LandingTeamCardState extends State<_LandingTeamCard> with SingleTickerProviderStateMixin {
+class _LandingTeamCardState extends State<_LandingTeamCard>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 300))
-      ..addStatusListener((status) {
-        if (status == AnimationStatus.completed) widget.onComplete();
-      });
+    _controller =
+        AnimationController(
+          vsync: this,
+          duration: const Duration(milliseconds: 300),
+        )..addStatusListener((status) {
+          if (status == AnimationStatus.completed) widget.onComplete();
+        });
     // The reorder and scroll extent must finish layout before measuring the slot.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _controller.forward();
@@ -767,7 +899,9 @@ class _LandingTeamCardState extends State<_LandingTeamCard> with SingleTickerPro
     animation: _controller,
     builder: (context, _) {
       final progress = Curves.easeOutCubic.transform(_controller.value);
-      final rect = progress == 0 ? widget.begin : Rect.lerp(widget.begin, widget.destination(), progress)!;
+      final rect = progress == 0
+          ? widget.begin
+          : Rect.lerp(widget.begin, widget.destination(), progress)!;
       return Positioned.fromRect(
         rect: rect,
         child: IgnorePointer(
@@ -808,6 +942,7 @@ class _EditorTeamTile extends StatelessWidget {
   final Team? team;
   final Uint8List? avatarBytes;
   final bool selected;
+  final bool draggable;
   final int? rank;
   final Widget action;
   final ValueChanged<String?> onDraggingChanged;
@@ -821,6 +956,7 @@ class _EditorTeamTile extends StatelessWidget {
     required this.onDraggingChanged,
     required this.onDragUpdate,
     this.selected = false,
+    this.draggable = true,
     this.rank,
   });
 
@@ -846,12 +982,20 @@ class _EditorTeamTile extends StatelessWidget {
               ),
             ),
           Expanded(
-            child: _PicklistTeamCard(team: team, teamKey: teamKey, avatarBytes: avatarBytes),
+            child: _PicklistTeamCard(
+              team: team,
+              teamKey: teamKey,
+              avatarBytes: avatarBytes,
+            ),
           ),
           if (landingRank == null)
             action
           else
-            const SizedBox(width: 48, height: 48, child: Icon(LucideIcons.gripVertical, size: 20)),
+            const SizedBox(
+              width: 48,
+              height: 48,
+              child: Icon(LucideIcons.gripVertical, size: 20),
+            ),
         ],
       ),
     );
@@ -865,9 +1009,13 @@ class _EditorTeamTile extends StatelessWidget {
         duration: _motionDuration(context),
         curve: Curves.easeOutCubic,
         alignment: Alignment.topCenter,
-        child: AnimatedOpacity(opacity: selected ? .5 : 1, duration: _motionDuration(context), child: _card(context)),
+        child: AnimatedOpacity(
+          opacity: selected ? .5 : 1,
+          duration: _motionDuration(context),
+          child: _card(context),
+        ),
       );
-      if (selected) return card;
+      if (selected || !draggable) return card;
       final feedback = SizedBox(
         width: constraints.maxWidth,
         child: TweenAnimationBuilder<double>(
@@ -893,7 +1041,11 @@ class _EditorTeamTile extends StatelessWidget {
         onDraggingChanged(teamKey);
       }
 
-      final placeholder = AnimatedOpacity(opacity: .2, duration: _motionDuration(context), child: card);
+      final placeholder = AnimatedOpacity(
+        opacity: .2,
+        duration: _motionDuration(context),
+        child: card,
+      );
       return _AdaptiveTeamDrag(
         teamKey: teamKey,
         feedback: feedback,
@@ -989,6 +1141,7 @@ class _AdaptiveTeamDragState extends State<_AdaptiveTeamDrag> {
 
 class _PicklistSurface extends ConsumerStatefulWidget {
   final Picklist picklist;
+  final bool canEdit;
   final bool isDraggingTeam;
   final ValueNotifier<Offset?> dragPosition;
   final ValueChanged<String?> onDraggingChanged;
@@ -997,6 +1150,7 @@ class _PicklistSurface extends ConsumerStatefulWidget {
 
   const _PicklistSurface({
     required this.picklist,
+    required this.canEdit,
     required this.isDraggingTeam,
     required this.dragPosition,
     required this.onDraggingChanged,
@@ -1024,7 +1178,8 @@ class _PicklistSurfaceState extends ConsumerState<_PicklistSurface> {
 
   void _acceptTeam(String teamKey, int index) {
     final presentation = _DragPresentationScope.of(context);
-    final feedback = presentation.feedbackKey.currentContext?.findRenderObject();
+    final feedback = presentation.feedbackKey.currentContext
+        ?.findRenderObject();
     final cardBuilder = presentation.cardBuilder;
     _finishLanding();
     if (!widget.isDraggingTeam ||
@@ -1036,7 +1191,10 @@ class _PicklistSurfaceState extends ConsumerState<_PicklistSurface> {
     }
     final overlay = Overlay.of(context);
     final overlayBox = overlay.context.findRenderObject()! as RenderBox;
-    final begin = MatrixUtils.transformRect(feedback.getTransformTo(overlayBox), Offset.zero & feedback.size);
+    final begin = MatrixUtils.transformRect(
+      feedback.getTransformTo(overlayBox),
+      Offset.zero & feedback.size,
+    );
     final previous = widget.picklist.teamKeys.indexOf(teamKey);
     final rank = (index - (previous >= 0 && previous < index ? 1 : 0)).clamp(
       0,
@@ -1052,7 +1210,9 @@ class _PicklistSurfaceState extends ConsumerState<_PicklistSurface> {
         destination: () {
           final box = this.context.findRenderObject()! as RenderBox;
           final width = math.min(720.0, box.size.width - 24);
-          final scroll = _scrollController.hasClients ? _scrollController.offset : 0.0;
+          final scroll = _scrollController.hasClients
+              ? _scrollController.offset
+              : 0.0;
           final offset = box.localToGlobal(
             Offset((box.size.width - width) / 2, rank * 72.0 + 4 - scroll),
             ancestor: overlayBox,
@@ -1097,7 +1257,10 @@ class _PicklistSurfaceState extends ConsumerState<_PicklistSurface> {
   void _trackDrag(Offset globalPosition) {
     final box = context.findRenderObject() as RenderBox;
     final local = box.globalToLocal(globalPosition);
-    if (local.dx < 0 || local.dx > box.size.width || local.dy < 0 || local.dy > box.size.height) {
+    if (local.dx < 0 ||
+        local.dx > box.size.width ||
+        local.dy < 0 ||
+        local.dy > box.size.height) {
       _stopScrolling();
       return;
     }
@@ -1111,7 +1274,10 @@ class _PicklistSurfaceState extends ConsumerState<_PicklistSurface> {
       if (!_scrollController.hasClients) return;
       final position = _scrollController.position;
       _scrollController.jumpTo(
-        (position.pixels + _scrollStep).clamp(position.minScrollExtent, position.maxScrollExtent),
+        (position.pixels + _scrollStep).clamp(
+          position.minScrollExtent,
+          position.maxScrollExtent,
+        ),
       );
     });
   }
@@ -1130,23 +1296,59 @@ class _PicklistSurfaceState extends ConsumerState<_PicklistSurface> {
   Widget build(BuildContext context) {
     final teams = widget.picklist.teamKeys;
     final resolvedTeams = {
-      for (final raw in ref.watch(teamsProvider).value ?? const <Map<String, dynamic>>[])
+      for (final raw
+          in ref.watch(teamsProvider).value ?? const <Map<String, dynamic>>[])
         Team.fromJson(raw).key: Team.fromJson(raw),
     };
-    final mediaRecords = ref.watch(eventTeamMediaProvider).value ?? const <TeamMediaRecord>[];
+    final mediaRecords =
+        ref.watch(eventTeamMediaProvider).value ?? const <TeamMediaRecord>[];
     final avatarByTeam = <String, Uint8List>{};
     for (final record in mediaRecords) {
       if (!record.isAvatar || record.base64Image == null) continue;
       for (final key in record.teamKeys) {
-        if (record.preferred || !avatarByTeam.containsKey(key)) avatarByTeam[key] = record.base64Image!;
+        if (record.preferred || !avatarByTeam.containsKey(key))
+          avatarByTeam[key] = record.base64Image!;
       }
+    }
+    if (!widget.canEdit) {
+      if (teams.isEmpty) return const SizedBox.expand();
+      return _AnimatedRanking(
+        teamKeys: teams,
+        controller: _scrollController,
+        includeTrailingDropZone: false,
+        itemBuilder: (context, index) => Center(
+          key: ValueKey(teams[index]),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: _EditorTeamTile(
+                teamKey: teams[index],
+                team: resolvedTeams[teams[index]],
+                avatarBytes: avatarByTeam[teams[index]],
+                rank: index + 1,
+                draggable: false,
+                onDraggingChanged: widget.onDraggingChanged,
+                onDragUpdate: (position) =>
+                    widget.dragPosition.value = position,
+                action: const SizedBox.shrink(),
+              ),
+            ),
+          ),
+        ),
+      );
     }
     return DragTarget<String>(
       onWillAcceptWithDetails: (_) => false,
 
       onLeave: (_) => _stopScrolling(),
       builder: (context, candidates, rejected) => teams.isEmpty
-          ? _InsertionDropZone(active: widget.isDraggingTeam, index: 0, expandedEmptyState: true, onAccept: _acceptTeam)
+          ? _InsertionDropZone(
+              active: widget.isDraggingTeam,
+              index: 0,
+              expandedEmptyState: true,
+              onAccept: _acceptTeam,
+            )
           : _AnimatedRanking(
               teamKeys: teams,
               landingTeam: _landingTeam,
@@ -1177,19 +1379,42 @@ class _PicklistSurfaceState extends ConsumerState<_PicklistSurface> {
                                 avatarBytes: avatarByTeam[teams[index]],
                                 rank: index + 1,
                                 onDraggingChanged: widget.onDraggingChanged,
-                                onDragUpdate: (position) => widget.dragPosition.value = position,
+                                onDragUpdate: (position) =>
+                                    widget.dragPosition.value = position,
                                 action: PopupMenuButton<String>(
-                                  icon: const Icon(LucideIcons.gripVertical, size: 20),
+                                  icon: const Icon(
+                                    LucideIcons.gripVertical,
+                                    size: 20,
+                                  ),
                                   onSelected: (value) {
-                                    if (value == 'remove') widget.onRemoveTeam(teams[index]);
-                                    if (value == 'up') widget.onInsertTeam(teams[index], index - 1);
-                                    if (value == 'down') widget.onInsertTeam(teams[index], index + 2);
+                                    if (value == 'remove')
+                                      widget.onRemoveTeam(teams[index]);
+                                    if (value == 'up')
+                                      widget.onInsertTeam(
+                                        teams[index],
+                                        index - 1,
+                                      );
+                                    if (value == 'down')
+                                      widget.onInsertTeam(
+                                        teams[index],
+                                        index + 2,
+                                      );
                                   },
                                   itemBuilder: (context) => [
-                                    if (index > 0) const PopupMenuItem(value: 'up', child: Text('Move up')),
+                                    if (index > 0)
+                                      const PopupMenuItem(
+                                        value: 'up',
+                                        child: Text('Move up'),
+                                      ),
                                     if (index < teams.length - 1)
-                                      const PopupMenuItem(value: 'down', child: Text('Move down')),
-                                    const PopupMenuItem(value: 'remove', child: Text('Return to library')),
+                                      const PopupMenuItem(
+                                        value: 'down',
+                                        child: Text('Move down'),
+                                      ),
+                                    const PopupMenuItem(
+                                      value: 'remove',
+                                      child: Text('Return to library'),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -1210,10 +1435,12 @@ class _AnimatedRanking extends StatelessWidget {
   final String? landingTeam;
   final ScrollController controller;
   final IndexedWidgetBuilder itemBuilder;
+  final bool includeTrailingDropZone;
   const _AnimatedRanking({
     required this.teamKeys,
     required this.controller,
     required this.itemBuilder,
+    this.includeTrailingDropZone = true,
     this.landingTeam,
   });
 
@@ -1226,15 +1453,24 @@ class _AnimatedRanking extends StatelessWidget {
         height: math.max(constraints.maxHeight, teamKeys.length * 72.0 + 24),
         child: Stack(
           children: [
-            for (var index = 0; index <= teamKeys.length; index++)
+            for (
+              var index = 0;
+              index < teamKeys.length + (includeTrailingDropZone ? 1 : 0);
+              index++
+            )
               AnimatedPositioned(
-                key: ValueKey(index == teamKeys.length ? 'end' : teamKeys[index]),
-                duration: index < teamKeys.length && teamKeys[index] == landingTeam
+                key: ValueKey(
+                  index == teamKeys.length ? 'end' : teamKeys[index],
+                ),
+                duration:
+                    index < teamKeys.length && teamKeys[index] == landingTeam
                     ? Duration.zero
                     : _motionDuration(context),
                 curve: Curves.easeOutCubic,
                 top: index * 72.0,
-                bottom: index == teamKeys.length ? 0 : null,
+                bottom: includeTrailingDropZone && index == teamKeys.length
+                    ? 0
+                    : null,
                 left: 0,
                 right: 0,
                 child: itemBuilder(context, index),
@@ -1253,7 +1489,12 @@ class _RankingDropTargets extends StatelessWidget {
   final void Function(String teamKey, int index) onAccept;
   final Widget child;
 
-  const _RankingDropTargets({required this.active, required this.index, required this.onAccept, required this.child});
+  const _RankingDropTargets({
+    required this.active,
+    required this.index,
+    required this.onAccept,
+    required this.child,
+  });
 
   @override
   Widget build(BuildContext context) => Stack(
@@ -1339,7 +1580,9 @@ class _InsertionDropZone extends StatelessWidget {
           decoration: BoxDecoration(
             color: hovering ? colors.primaryContainer : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: hovering || active ? colors.primary : Colors.transparent),
+            border: Border.all(
+              color: hovering || active ? colors.primary : Colors.transparent,
+            ),
           ),
           alignment: Alignment.center,
           child: SingleChildScrollView(
@@ -1357,7 +1600,8 @@ class _InsertionDropZone extends StatelessWidget {
 }
 
 double _totalAverage(TeamScoutingBundle bundle) =>
-    bundle.avgMatchField(kSectionAuto, kAutoFuelScored) + bundle.avgMatchField(kSectionTele, kTeleFuelScored);
+    bundle.avgMatchField(kSectionAuto, kAutoFuelScored) +
+    bundle.avgMatchField(kSectionTele, kTeleFuelScored);
 
 (int, int, int) _safetyStats(TeamScoutingBundle bundle) {
   var defense = 0;
@@ -1365,12 +1609,38 @@ double _totalAverage(TeamScoutingBundle bundle) =>
   var breakdown = 0;
   for (final doc in bundle.matchDocs) {
     final playedDefense =
-        _truthy(TeamScoutingBundle.getMatchField(doc.raw, kSectionEndgame, kEndPlayedDefenseOffShift)) ||
-        _truthy(TeamScoutingBundle.getMatchField(doc.raw, kSectionEndgame, kEndPlayedDefenseOnShift));
-    final absent = _truthy(TeamScoutingBundle.getMatchField(doc.raw, kSectionEndgame, kEndNoShow));
+        _truthy(
+          TeamScoutingBundle.getMatchField(
+            doc.raw,
+            kSectionEndgame,
+            kEndPlayedDefenseOffShift,
+          ),
+        ) ||
+        _truthy(
+          TeamScoutingBundle.getMatchField(
+            doc.raw,
+            kSectionEndgame,
+            kEndPlayedDefenseOnShift,
+          ),
+        );
+    final absent = _truthy(
+      TeamScoutingBundle.getMatchField(doc.raw, kSectionEndgame, kEndNoShow),
+    );
     final failed =
-        _truthy(TeamScoutingBundle.getMatchField(doc.raw, kSectionTele, kTeleStoppedWorking)) ||
-        _truthy(TeamScoutingBundle.getMatchField(doc.raw, kSectionTele, kTeleLostComms));
+        _truthy(
+          TeamScoutingBundle.getMatchField(
+            doc.raw,
+            kSectionTele,
+            kTeleStoppedWorking,
+          ),
+        ) ||
+        _truthy(
+          TeamScoutingBundle.getMatchField(
+            doc.raw,
+            kSectionTele,
+            kTeleLostComms,
+          ),
+        );
     if (playedDefense) defense++;
     if (absent) noShow++;
     if (failed) breakdown++;

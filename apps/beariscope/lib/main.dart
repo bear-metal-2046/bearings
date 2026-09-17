@@ -277,10 +277,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isRoleManagementRoute = location == '/settings/roles';
       final isScoutManagementRoute = location == '/settings/user_selection';
       final isDeviceProvisioningRoute = location == '/device_provisioning';
+      final isPicklistRoute = location.startsWith('/picklists');
       final needsPermissions =
           isRoleManagementRoute ||
           isScoutManagementRoute ||
-          isDeviceProvisioningRoute;
+          isDeviceProvisioningRoute ||
+          isPicklistRoute;
 
       if (needsPermissions) {
         final authMe = ref.read(authMeProvider);
@@ -311,6 +313,12 @@ final routerProvider = Provider<GoRouter>((ref) {
           final canProvision =
               checker?.hasPermission(PermissionKey.deviceProvision) ?? false;
           if (!canProvision) return '/up_next';
+        }
+
+        if (isPicklistRoute) {
+          final canReadPicklists =
+              checker?.hasPermission(PermissionKey.picklistsRead) ?? false;
+          if (!canReadPicklists) return '/up_next';
         }
       }
 

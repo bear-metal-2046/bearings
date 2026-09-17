@@ -106,6 +106,7 @@ class _MainViewState extends ConsumerState<MainView> {
       icon: LucideIcons.notebookText,
       label: 'Picklists',
       group: 'General',
+      requiredPermissions: [PermissionKey.picklistsRead],
     ),
     const _NavItem(
       route: '/scout_audit',
