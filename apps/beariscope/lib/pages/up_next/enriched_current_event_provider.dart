@@ -4,8 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:services/providers/api_provider.dart';
 
 /// Honeycomb Nexus snapshot for the selected TBA event (`/events?event=&enrich=true`).
-final enrichedCurrentEventProvider =
-    FutureProvider<HoneycombEnrichedEvent?>((ref) async {
+final enrichedCurrentEventProvider = FutureProvider<HoneycombEnrichedEvent?>((
+  ref,
+) async {
   final currentEventKey = ref.watch(currentEventProvider);
   final client = ref.watch(honeycombClientProvider);
 
