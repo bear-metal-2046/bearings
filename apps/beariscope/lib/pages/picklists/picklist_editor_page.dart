@@ -25,7 +25,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:sheet/sheet.dart';
 
 class PicklistEditorPage extends ConsumerStatefulWidget {
   final String picklistId;
@@ -36,26 +35,57 @@ class PicklistEditorPage extends ConsumerStatefulWidget {
   ConsumerState<PicklistEditorPage> createState() => _PicklistEditorPageState();
 }
 
-class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage> {
+class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage>
+    with SingleTickerProviderStateMixin {
   static const _collapsedSheetHeight = 64.0;
 
   final _dragPosition = ValueNotifier<Offset?>(null);
   final _dragPresentation = _DragPresentation();
-  final _sheetController = SheetController();
+  final _sheetHeight = ValueNotifier<double>(_collapsedSheetHeight);
+  late final AnimationController _sheetController;
+  late Animation<double> _sheetAnimation;
   Timer? _copyResetTimer;
   PicklistLibraryNotifier? _library;
   bool _showCopyCheck = false;
   bool _mobileLibraryExpanded = false;
   bool _isDesktopLayout = false;
+  bool _draggingSheet = false;
+  double _safeAreaBottom = 0;
   String? _draggingTeam;
   bool get _isDraggingTeam => _draggingTeam != null;
   double _mobileMaxHeight = 560;
+
+  double get _collapsedSheetExtent => _collapsedSheetHeight + _safeAreaBottom;
+
+  @override
+  void initState() {
+    super.initState();
+    _sheetController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    );
+    _sheetAnimation = const AlwaysStoppedAnimation(_collapsedSheetHeight);
+    _sheetController.addListener(() {
+      if (!_draggingSheet) _sheetHeight.value = _sheetAnimation.value;
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final previousCollapsedExtent = _collapsedSheetExtent;
+    _safeAreaBottom = MediaQuery.paddingOf(context).bottom;
+    if ((_sheetHeight.value - previousCollapsedExtent).abs() < .5) {
+      _sheetHeight.value = _collapsedSheetExtent;
+    }
+  }
 
   @override
   void dispose() {
     _library?.close(widget.picklistId);
     _copyResetTimer?.cancel();
     _sheetController.dispose();
+    _sheetHeight.dispose();
     _dragPosition.dispose();
     super.dispose();
   }
@@ -184,19 +214,19 @@ class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage> {
                   ),
               ],
             ),
-            body: SafeArea(
-              top: false,
-              child: LayoutBuilder(
-                builder: (context, bodyConstraints) {
-                  _mobileMaxHeight = math.max(
-                    _collapsedSheetHeight,
-                    math.min(700, bodyConstraints.maxHeight * .8),
-                  );
-                  return desktop
-                      ? _desktopBody(picklist, editor, canEdit)
-                      : _mobileBody(picklist, editor, canEdit);
-                },
-              ),
+            body: LayoutBuilder(
+              builder: (context, bodyConstraints) {
+                _mobileMaxHeight = math.max(
+                  _collapsedSheetExtent,
+                  math.min(700, bodyConstraints.maxHeight * .8),
+                );
+                return desktop
+                    ? SafeArea(
+                        top: false,
+                        child: _desktopBody(picklist, editor, canEdit),
+                      )
+                    : _mobileBody(picklist, editor, canEdit);
+              },
             ),
           ),
         );
@@ -239,20 +269,16 @@ class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage> {
       fit: StackFit.expand,
       children: [
         Padding(
-          padding: const EdgeInsets.only(bottom: _collapsedSheetHeight),
+          padding: EdgeInsets.only(bottom: _collapsedSheetExtent),
           child: editor,
         ),
-        Sheet.raw(
-          controller: _sheetController,
-          initialExtent: _collapsedSheetHeight,
-          minExtent: _collapsedSheetHeight,
-          maxExtent: _mobileMaxHeight,
-          physics: SnapSheetPhysics(
-            stops: <double>[_collapsedSheetHeight, _mobileMaxHeight],
-            relative: false,
-          ),
-          child: SizedBox(
-            height: _mobileMaxHeight,
+        ValueListenableBuilder<double>(
+          valueListenable: _sheetHeight,
+          builder: (context, height, _) => Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: height.clamp(_collapsedSheetExtent, _mobileMaxHeight),
             child: _returnTarget(
               picklist,
               DecoratedBox(
@@ -281,32 +307,62 @@ class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage> {
                       GestureDetector(
                         behavior: HitTestBehavior.opaque,
                         onTap: _toggleMobileLibrary,
-                        child: AnimatedBuilder(
-                          animation: _sheetController.animation,
-                          builder: (context, _) => Semantics(
-                            button: true,
-                            label: 'Toggle team library',
-                            child: _TeamLibraryHeader(
-                              selectedCount: picklist.teamKeys.length,
-                              expanded:
-                                  _sheetExtent > _collapsedSheetHeight + 10,
-                              returning: _isDraggingTeam,
-                            ),
+                        onVerticalDragStart: (_) {
+                          _draggingSheet = true;
+                          _sheetController.stop();
+                        },
+                        onVerticalDragUpdate: (details) {
+                          _sheetHeight
+                              .value = (_sheetHeight.value - details.delta.dy)
+                              .clamp(_collapsedSheetExtent, _mobileMaxHeight)
+                              .toDouble();
+                        },
+                        onVerticalDragCancel: () {
+                          _draggingSheet = false;
+                          _snapMobileLibrary(0);
+                        },
+                        onVerticalDragEnd: (details) {
+                          _draggingSheet = false;
+                          _snapMobileLibrary(details.primaryVelocity ?? 0);
+                        },
+                        child: Semantics(
+                          button: true,
+                          label: 'Toggle team library',
+                          child: _TeamLibraryHeader(
+                            selectedCount: picklist.teamKeys.length,
+                            expanded: height > _collapsedSheetExtent + 10,
+                            returning: _isDraggingTeam,
                           ),
                         ),
                       ),
                       Expanded(
-                        child: _TeamLibrary(
-                          selectedTeamKeys: picklist.teamKeys.toSet(),
-                          onAdd: (teamKey) => _insertTeam(
-                            picklist,
-                            teamKey,
-                            picklist.teamKeys.length,
+                        child: Padding(
+                          padding: EdgeInsets.only(bottom: _safeAreaBottom),
+                          child: ClipRect(
+                            child: OverflowBox(
+                              alignment: Alignment.topCenter,
+                              minHeight: math.max(
+                                160,
+                                _mobileMaxHeight - _collapsedSheetExtent,
+                              ),
+                              maxHeight: math.max(
+                                160,
+                                _mobileMaxHeight - _collapsedSheetExtent,
+                              ),
+                              child: _TeamLibrary(
+                                selectedTeamKeys: picklist.teamKeys.toSet(),
+                                onAdd: (teamKey) => _insertTeam(
+                                  picklist,
+                                  teamKey,
+                                  picklist.teamKeys.length,
+                                ),
+                                onDraggingChanged: _setTeamDragging,
+                                onDragUpdate: (position) =>
+                                    _dragPosition.value = position,
+                                showHeader: false,
+                              ),
+                            ),
                           ),
-                          onDraggingChanged: _setTeamDragging,
-                          onDragUpdate: (position) =>
-                              _dragPosition.value = position,
-                          showHeader: false,
                         ),
                       ),
                     ],
@@ -320,26 +376,18 @@ class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage> {
     );
   }
 
-  double get _sheetExtent => _sheetController.hasClients
-      ? _sheetController.position.pixels
-      : _collapsedSheetHeight;
-
   void _setTeamDragging(String? value) {
     if (!mounted || _draggingTeam == value) return;
-    if (!_isDesktopLayout && value != null) {
-      _mobileLibraryExpanded =
-          _sheetExtent >= (_mobileMaxHeight + _collapsedSheetHeight) / 2;
-    }
     setState(() => _draggingTeam = value);
     if (value == null) _dragPosition.value = null;
     if (value != null) FocusManager.instance.primaryFocus?.unfocus();
     if (!_isDesktopLayout) {
       _animateSheet(
         value != null
-            ? _collapsedSheetHeight
+            ? _collapsedSheetExtent
             : (_mobileLibraryExpanded
                   ? _mobileMaxHeight
-                  : _collapsedSheetHeight),
+                  : _collapsedSheetExtent),
       );
     }
   }
@@ -394,19 +442,35 @@ class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage> {
 
   void _toggleMobileLibrary() {
     HapticFeedback.lightImpact();
-    _mobileLibraryExpanded =
-        _sheetExtent < (_mobileMaxHeight + _collapsedSheetHeight) / 2;
+    _mobileLibraryExpanded = !_mobileLibraryExpanded;
     _animateSheet(
-      _mobileLibraryExpanded ? _mobileMaxHeight : _collapsedSheetHeight,
+      _mobileLibraryExpanded ? _mobileMaxHeight : _collapsedSheetExtent,
     );
   }
 
+  void _snapMobileLibrary(double velocity) {
+    final midpoint = (_mobileMaxHeight + _collapsedSheetExtent) / 2;
+    final expand = velocity.abs() > 150
+        ? velocity < 0
+        : _sheetHeight.value >= midpoint;
+    _mobileLibraryExpanded = expand;
+    HapticFeedback.lightImpact();
+    _animateSheet(expand ? _mobileMaxHeight : _collapsedSheetExtent);
+  }
+
   void _animateSheet(double target) {
-    _sheetController.animateTo(
-      target,
-      duration: _motionDuration(context),
-      curve: Curves.easeOutCubic,
-    );
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _sheetController.stop();
+      _sheetHeight.value = target;
+      return;
+    }
+    _sheetAnimation = Tween<double>(begin: _sheetHeight.value, end: target)
+        .animate(
+          CurvedAnimation(parent: _sheetController, curve: Curves.easeOutCubic),
+        );
+    _sheetController
+      ..reset()
+      ..forward();
   }
 
   Widget _missingPicklist() {
@@ -1315,7 +1379,6 @@ class _PicklistSurfaceState extends ConsumerState<_PicklistSurface> {
       return _AnimatedRanking(
         teamKeys: teams,
         controller: _scrollController,
-        includeTrailingDropZone: false,
         itemBuilder: (context, index) => Center(
           key: ValueKey(teams[index]),
           child: ConstrainedBox(
@@ -1353,74 +1416,84 @@ class _PicklistSurfaceState extends ConsumerState<_PicklistSurface> {
               teamKeys: teams,
               landingTeam: _landingTeam,
               controller: _scrollController,
+              insertionBuilder: (context, index) => widget.isDraggingTeam
+                  ? _InsertionDropZone(
+                      active: true,
+                      index: index,
+                      onAccept: _acceptTeam,
+                    )
+                  : const SizedBox.shrink(),
+              leadingInsertionBuilder: (context, index) => widget.isDraggingTeam
+                  ? _InsertionDropZone(
+                      active: true,
+                      index: index,
+                      onAccept: _acceptTeam,
+                      alignment: Alignment.topCenter,
+                    )
+                  : const SizedBox.shrink(),
+              trailingInsertionBuilder: (context, index) =>
+                  widget.isDraggingTeam
+                  ? _InsertionDropZone(
+                      active: true,
+                      index: index,
+                      onAccept: _acceptTeam,
+                      fillAvailableSpace: true,
+                      alignment: Alignment.topCenter,
+                      dividerTop: 36,
+                    )
+                  : const SizedBox.shrink(),
               itemBuilder: (context, index) => Center(
-                key: ValueKey(index == teams.length ? 'end' : teams[index]),
+                key: ValueKey(teams[index]),
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 720),
-                  child: index == teams.length
-                      ? _InsertionDropZone(
-                          active: widget.isDraggingTeam,
-                          index: index,
-                          onAccept: _acceptTeam,
-                          fillAvailableSpace: true,
-                          alignment: Alignment.topCenter,
-                        )
-                      : _RankingDropTargets(
-                          active: widget.isDraggingTeam,
-                          index: index,
-                          onAccept: _acceptTeam,
-                          child: IgnorePointer(
-                            ignoring: _landingTeam == teams[index],
-                            child: Opacity(
-                              opacity: _landingTeam == teams[index] ? 0 : 1,
-                              child: _EditorTeamTile(
-                                teamKey: teams[index],
-                                team: resolvedTeams[teams[index]],
-                                avatarBytes: avatarByTeam[teams[index]],
-                                rank: index + 1,
-                                onDraggingChanged: widget.onDraggingChanged,
-                                onDragUpdate: (position) =>
-                                    widget.dragPosition.value = position,
-                                action: PopupMenuButton<String>(
-                                  icon: const Icon(
-                                    LucideIcons.gripVertical,
-                                    size: 20,
-                                  ),
-                                  onSelected: (value) {
-                                    if (value == 'remove')
-                                      widget.onRemoveTeam(teams[index]);
-                                    if (value == 'up')
-                                      widget.onInsertTeam(
-                                        teams[index],
-                                        index - 1,
-                                      );
-                                    if (value == 'down')
-                                      widget.onInsertTeam(
-                                        teams[index],
-                                        index + 2,
-                                      );
-                                  },
-                                  itemBuilder: (context) => [
-                                    if (index > 0)
-                                      const PopupMenuItem(
-                                        value: 'up',
-                                        child: Text('Move up'),
-                                      ),
-                                    if (index < teams.length - 1)
-                                      const PopupMenuItem(
-                                        value: 'down',
-                                        child: Text('Move down'),
-                                      ),
-                                    const PopupMenuItem(
-                                      value: 'remove',
-                                      child: Text('Return to library'),
-                                    ),
-                                  ],
-                                ),
-                              ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: IgnorePointer(
+                      ignoring: _landingTeam == teams[index],
+                      child: Opacity(
+                        opacity: _landingTeam == teams[index] ? 0 : 1,
+                        child: _EditorTeamTile(
+                          teamKey: teams[index],
+                          team: resolvedTeams[teams[index]],
+                          avatarBytes: avatarByTeam[teams[index]],
+                          rank: index + 1,
+                          onDraggingChanged: widget.onDraggingChanged,
+                          onDragUpdate: (position) =>
+                              widget.dragPosition.value = position,
+                          action: PopupMenuButton<String>(
+                            icon: const Icon(
+                              LucideIcons.gripVertical,
+                              size: 20,
                             ),
+                            onSelected: (value) {
+                              if (value == 'remove')
+                                widget.onRemoveTeam(teams[index]);
+                              if (value == 'up')
+                                widget.onInsertTeam(teams[index], index - 1);
+                              if (value == 'down')
+                                widget.onInsertTeam(teams[index], index + 2);
+                            },
+                            itemBuilder: (context) => [
+                              if (index > 0)
+                                const PopupMenuItem(
+                                  value: 'up',
+                                  child: Text('Move up'),
+                                ),
+                              if (index < teams.length - 1)
+                                const PopupMenuItem(
+                                  value: 'down',
+                                  child: Text('Move down'),
+                                ),
+                              const PopupMenuItem(
+                                value: 'remove',
+                                child: Text('Return to library'),
+                              ),
+                            ],
                           ),
                         ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -1435,12 +1508,16 @@ class _AnimatedRanking extends StatelessWidget {
   final String? landingTeam;
   final ScrollController controller;
   final IndexedWidgetBuilder itemBuilder;
-  final bool includeTrailingDropZone;
+  final IndexedWidgetBuilder? insertionBuilder;
+  final IndexedWidgetBuilder? leadingInsertionBuilder;
+  final IndexedWidgetBuilder? trailingInsertionBuilder;
   const _AnimatedRanking({
     required this.teamKeys,
     required this.controller,
     required this.itemBuilder,
-    this.includeTrailingDropZone = true,
+    this.insertionBuilder,
+    this.leadingInsertionBuilder,
+    this.trailingInsertionBuilder,
     this.landingTeam,
   });
 
@@ -1453,77 +1530,74 @@ class _AnimatedRanking extends StatelessWidget {
         height: math.max(constraints.maxHeight, teamKeys.length * 72.0 + 24),
         child: Stack(
           children: [
-            for (
-              var index = 0;
-              index < teamKeys.length + (includeTrailingDropZone ? 1 : 0);
-              index++
-            )
+            for (var index = 0; index < teamKeys.length; index++)
               AnimatedPositioned(
-                key: ValueKey(
-                  index == teamKeys.length ? 'end' : teamKeys[index],
-                ),
-                duration:
-                    index < teamKeys.length && teamKeys[index] == landingTeam
+                key: ValueKey(teamKeys[index]),
+                duration: teamKeys[index] == landingTeam
                     ? Duration.zero
                     : _motionDuration(context),
                 curve: Curves.easeOutCubic,
                 top: index * 72.0,
-                bottom: includeTrailingDropZone && index == teamKeys.length
-                    ? 0
-                    : null,
                 left: 0,
                 right: 0,
                 child: itemBuilder(context, index),
+              ),
+            if (leadingInsertionBuilder != null)
+              Positioned(
+                key: const ValueKey('picklist-insertion-0'),
+                top: 0,
+                height: 36,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 720),
+                    child: SizedBox.expand(
+                      child: leadingInsertionBuilder!(context, 0),
+                    ),
+                  ),
+                ),
+              ),
+            if (insertionBuilder != null)
+              for (var index = 1; index < teamKeys.length; index++)
+                Positioned(
+                  key: ValueKey('picklist-insertion-$index'),
+                  top: index * 72.0 - 36,
+                  height: 72,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 720),
+                      child: SizedBox.expand(
+                        child: insertionBuilder!(context, index),
+                      ),
+                    ),
+                  ),
+                ),
+            if (trailingInsertionBuilder != null)
+              Positioned(
+                key: ValueKey('picklist-insertion-${teamKeys.length}'),
+                top: (teamKeys.length - 1) * 72.0 + 36,
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 720),
+                    child: SizedBox.expand(
+                      child: trailingInsertionBuilder!(
+                        context,
+                        teamKeys.length,
+                      ),
+                    ),
+                  ),
+                ),
               ),
           ],
         ),
       ),
     ),
-  );
-}
-
-/// Drop hit areas cover half a row without participating in its layout.
-class _RankingDropTargets extends StatelessWidget {
-  final bool active;
-  final int index;
-  final void Function(String teamKey, int index) onAccept;
-  final Widget child;
-
-  const _RankingDropTargets({
-    required this.active,
-    required this.index,
-    required this.onAccept,
-    required this.child,
-  });
-
-  @override
-  Widget build(BuildContext context) => Stack(
-    children: [
-      Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: child),
-      if (active)
-        Positioned.fill(
-          child: Column(
-            children: [
-              Expanded(
-                child: _InsertionDropZone(
-                  active: true,
-                  index: index,
-                  onAccept: onAccept,
-                  alignment: Alignment.topCenter,
-                ),
-              ),
-              Expanded(
-                child: _InsertionDropZone(
-                  active: true,
-                  index: index + 1,
-                  onAccept: onAccept,
-                  alignment: Alignment.bottomCenter,
-                ),
-              ),
-            ],
-          ),
-        ),
-    ],
   );
 }
 
@@ -1533,6 +1607,7 @@ class _InsertionDropZone extends StatelessWidget {
   final bool expandedEmptyState;
   final bool fillAvailableSpace;
   final Alignment alignment;
+  final double? dividerTop;
   final void Function(String teamKey, int index) onAccept;
 
   const _InsertionDropZone({
@@ -1542,6 +1617,7 @@ class _InsertionDropZone extends StatelessWidget {
     this.expandedEmptyState = false,
     this.fillAvailableSpace = false,
     this.alignment = Alignment.center,
+    this.dividerTop,
   });
 
   @override
@@ -1558,18 +1634,21 @@ class _InsertionDropZone extends StatelessWidget {
         if (!expandedEmptyState) {
           return SizedBox(
             height: fillAvailableSpace ? null : 8,
-            child: Align(
-              alignment: alignment,
-              child: AnimatedContainer(
-                duration: _motionDuration(context),
-                height: 3,
-                margin: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  color: hovering ? colors.primary : Colors.transparent,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
+            child: dividerTop == null
+                ? Align(
+                    alignment: alignment,
+                    child: _InsertionDivider(hovering: hovering),
+                  )
+                : Stack(
+                    children: [
+                      Positioned(
+                        top: dividerTop,
+                        left: 0,
+                        right: 0,
+                        child: _InsertionDivider(hovering: hovering),
+                      ),
+                    ],
+                  ),
           );
         }
         return AnimatedContainer(
@@ -1597,6 +1676,25 @@ class _InsertionDropZone extends StatelessWidget {
       },
     );
   }
+}
+
+class _InsertionDivider extends StatelessWidget {
+  final bool hovering;
+
+  const _InsertionDivider({required this.hovering});
+
+  @override
+  Widget build(BuildContext context) => AnimatedContainer(
+    duration: _motionDuration(context),
+    height: 3,
+    margin: const EdgeInsets.symmetric(horizontal: 12),
+    decoration: BoxDecoration(
+      color: hovering
+          ? Theme.of(context).colorScheme.primary
+          : Colors.transparent,
+      borderRadius: BorderRadius.circular(2),
+    ),
+  );
 }
 
 double _totalAverage(TeamScoutingBundle bundle) =>

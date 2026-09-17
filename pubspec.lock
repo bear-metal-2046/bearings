@@ -1477,14 +1477,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.4.1"
-  sheet:
-    dependency: transitive
-    description:
-      name: sheet
-      sha256: f26f8bb57a1a963ed5eaad2c8847a3ebafbccbabe954341c41a166f88885ce28
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.0.1"
   shelf:
     dependency: transitive
     description:

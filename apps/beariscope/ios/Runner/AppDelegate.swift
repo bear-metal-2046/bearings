@@ -8,7 +8,12 @@ import UIKit
       _ application: UIApplication,
       didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+    let didFinishLaunching = super.application(
+      application,
+      didFinishLaunchingWithOptions: launchOptions
+    )
+    application.registerForRemoteNotifications()
+    return didFinishLaunching
   }
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
