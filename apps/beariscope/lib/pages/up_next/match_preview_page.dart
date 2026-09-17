@@ -248,11 +248,11 @@ class _DriveTeamMatchPreviewPageState
                   builder: (context, constraints) {
                     if (cards.isEmpty) {
                       return const BeariscopeStatusView(
-                  icon: LucideIcons.users,
-                  title: 'No teams available',
-                    subtitle: 'This match does not have any team data yet.',
-                );
-              }
+                        icon: LucideIcons.users,
+                        title: 'No teams available',
+                        subtitle: 'This match does not have any team data yet.',
+                      );
+                    }
 
                     final width = constraints.maxWidth;
                     final height = constraints.maxHeight;
