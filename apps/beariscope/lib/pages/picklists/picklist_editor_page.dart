@@ -127,10 +127,7 @@ class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage>
               surfaceTintColor: Colors.transparent,
               bottom: const PreferredSize(
                 preferredSize: Size.fromHeight(1),
-                child: Divider(
-                  height: 1,
-                  thickness: 1,
-                ),
+                child: Divider(height: 1, thickness: 1),
               ),
               leading: IconButton(
                 tooltip: 'Back to Picklists',
@@ -540,8 +537,9 @@ class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage>
         ],
       ),
     );
-    if (clear == true)
+    if (clear == true) {
       ref.read(picklistLibraryProvider.notifier).setTeams(picklist.id, []);
+    }
   }
 }
 
@@ -683,8 +681,9 @@ class _TeamLibraryState extends ConsumerState<_TeamLibrary> {
     for (final record in mediaRecords) {
       if (!record.isAvatar || record.base64Image == null) continue;
       for (final key in record.teamKeys) {
-        if (record.preferred || !avatarByTeam.containsKey(key))
+        if (record.preferred || !avatarByTeam.containsKey(key)) {
           avatarByTeam[key] = record.base64Image!;
+        }
       }
     }
     return ColoredBox(
@@ -1384,8 +1383,9 @@ class _PicklistSurfaceState extends ConsumerState<_PicklistSurface> {
     for (final record in mediaRecords) {
       if (!record.isAvatar || record.base64Image == null) continue;
       for (final key in record.teamKeys) {
-        if (record.preferred || !avatarByTeam.containsKey(key))
+        if (record.preferred || !avatarByTeam.containsKey(key)) {
           avatarByTeam[key] = record.base64Image!;
+        }
       }
     }
     if (!widget.canEdit) {
