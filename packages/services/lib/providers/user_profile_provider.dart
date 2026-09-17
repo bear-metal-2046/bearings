@@ -51,6 +51,7 @@ Future<UserInfo?> userInfo(Ref ref) async {
       name: user.name,
       email: user.email,
       emailVerified: user.emailVerified,
+      pictureUrl: user.pictureUrl?.toString(),
     );
   }
 
@@ -82,6 +83,7 @@ Future<UserInfo?> userInfo(Ref ref) async {
     email: data['email'] as String?,
     emailVerified: data['email_verified'] as bool?,
     photo: photoBytes,
+    pictureUrl: pictureUrl,
   );
 }
 
@@ -91,7 +93,16 @@ class UserInfo {
   final bool? emailVerified;
   final Uint8List? photo;
 
-  const UserInfo({this.name, this.email, this.emailVerified, this.photo});
+  /// Live profile URL, also used when sharing presence with other devices.
+  final String? pictureUrl;
+
+  const UserInfo({
+    this.name,
+    this.email,
+    this.emailVerified,
+    this.photo,
+    this.pictureUrl,
+  });
 }
 
 @Riverpod(keepAlive: true)

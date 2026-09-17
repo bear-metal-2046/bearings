@@ -5,6 +5,7 @@ import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/tba_preferences_provider.dart';
 import 'package:beariscope/widgets/beariscope_card.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:beariscope/widgets/beariscope_status_view.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -117,8 +118,12 @@ class _UpNextPageState extends ConsumerState<UpNextPage> {
       ),
       body: schedule.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) =>
-            Center(child: Text('Error fetching schedule: $err')),
+        error: (err, stack) => BeariscopeStatusView(
+          icon: LucideIcons.circleAlert,
+          iconColor: Theme.of(context).colorScheme.error,
+          title: 'Schedule unavailable',
+          subtitle: 'Error fetching schedule: $err',
+        ),
         data: (matches) {
           final filteredMatches = _filter == _MatchFilter.all
               ? matches
@@ -126,7 +131,8 @@ class _UpNextPageState extends ConsumerState<UpNextPage> {
 
           return _MatchList(
             matches: filteredMatches,
-            emptyMessage: 'No matches found. Is the schedule released?',
+            emptyTitle: 'No matches found',
+            emptySubtitle: 'Is the schedule released?',
             timeFormat: UpNextPage.timeFormat,
             onRefresh: refreshSchedule,
           );
@@ -203,13 +209,15 @@ bool _is2046Match(Map<String, dynamic> match) {
 
 class _MatchList extends StatelessWidget {
   final List<Map<String, dynamic>> matches;
-  final String emptyMessage;
+  final String emptyTitle;
+  final String? emptySubtitle;
   final DateFormat timeFormat;
   final Future<void> Function() onRefresh;
 
   const _MatchList({
     required this.matches,
-    required this.emptyMessage,
+    required this.emptyTitle,
+    this.emptySubtitle,
     required this.timeFormat,
     required this.onRefresh,
   });
@@ -217,14 +225,29 @@ class _MatchList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (matches.isEmpty) {
-      return RefreshIndicator(
-        onRefresh: onRefresh,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          children: [
-            SizedBox(height: 320, child: Center(child: Text(emptyMessage))),
-          ],
-        ),
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final statusHeight = constraints.hasBoundedHeight
+              ? constraints.maxHeight
+              : 320.0;
+
+          return RefreshIndicator(
+            onRefresh: onRefresh,
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: [
+                SizedBox(
+                  height: statusHeight,
+                  child: BeariscopeStatusView(
+                    icon: LucideIcons.calendar,
+                    title: emptyTitle,
+                    subtitle: emptySubtitle,
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       );
     }
 

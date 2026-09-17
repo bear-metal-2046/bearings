@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:beariscope/pages/team_lookup/team_model.dart';
 import 'package:beariscope/pages/team_lookup/team_providers.dart';
+import 'package:beariscope/widgets/beariscope_status_view.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class MatchLookupPage extends ConsumerStatefulWidget {
@@ -113,8 +114,10 @@ class _MatchLookupPageState extends ConsumerState<MatchLookupPage> {
               child: filteredMatches.when(
                 data: (matches) {
                   if ((t1?.isEmpty ?? true) || (t2?.isEmpty ?? true)) {
-                    return const Center(
-                      child: Text('Search for two teams to see matches'),
+                    return const BeariscopeStatusView(
+                      icon: LucideIcons.search,
+                      title: 'Select two teams',
+                      subtitle: 'Search for two teams to see matches',
                     );
                   }
 
@@ -124,8 +127,10 @@ class _MatchLookupPageState extends ConsumerState<MatchLookupPage> {
                       .toList();
 
                   if (uniqueMatches.isEmpty) {
-                    return const Center(
-                      child: Text('No matches found for these criteria.'),
+                    return const BeariscopeStatusView(
+                      icon: LucideIcons.search,
+                      title: 'No matches found',
+                      subtitle: 'No matches found for these criteria.',
                     );
                   }
 
@@ -138,7 +143,12 @@ class _MatchLookupPageState extends ConsumerState<MatchLookupPage> {
                   );
                 },
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (err, _) => Center(child: Text('Error: $err')),
+                error: (err, _) => BeariscopeStatusView(
+                  icon: LucideIcons.circleAlert,
+                  iconColor: Theme.of(context).colorScheme.error,
+                  title: 'Matches unavailable',
+                  subtitle: 'Error loading matches: $err',
+                ),
               ),
             ),
           ],

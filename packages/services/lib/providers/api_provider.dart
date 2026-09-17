@@ -36,6 +36,16 @@ HoneycombClient honeycombClient(Ref ref) {
   return HoneycombClient(ref);
 }
 
+/// A structured HTTP failure so callers can distinguish a deleted record
+/// from an unavailable server without parsing exception messages.
+class HoneycombApiException implements Exception {
+  final int? statusCode;
+  final String message;
+  const HoneycombApiException(this.statusCode, this.message);
+  @override
+  String toString() => message;
+}
+
 class HoneycombClient {
   final Ref _ref;
   final Future<String?> Function()? tokenOverride;
@@ -93,7 +103,8 @@ class HoneycombClient {
     } on DioException catch (e) {
       if (e.response != null) {
         final responseData = e.response?.data;
-        throw Exception(
+        throw HoneycombApiException(
+          e.response?.statusCode,
           'API Error: ${e.response?.statusCode} - ${e.response?.statusMessage} ${responseData ?? ''}',
         );
       }

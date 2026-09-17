@@ -55,7 +55,15 @@ dependencies:
   flex_color_picker: ^4.0.0
   material_ui: ^1.1.0
   cupertino_ui: ^1.0.1
+  crdt_lf: 4.2.0
+  crdt_socket_sync: ^0.6.0
+  web_socket_channel: ^3.0.0
   stupid_simple_sheet: ^0.9.1+1
+
+dependency_overrides:
+  # crdt_socket_sync 0.6.0 still declares ^3.0.0, but its public relay API
+  # is compatible with the 4.2 document implementation that adds movable lists.
+  crdt_lf: 4.2.0
 
 dev_dependencies:
   flutter_test:

@@ -10,6 +10,7 @@ import 'package:beariscope/pages/scout_audit/scout_audit_preferences_provider.da
 import 'package:beariscope/pages/scout_audit/scout_audit_provider.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/scouting_data_provider.dart';
+import 'package:beariscope/widgets/beariscope_status_view.dart';
 import 'package:core/core.dart' show ScoutPosition;
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -56,61 +57,26 @@ class _ScoutAuditPageState extends ConsumerState<ScoutAuditPage> {
       ),
       body: snapshotAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  LucideIcons.circleAlert,
-                  size: 52,
-                  color: Theme.of(context).colorScheme.error,
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'TBA data is unavailable',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Scout Audit needs TBA match schedule and scores. Check your connection and try again.',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                FilledButton.icon(
-                  onPressed: () {
-                    ref.invalidate(cachedTbaMatchesProvider);
-                    ref.invalidate(scoutAuditSnapshotProvider);
-                  },
-                  icon: const Icon(LucideIcons.rotateCw),
-                  label: const Text('Retry'),
-                ),
-              ],
-            ),
+        error: (error, stack) => BeariscopeStatusView(
+          icon: LucideIcons.circleAlert,
+          iconColor: Theme.of(context).colorScheme.error,
+          title: 'TBA data is unavailable',
+          subtitle: 'Scout Audit needs TBA match schedule and scores. Check your connection and try again.',
+          action: FilledButton.icon(
+            onPressed: () {
+              ref.invalidate(cachedTbaMatchesProvider);
+              ref.invalidate(scoutAuditSnapshotProvider);
+            },
+            icon: const Icon(LucideIcons.rotateCw),
+            label: const Text('Retry'),
           ),
         ),
         data: (snapshot) {
           if (snapshot.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    LucideIcons.circleCheck,
-                    size: 56,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'All scouted data looks clean!',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ],
-              ),
+            return BeariscopeStatusView(
+              icon: LucideIcons.circleCheck,
+              iconColor: Theme.of(context).colorScheme.primary,
+              title: 'All scouted data looks clean!',
             );
           }
 

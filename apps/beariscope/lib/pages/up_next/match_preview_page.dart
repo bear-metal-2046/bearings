@@ -5,6 +5,7 @@ import 'package:beariscope/providers/drive_team_notes_provider.dart';
 import 'package:beariscope/providers/match_preview_layout_provider.dart';
 import 'package:beariscope/providers/scouting_data_provider.dart';
 import 'package:beariscope/providers/tba_preferences_provider.dart';
+import 'package:beariscope/widgets/beariscope_status_view.dart';
 import 'package:beariscope/widgets/team_card.dart';
 import 'package:dots_indicator/dots_indicator.dart';
 import 'package:material_ui/material_ui.dart';
@@ -79,10 +80,15 @@ class _DriveTeamMatchPreviewPageState
       ),
       error: (err, stack) => Scaffold(
         appBar: AppBar(title: Text('Match ${widget.matchKey}')),
-        body: Center(
-          child: FilledButton(
+        body: BeariscopeStatusView(
+          icon: LucideIcons.circleAlert,
+          iconColor: Theme.of(context).colorScheme.error,
+          title: 'Match unavailable',
+          subtitle: 'Error loading match data: $err',
+          action: FilledButton.icon(
             onPressed: () => ref.invalidate(requestProvider),
-            child: const Text('Retry'),
+            icon: const Icon(LucideIcons.rotateCw),
+            label: const Text('Retry'),
           ),
         ),
       ),
@@ -224,7 +230,11 @@ class _DriveTeamMatchPreviewPageState
           body: LayoutBuilder(
             builder: (context, constraints) {
               if (cards.isEmpty) {
-                return const Center(child: Text('No teams available.'));
+                return const BeariscopeStatusView(
+                  icon: LucideIcons.users,
+                  title: 'No teams available',
+                  subtitle: 'This match does not have any team data yet.',
+                );
               }
 
               final width = constraints.maxWidth;

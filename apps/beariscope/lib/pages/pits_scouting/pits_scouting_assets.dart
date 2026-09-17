@@ -6,8 +6,10 @@ import 'package:beariscope/pages/pits_scouting/pits_scouting_widgets.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/pits_form_schema_provider.dart';
 import 'package:beariscope/providers/scouting_data_provider.dart';
+import 'package:beariscope/widgets/beariscope_status_view.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:services/providers/api_provider.dart';
 import 'package:services/providers/user_profile_provider.dart';
 
@@ -150,8 +152,12 @@ class _PitsScoutingFormPageState extends ConsumerState<PitsScoutingFormPage> {
         ),
         body: schemaAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, _) =>
-              Center(child: Text('Failed to load form schema: $error')),
+          error: (error, _) => BeariscopeStatusView(
+            icon: LucideIcons.circleAlert,
+            iconColor: Theme.of(context).colorScheme.error,
+            title: 'Pits form unavailable',
+            subtitle: 'Failed to load form schema: $error',
+          ),
           data: (schema) {
             _initializeFromSchema(schema);
 

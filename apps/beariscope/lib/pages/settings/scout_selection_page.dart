@@ -4,6 +4,7 @@ import 'package:beariscope/utils/platform_utils_stub.dart'
     if (dart.library.io) 'package:beariscope/utils/platform_utils.dart';
 import 'package:beariscope/widgets/beariscope_card.dart';
 import 'package:beariscope/widgets/beariscope_search_bar.dart';
+import 'package:beariscope/widgets/beariscope_status_view.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -442,10 +443,15 @@ class _ScoutSelectionPageState extends ConsumerState<ScoutSelectionPage> {
                   child: scoutsAsync.when(
                     loading: () =>
                         const Center(child: CircularProgressIndicator()),
-                    error: (err, stack) => Center(
-                      child: FilledButton(
+                    error: (err, stack) => BeariscopeStatusView(
+                      icon: LucideIcons.circleAlert,
+                      iconColor: Theme.of(context).colorScheme.error,
+                      title: 'Scouts unavailable',
+                      subtitle: 'Error loading scouts: $err',
+                      action: FilledButton.icon(
                         onPressed: _refreshScouts,
-                        child: const Text('Retry'),
+                        icon: const Icon(LucideIcons.rotateCw),
+                        label: const Text('Retry'),
                       ),
                     ),
                     data: (data) {
@@ -458,6 +464,31 @@ class _ScoutSelectionPageState extends ConsumerState<ScoutSelectionPage> {
                           searchQuery,
                         );
                       }).toList();
+
+                      if (filteredScouts.isEmpty) {
+                        final hasSearch = searchQuery.isNotEmpty;
+                        return RefreshIndicator(
+                          onRefresh: _refreshScouts,
+                          child: ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: listPadding,
+                            children: [
+                              SizedBox(
+                                height: 320,
+                                child: BeariscopeStatusView(
+                                  icon: LucideIcons.users,
+                                  title: hasSearch
+                                      ? 'No matching scouts'
+                                      : 'No scouts found',
+                                  subtitle: hasSearch
+                                      ? 'Try adjusting your search.'
+                                      : 'Add a scout to get started.',
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
 
                       return RefreshIndicator(
                         onRefresh: _refreshScouts,
