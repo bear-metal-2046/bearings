@@ -1,6 +1,6 @@
 name: core
 description: Shared raw Dart models and utilities for Bear Metal apps
-version: 26.6.2+23
+version: 26.6.3+24
 resolution: workspace
 publish_to: none
 

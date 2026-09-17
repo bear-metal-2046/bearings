@@ -1,6 +1,25 @@
-v# Changelog
+# Changelog
 
-## v26.6.2
+## v26.6.3
+**Released:** 2026-09-17
+
+### Bug Fixes
+- services: Fix honeycombClientProvider lifecycle race (c9b9d79)
+
+
+### Chores
+- repo: Standardize line endings to LF (2d21706)
+
+
+### Features
+- beariscope: Add pits scouting export (01cb962)
+- bearimetric: Add training mode (f711d6e)
+- bearimetric: Migrate to lucide icons (e699633)
+- beariscope: Add picklists page (36de90f)
+- beariscope: Integrate nexus live queue into up next (705bf5c)
+
+
+v## v26.6.2
 **Released:** 2026-09-06
 
 ### Bug Fixes
