@@ -130,6 +130,7 @@ class ScoutingMatch {
     this.blueAlliance,
     this.predictedTime,
     this.actualTime,
+    this.nexus,
   });
 
   final String key;
@@ -141,6 +142,7 @@ class ScoutingMatch {
   final MatchAlliance? blueAlliance;
   final int? predictedTime;
   final int? actualTime;
+  final Map<String, dynamic>? nexus;
 
   factory ScoutingMatch.fromJson(Map<String, dynamic> json) {
     final alliances = _asStringMap(json['alliances']);
@@ -157,6 +159,7 @@ class ScoutingMatch {
       blueAlliance: blue != null ? MatchAlliance.fromJson(blue) : null,
       predictedTime: _asInt(json['predicted_time']),
       actualTime: _asInt(json['actual_time']),
+      nexus: _asStringMap(json['nexus']),
     );
   }
 
@@ -173,6 +176,7 @@ class ScoutingMatch {
       },
       'predicted_time': predictedTime,
       'actual_time': actualTime,
+      if (nexus != null) 'nexus': nexus,
     };
   }
 

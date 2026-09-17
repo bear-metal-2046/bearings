@@ -1,11 +1,17 @@
+import 'dart:async';
+
+import 'package:beariscope/models/match_nexus_info.dart';
+import 'package:beariscope/models/up_next_match.dart';
 import 'package:beariscope/pages/main_view.dart';
+import 'package:beariscope/pages/up_next/enriched_current_event_provider.dart';
 import 'package:beariscope/pages/up_next/up_next_provider.dart';
 import 'package:beariscope/pages/up_next/up_next_widget.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
+import 'package:beariscope/providers/nexus_event_key_provider.dart';
 import 'package:beariscope/providers/tba_preferences_provider.dart';
 import 'package:beariscope/widgets/beariscope_card.dart';
-import 'package:material_ui/material_ui.dart';
 import 'package:beariscope/widgets/beariscope_status_view.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -25,16 +31,35 @@ class UpNextPage extends ConsumerStatefulWidget {
 }
 
 class _UpNextPageState extends ConsumerState<UpNextPage> {
+  static const _refreshInterval = Duration(seconds: 45);
+
   _MatchFilter _filter = _MatchFilter.bearMetal;
+  Timer? _refreshTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshTimer = Timer.periodic(_refreshInterval, (_) {
+      if (!mounted) return;
+      ref.invalidate(enrichedCurrentEventProvider);
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final controller = MainViewController.of(context);
     final schedule = ref.watch(upNextProvider);
+    final enrichedEvent = ref.watch(enrichedCurrentEventProvider);
     final currentEventKey = ref.watch(currentEventProvider);
 
     Future<void> refreshSchedule() async {
-      ref.invalidate(upNextProvider);
+      ref.invalidate(enrichedCurrentEventProvider);
       ref.invalidate(teamEventsProvider);
       try {
         await ref.read(upNextProvider.future);
@@ -118,21 +143,15 @@ class _UpNextPageState extends ConsumerState<UpNextPage> {
       ),
       body: schedule.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => BeariscopeStatusView(
-          icon: LucideIcons.circleAlert,
-          iconColor: Theme.of(context).colorScheme.error,
-          title: 'Schedule unavailable',
-          subtitle: 'Error fetching schedule: $err',
-        ),
+        error: (err, stack) =>
+            Center(child: Text('Error fetching schedule: $err')),
         data: (matches) {
           final filteredMatches = _filter == _MatchFilter.all
               ? matches
-              : matches.where(_is2046Match).toList();
-
+              : matches.where((match) => match.includes2046).toList();
           return _MatchList(
             matches: filteredMatches,
-            emptyTitle: 'No matches found',
-            emptySubtitle: 'Is the schedule released?',
+            eventContext: enrichedEvent.asData?.value?.context,
             timeFormat: UpNextPage.timeFormat,
             onRefresh: refreshSchedule,
           );
@@ -141,7 +160,11 @@ class _UpNextPageState extends ConsumerState<UpNextPage> {
     );
   }
 
-  void _handleAction(_EventAction action, String eventKey, WidgetRef ref) {
+  Future<void> _handleAction(
+    _EventAction action,
+    String eventKey,
+    WidgetRef ref,
+  ) async {
     switch (action) {
       case _EventAction.openTba:
         launchUrl(
@@ -154,8 +177,12 @@ class _UpNextPageState extends ConsumerState<UpNextPage> {
           mode: LaunchMode.externalApplication,
         );
       case _EventAction.openNexus:
+        final nexusEventKey =
+            await ref.read(nexusEventKeyProvider.future) ?? eventKey;
         launchUrl(
-          Uri.parse('https://frc.nexus/en/event/$eventKey/team/2046/matches'),
+          Uri.parse(
+            'https://frc.nexus/en/event/$nexusEventKey/team/2046/matches',
+          ),
           mode: LaunchMode.externalApplication,
         );
       case _EventAction.openFrcEvents:
@@ -190,90 +217,96 @@ PopupMenuItem<_MatchFilter> _filterMenuItem({
   );
 }
 
-bool _is2046Match(Map<String, dynamic> match) {
-  final alliances = match['alliances'] as Map?;
-  if (alliances == null) return false;
-
-  for (final alliance in alliances.values) {
-    if (alliance is! Map) continue;
-    final keys =
-        (alliance['team_keys'] ?? alliance['teamKeys'] ?? alliance['teams'])
-            as List?;
-    if (keys != null && keys.any((k) => k?.toString() == 'frc2046')) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
 class _MatchList extends StatelessWidget {
-  final List<Map<String, dynamic>> matches;
-  final String emptyTitle;
-  final String? emptySubtitle;
-  final DateFormat timeFormat;
-  final Future<void> Function() onRefresh;
-
   const _MatchList({
     required this.matches,
-    required this.emptyTitle,
-    this.emptySubtitle,
+    required this.eventContext,
     required this.timeFormat,
     required this.onRefresh,
   });
 
+  final List<UpNextMatch> matches;
+  final UpNextEventContext? eventContext;
+  final DateFormat timeFormat;
+  final Future<void> Function() onRefresh;
+
   @override
   Widget build(BuildContext context) {
-    if (matches.isEmpty) {
-      return LayoutBuilder(
-        builder: (context, constraints) {
-          final statusHeight = constraints.hasBoundedHeight
-              ? constraints.maxHeight
-              : 320.0;
-
-          return RefreshIndicator(
-            onRefresh: onRefresh,
-            child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              children: [
-                SizedBox(
-                  height: statusHeight,
-                  child: BeariscopeStatusView(
-                    icon: LucideIcons.calendar,
-                    title: emptyTitle,
-                    subtitle: emptySubtitle,
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: onRefresh,
-      child: BeariscopeCardList(
-        children: matches.map((match) {
-          final matchTime = _parseMatchTime(match);
+    final children = <Widget>[
+      if (eventContext != null)
+        _EventContextHeader(eventContext: eventContext!),
+      if (matches.isEmpty)
+        const SizedBox(
+          height: 320,
+          child: BeariscopeStatusView(
+            icon: LucideIcons.calendar,
+            title: 'No matches found',
+            subtitle: 'Is the schedule released?',
+          ),
+        )
+      else
+        ...matches.map((match) {
+          final matchTime = match.displayTime;
           final timeLabel = matchTime == null
               ? 'Time TBD'
               : timeFormat.format(matchTime);
 
           return UpNextMatchCard(
-            matchKey: match['key']?.toString() ?? '',
-            displayName: matchDisplayName(match),
+            matchKey: match.key,
+            displayName: match.displayName,
             time: timeLabel,
+            status: match.queueStatus,
+            highlighted:
+                match.includes2046 && isActiveQueueStatus(match.queueStatus),
           );
-        }).toList(),
+        }),
+    ];
+
+    return RefreshIndicator(
+      onRefresh: onRefresh,
+      child: BeariscopeCardList(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+        spacing: 8,
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: children,
       ),
     );
   }
 }
 
-DateTime? _parseMatchTime(Map<String, dynamic> match) {
-  final value = match['predictedTime'] ?? match['predicted_time'];
-  if (value is String) return DateTime.tryParse(value);
-  if (value is int) return DateTime.fromMillisecondsSinceEpoch(value * 1000);
-  return null;
+class _EventContextHeader extends StatelessWidget {
+  const _EventContextHeader({required this.eventContext});
+
+  final UpNextEventContext eventContext;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: 8,
+      children: [
+        if (eventContext.nowQueuing != null)
+          BeariscopeCard(
+            title: 'Now queuing: ${eventContext.nowQueuing}',
+            color: colorScheme.primaryContainer,
+            leading: Icon(
+              LucideIcons.radio,
+              color: colorScheme.onPrimaryContainer,
+            ),
+            titleStyle: TextStyle(
+              color: colorScheme.onPrimaryContainer,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        if (eventContext.announcements.isNotEmpty)
+          BeariscopeCard(
+            title: 'Announcements',
+            subtitle: eventContext.announcements.join('\n'),
+            leading: const Icon(LucideIcons.megaphone, size: 18),
+          ),
+      ],
+    );
+  }
 }

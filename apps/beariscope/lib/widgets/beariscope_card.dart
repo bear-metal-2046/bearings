@@ -6,6 +6,7 @@ class BeariscopeCardList extends StatelessWidget {
   final EdgeInsetsGeometry? padding;
   final double maxWidth;
   final double spacing;
+  final ScrollPhysics? physics;
   final Key? listKey;
 
   const BeariscopeCardList({
@@ -14,6 +15,7 @@ class BeariscopeCardList extends StatelessWidget {
     this.padding = const EdgeInsets.all(16),
     this.maxWidth = 600,
     this.spacing = 8,
+    this.physics,
     this.listKey,
   });
 
@@ -26,6 +28,7 @@ class BeariscopeCardList extends StatelessWidget {
     return ListView.separated(
       key: listKey,
       padding: padding,
+      physics: physics,
       separatorBuilder: (context, index) => SizedBox(height: spacing),
       itemCount: children.length,
       itemBuilder: (context, index) {
@@ -44,25 +47,31 @@ class BeariscopeCardList extends StatelessWidget {
 class BeariscopeCard extends StatelessWidget {
   final String title;
   final String? subtitle;
+  final Widget? leading;
   final Widget? trailing;
   final Color? color;
   final VoidCallback? onTap;
   final EdgeInsetsGeometry? padding;
+  final TextStyle? titleStyle;
+  final TextStyle? subtitleStyle;
 
   const BeariscopeCard({
     super.key,
     required this.title,
     this.color,
     this.subtitle,
+    this.leading,
     this.trailing,
     this.onTap,
     this.padding = const EdgeInsets.all(16.0),
+    this.titleStyle,
+    this.subtitleStyle,
   });
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: Theme.of(context).colorScheme.surfaceContainer,
+      color: color ?? Theme.of(context).colorScheme.surfaceContainer,
       margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
       elevation: 0,
@@ -73,6 +82,8 @@ class BeariscopeCard extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              ?leading,
+              if (leading != null) const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -80,16 +91,20 @@ class BeariscopeCard extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
+                      style:
+                          titleStyle ??
+                          const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
                       overflow: TextOverflow.ellipsis,
                     ),
                     if (subtitle != null) ...[
                       Text(
                         subtitle!,
-                        style: Theme.of(context).textTheme.bodyMedium,
+                        style:
+                            subtitleStyle ??
+                            Theme.of(context).textTheme.bodyMedium,
                       ),
                     ],
                   ],

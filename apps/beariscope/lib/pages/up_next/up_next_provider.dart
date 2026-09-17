@@ -1,24 +1,38 @@
+import 'package:beariscope/models/match_nexus_info.dart';
+import 'package:beariscope/models/up_next_match.dart';
+import 'package:beariscope/pages/up_next/enriched_current_event_provider.dart';
+import 'package:beariscope/pages/up_next/nexus_match_merge.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:services/providers/api_provider.dart';
 
-final upNextProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+final upNextProvider = FutureProvider<List<UpNextMatch>>((ref) async {
   final client = ref.watch(honeycombClientProvider);
   final currentEventKey = ref.watch(currentEventProvider);
+  final enrichedFuture = ref.watch(enrichedCurrentEventProvider.future);
 
-  final matches = await client.get<List<dynamic>>(
+  final matchesFuture = client.get<List<dynamic>>(
     '/matches',
     queryParams: {'event': currentEventKey},
     cachePolicy: CachePolicy.networkFirst,
   );
+  final matches = await matchesFuture;
+  final enriched = await enrichedFuture;
+  final nexusMatches = enriched?.nexusMatches ?? const <MatchNexusInfo>[];
 
   final eventMatches =
       matches
           .whereType<Map>()
           .map((match) => Map<String, dynamic>.from(match))
           .where((match) => eventKeyForMatch(match) == currentEventKey)
+          .map(
+            (match) => UpNextMatch.fromMap(
+              match,
+              nexus: nexusMatchForTbaMatch(match, nexusMatches),
+            ),
+          )
           .toList()
-        ..sort(compareMatchesForUpNext);
+        ..sort((a, b) => compareMatchesForUpNext(a.raw, b.raw));
 
   return eventMatches;
 });
