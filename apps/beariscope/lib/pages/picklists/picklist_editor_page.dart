@@ -5,7 +5,6 @@ import 'dart:async';
 
 import 'package:beariscope/pages/picklists/picklist_options_sheet.dart';
 
-import 'package:beariscope/pages/picklists/picklist_duplicate_dialog.dart';
 import 'package:beariscope/pages/picklists/picklist_presence_stack.dart';
 
 import 'dart:math' as math;
@@ -52,6 +51,7 @@ class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage>
   bool _draggingSheet = false;
   double _safeAreaBottom = 0;
   String? _draggingTeam;
+
   bool get _isDraggingTeam => _draggingTeam != null;
   double _mobileMaxHeight = 560;
 
@@ -122,6 +122,16 @@ class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage>
           presentation: _dragPresentation,
           child: Scaffold(
             appBar: AppBar(
+              backgroundColor: Theme.of(context).colorScheme.surface,
+              scrolledUnderElevation: 0,
+              surfaceTintColor: Colors.transparent,
+              bottom: const PreferredSize(
+                preferredSize: Size.fromHeight(1),
+                child: Divider(
+                  height: 1,
+                  thickness: 1,
+                ),
+              ),
               leading: IconButton(
                 tooltip: 'Back to Picklists',
                 onPressed: () => context.go('/picklists'),
@@ -182,22 +192,19 @@ class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage>
                 if (canEdit)
                   PopupMenuButton<String>(
                     onSelected: (value) {
-                      if (value == 'duplicate')
-                        duplicatePicklist(context, ref, picklist);
                       if (value == 'clear') _confirmClear(picklist);
                       if (value == 'copy') _copyTeams(picklist.teamKeys);
                     },
                     tooltip: 'Picklist options',
                     itemBuilder: (context) => [
-                      const PopupMenuItem(
-                        value: 'duplicate',
-                        child: Text('Duplicate…'),
-                      ),
                       if (!desktop)
                         PopupMenuItem(
                           value: 'copy',
                           enabled: picklist.teamKeys.isNotEmpty,
-                          child: const Text('Copy team numbers'),
+                          child: ListTile(
+                            leading: Icon(LucideIcons.copy),
+                            title: Text('Copy team numbers'),
+                          ),
                         ),
                       PopupMenuItem(
                         enabled: canEdit,
@@ -206,7 +213,7 @@ class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage>
                           children: [
                             Icon(LucideIcons.trash2),
                             SizedBox(width: 12),
-                            Text('Clear teams'),
+                            Text('Clear picklist'),
                           ],
                         ),
                       ),
@@ -475,7 +482,12 @@ class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage>
 
   Widget _missingPicklist() {
     return Scaffold(
-      appBar: AppBar(title: const Text('Picklist')),
+      appBar: AppBar(
+        title: const Text('Picklist'),
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+      ),
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -693,6 +705,7 @@ class _TeamLibraryState extends ConsumerState<_TeamLibrary> {
                     focusNode: _searchFocusNode,
                     controller: _searchController,
                     hintText: 'Team name or number',
+                    elevation: 0,
                   ),
                 ),
                 PopupMenuButton<TeamSortOptions>(
@@ -750,7 +763,7 @@ class _TeamLibraryState extends ConsumerState<_TeamLibrary> {
                       );
                     }
                     return ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
+                      padding: const EdgeInsets.all(12),
                       itemCount: teams.length,
                       separatorBuilder: (context, index) =>
                           const SizedBox(height: 8),
@@ -1132,6 +1145,7 @@ class _AdaptiveTeamDrag extends StatefulWidget {
   final ValueChanged<Offset> onUpdate;
   final VoidCallback onStart;
   final VoidCallback onEnd;
+
   const _AdaptiveTeamDrag({
     required this.teamKey,
     required this.feedback,
@@ -1466,27 +1480,39 @@ class _PicklistSurfaceState extends ConsumerState<_PicklistSurface> {
                               size: 20,
                             ),
                             onSelected: (value) {
-                              if (value == 'remove')
+                              if (value == 'remove') {
                                 widget.onRemoveTeam(teams[index]);
-                              if (value == 'up')
+                              }
+                              if (value == 'up') {
                                 widget.onInsertTeam(teams[index], index - 1);
-                              if (value == 'down')
+                              }
+                              if (value == 'down') {
                                 widget.onInsertTeam(teams[index], index + 2);
+                              }
                             },
                             itemBuilder: (context) => [
                               if (index > 0)
                                 const PopupMenuItem(
                                   value: 'up',
-                                  child: Text('Move up'),
+                                  child: ListTile(
+                                    leading: Icon(LucideIcons.moveUp),
+                                    title: Text('Move up'),
+                                  ),
                                 ),
                               if (index < teams.length - 1)
                                 const PopupMenuItem(
                                   value: 'down',
-                                  child: Text('Move down'),
+                                  child: ListTile(
+                                    leading: Icon(LucideIcons.moveDown),
+                                    title: Text('Move down'),
+                                  ),
                                 ),
                               const PopupMenuItem(
                                 value: 'remove',
-                                child: Text('Return to library'),
+                                child: ListTile(
+                                  leading: Icon(LucideIcons.squareMinus),
+                                  title: Text('Remove from list'),
+                                ),
                               ),
                             ],
                           ),
@@ -1511,6 +1537,7 @@ class _AnimatedRanking extends StatelessWidget {
   final IndexedWidgetBuilder? insertionBuilder;
   final IndexedWidgetBuilder? leadingInsertionBuilder;
   final IndexedWidgetBuilder? trailingInsertionBuilder;
+
   const _AnimatedRanking({
     required this.teamKeys,
     required this.controller,
