@@ -29,9 +29,15 @@ class PicklistSyncSession {
   late final CRDTFugueMovableListHandler<String> _teams;
   late final PicklistPresence presence;
   StreamSubscription<void>? _updatesSubscription;
+  StreamSubscription<Change>? _localChangesSubscription;
   StreamSubscription<Message>? _messagesSubscription;
   WebSocketRelayClient? _relay;
+  Timer? _recoveryTimer;
   Future<void>? _startFuture;
+  Future<void> _lastStorageWrite = Future<void>.value();
+  final List<String> _pendingChanges = [];
+  Completer<void>? _pendingDrained;
+  bool _connectingRemote = false;
   bool _started = false;
   bool _disposed = false;
   String? _pendingTitle;
@@ -81,6 +87,13 @@ class PicklistSyncSession {
       onProjectionChanged(_projection());
       unawaited(_persistLocalState());
     });
+    if (remoteEnabled && remoteWritable) {
+      _localChangesSubscription = document.localChanges.listen((change) {
+        if (_disposed) return;
+        _pendingChanges.add(base64Encode(change.toBytes()));
+        unawaited(_persistLocalState());
+      });
+    }
     if (remoteEnabled) {
       try {
         await remoteReady;
@@ -89,6 +102,16 @@ class PicklistSyncSession {
       } catch (_) {
         // Realtime sync is best effort; continue with the local projection.
       }
+      if (_disposed) return;
+      _recoveryTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+        if (_disposed) return;
+        final relay = _relay;
+        if (relay == null) {
+          unawaited(_connectRemote().catchError((_) {}));
+        } else if (relay.connectionStatusValue == ConnectionStatus.error) {
+          unawaited(relay.connect());
+        }
+      });
     }
     if (_disposed) return;
     // Readers must never seed an empty remote document or replay local edits.
@@ -114,24 +137,26 @@ class PicklistSyncSession {
   }
 
   Future<void> _connectRemote() async {
+    if (_connectingRemote || _relay != null || _disposed) return;
+    _connectingRemote = true;
     try {
-      final response = await client.get<Map<String, dynamic>>(
-        '/picklists/realtime/negotiate',
-        queryParams: {'picklistId': initial.id},
-        cachePolicy: CachePolicy.networkOnly,
-      );
+      var firstUrl = await _negotiateRemoteUrl();
       if (_disposed) return;
-      final url = response['url']?.toString();
-      if (url == null || url.isEmpty) {
-        throw StateError('Realtime negotiation returned no URL');
-      }
       final relay = WebSocketRelayClient.test(
-        url: url,
+        url: firstUrl,
         document: document,
         author: document.peerId,
         transportFactory: () => Transport.create(
           AzureWebPubSubTransportConnector(
-            url,
+            () async {
+              if (_disposed) throw StateError('Picklist session closed');
+              final url = firstUrl;
+              if (url.isNotEmpty) {
+                firstUrl = '';
+                return url;
+              }
+              return _negotiateRemoteUrl();
+            },
             presence: presence,
             isDisposed: () => _disposed,
           ),
@@ -139,7 +164,21 @@ class PicklistSyncSession {
         maxReconnectAttempts: 20,
       );
       _relay = relay;
+      if (remoteWritable) {
+        for (final encoded in _pendingChanges) {
+          await relay.sendChange(Change.fromBytes(base64Decode(encoded)));
+        }
+      }
       _messagesSubscription = relay.messages.listen((message) {
+        if (message is RelayAckMessage && message.documentId == initial.id) {
+          final acknowledged = message.count.clamp(0, _pendingChanges.length);
+          _pendingChanges.removeRange(0, acknowledged);
+          if (_pendingChanges.isEmpty &&
+              !(_pendingDrained?.isCompleted ?? true)) {
+            _pendingDrained!.complete();
+          }
+          unawaited(_persistLocalState());
+        }
         final data = message.toJson();
         if (data['code'] == 'not_found' && !_disposed) onDeleted?.call();
       });
@@ -150,6 +189,40 @@ class PicklistSyncSession {
         return;
       }
       rethrow;
+    } finally {
+      _connectingRemote = false;
+    }
+  }
+
+  Future<String> _negotiateRemoteUrl() async {
+    final response = await client.get<Map<String, dynamic>>(
+      '/picklists/realtime/negotiate',
+      queryParams: {'picklistId': initial.id},
+      cachePolicy: CachePolicy.networkOnly,
+    );
+    final url = response['url']?.toString();
+    if (url == null || url.isEmpty) {
+      throw StateError('Realtime negotiation returned no URL');
+    }
+    return url;
+  }
+
+  bool get hasPendingChanges => _pendingChanges.isNotEmpty;
+
+  /// Used by short-lived list-page edits before closing their relay session.
+  /// A timeout leaves the edits in local storage for a later retry.
+  Future<void> waitForPendingChanges(Duration timeout) async {
+    await start();
+    await Future<void>.delayed(Duration.zero);
+    if (_disposed || _pendingChanges.isEmpty) return;
+    final drained = _pendingDrained ??= Completer<void>();
+    if (_pendingChanges.isEmpty && !drained.isCompleted) drained.complete();
+    try {
+      await drained.future.timeout(timeout);
+    } on TimeoutException {
+      // Pending changes stay persisted and will be retried on the next open.
+    } finally {
+      if (identical(_pendingDrained, drained)) _pendingDrained = null;
     }
   }
 
@@ -206,6 +279,9 @@ class PicklistSyncSession {
           .map((encoded) => Change.fromBytes(base64Decode(encoded)))
           .toList();
       document.importChanges(changes, origin: _restoreOrigin);
+      _pendingChanges.addAll(
+        (decoded['pendingChanges'] as List? ?? const []).cast<String>(),
+      );
     } catch (error) {
       debugPrint('Ignoring corrupt picklist cache: $error');
     }
@@ -213,21 +289,28 @@ class PicklistSyncSession {
 
   Future<void> _persistLocalState() async {
     if (_disposed || document.isEmpty) return;
-    await preferences.setString(
-      '$storagePrefix${initial.id}',
-      jsonEncode({
-        'changes': [
-          for (final change in document.exportChanges())
-            base64Encode(change.toBytes()),
-        ],
-      }),
-    );
+    final payload = jsonEncode({
+      'changes': [
+        for (final change in document.exportChanges())
+          base64Encode(change.toBytes()),
+      ],
+      'pendingChanges': List<String>.of(_pendingChanges),
+    });
+    _lastStorageWrite = _lastStorageWrite
+        .catchError((_) {})
+        .then(
+          (_) => preferences.setString('$storagePrefix${initial.id}', payload),
+        );
+    await _lastStorageWrite;
   }
 
   void dispose() {
     if (_disposed) return;
     _disposed = true;
+    if (!(_pendingDrained?.isCompleted ?? true)) _pendingDrained!.complete();
+    _recoveryTimer?.cancel();
     _updatesSubscription?.cancel();
+    _localChangesSubscription?.cancel();
     _messagesSubscription?.cancel();
     // The transport owns disconnect callbacks; keep the notifier alive until
     // that transport has closed.

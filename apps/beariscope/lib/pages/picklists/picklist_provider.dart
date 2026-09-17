@@ -17,6 +17,7 @@ class PicklistLibraryNotifier extends Notifier<List<Picklist>> {
   String? _eventKey;
   bool _remoteRefreshStarted = false;
   final Map<String, PicklistSyncSession> _sessions = {};
+  final Set<String> _transientSessions = {};
   final Map<String, Future<void>> _pendingRemoteCreates = {};
   final Map<String, Picklist> _pendingPatches = {};
   final Set<String> _patching = {};
@@ -44,6 +45,7 @@ class PicklistLibraryNotifier extends Notifier<List<Picklist>> {
         session.dispose();
       }
       _sessions.clear();
+      _transientSessions.clear();
       _remoteRefreshStarted = false;
     }
     _eventKey = nextEventKey;
@@ -54,6 +56,7 @@ class PicklistLibraryNotifier extends Notifier<List<Picklist>> {
         session.dispose();
       }
       _sessions.clear();
+      _transientSessions.clear();
     }
     if (!canReadRemotely) _remoteRefreshStarted = false;
 
@@ -66,6 +69,7 @@ class PicklistLibraryNotifier extends Notifier<List<Picklist>> {
         session.dispose();
       }
       _sessions.clear();
+      _transientSessions.clear();
       _pendingRemoteCreates.clear();
     });
 
@@ -133,11 +137,14 @@ class PicklistLibraryNotifier extends Notifier<List<Picklist>> {
 
   /// Starts a live CRDT session for the editor. It is intentionally safe to
   /// call repeatedly from a widget build.
-  PicklistSyncSession? open(String id) {
+  PicklistSyncSession? open(String id, {bool transient = false}) {
     if (!_canReadRemotely) {
       return null;
     }
-    if (_sessions.containsKey(id)) return _sessions[id];
+    if (_sessions.containsKey(id)) {
+      if (!transient) _transientSessions.remove(id);
+      return _sessions[id];
+    }
     final item = state.where((picklist) => picklist.id == id).firstOrNull;
     if (item == null) {
       return null;
@@ -163,8 +170,44 @@ class PicklistLibraryNotifier extends Notifier<List<Picklist>> {
       profile: _presenceProfile(ref.read(userInfoProvider).asData?.value),
     );
     _sessions[id] = session;
+    if (transient) {
+      _transientSessions.add(id);
+      unawaited(_closeTransientSession(id, session));
+    }
     unawaited(session.start());
     return session;
+  }
+
+  Future<void> _closeTransientSession(
+    String id,
+    PicklistSyncSession session,
+  ) async {
+    final expired = Completer<void>();
+    final timeout = Timer(const Duration(seconds: 30), expired.complete);
+    try {
+      do {
+        try {
+          await Future.any<void>([
+            session.waitForPendingChanges(const Duration(seconds: 30)),
+            expired.future,
+          ]);
+        } catch (_) {
+          // The local pending changes remain available for a later session.
+        }
+        if (expired.isCompleted) break;
+        await Future.any<void>([
+          Future<void>.delayed(const Duration(milliseconds: 500)),
+          expired.future,
+        ]);
+      } while (session.hasPendingChanges && !expired.isCompleted);
+    } finally {
+      timeout.cancel();
+    }
+    if (ref.mounted &&
+        identical(_sessions[id], session) &&
+        _transientSessions.contains(id)) {
+      close(id);
+    }
   }
 
   Map<String, dynamic> _presenceProfile(UserInfo? user) => {
@@ -173,7 +216,10 @@ class PicklistLibraryNotifier extends Notifier<List<Picklist>> {
     'avatarUrl': user?.pictureUrl,
   };
 
-  void close(String id) => _sessions.remove(id)?.dispose();
+  void close(String id) {
+    _transientSessions.remove(id);
+    _sessions.remove(id)?.dispose();
+  }
 
   void _removeLocal(String id) {
     _refreshVersion++;
@@ -282,7 +328,7 @@ class PicklistLibraryNotifier extends Notifier<List<Picklist>> {
     final updated = state.firstWhere((item) => item.id == id);
 
     _persist();
-    final session = _sessions[id] ?? open(id);
+    final session = _sessions[id] ?? open(id, transient: true);
     if (session != null) {
       if (updated.title != previous.title) session.setTitle(updated.title);
       if (updated.emoji != previous.emoji) session.setEmoji(updated.emoji);

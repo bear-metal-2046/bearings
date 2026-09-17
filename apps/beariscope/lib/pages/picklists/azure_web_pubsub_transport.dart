@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:beariscope/pages/picklists/picklist_presence.dart';
@@ -8,18 +9,20 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 /// Presence uses the relay's ephemeral 100–102 messages and is consumed here
 /// before the CRDT codec sees it.
 class AzureWebPubSubTransportConnector implements TransportConnector {
-  final String url;
+  final Future<String> Function() urlProvider;
   final PicklistPresence? presence;
   final bool Function() isDisposed;
 
   AzureWebPubSubTransportConnector(
-    this.url, {
+    this.urlProvider, {
     this.presence,
     required this.isDisposed,
   });
 
   @override
   Future<TransportConnection> connect() async {
+    final url = await urlProvider();
+    if (isDisposed()) throw StateError('Picklist session closed');
     final channel = WebSocketChannel.connect(Uri.parse(url));
     try {
       await channel.ready;
@@ -36,25 +39,31 @@ class AzureWebPubSubTransportConnector implements TransportConnector {
 class _AzureWebPubSubTransportConnection implements TransportConnection {
   final WebSocketChannel _channel;
   final PicklistPresence? _presence;
+  bool _closing = false;
 
   _AzureWebPubSubTransportConnection(this._channel, this._presence);
 
   @override
-  Stream<List<int>> get incoming async* {
-    try {
-      await for (final data in _channel.stream) {
+  Stream<List<int>> get incoming => _channel.stream.transform(
+    StreamTransformer<dynamic, List<int>>.fromHandlers(
+      handleData: (data, sink) {
         final bytes = data is String ? utf8.encode(data) : (data as List<int>);
         final decoded = jsonDecode(utf8.decode(bytes));
         if (decoded is Map<String, dynamic> &&
             (_presence?.receive(decoded) ?? false)) {
-          continue;
+          return;
         }
-        yield bytes;
-      }
-    } finally {
-      _presence?.disconnect();
-    }
-  }
+        sink.add(bytes);
+      },
+      handleDone: (sink) {
+        _presence?.disconnect();
+        // The relay library only retries after an incoming stream error. A
+        // normal close would otherwise silently reopen without state catch-up.
+        if (!_closing) sink.addError(StateError('Picklist socket closed'));
+        sink.close();
+      },
+    ),
+  );
 
   @override
   Future<void> send(List<int> data) async =>
@@ -62,6 +71,7 @@ class _AzureWebPubSubTransportConnection implements TransportConnection {
 
   @override
   Future<void> close() {
+    _closing = true;
     _presence?.leave();
     return _channel.sink.close();
   }
