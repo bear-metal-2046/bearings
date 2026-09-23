@@ -1,18 +1,23 @@
 name: honeycomb
-description: A new Dart Frog application
+description: Bearings Honeycomb API and picklist realtime service
 version: 26.6.3+24
-resolution: workspace
 publish_to: none
 
 environment:
   sdk: ^3.13.0
 
 dependencies:
-  core:
-    path: ../../packages/core
   dart_frog: ^1.2.6
+  dart_frog_web_socket: ^1.0.3
+  dart_jsonwebtoken: ^3.4.1
+  mongo_dart: ^0.10.9
+  http: ^1.5.0
+  crypto: ^3.0.7
+  uuid: ^4.6.0
+  web_socket_channel: ^3.0.3
 
 dev_dependencies:
+  dart_frog_cli: ^1.2.14
   dart_frog_lint: ^0.1.2
   mocktail: ^1.0.5
   test: 1.31.1

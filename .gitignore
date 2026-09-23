@@ -20,10 +20,9 @@
 # Flutter platform build artifacts
 apps/**/ios/Flutter/.last_build_id
 
-# Nested package lockfiles are owned by the workspace root lockfile
+# Flutter workspace lockfiles are owned by the workspace root lockfile
 apps/**/pubspec.lock
 packages/**/pubspec.lock
-backend/**/pubspec.lock
 
 # Dart Frog generated files
 backend/**/.dart_frog/

@@ -6,10 +6,12 @@
 # Files and directories created by pub
 .dart_tool/
 .packages
-pubspec.lock
 
 # Files and directories created by dart_frog
 build/
+.env
+.env.*
+!.env.example
 .dart_frog
 
 # Test related files

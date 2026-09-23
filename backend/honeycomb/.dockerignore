@@ -1,0 +1,8 @@
+.dart_tool
+.dart_frog
+build
+coverage
+test
+*.log
+.env
+.env.*

@@ -1,4 +1,4 @@
 import 'package:dart_frog/dart_frog.dart';
 
 Response onRequest(RequestContext context) =>
-    Response.json(body: {'service': 'honeycomb', 'status': 'ok'});
+    Response.json(body: {'status': 'ok'});

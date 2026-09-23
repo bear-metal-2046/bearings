@@ -5,15 +5,15 @@ import 'package:beariscope/pages/picklists/picklist_presence.dart';
 import 'package:crdt_socket_sync/relay_client.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
-/// Azure's simple user-event transport expects JSON text, not binary frames.
-/// Presence uses the relay's ephemeral 100–102 messages and is consumed here
-/// before the CRDT codec sees it.
-class AzureWebPubSubTransportConnector implements TransportConnector {
+/// Picklist relay transport using JSON text WebSocket frames.
+/// Presence uses ephemeral 100–102 messages and is consumed here before the
+/// CRDT codec sees it.
+class PicklistWebSocketTransportConnector implements TransportConnector {
   final Future<String> Function() urlProvider;
   final PicklistPresence? presence;
   final bool Function() isDisposed;
 
-  AzureWebPubSubTransportConnector(
+  PicklistWebSocketTransportConnector(
     this.urlProvider, {
     this.presence,
     required this.isDisposed,
@@ -28,7 +28,7 @@ class AzureWebPubSubTransportConnector implements TransportConnector {
       await channel.ready;
       if (isDisposed()) throw StateError('Picklist session closed');
       presence?.connect((frame) => channel.sink.add(jsonEncode(frame)));
-      return _AzureWebPubSubTransportConnection(channel, presence);
+      return _PicklistWebSocketTransportConnection(channel, presence);
     } catch (_) {
       await channel.sink.close();
       rethrow;
@@ -36,12 +36,12 @@ class AzureWebPubSubTransportConnector implements TransportConnector {
   }
 }
 
-class _AzureWebPubSubTransportConnection implements TransportConnection {
+class _PicklistWebSocketTransportConnection implements TransportConnection {
   final WebSocketChannel _channel;
   final PicklistPresence? _presence;
   bool _closing = false;
 
-  _AzureWebPubSubTransportConnection(this._channel, this._presence);
+  _PicklistWebSocketTransportConnection(this._channel, this._presence);
 
   @override
   Stream<List<int>> get incoming => _channel.stream.transform(

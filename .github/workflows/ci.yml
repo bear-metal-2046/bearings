@@ -19,6 +19,23 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  honeycomb:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend/honeycomb
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: 3.13.2
+      - run: dart pub get
+      - run: dart format --output=none --set-exit-if-changed lib routes test
+      - run: dart analyze --no-fatal-warnings .
+      - run: dart test
+      - run: dart run dart_frog_cli:dart_frog build
+      - run: dart compile exe build/bin/server.dart
+
   commitlint:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest

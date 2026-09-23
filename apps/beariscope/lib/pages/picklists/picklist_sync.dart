@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:beariscope/pages/picklists/azure_web_pubsub_transport.dart';
+import 'package:beariscope/pages/picklists/picklist_web_socket_transport.dart';
 import 'package:beariscope/pages/picklists/picklist_model.dart';
 import 'package:beariscope/pages/picklists/picklist_presence.dart';
 import 'package:crdt_lf/crdt_lf.dart';
@@ -147,7 +147,7 @@ class PicklistSyncSession {
         document: document,
         author: document.peerId,
         transportFactory: () => Transport.create(
-          AzureWebPubSubTransportConnector(
+          PicklistWebSocketTransportConnector(
             () async {
               if (_disposed) throw StateError('Picklist session closed');
               final url = firstUrl;

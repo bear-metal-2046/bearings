@@ -14,7 +14,6 @@ workspace:
   - packages/core
   - packages/services
   - packages/ui
-  - backend/honeycomb
 
 dev_dependencies:
   build_runner: 2.15.1
@@ -27,16 +26,15 @@ melos:
     - packages/core
     - packages/services
     - packages/ui
-    - backend/honeycomb
 
   scripts:
     format:
       description: Apply formatting across the workspace.
-      run: dart format apps packages backend
+      run: dart format apps packages backend/honeycomb/lib backend/honeycomb/routes backend/honeycomb/test
 
     format:check:
       description: Check formatting across the workspace.
-      run: dart format --output=none --set-exit-if-changed apps packages backend
+      run: dart format --output=none --set-exit-if-changed apps packages backend/honeycomb/lib backend/honeycomb/routes backend/honeycomb/test
 
     analyze:
       description: Run static analysis in every package.
@@ -44,7 +42,7 @@ melos:
 
     test:dart:
       description: Run tests for pure Dart packages.
-      run: melos exec --scope=core --scope=honeycomb --dir-exists=test --fail-fast -- "dart test"
+      run: melos exec --scope=core --dir-exists=test --fail-fast -- "dart test"
 
     test:flutter:
       description: Run tests for Flutter packages and apps.
