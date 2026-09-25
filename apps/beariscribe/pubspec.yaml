@@ -1,0 +1,28 @@
+name: beariscribe
+description: "A WPILib log downloader developed by Bear Metal, team 2046"
+version: 26.6.3+24
+resolution: workspace
+publish_to: none
+
+environment:
+  sdk: ^3.13.0
+  flutter: ^3.0.0
+  
+dependencies:
+  core:
+    path: ../../packages/core
+  flutter:
+    sdk: flutter
+  services:
+    path: ../../packages/services
+  ui:
+    path: ../../packages/ui
+  window_manager: ^0.5.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
