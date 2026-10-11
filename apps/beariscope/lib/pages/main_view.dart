@@ -442,7 +442,7 @@ class _MainViewState extends ConsumerState<MainView> {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final subtitleText = canSelectEvent
-        ? 'At ${selectedEvent.displayShortName}'
+        ? 'At ${selectedEvent.shortName}'
         : 'No event selected';
 
     return SafeArea(
@@ -590,7 +590,7 @@ class _MainViewState extends ConsumerState<MainView> {
                                 ),
                               ),
                             ),
-                            leadingIcon: Icon(customIconFor(e), size: 20),
+                            leadingIcon: Icon(e.leadingIcon, size: 20),
                             trailingIcon: e.key == currentEventKey
                                 ? Icon(
                                     LucideIcons.check,
@@ -605,11 +605,11 @@ class _MainViewState extends ConsumerState<MainView> {
                                   .read(currentEventProvider.notifier)
                                   .setEventKey(e.key);
                             },
-                            child: Text(e.displayName.shortenEventName()),
+                            child: Text(e.shortName),
                           ),
                         )
                         .toList(),
-                    child: Text('At ${currentEvent.displayShortName}'),
+                    child: Text('At ${currentEvent.shortName}'),
                   );
                 },
                 loading: () => const MenuItemButton(
@@ -853,147 +853,4 @@ class _NoPermissionsBanner extends StatelessWidget {
       ),
     );
   }
-}
-
-const _eventNameReplacements = {
-  'District Championship': 'DCMP',
-  'State Championship': 'State CMP',
-  'Provincial Championship': 'PCMP',
-
-  'Pacific Northwest FIRST': 'PNW',
-  'FIRST in Michigan': 'FIM',
-  'FIRST in Texas': 'FIT',
-  'FIRST Indiana': 'FIN',
-  'FIRST Mid-Atlantic': 'FMA',
-  'FIRST North Carolina': 'FNC',
-  'FIRST South Carolina': 'FSC',
-  'FIRST Wisconsin': 'WIN',
-  'New England FIRST': 'NE',
-  'Peachtree': 'PCH',
-  'FIRST Ontario': 'ONT',
-  'FIRST Israel': 'ISR',
-
-  'PNW District': 'PNW',
-  'FIM District': 'FIM',
-  'FIT District': 'FIT',
-  'FCH District': 'FCH',
-  'FIN District': 'FIN',
-  'FMA District': 'FMA',
-  'FNC District': 'FNC',
-  'FSC District': 'FSC',
-  'WIN District': 'WIN',
-  'NE District': 'NE',
-  'PCH District': 'PCH',
-  'ONT District': 'ONT',
-  'ISR District': 'ISR',
-};
-
-extension EventNameShortener on String {
-  String shortenEventName() {
-    var text = replaceAll(RegExp(r'\s+presented.*$', caseSensitive: false), '');
-
-    for (final entry in _eventNameReplacements.entries) {
-      text = text.replaceAll(
-        RegExp(RegExp.escape(entry.key), caseSensitive: false),
-        entry.value,
-      );
-    }
-
-    return text;
-  }
-}
-
-IconData customIconFor(EventOption event) {
-  final name = event.displayName.toLowerCase();
-
-  // Worlds divisions
-  if (name.contains('archimedes')) {
-    return LucideIcons.pi;
-  }
-
-  if (name.contains('curie')) {
-    return LucideIcons.radiation;
-  }
-
-  if (name.contains('daly')) {
-    return LucideIcons.flaskConical;
-  }
-
-  if (name.contains('galileo')) {
-    return LucideIcons.telescope;
-  }
-
-  if (name.contains('hopper')) {
-    return LucideIcons.bug;
-  }
-
-  if (name.contains('johnson')) {
-    return LucideIcons.rocket;
-  }
-
-  if (name.contains('milstein')) {
-    return LucideIcons.biohazard;
-  }
-
-  if (name.contains('newton')) {
-    return LucideIcons.apple;
-  }
-
-  // FIM
-  if (name.contains('dte')) {
-    return LucideIcons.solarPanel;
-  }
-  if (name.contains('consumers')) {
-    return LucideIcons.zap;
-  }
-  if (name.contains('hemlock')) {
-    return LucideIcons.microchip;
-  }
-  if (name.contains('aptiv')) {
-    return LucideIcons.factory;
-  }
-
-  // FIT
-  if (name.contains('mercury')) {
-    return LucideIcons.globe;
-  }
-  if (name.contains('apollo')) {
-    return LucideIcons.sparkles;
-  }
-
-  // NE
-  if (name.contains('burns')) {
-    return LucideIcons.bookMarked;
-  }
-  if (name.contains('newsom')) {
-    return LucideIcons.amphora;
-  }
-
-  // ONT
-  if (name.contains('technology')) {
-    return LucideIcons.cpu;
-  }
-
-  if (name.contains('science')) {
-    return LucideIcons.atom;
-  }
-
-  // Other
-  if (name.contains('chezy')) {
-    return LucideIcons.hamburger;
-  }
-  if (name.contains('bordie')) {
-    return LucideIcons.bird;
-  }
-  if (name.contains('block party')) {
-    return LucideIcons.cuboid;
-  }
-  if (name.contains('girl') && name.contains('generation')) {
-    return LucideIcons.venus;
-  }
-  if (name.contains('stormsurge')) {
-    return LucideIcons.cloudLightning;
-  }
-
-  return event.leadingIcon;
 }

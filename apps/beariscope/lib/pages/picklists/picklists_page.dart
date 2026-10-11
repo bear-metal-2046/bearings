@@ -26,7 +26,7 @@ class PicklistsPage extends ConsumerWidget {
             .value
             ?.where((event) => event.key == eventKey)
             .firstOrNull
-            ?.displayShortName ??
+            ?.shortName ??
         eventKey;
     return Scaffold(
       appBar: AppBar(
