@@ -108,10 +108,8 @@ class EventOption {
   }
 
   static String? _shortenEventName(String name) {
-    var text = _normalizeApostrophes(name).replaceAll(
-      RegExp(r'\s+presented.*$', caseSensitive: false),
-      '',
-    );
+    var text = _normalizeApostrophes(name)
+        .replaceAll(RegExp(r'\s+presented.*$', caseSensitive: false), '');
 
     text = text.replaceAll(
       RegExp(r"Girl'?s Generation", caseSensitive: false),
