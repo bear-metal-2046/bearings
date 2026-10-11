@@ -20,6 +20,8 @@ import 'package:beariscope/pages/settings/scout_selection_page.dart';
 import 'package:beariscope/pages/settings/settings_page.dart';
 import 'package:beariscope/pages/settings/team_role_settings_page.dart';
 import 'package:beariscope/pages/team_lookup/team_lookup_page.dart';
+import 'package:beariscope/pages/up_next/debug/nexus_debug_page.dart';
+import 'package:beariscope/pages/up_next/debug/nexus_fixture.dart';
 import 'package:beariscope/pages/up_next/match_preview_page.dart';
 import 'package:beariscope/pages/up_next/up_next_page.dart';
 import 'package:beariscope/pages/utilities/utilities_page.dart';
@@ -33,6 +35,7 @@ import 'package:beariscope/utils/window_size_stub.dart'
     if (dart.library.io) 'package:window_size/window_size.dart';
 import 'package:core/providers/device_info_provider.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
@@ -88,6 +91,7 @@ Future<void> main() async {
             storageKeyPrefix: 'beariscope_',
           );
         }),
+        ...nexusDebugOverrides,
       ],
       child: const Beariscope(),
     ),
@@ -212,6 +216,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: 'advanced',
             builder: (_, _) => const AdvancedSettingsPage(),
           ),
+          if (kDebugMode)
+            GoRoute(
+              path: 'nexus_debug',
+              builder: (_, _) => const NexusDebugPage(),
+            ),
           GoRoute(
             path: 'user_selection',
             builder: (_, _) => const ScoutSelectionPage(),

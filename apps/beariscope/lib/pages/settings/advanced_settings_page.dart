@@ -4,7 +4,9 @@ import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/tba_preferences_provider.dart';
 import 'package:beariscope/widgets/settings_group.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:services/providers/connectivity_provider.dart';
 
@@ -188,6 +190,12 @@ class _AdvancedSettingsPageState extends ConsumerState<AdvancedSettingsPage> {
                 ),
             ],
           ),
+          if (kDebugMode)
+            ListTile(
+              leading: const Icon(LucideIcons.bug),
+              title: const Text('Nexus debug (temporary)'),
+              onTap: () => context.push('/settings/nexus_debug'),
+            ),
         ],
       ),
     );
