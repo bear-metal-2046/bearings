@@ -13,6 +13,7 @@ import 'package:beariscope/widgets/team_card.dart';
 import 'package:dots_indicator/dots_indicator.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:services/providers/api_provider.dart';
 import 'package:services/providers/permissions_provider.dart';
@@ -178,6 +179,33 @@ class _DriveTeamMatchPreviewPageState
           appBar: AppBar(
             title: Text(matchTitle),
             actions: [
+              IconButton(
+                tooltip: 'Copy match strategy message',
+                icon: const Icon(LucideIcons.copy),
+                onPressed: () async {
+                  final message = matchStrategyMessage(
+                    matchLabel: compLevel == 'qm' && number != null
+                        ? 'Match $number'
+                        : matchTitle,
+                    redTeams: redTeams,
+                    blueTeams: blueTeams,
+                  );
+                  try {
+                    await Clipboard.setData(ClipboardData(text: message));
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Match strategy message copied'),
+                      ),
+                    );
+                  } catch (_) {
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Unable to copy message')),
+                    );
+                  }
+                },
+              ),
               PopupMenuButton<_TeamAction>(
                 icon: const Icon(LucideIcons.ellipsisVertical),
                 tooltip: 'More options',
@@ -907,4 +935,39 @@ class _DriveTeamNotesSheetState extends ConsumerState<_DriveTeamNotesSheet> {
       },
     );
   }
+}
+
+/// Formats a strategy message from 2046's perspective when playing, or by
+/// alliance color otherwise.
+String matchStrategyMessage({
+  required String matchLabel,
+  required List<String> redTeams,
+  required List<String> blueTeams,
+}) {
+  final onBlue = blueTeams.contains('frc2046');
+  final playing = onBlue || redTeams.contains('frc2046');
+  String teamLine(String key) => '${key.replaceFirst(RegExp('^frc'), '')} - ';
+  if (!playing) {
+    return [
+      '$matchLabel:',
+      '',
+      'Red:',
+      ...redTeams.map(teamLine),
+      '',
+      'Blue:',
+      ...blueTeams.map(teamLine),
+    ].join('\n');
+  }
+  final partners = onBlue ? blueTeams : redTeams;
+  final opponents = onBlue ? redTeams : blueTeams;
+
+  return [
+    '$matchLabel:',
+    '',
+    'Against:',
+    ...opponents.map(teamLine),
+    '',
+    'With:',
+    ...partners.where((key) => key != 'frc2046').map(teamLine),
+  ].join('\n');
 }
