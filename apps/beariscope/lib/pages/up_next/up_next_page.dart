@@ -1,9 +1,6 @@
-import 'dart:async';
-
 import 'package:beariscope/models/match_nexus_info.dart';
 import 'package:beariscope/models/up_next_match.dart';
 import 'package:beariscope/pages/main_view.dart';
-import 'package:beariscope/pages/up_next/enriched_current_event_provider.dart';
 import 'package:beariscope/pages/up_next/up_next_provider.dart';
 import 'package:beariscope/pages/up_next/up_next_widget.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
@@ -15,6 +12,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:services/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 enum _MatchFilter { all, bearMetal }
@@ -31,39 +29,23 @@ class UpNextPage extends ConsumerStatefulWidget {
 }
 
 class _UpNextPageState extends ConsumerState<UpNextPage> {
-  static const _refreshInterval = Duration(seconds: 45);
-
   _MatchFilter _filter = _MatchFilter.bearMetal;
-  Timer? _refreshTimer;
-
-  @override
-  void initState() {
-    super.initState();
-    _refreshTimer = Timer.periodic(_refreshInterval, (_) {
-      if (!mounted) return;
-      ref.invalidate(enrichedCurrentEventProvider);
-    });
-  }
-
-  @override
-  void dispose() {
-    _refreshTimer?.cancel();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
     final controller = MainViewController.of(context);
     final schedule = ref.watch(upNextProvider);
-    final enrichedEvent = ref.watch(enrichedCurrentEventProvider);
     final currentEventKey = ref.watch(currentEventProvider);
 
     Future<void> refreshSchedule() async {
-      ref.invalidate(enrichedCurrentEventProvider);
+      ref.invalidate(nexusEventStatusProvider(currentEventKey));
+      ref.invalidate(scheduleMatchesProvider(currentEventKey));
       ref.invalidate(teamEventsProvider);
       try {
         await ref.read(upNextProvider.future);
-      } catch (_) {}
+      } catch (error) {
+        debugPrint('Up Next: refresh failed for $currentEventKey: $error');
+      }
     }
 
     return Scaffold(
@@ -142,16 +124,19 @@ class _UpNextPageState extends ConsumerState<UpNextPage> {
         ],
       ),
       body: schedule.when(
+        skipLoadingOnReload: true,
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) =>
             Center(child: Text('Error fetching schedule: $err')),
-        data: (matches) {
+        data: (upNext) {
           final filteredMatches = _filter == _MatchFilter.all
-              ? matches
-              : matches.where((match) => match.includes2046).toList();
+              ? upNext.matches
+              : upNext.matches.where((match) => match.includes2046).toList();
           return _MatchList(
             matches: filteredMatches,
-            eventContext: enrichedEvent.asData?.value?.context,
+            source: upNext.source,
+            nexusProblem: upNext.nexusProblem,
+            eventContext: upNext.eventContext,
             timeFormat: UpNextPage.timeFormat,
             onRefresh: refreshSchedule,
           );
@@ -220,12 +205,16 @@ PopupMenuItem<_MatchFilter> _filterMenuItem({
 class _MatchList extends StatelessWidget {
   const _MatchList({
     required this.matches,
+    required this.source,
+    required this.nexusProblem,
     required this.eventContext,
     required this.timeFormat,
     required this.onRefresh,
   });
 
   final List<UpNextMatch> matches;
+  final UpNextSource source;
+  final String? nexusProblem;
   final UpNextEventContext? eventContext;
   final DateFormat timeFormat;
   final Future<void> Function() onRefresh;
@@ -235,6 +224,7 @@ class _MatchList extends StatelessWidget {
     final children = <Widget>[
       if (eventContext != null)
         _EventContextHeader(eventContext: eventContext!),
+      _SourceLine(source: source, nexusProblem: nexusProblem),
       if (matches.isEmpty)
         const SizedBox(
           height: 320,
@@ -270,6 +260,53 @@ class _MatchList extends StatelessWidget {
         physics: const AlwaysScrollableScrollPhysics(),
         children: children,
       ),
+    );
+  }
+}
+
+class _SourceLine extends StatelessWidget {
+  const _SourceLine({required this.source, required this.nexusProblem});
+
+  final UpNextSource source;
+  final String? nexusProblem;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final style = Theme.of(context).textTheme.bodySmall
+        ?.copyWith(color: colorScheme.onSurfaceVariant);
+    final isNexus = source == UpNextSource.nexus;
+
+    final line = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      child: Row(
+        spacing: 6,
+        children: [
+          Icon(
+            isNexus ? LucideIcons.radio : LucideIcons.calendar,
+            size: 14,
+            color: colorScheme.onSurfaceVariant,
+          ),
+          Expanded(
+            child: Text(
+              isNexus
+                  ? 'Live from FRC Nexus'
+                  : 'Schedule; Nexus unavailable: $nexusProblem',
+              style: style,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (!isNexus) return line;
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: () => launchUrl(
+        Uri.parse('https://frc.nexus'),
+        mode: LaunchMode.externalApplication,
+      ),
+      child: line,
     );
   }
 }
