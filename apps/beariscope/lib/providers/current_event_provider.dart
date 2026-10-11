@@ -69,6 +69,67 @@ class EventOption {
   static const int preseason = 100;
   static const int unlabeled = -1;
 
+  static const Map<String, String> _eventNameReplacements = {
+    'District Championship': 'DCMP',
+    'State Championship': 'State CMP',
+    'Provincial Championship': 'PCMP',
+    "Girl's Generation": "Girl's Gen",
+
+    'Pacific Northwest FIRST': 'PNW',
+    'FIRST in Michigan': 'FIM',
+    'FIRST in Texas': 'FIT',
+    'FIRST Indiana': 'FIN',
+    'FIRST Mid-Atlantic': 'FMA',
+    'FIRST North Carolina': 'FNC',
+    'FIRST South Carolina': 'FSC',
+    'FIRST Wisconsin': 'WIN',
+    'New England FIRST': 'NE',
+    'Peachtree': 'PCH',
+    'FIRST Ontario': 'ONT',
+    'FIRST Israel': 'ISR',
+
+    'PNW District': 'PNW',
+    'FIM District': 'FIM',
+    'FIT District': 'FIT',
+    'FCH District': 'FCH',
+    'FIN District': 'FIN',
+    'FMA District': 'FMA',
+    'FNC District': 'FNC',
+    'FSC District': 'FSC',
+    'WIN District': 'WIN',
+    'NE District': 'NE',
+    'PCH District': 'PCH',
+    'ONT District': 'ONT',
+    'ISR District': 'ISR',
+  };
+
+  static String _normalizeApostrophes(String text) {
+    return text.replaceAll(RegExp('[’‘‛ʻʼ`]'), "'");
+  }
+
+  static String? _shortenEventName(String name) {
+    var text = _normalizeApostrophes(name)
+        .replaceAll(RegExp(r'\s+presented.*$', caseSensitive: false), '');
+
+    text = text.replaceAll(
+      RegExp(r"Girl'?s Generation", caseSensitive: false),
+      "Girl's Gen",
+    );
+
+    for (final entry in _eventNameReplacements.entries) {
+      text = text.replaceAll(
+        RegExp(
+          RegExp.escape(_normalizeApostrophes(entry.key)),
+          caseSensitive: false,
+        ),
+        entry.value,
+      );
+    }
+
+    text = text.trim();
+    return text.isEmpty || text == name ? null : text;
+  }
+
   final String key;
   final String firstKey;
   final String name;
@@ -96,16 +157,22 @@ class EventOption {
   }
 
   factory EventOption.fromJson(Map<String, dynamic> json) {
+    final key = json['key']?.toString() ?? '';
+    final name = json['name']?.toString().trim() ?? '';
+    final honeycombShortName = json['shortName']?.toString().trim() ?? '';
     return EventOption(
-      key: json['key']?.toString() ?? '',
+      key: key,
       firstKey:
           (json['year']?.toString() ?? '') +
           (json['firstEventCode']?.toString() ?? ''),
-      name: json['name']?.toString() ?? 'Unknown Event',
+      name: name.isNotEmpty ? name : key,
       shortName:
-          json['shortName']?.toString() ??
-          json['name']?.toString() ??
-          'Unknown Event',
+          _shortenEventName(name) ??
+          (honeycombShortName.isNotEmpty
+              ? honeycombShortName
+              : name.isNotEmpty
+              ? name
+              : key),
       eventType: (json['eventType'] as num?)?.toInt() ?? unlabeled,
       startDate: () {
         final raw = json['startDate'] ?? json['start_date'];
@@ -115,11 +182,127 @@ class EventOption {
     );
   }
 
-  String get displayName => name.isEmpty ? key : name;
-
-  String get displayShortName => shortName.isEmpty ? displayName : shortName;
-
   IconData get leadingIcon {
+    final name = this.name.toLowerCase();
+
+    // PNW events
+    if (name.contains('clackamas')) {
+      return LucideIcons.factory;
+    }
+    if (name.contains('kentridge')) {
+      return LucideIcons.zap;
+    }
+    if (name.contains('auburn')) {
+      return LucideIcons.chessKnight;
+    }
+    if (name.contains('wilsonville')) {
+      return LucideIcons.cat;
+    }
+    if (name.contains('sundome') || name.contains('sun dome')) {
+      return LucideIcons.sun;
+    }
+    if (name.contains('sammamish')) {
+      return LucideIcons.bird;
+    }
+    if (name.contains('oregon state fair')) {
+      return LucideIcons.ferrisWheel;
+    }
+    if (name.contains('bonney lake')) {
+      return LucideIcons.waves;
+    }
+    if (name.contains('glacier peak')) {
+      return LucideIcons.mountainSnow;
+    }
+
+    // Worlds divisions
+    if (name.contains('archimedes')) {
+      return LucideIcons.pi;
+    }
+
+    if (name.contains('curie')) {
+      return LucideIcons.radiation;
+    }
+
+    if (name.contains('daly')) {
+      return LucideIcons.flaskConical;
+    }
+
+    if (name.contains('galileo')) {
+      return LucideIcons.telescope;
+    }
+
+    if (name.contains('hopper')) {
+      return LucideIcons.bug;
+    }
+
+    if (name.contains('johnson')) {
+      return LucideIcons.rocket;
+    }
+
+    if (name.contains('milstein')) {
+      return LucideIcons.biohazard;
+    }
+
+    if (name.contains('newton')) {
+      return LucideIcons.apple;
+    }
+
+    // FIM
+    if (name.contains('dte')) {
+      return LucideIcons.solarPanel;
+    }
+    if (name.contains('consumers')) {
+      return LucideIcons.zap;
+    }
+    if (name.contains('hemlock')) {
+      return LucideIcons.microchip;
+    }
+    if (name.contains('aptiv')) {
+      return LucideIcons.factory;
+    }
+
+    // FIT
+    if (name.contains('mercury')) {
+      return LucideIcons.globe;
+    }
+    if (name.contains('apollo')) {
+      return LucideIcons.sparkles;
+    }
+
+    // NE
+    if (name.contains('burns')) {
+      return LucideIcons.bookMarked;
+    }
+    if (name.contains('newsom')) {
+      return LucideIcons.amphora;
+    }
+
+    // ONT
+    if (name.contains('technology')) {
+      return LucideIcons.cpu;
+    }
+
+    if (name.contains('science')) {
+      return LucideIcons.atom;
+    }
+
+    // Other
+    if (name.contains('chezy')) {
+      return LucideIcons.hamburger;
+    }
+    if (name.contains('bordie')) {
+      return LucideIcons.bird;
+    }
+    if (name.contains('block party')) {
+      return LucideIcons.cuboid;
+    }
+    if (name.contains('girl') && name.contains('gen')) {
+      return LucideIcons.venus;
+    }
+    if (name.contains('stormsurge')) {
+      return LucideIcons.cloudLightning;
+    }
+
     switch (eventType) {
       case regional:
         return LucideIcons.earth;
