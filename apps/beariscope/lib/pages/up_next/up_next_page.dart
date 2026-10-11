@@ -137,6 +137,16 @@ class _UpNextPageState extends ConsumerState<UpNextPage> {
           ),
         ),
         data: (upNext) {
+          if (upNext.eventOver) {
+            return _ScheduleList(
+              matches: _filter == _MatchFilter.all
+                  ? upNext.matches
+                  : upNext.matches
+                        .where((match) => match.includes2046)
+                        .toList(),
+              onRefresh: refreshSchedule,
+            );
+          }
           return _MatchList(
             matches: upNext.matches,
             bearMetalOnly: _filter == _MatchFilter.bearMetal,
@@ -287,6 +297,39 @@ class _MatchList extends StatelessWidget {
         spacing: 8,
         physics: const AlwaysScrollableScrollPhysics(),
         children: children,
+      ),
+    );
+  }
+}
+
+class _ScheduleList extends StatelessWidget {
+  const _ScheduleList({required this.matches, required this.onRefresh});
+
+  final List<UpNextMatch> matches;
+  final Future<void> Function() onRefresh;
+
+  @override
+  Widget build(BuildContext context) {
+    return RefreshIndicator(
+      onRefresh: onRefresh,
+      child: BeariscopeCardList(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+        spacing: 8,
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          if (matches.isEmpty)
+            const SizedBox(
+              height: 320,
+              child: BeariscopeStatusView(
+                icon: LucideIcons.calendar,
+                title: 'No matches found',
+                subtitle: 'Is the schedule released?',
+              ),
+            )
+          else
+            for (final match in matches)
+              UpNextScheduleCard(key: ValueKey(match.key), match: match),
+        ],
       ),
     );
   }

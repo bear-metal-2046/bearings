@@ -11,6 +11,26 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:services/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+/// A plain schedule card for after the event: name and time, tap to open the
+/// match preview.
+class UpNextScheduleCard extends StatelessWidget {
+  const UpNextScheduleCard({super.key, required this.match});
+
+  final UpNextMatch match;
+
+  static final _timeFormat = DateFormat("EEEE, MMM d 'at' h:mm a");
+
+  @override
+  Widget build(BuildContext context) {
+    final time = match.displayTime;
+    return BeariscopeCard(
+      title: match.displayName,
+      subtitle: time == null ? 'Time TBD' : _timeFormat.format(time),
+      onTap: () => context.push('/up_next/${match.key}'),
+    );
+  }
+}
+
 /// An Up Next match that expands, like FRC Nexus, to show queue times,
 /// bracket details, and teams, with a button to open the match preview.
 class UpNextMatchCard extends StatefulWidget {

@@ -9,12 +9,14 @@ class UpNextList {
   const UpNextList({
     required this.matches,
     required this.source,
+    this.eventOver = false,
     this.nexusProblem,
     this.eventContext,
   });
 
   final List<UpNextMatch> matches;
   final UpNextSource source;
+  final bool eventOver;
   final String? nexusProblem;
   final UpNextEventContext? eventContext;
 }
@@ -51,6 +53,7 @@ final upNextProvider = FutureProvider.autoDispose<UpNextList>((ref) async {
   return UpNextList(
     matches: matches,
     source: feed.source,
+    eventOver: feed.eventOver,
     nexusProblem: feed.nexusProblem,
     eventContext: UpNextEventContext.fromNexusStatus(feed.nexus),
   );
