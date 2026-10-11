@@ -145,9 +145,14 @@ class NexusEventStatus {
     this.announcements = const [],
     this.matches = const [],
     this.parseWarnings = const [],
+    this.playoffType,
   });
 
   final DateTime? dataAsOfTime;
+
+  /// TBA's playoff type from the Honeycomb event. Raw Nexus responses do not
+  /// have it.
+  final int? playoffType;
   final String? nowQueuing;
   final List<String> announcements;
   final List<NexusMatch> matches;
@@ -214,6 +219,11 @@ class NexusEventStatus {
       announcements: List.unmodifiable(announcements),
       matches: List.unmodifiable(matches),
       parseWarnings: List.unmodifiable(warnings),
+      playoffType: switch (json['playoffType'] ?? json['playoff_type']) {
+        final num value => value.toInt(),
+        final String value => int.tryParse(value),
+        _ => null,
+      },
     );
   }
 }
