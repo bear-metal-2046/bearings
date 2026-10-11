@@ -33,9 +33,6 @@ export 'providers/device_credentials_provider.dart'
 export 'providers/nexus_provider.dart'
     show
         nexusEventStatusProvider,
-        nexusPollInterval,
-        fetchNexusEventStatus,
-        loadNexusEventStatus,
         parseNexusEventResponse,
         NexusFetchResult,
         NexusAvailable,
@@ -65,13 +62,20 @@ export 'providers/secure_storage_provider.dart';
 export 'providers/up_next_feed_provider.dart'
     show
         upNextFeedProvider,
+        upNextNoRetry,
         scheduleMatchesProvider,
-        isUpNextCompLevel,
-        nexusUpNextMatches,
         needsScheduleFallback,
         selectUpNextFeed,
         UpNextFeed,
         UpNextSource;
+export 'providers/up_next_playoffs.dart'
+    show
+        allianceNumberFor,
+        bracketFor,
+        isDoubleElimination,
+        playoffAllianceNumbers,
+        possiblePlayoffMatches,
+        PlayoffOutcome;
 export 'providers/user_profile_provider.dart'
     show
         userInfoProvider,

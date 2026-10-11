@@ -102,6 +102,96 @@ void main() {
     });
   });
 
+  group('withoutPlayedMatches', () {
+    List<String> upNextKeys(List<Map<String, dynamic>> nexusMatches) {
+      return selectUpNextFeed(
+        eventKey: eventKey,
+        nexus: nexusWith(nexusMatches),
+      ).matches.map((match) => match.key).toList();
+    }
+
+    test('hides matches before the latest one on field', () {
+      expect(
+        upNextKeys([
+          {'label': 'Qualification 1', 'status': 'On field'},
+          {
+            'label': 'Qualification 2',
+            'status': 'On field',
+            'times': {'actualOnFieldTime': 1791749519762},
+          },
+          {'label': 'Qualification 3', 'status': 'On deck'},
+          {'label': 'Qualification 4', 'status': 'Now queuing'},
+          {'label': 'Qualification 5'},
+        ]),
+        ['2026new_qm2', '2026new_qm3', '2026new_qm4', '2026new_qm5'],
+      );
+    });
+
+    test('keeps everything before any match goes on field', () {
+      expect(
+        upNextKeys([
+          {'label': 'Practice 9', 'status': 'On field'},
+          {'label': 'Qualification 1', 'status': 'Now queuing'},
+          {'label': 'Qualification 2', 'status': 'Queuing soon'},
+        ]),
+        ['2026new_qm1', '2026new_qm2'],
+      );
+    });
+
+    test('keeps a late replay that is still to come', () {
+      expect(
+        upNextKeys([
+          {'label': 'Qualification 12', 'status': 'On field'},
+          {'label': 'Qualification 13', 'status': 'On field'},
+          {'label': 'Qualification 12 Replay', 'status': 'On deck'},
+          {'label': 'Qualification 14', 'status': 'Queuing soon'},
+        ]),
+        ['2026new_qm13', '2026new_qm12', '2026new_qm14'],
+      );
+    });
+
+    test('hides scheduled matches that have a TBA result', () {
+      final feed = selectUpNextFeed(
+        eventKey: eventKey,
+        nexus: const NexusEmpty(),
+        schedule: [
+          {
+            'key': '2026new_qm1',
+            'event_key': eventKey,
+            'comp_level': 'qm',
+            'match_number': 1,
+            'actual_time': 1791749519,
+            'alliances': {
+              'red': {'score': 40},
+              'blue': {'score': 32},
+            },
+          },
+          {
+            'key': '2026new_qm2',
+            'event_key': eventKey,
+            'comp_level': 'qm',
+            'match_number': 2,
+            'alliances': {
+              'red': {'score': -1},
+              'blue': {'score': -1},
+            },
+          },
+          {
+            'key': '2026new_qm3',
+            'event_key': eventKey,
+            'comp_level': 'qm',
+            'match_number': 3,
+          },
+        ],
+      );
+
+      expect(feed.matches.map((match) => match.key), [
+        '2026new_qm2',
+        '2026new_qm3',
+      ]);
+    });
+  });
+
   group('parseNexusEventResponse', () {
     test('picks the matching event from a list response', () {
       final result = parseNexusEventResponse(eventKey, [

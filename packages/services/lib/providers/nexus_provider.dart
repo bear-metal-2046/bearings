@@ -43,19 +43,23 @@ final class NexusFailed extends NexusFetchResult {
   String get problem => message;
 }
 
-/// Nexus data for a TBA event key, refetched every [nexusPollInterval] while
-/// something is listening.
+/// Nexus data for a TBA event key, refetched [nexusPollInterval] after each
+/// response while something is listening.
 final nexusEventStatusProvider = FutureProvider.autoDispose
-    .family<NexusFetchResult, String>(fetchNexusEventStatus);
+    .family<NexusFetchResult, String>((ref, eventKey) async {
+      final result = await loadNexusEventStatus(
+        ref.watch(honeycombClientProvider),
+        eventKey,
+      );
 
-/// The default body of [nexusEventStatusProvider], public so overrides can
-/// fall back to it.
-Future<NexusFetchResult> fetchNexusEventStatus(Ref ref, String eventKey) {
-  final timer = Timer(nexusPollInterval, ref.invalidateSelf);
-  ref.onDispose(timer.cancel);
-
-  return loadNexusEventStatus(ref.watch(honeycombClientProvider), eventKey);
-}
+      // Starting the timer before the request would restart any request slower
+      // than the poll interval, so it would never finish.
+      if (ref.mounted) {
+        final timer = Timer(nexusPollInterval, ref.invalidateSelf);
+        ref.onDispose(timer.cancel);
+      }
+      return result;
+    });
 
 Future<NexusFetchResult> loadNexusEventStatus(
   HoneycombClient client,
