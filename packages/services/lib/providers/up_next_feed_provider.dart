@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:core/core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,13 +15,14 @@ class UpNextFeed {
     required this.matches,
     this.allMatches = const [],
     this.doubleElimination = false,
+    this.eventOver = false,
     this.nexus,
     this.nexusProblem,
   });
 
   final UpNextSource source;
 
-  /// Unplayed matches to show.
+  /// Unplayed matches to show, or the whole schedule once [eventOver].
   final List<ScoutingMatch> matches;
 
   /// Every match from the same source, played ones included, for working out
@@ -28,6 +31,9 @@ class UpNextFeed {
 
   /// Whether the playoffs use FRC's 8-alliance double-elimination bracket.
   final bool doubleElimination;
+
+  /// The event has finished, so Up Next shows the TBA schedule without Nexus.
+  final bool eventOver;
 
   /// Event-level Nexus data such as `nowQueuing`, when Honeycomb returned it.
   final NexusEventStatus? nexus;
@@ -106,13 +112,62 @@ bool needsScheduleFallback(String eventKey, NexusFetchResult nexus) {
   };
 }
 
+/// Whether TBA's last event day, [endDate], is over in every time zone, which
+/// is noon UTC the day after.
+bool eventDayHasPassed(DateTime? endDate, DateTime now) {
+  if (endDate == null) return false;
+  return now.isAfter(
+    DateTime.utc(endDate.year, endDate.month, endDate.day + 1, 12),
+  );
+}
+
+/// Whether an alliance has won two finals matches in the TBA [schedule].
+bool _finalsWon(String eventKey, List<Map<String, dynamic>> schedule) {
+  final wins = <String, int>{};
+  for (final match in schedule) {
+    if (match['event_key'] != eventKey || match['comp_level'] != 'f') continue;
+    final winner = match['winning_alliance'];
+    if (winner == 'red' || winner == 'blue') {
+      wins[winner as String] = (wins[winner] ?? 0) + 1;
+    }
+  }
+  return wins.values.any((count) => count >= 2);
+}
+
+List<ScoutingMatch> _scheduleMatches(
+  String eventKey,
+  List<Map<String, dynamic>> schedule,
+) {
+  return schedule
+      .map(ScoutingMatch.fromJson)
+      .where((match) => match.eventKey == eventKey)
+      .where((match) => isUpNextCompLevel(match.compLevel))
+      .toList(growable: false);
+}
+
+/// Every match in the TBA [schedule], played ones included, for after the
+/// event.
+UpNextFeed _eventOverFeed(
+  String eventKey,
+  List<Map<String, dynamic>> schedule,
+) {
+  return UpNextFeed(
+    source: UpNextSource.schedule,
+    matches: _scheduleMatches(eventKey, schedule),
+    eventOver: true,
+  );
+}
+
 /// Uses Nexus when it has qualification or playoff matches, otherwise the
-/// TBA [schedule] from Honeycomb `/matches`.
+/// TBA [schedule] from Honeycomb `/matches`. Once the finals are won, shows
+/// the whole schedule instead.
 UpNextFeed selectUpNextFeed({
   required String eventKey,
   required NexusFetchResult nexus,
   List<Map<String, dynamic>> schedule = const [],
 }) {
+  if (_finalsWon(eventKey, schedule)) return _eventOverFeed(eventKey, schedule);
+
   final status = switch (nexus) {
     NexusAvailable(:final status) => status,
     NexusEmpty(:final status) => status,
@@ -133,11 +188,7 @@ UpNextFeed selectUpNextFeed({
     }
   }
 
-  final allMatches = schedule
-      .map(ScoutingMatch.fromJson)
-      .where((match) => match.eventKey == eventKey)
-      .where((match) => isUpNextCompLevel(match.compLevel))
-      .toList(growable: false);
+  final allMatches = _scheduleMatches(eventKey, schedule);
   return UpNextFeed(
     source: UpNextSource.schedule,
     matches: withoutPlayedMatches(allMatches),
@@ -154,31 +205,86 @@ UpNextFeed selectUpNextFeed({
 /// failure anywhere in the Up Next chain would otherwise spin forever.
 Duration? upNextNoRetry(int retryCount, Object error) => null;
 
+const schedulePollInterval = Duration(minutes: 1);
+
+/// The TBA schedule for an event, refetched [schedulePollInterval] after each
+/// response while something is listening, so new results show up.
 final scheduleMatchesProvider = FutureProvider.autoDispose
     .family<List<Map<String, dynamic>>, String>((ref, eventKey) async {
       final client = ref.watch(honeycombClientProvider);
+      final List<dynamic> response;
       try {
-        final response = await client.get<List<dynamic>>(
+        response = await client.get<List<dynamic>>(
           '/matches',
           queryParams: {'event': eventKey},
           cachePolicy: CachePolicy.networkFirst,
         );
-        return response
-            .whereType<Map>()
-            .map((match) => Map<String, dynamic>.from(match))
-            .toList(growable: false);
       } catch (error) {
         debugPrint('Up Next: schedule request for $eventKey failed: $error');
         rethrow;
       }
+
+      if (ref.mounted) {
+        final timer = Timer(schedulePollInterval, ref.invalidateSelf);
+        ref.onDispose(timer.cancel);
+      }
+      return response
+          .whereType<Map>()
+          .map((match) => Map<String, dynamic>.from(match))
+          .toList(growable: false);
     }, retry: upNextNoRetry);
 
+/// TBA's last day of the event, or null when Honeycomb doesn't say.
+final eventEndDateProvider = FutureProvider.autoDispose
+    .family<DateTime?, String>((ref, eventKey) async {
+      final client = ref.watch(honeycombClientProvider);
+      try {
+        final response = await client.get<dynamic>(
+          '/events',
+          queryParams: {'event': eventKey, 'enrich': 'false'},
+          cachePolicy: CachePolicy.networkFirst,
+        );
+        final event = switch (response) {
+          Map() => response,
+          List() =>
+            response
+                .whereType<Map>()
+                .where((event) => event['key']?.toString() == eventKey)
+                .firstOrNull,
+          _ => null,
+        };
+        final endDate = event?['endDate'] ?? event?['end_date'];
+        return endDate == null ? null : DateTime.tryParse(endDate.toString());
+      } catch (error) {
+        debugPrint('Up Next: event request for $eventKey failed: $error');
+        return null;
+      }
+    }, retry: upNextNoRetry);
+
+bool _nexusHasFinals(String eventKey, NexusFetchResult nexus) {
+  return nexus is NexusAvailable &&
+      nexus.status.matches.any(
+        (match) => match.toScoutingMatch(eventKey)?.compLevel == 'f',
+      );
+}
+
 /// Up Next matches for a TBA event key: Nexus when available, otherwise the
-/// schedule. Only fetches the schedule when it is needed.
+/// schedule, and the whole schedule once the event is over. Only fetches the
+/// schedule when it is needed: without Nexus, once the finals are on, or after
+/// the event.
 final upNextFeedProvider = FutureProvider.autoDispose
     .family<UpNextFeed, String>((ref, eventKey) async {
+      final endDate = await ref.watch(eventEndDateProvider(eventKey).future);
+      if (eventDayHasPassed(endDate, DateTime.now())) {
+        final schedule = await ref.watch(
+          scheduleMatchesProvider(eventKey).future,
+        );
+        return _eventOverFeed(eventKey, schedule);
+      }
+
       final nexus = await ref.watch(nexusEventStatusProvider(eventKey).future);
-      if (!needsScheduleFallback(eventKey, nexus)) {
+      if (!needsScheduleFallback(eventKey, nexus) &&
+          !_nexusHasFinals(eventKey, nexus)) {
         return selectUpNextFeed(eventKey: eventKey, nexus: nexus);
       }
 

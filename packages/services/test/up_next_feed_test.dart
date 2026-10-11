@@ -1,5 +1,7 @@
 import 'package:core/core.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:services/providers/up_next_feed_provider.dart'
+    show eventDayHasPassed;
 import 'package:services/services.dart';
 
 void main() {
@@ -189,6 +191,66 @@ void main() {
         '2026new_qm2',
         '2026new_qm3',
       ]);
+    });
+  });
+
+  group('event over', () {
+    Map<String, dynamic> scheduleMatch(
+      String level,
+      int number, {
+      String? winner,
+    }) {
+      return {
+        'key': '${eventKey}_${level}1m$number',
+        'event_key': eventKey,
+        'comp_level': level,
+        'set_number': 1,
+        'match_number': number,
+        'winning_alliance': ?winner,
+      };
+    }
+
+    test('shows the whole schedule once an alliance wins the finals', () {
+      final feed = selectUpNextFeed(
+        eventKey: eventKey,
+        nexus: nexusWith([
+          {'label': 'Final 2', 'status': 'On field'},
+        ]),
+        schedule: [
+          ...schedule,
+          scheduleMatch('f', 1, winner: 'blue'),
+          scheduleMatch('f', 2, winner: 'blue'),
+        ],
+      );
+
+      expect(feed.eventOver, isTrue);
+      expect(feed.nexus, isNull);
+      expect(feed.matches.map((match) => match.key), [
+        '2026new_qm1',
+        '2026new_f1m1',
+        '2026new_f1m2',
+      ]);
+    });
+
+    test('keeps Up Next while the finals are undecided', () {
+      final feed = selectUpNextFeed(
+        eventKey: eventKey,
+        nexus: const NexusEmpty(),
+        schedule: [
+          scheduleMatch('f', 1, winner: 'red'),
+          scheduleMatch('f', 2, winner: 'blue'),
+          scheduleMatch('f', 3, winner: ''),
+        ],
+      );
+
+      expect(feed.eventOver, isFalse);
+    });
+
+    test('the last day is over once it has ended in every time zone', () {
+      final endDate = DateTime(2026, 3, 8);
+      expect(eventDayHasPassed(endDate, DateTime.utc(2026, 3, 9, 11)), isFalse);
+      expect(eventDayHasPassed(endDate, DateTime.utc(2026, 3, 9, 13)), isTrue);
+      expect(eventDayHasPassed(null, DateTime.utc(2030)), isFalse);
     });
   });
 
