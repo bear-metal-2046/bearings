@@ -281,7 +281,7 @@ List<LineSeries<ProcessedScoutingDoc, String>> _buildLineSeries(
                 children: [
                   if (brokeDown)
                     Icon(
-                      LucideIcons.bomb,
+                      LucideIcons.boneFracture,
                       color: Theme.of(context).colorScheme.error,
                       size: 14,
                     ),
