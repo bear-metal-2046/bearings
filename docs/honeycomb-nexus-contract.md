@@ -24,7 +24,7 @@ Authorization: Bearer <access token>
 - The Nexus event key is built as `{tbaEvent.year}{tbaEvent.first_event_code}`.
   If TBA has no `first_event_code`, there is no Nexus lookup.
 
-The app calls this every 15 seconds while Up Next or a match preview is open
+The app calls this every 15 seconds while Up Next is open
 (`nexusPollInterval` in `packages/services`).
 
 ## Response
