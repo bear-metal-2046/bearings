@@ -30,6 +30,17 @@ export 'providers/device_credentials_provider.dart'
         DeviceCredentials,
         decodeProvisioningPayload,
         deviceCredentialsProvider;
+export 'providers/nexus_provider.dart'
+    show
+        nexusEventStatusProvider,
+        nexusPollInterval,
+        fetchNexusEventStatus,
+        loadNexusEventStatus,
+        parseNexusEventResponse,
+        NexusFetchResult,
+        NexusAvailable,
+        NexusEmpty,
+        NexusFailed;
 export 'providers/permissions_provider.dart'
     show
         authMeProvider,
@@ -51,6 +62,16 @@ export 'providers/rbac_management_provider.dart'
         RbacMetadata,
         RbacPermissionMetadata;
 export 'providers/secure_storage_provider.dart';
+export 'providers/up_next_feed_provider.dart'
+    show
+        upNextFeedProvider,
+        scheduleMatchesProvider,
+        isUpNextCompLevel,
+        nexusUpNextMatches,
+        needsScheduleFallback,
+        selectUpNextFeed,
+        UpNextFeed,
+        UpNextSource;
 export 'providers/user_profile_provider.dart'
     show
         userInfoProvider,
