@@ -1,45 +1,63 @@
 import 'package:beariscope/models/match_nexus_info.dart';
 import 'package:beariscope/models/up_next_match.dart';
-import 'package:beariscope/pages/up_next/enriched_current_event_provider.dart';
-import 'package:beariscope/pages/up_next/nexus_match_merge.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
+import 'package:core/core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:services/providers/api_provider.dart';
+import 'package:services/services.dart';
 
-final upNextProvider = FutureProvider<List<UpNextMatch>>((ref) async {
-  final client = ref.watch(honeycombClientProvider);
-  final currentEventKey = ref.watch(currentEventProvider);
-  final enrichedFuture = ref.watch(enrichedCurrentEventProvider.future);
+class UpNextList {
+  const UpNextList({
+    required this.matches,
+    required this.source,
+    this.eventOver = false,
+    this.nexusProblem,
+    this.eventContext,
+  });
 
-  final matchesFuture = client.get<List<dynamic>>(
-    '/matches',
-    queryParams: {'event': currentEventKey},
-    cachePolicy: CachePolicy.networkFirst,
-  );
-  final matches = await matchesFuture;
-  final enriched = await enrichedFuture;
-  final nexusMatches = enriched?.nexusMatches ?? const <MatchNexusInfo>[];
-
-  final eventMatches =
-      matches
-          .whereType<Map>()
-          .map((match) => Map<String, dynamic>.from(match))
-          .where((match) => eventKeyForMatch(match) == currentEventKey)
-          .map(
-            (match) => UpNextMatch.fromMap(
-              match,
-              nexus: nexusMatchForTbaMatch(match, nexusMatches),
-            ),
-          )
-          .toList()
-        ..sort((a, b) => compareMatchesForUpNext(a.raw, b.raw));
-
-  return eventMatches;
-});
-
-String? eventKeyForMatch(Map<String, dynamic> match) {
-  return match['eventKey']?.toString() ?? match['event_key']?.toString();
+  final List<UpNextMatch> matches;
+  final UpNextSource source;
+  final bool eventOver;
+  final String? nexusProblem;
+  final UpNextEventContext? eventContext;
 }
+
+final upNextProvider = FutureProvider.autoDispose<UpNextList>((ref) async {
+  final currentEventKey = ref.watch(currentEventProvider);
+  final feed = await ref.watch(upNextFeedProvider(currentEventKey).future);
+
+  final alliances = feed.doubleElimination
+      ? playoffAllianceNumbers(feed.allMatches)
+      : const <String, int>{};
+  final possible = feed.doubleElimination
+      ? possiblePlayoffMatches(
+          allMatches: feed.allMatches,
+          upcoming: feed.matches,
+          teamKey: bearMetalTeamKey,
+        )
+      : const <String, PlayoffOutcome>{};
+
+  final matches = feed.matches.map((match) {
+    int? allianceOf(MatchAlliance? alliance) => match.compLevel == 'qm'
+        ? null
+        : allianceNumberFor(alliance?.teamKeys ?? const [], alliances);
+
+    return UpNextMatch.fromMap(
+      match.toJson(),
+      bracket: feed.doubleElimination ? bracketFor(match) : null,
+      redAllianceNumber: allianceOf(match.redAlliance),
+      blueAllianceNumber: allianceOf(match.blueAlliance),
+      possibleOutcome: possible[match.key],
+    );
+  }).toList()..sort((a, b) => compareMatchesForUpNext(a.raw, b.raw));
+
+  return UpNextList(
+    matches: matches,
+    source: feed.source,
+    eventOver: feed.eventOver,
+    nexusProblem: feed.nexusProblem,
+    eventContext: UpNextEventContext.fromNexusStatus(feed.nexus),
+  );
+}, retry: upNextNoRetry);
 
 int compareMatchesForUpNext(Map<String, dynamic> a, Map<String, dynamic> b) {
   final levelA = compLevelRank(compLevelForMatch(a));
