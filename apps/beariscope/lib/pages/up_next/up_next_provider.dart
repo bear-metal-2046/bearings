@@ -1,6 +1,7 @@
 import 'package:beariscope/models/match_nexus_info.dart';
 import 'package:beariscope/models/up_next_match.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
+import 'package:core/core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:services/services.dart';
 
@@ -22,9 +23,30 @@ final upNextProvider = FutureProvider.autoDispose<UpNextList>((ref) async {
   final currentEventKey = ref.watch(currentEventProvider);
   final feed = await ref.watch(upNextFeedProvider(currentEventKey).future);
 
-  final matches =
-      feed.matches.map((match) => UpNextMatch.fromMap(match.toJson())).toList()
-        ..sort((a, b) => compareMatchesForUpNext(a.raw, b.raw));
+  final alliances = feed.doubleElimination
+      ? playoffAllianceNumbers(feed.allMatches)
+      : const <String, int>{};
+  final possible = feed.doubleElimination
+      ? possiblePlayoffMatches(
+          allMatches: feed.allMatches,
+          upcoming: feed.matches,
+          teamKey: bearMetalTeamKey,
+        )
+      : const <String, PlayoffOutcome>{};
+
+  final matches = feed.matches.map((match) {
+    int? allianceOf(MatchAlliance? alliance) => match.compLevel == 'qm'
+        ? null
+        : allianceNumberFor(alliance?.teamKeys ?? const [], alliances);
+
+    return UpNextMatch.fromMap(
+      match.toJson(),
+      bracket: feed.doubleElimination ? bracketFor(match) : null,
+      redAllianceNumber: allianceOf(match.redAlliance),
+      blueAllianceNumber: allianceOf(match.blueAlliance),
+      possibleOutcome: possible[match.key],
+    );
+  }).toList()..sort((a, b) => compareMatchesForUpNext(a.raw, b.raw));
 
   return UpNextList(
     matches: matches,
@@ -32,7 +54,7 @@ final upNextProvider = FutureProvider.autoDispose<UpNextList>((ref) async {
     nexusProblem: feed.nexusProblem,
     eventContext: UpNextEventContext.fromNexusStatus(feed.nexus),
   );
-});
+}, retry: upNextNoRetry);
 
 int compareMatchesForUpNext(Map<String, dynamic> a, Map<String, dynamic> b) {
   final levelA = compLevelRank(compLevelForMatch(a));

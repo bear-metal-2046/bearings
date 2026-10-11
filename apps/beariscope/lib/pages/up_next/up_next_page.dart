@@ -10,19 +10,20 @@ import 'package:beariscope/widgets/beariscope_card.dart';
 import 'package:beariscope/widgets/beariscope_status_view.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
+import 'package:flutter_riverpod/misc.dart' show ProviderException;
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:services/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 enum _MatchFilter { all, bearMetal }
 
+Object _rootError(Object error) =>
+    error is ProviderException ? _rootError(error.exception) : error;
+
 enum _EventAction { openTba, openStatbotics, openNexus, openFrcEvents }
 
 class UpNextPage extends ConsumerStatefulWidget {
   const UpNextPage({super.key});
-
-  static final DateFormat timeFormat = DateFormat("EEEE, MMM d 'at' h:mm a");
 
   @override
   ConsumerState<UpNextPage> createState() => _UpNextPageState();
@@ -126,18 +127,22 @@ class _UpNextPageState extends ConsumerState<UpNextPage> {
       body: schedule.when(
         skipLoadingOnReload: true,
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) =>
-            Center(child: Text('Error fetching schedule: $err')),
+        error: (err, stack) => BeariscopeStatusView(
+          icon: LucideIcons.triangleAlert,
+          title: 'Error fetching schedule',
+          subtitle: '${_rootError(err)}',
+          action: FilledButton(
+            onPressed: refreshSchedule,
+            child: const Text('Retry'),
+          ),
+        ),
         data: (upNext) {
-          final filteredMatches = _filter == _MatchFilter.all
-              ? upNext.matches
-              : upNext.matches.where((match) => match.includes2046).toList();
           return _MatchList(
-            matches: filteredMatches,
+            matches: upNext.matches,
+            bearMetalOnly: _filter == _MatchFilter.bearMetal,
             source: upNext.source,
             nexusProblem: upNext.nexusProblem,
             eventContext: upNext.eventContext,
-            timeFormat: UpNextPage.timeFormat,
             onRefresh: refreshSchedule,
           );
         },
@@ -205,27 +210,64 @@ PopupMenuItem<_MatchFilter> _filterMenuItem({
 class _MatchList extends StatelessWidget {
   const _MatchList({
     required this.matches,
+    required this.bearMetalOnly,
     required this.source,
     required this.nexusProblem,
     required this.eventContext,
-    required this.timeFormat,
     required this.onRefresh,
   });
 
   final List<UpNextMatch> matches;
+  final bool bearMetalOnly;
   final UpNextSource source;
   final String? nexusProblem;
   final UpNextEventContext? eventContext;
-  final DateFormat timeFormat;
   final Future<void> Function() onRefresh;
 
   @override
   Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final onFieldKey = matches
+        .where((match) => match.queueStatus == 'On field')
+        .firstOrNull
+        ?.key;
+    var expandNext = true;
+
+    final items = <Widget>[];
+    for (final match in matches) {
+      if (!bearMetalOnly ||
+          match.includes2046 ||
+          match.possibleOutcome != null) {
+        final onFieldNow = match.key == onFieldKey;
+        items.add(
+          UpNextMatchCard(
+            key: ValueKey(match.key),
+            match: match,
+            now: now,
+            onFieldNow: onFieldNow,
+            initiallyExpanded: !onFieldNow && expandNext,
+          ),
+        );
+        if (!onFieldNow) expandNext = false;
+      }
+
+      final breakAfter = match.nexus?.breakAfter;
+      if (breakAfter != null) {
+        items.add(
+          UpNextBreakRow(
+            key: ValueKey('break_${match.key}'),
+            name: breakAfter,
+            after: match.title,
+          ),
+        );
+      }
+    }
+
     final children = <Widget>[
       if (eventContext != null)
         _EventContextHeader(eventContext: eventContext!),
       _SourceLine(source: source, nexusProblem: nexusProblem),
-      if (matches.isEmpty)
+      if (items.isEmpty)
         const SizedBox(
           height: 320,
           child: BeariscopeStatusView(
@@ -235,21 +277,7 @@ class _MatchList extends StatelessWidget {
           ),
         )
       else
-        ...matches.map((match) {
-          final matchTime = match.displayTime;
-          final timeLabel = matchTime == null
-              ? 'Time TBD'
-              : timeFormat.format(matchTime);
-
-          return UpNextMatchCard(
-            matchKey: match.key,
-            displayName: match.displayName,
-            time: timeLabel,
-            status: match.queueStatus,
-            highlighted:
-                match.includes2046 && isActiveQueueStatus(match.queueStatus),
-          );
-        }),
+        ...items,
     ];
 
     return RefreshIndicator(

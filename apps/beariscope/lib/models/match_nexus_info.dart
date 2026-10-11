@@ -10,6 +10,11 @@ class MatchNexusInfo {
   final DateTime? estimatedOnFieldTime;
   final DateTime? estimatedStartTime;
   final DateTime? actualQueueTime;
+  final DateTime? actualOnDeckTime;
+  final DateTime? actualOnFieldTime;
+  final DateTime? scheduledStartTime;
+  final String? breakAfter;
+  final String? replayOf;
 
   const MatchNexusInfo({
     this.label,
@@ -21,6 +26,11 @@ class MatchNexusInfo {
     this.estimatedOnFieldTime,
     this.estimatedStartTime,
     this.actualQueueTime,
+    this.actualOnDeckTime,
+    this.actualOnFieldTime,
+    this.scheduledStartTime,
+    this.breakAfter,
+    this.replayOf,
   });
 
   DateTime? get displayTime {
@@ -83,6 +93,11 @@ class MatchNexusInfo {
       actualQueueTime: _parseTimestamp(
         times['actualQueueTime'] ?? times['actual_queue_time'],
       ),
+      actualOnDeckTime: _parseTimestamp(times['actualOnDeckTime']),
+      actualOnFieldTime: _parseTimestamp(times['actualOnFieldTime']),
+      scheduledStartTime: _parseTimestamp(times['scheduledStartTime']),
+      breakAfter: _string(json['breakAfter']),
+      replayOf: _string(json['replayOf']),
     );
   }
 }
