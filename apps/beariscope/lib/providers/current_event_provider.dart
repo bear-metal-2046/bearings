@@ -73,7 +73,7 @@ class EventOption {
     'District Championship': 'DCMP',
     'State Championship': 'State CMP',
     'Provincial Championship': 'PCMP',
-    'Girl’s Generation': 'Girl’s Gen',
+    "Girl's Generation": "Girl's Gen",
 
     'Pacific Northwest FIRST': 'PNW',
     'FIRST in Michigan': 'FIM',
@@ -103,15 +103,27 @@ class EventOption {
     'ISR District': 'ISR',
   };
 
+  static String _normalizeApostrophes(String text) {
+    return text.replaceAll(RegExp('[’‘‛ʻʼ`]'), "'");
+  }
+
   static String? _shortenEventName(String name) {
-    var text = name.replaceAll(
+    var text = _normalizeApostrophes(name).replaceAll(
       RegExp(r'\s+presented.*$', caseSensitive: false),
       '',
     );
 
+    text = text.replaceAll(
+      RegExp(r"Girl'?s Generation", caseSensitive: false),
+      "Girl's Gen",
+    );
+
     for (final entry in _eventNameReplacements.entries) {
       text = text.replaceAll(
-        RegExp(RegExp.escape(entry.key), caseSensitive: false),
+        RegExp(
+          RegExp.escape(_normalizeApostrophes(entry.key)),
+          caseSensitive: false,
+        ),
         entry.value,
       );
     }
