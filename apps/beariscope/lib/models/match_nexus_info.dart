@@ -1,3 +1,5 @@
+import 'package:core/core.dart';
+
 class MatchNexusInfo {
   final String? label;
   final String? status;
@@ -8,6 +10,11 @@ class MatchNexusInfo {
   final DateTime? estimatedOnFieldTime;
   final DateTime? estimatedStartTime;
   final DateTime? actualQueueTime;
+  final DateTime? actualOnDeckTime;
+  final DateTime? actualOnFieldTime;
+  final DateTime? scheduledStartTime;
+  final String? breakAfter;
+  final String? replayOf;
 
   const MatchNexusInfo({
     this.label,
@@ -19,6 +26,11 @@ class MatchNexusInfo {
     this.estimatedOnFieldTime,
     this.estimatedStartTime,
     this.actualQueueTime,
+    this.actualOnDeckTime,
+    this.actualOnFieldTime,
+    this.scheduledStartTime,
+    this.breakAfter,
+    this.replayOf,
   });
 
   DateTime? get displayTime {
@@ -81,6 +93,11 @@ class MatchNexusInfo {
       actualQueueTime: _parseTimestamp(
         times['actualQueueTime'] ?? times['actual_queue_time'],
       ),
+      actualOnDeckTime: _parseTimestamp(times['actualOnDeckTime']),
+      actualOnFieldTime: _parseTimestamp(times['actualOnFieldTime']),
+      scheduledStartTime: _parseTimestamp(times['scheduledStartTime']),
+      breakAfter: _string(json['breakAfter']),
+      replayOf: _string(json['replayOf']),
     );
   }
 }
@@ -96,37 +113,16 @@ class UpNextEventContext {
     this.dataAsOfTime,
   });
 
-  static UpNextEventContext? fromEventJson(Map<String, dynamic> json) {
-    final nested = json['nexus'];
-    final source = nested is Map ? Map<String, dynamic>.from(nested) : json;
-
-    final nowQueuing = _string(
-      source['nowQueuing'] ??
-          source['now_queuing'] ??
-          json['nowQueuing'] ??
-          json['now_queuing'],
-    );
-
-    final announcements = _parseAnnouncements(
-      source['announcements'] ?? json['announcements'],
-    );
-
-    final dataAsOfTime = _parseTimestamp(
-      source['dataAsOfTime'] ??
-          source['data_as_of_time'] ??
-          json['dataAsOfTime'] ??
-          json['data_as_of_time'] ??
-          json['nexusDataAsOfTime'],
-    );
-
-    if (nowQueuing == null && announcements.isEmpty && dataAsOfTime == null) {
+  static UpNextEventContext? fromNexusStatus(NexusEventStatus? status) {
+    if (status == null) return null;
+    if (status.nowQueuing == null && status.announcements.isEmpty) {
       return null;
     }
 
     return UpNextEventContext(
-      nowQueuing: nowQueuing,
-      announcements: announcements,
-      dataAsOfTime: dataAsOfTime,
+      nowQueuing: status.nowQueuing,
+      announcements: status.announcements,
+      dataAsOfTime: status.dataAsOfTime,
     );
   }
 }
@@ -141,23 +137,6 @@ const activeNexusQueueStatuses = {
 bool isActiveQueueStatus(String? status) {
   if (status == null) return false;
   return activeNexusQueueStatuses.contains(status);
-}
-
-List<String> _parseAnnouncements(Object? value) {
-  if (value is! List) return const [];
-  return value
-      .map((entry) {
-        if (entry is String) return entry;
-        if (entry is Map) {
-          return entry['announcement']?.toString() ??
-              entry['message']?.toString() ??
-              entry['text']?.toString() ??
-              '';
-        }
-        return entry?.toString() ?? '';
-      })
-      .where((message) => message.isNotEmpty)
-      .toList();
 }
 
 List<String> _parseTeamList(Object? value) {

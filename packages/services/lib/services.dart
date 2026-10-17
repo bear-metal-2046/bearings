@@ -30,6 +30,14 @@ export 'providers/device_credentials_provider.dart'
         DeviceCredentials,
         decodeProvisioningPayload,
         deviceCredentialsProvider;
+export 'providers/nexus_provider.dart'
+    show
+        nexusEventStatusProvider,
+        parseNexusEventResponse,
+        NexusFetchResult,
+        NexusAvailable,
+        NexusEmpty,
+        NexusFailed;
 export 'providers/permissions_provider.dart'
     show
         authMeProvider,
@@ -51,6 +59,23 @@ export 'providers/rbac_management_provider.dart'
         RbacMetadata,
         RbacPermissionMetadata;
 export 'providers/secure_storage_provider.dart';
+export 'providers/up_next_feed_provider.dart'
+    show
+        upNextFeedProvider,
+        upNextNoRetry,
+        scheduleMatchesProvider,
+        needsScheduleFallback,
+        selectUpNextFeed,
+        UpNextFeed,
+        UpNextSource;
+export 'providers/up_next_playoffs.dart'
+    show
+        allianceNumberFor,
+        bracketFor,
+        isDoubleElimination,
+        playoffAllianceNumbers,
+        possiblePlayoffMatches,
+        PlayoffOutcome;
 export 'providers/user_profile_provider.dart'
     show
         userInfoProvider,
