@@ -134,6 +134,12 @@ class _MainViewState extends ConsumerState<MainView> {
       label: 'Match Compare',
       group: 'Utilities',
     ),
+    const _NavItem(
+      route: '/flash_cards',
+      icon: LucideIcons.layers,
+      label: 'Flash Cards',
+      group: 'Utilities',
+    ),
   ];
 
   List<_NavItem> _buildNavItems({

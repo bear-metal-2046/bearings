@@ -23,6 +23,7 @@ import 'package:beariscope/pages/team_lookup/team_lookup_page.dart';
 import 'package:beariscope/pages/up_next/match_preview_page.dart';
 import 'package:beariscope/pages/up_next/up_next_page.dart';
 import 'package:beariscope/pages/utilities/utilities_page.dart';
+import 'package:beariscope/pages/flash_cards/flash_cards_page.dart';
 import 'package:beariscope/providers/app_boot_provider.dart';
 import 'package:beariscope/providers/app_phase_provider.dart';
 import 'package:beariscope/providers/shared_preferences_provider.dart';
@@ -185,6 +186,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/utilities',
             pageBuilder: (_, _) =>
                 const NoTransitionPage(child: UtilitiesPage()),
+          ),
+          GoRoute(
+            path: '/flash_cards',
+            pageBuilder: (_, _) =>
+                const NoTransitionPage(child: FlashCardsPage()),
           ),
         ],
       ),
