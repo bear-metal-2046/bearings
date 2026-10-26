@@ -1,11 +1,12 @@
 import 'dart:async';
 
-import 'package:beariscope/pages/flash_cards/flash_cards_page.dart';
+import 'package:beariscope/pages/flash_cards/flash_card_study_page.dart';
+import 'package:beariscope/pages/flash_cards/flash_card_media.dart';
+import 'package:beariscope/pages/flash_cards/flash_card_progress.dart';
 import 'package:beariscope/pages/main_view.dart';
 import 'package:beariscope/pages/team_lookup/team_providers.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/shared_preferences_provider.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
@@ -51,13 +52,23 @@ Future<ProviderContainer> _showPage(
         home: MainViewController(
           isDesktop: true,
           openDrawer: () {},
-          child: const FlashCardsPage(),
+          child: const FlashCardStudyPage(),
         ),
       ),
     ),
   );
   await tester.pump();
   return container;
+}
+
+Future<void> _openOptions(WidgetTester tester) async {
+  await tester.tap(find.byTooltip('Flash card options'));
+  await tester.pumpAndSettle();
+}
+
+Future<void> _closeOptions(WidgetTester tester) async {
+  await tester.tap(find.byTooltip('Close options'));
+  await tester.pumpAndSettle();
 }
 
 TeamMediaRecord _media({
@@ -96,75 +107,42 @@ void main() {
     );
   });
 
-  testWidgets('flip, swipe, navigation boundaries, restart, and haptics', (
+  testWidgets('flip, sorting gestures, undo, round review and reset', (
     tester,
   ) async {
-    final haptics = <Object?>[];
-    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-      SystemChannels.platform,
-      (call) async {
-        if (call.method == 'HapticFeedback.vibrate') {
-          haptics.add(call.arguments);
-        }
-        return null;
-      },
-    );
-    addTearDown(
-      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        SystemChannels.platform,
-        null,
-      ),
-    );
-    await _showPage(tester);
+    final container = await _showPage(tester);
     await tester.pumpAndSettle();
-
-    expect(find.text('254'), findsOneWidget);
-    expect(find.text('Cheesy Poofs'), findsNothing);
-    expect(
-      tester
-          .widget<IconButton>(
-            find.byWidgetPredicate(
-              (widget) =>
-                  widget is IconButton && widget.tooltip == 'Previous card',
-            ),
-          )
-          .onPressed,
-      isNull,
-    );
     await tester.tap(find.text('254'));
     await tester.pumpAndSettle();
     expect(find.text('Cheesy Poofs'), findsOneWidget);
-    expect(find.text('254'), findsNothing);
-    expect(haptics, contains('HapticFeedbackType.lightImpact'));
-
-    await tester.drag(find.byType(PageView), const Offset(-650, 0));
+    await tester.drag(
+      find.byKey(const ValueKey('flash-card-deck')),
+      const Offset(-500, 0),
+    );
     await tester.pumpAndSettle();
     expect(find.text('2046'), findsOneWidget);
-    expect(find.text('2 / 2'), findsOneWidget);
-    expect(
-      tester
-          .widget<IconButton>(
-            find.byWidgetPredicate(
-              (widget) => widget is IconButton && widget.tooltip == 'Next card',
-            ),
-          )
-          .onPressed,
-      isNull,
-    );
-    expect(haptics, contains('HapticFeedbackType.selectionClick'));
-    await tester.tap(find.text('2046'));
+    await tester.tap(find.byKey(const ValueKey('mark-known')));
+    await tester.pumpAndSettle();
+    expect(find.text('Round complete'), findsOneWidget);
+    await tester.tap(find.byTooltip('Undo last sort'));
     await tester.pumpAndSettle();
     expect(find.text('Bear Metal'), findsOneWidget);
-
+    await tester.tap(find.byKey(const ValueKey('mark-known')));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Study again'));
     await tester.pumpAndSettle();
-    expect(find.text('1 / 2'), findsOneWidget);
     expect(find.text('254'), findsOneWidget);
-    await tester.tap(find.byTooltip('Next card'));
+    expect(find.text('2046'), findsNothing);
+    final store = FlashCardStore(container.read(sharedPreferencesProvider));
+    expect(store.readProgress('2026wabon').order, ['frc254']);
+    await tester.tap(find.byKey(const ValueKey('mark-known')));
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Previous card'));
+    expect(find.text('All known'), findsOneWidget);
+    await tester.tap(find.text('Reset progress'));
     await tester.pumpAndSettle();
     expect(find.text('254'), findsOneWidget);
+    expect(store.readProgress('2026wabon').ratings, isEmpty);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets(
@@ -172,17 +150,21 @@ void main() {
     (tester) async {
       await _showPage(tester);
       await tester.pumpAndSettle();
+      await _openOptions(tester);
       await tester.tap(find.text('Name'));
+      await _closeOptions(tester);
       await tester.pumpAndSettle();
       expect(find.text('Cheesy Poofs'), findsOneWidget);
       expect(find.text('254'), findsNothing);
       await tester.tap(find.text('Cheesy Poofs'));
       await tester.pumpAndSettle();
       expect(find.text('254'), findsOneWidget);
-      await tester.tap(find.byTooltip('Next card'));
+      await tester.tap(find.byKey(const ValueKey('mark-known')));
       await tester.pumpAndSettle();
       expect(find.text('Bear Metal'), findsOneWidget);
+      await _openOptions(tester);
       await tester.tap(find.text('Number'));
+      await _closeOptions(tester);
       await tester.pumpAndSettle();
       expect(find.text('2046'), findsOneWidget);
     },
@@ -202,9 +184,9 @@ void main() {
         loadMedia: (_) => media.future,
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Next card'));
+      await tester.tap(find.byKey(const ValueKey('mark-known')));
       await tester.pumpAndSettle();
-      expect(find.text('2 / 2'), findsOneWidget);
+      expect(find.text('2046'), findsOneWidget);
 
       await container
           .read(currentEventProvider.notifier)
@@ -217,29 +199,11 @@ void main() {
       ]);
       await tester.pumpAndSettle();
       expect(find.text('1114'), findsOneWidget);
-      expect(find.text('1 / 1'), findsOneWidget);
-      expect(find.text('Event: 2026test'), findsOneWidget);
       expect(
-        tester
-            .widget<IconButton>(
-              find.byWidgetPredicate(
-                (widget) =>
-                    widget is IconButton && widget.tooltip == 'Previous card',
-              ),
-            )
-            .onPressed,
-        isNull,
-      );
-      expect(
-        tester
-            .widget<IconButton>(
-              find.byWidgetPredicate(
-                (widget) =>
-                    widget is IconButton && widget.tooltip == 'Next card',
-              ),
-            )
-            .onPressed,
-        isNull,
+        FlashCardStore(container.read(sharedPreferencesProvider))
+            .readProgress('2026test')
+            .index,
+        0,
       );
 
       media.completeError(Exception('Media unavailable'));

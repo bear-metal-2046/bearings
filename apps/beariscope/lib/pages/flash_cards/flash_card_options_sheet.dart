@@ -1,28 +1,7 @@
+import 'package:beariscope/pages/flash_cards/flash_card_options.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
-
-class FlashCardOptions {
-  const FlashCardOptions({
-    this.nameFirst = false,
-    this.shuffled = false,
-    this.showPhotos = true,
-  });
-
-  final bool nameFirst;
-  final bool shuffled;
-  final bool showPhotos;
-
-  FlashCardOptions copyWith({
-    bool? nameFirst,
-    bool? shuffled,
-    bool? showPhotos,
-  }) => FlashCardOptions(
-    nameFirst: nameFirst ?? this.nameFirst,
-    shuffled: shuffled ?? this.shuffled,
-    showPhotos: showPhotos ?? this.showPhotos,
-  );
-}
 
 class FlashCardOptionsSheet extends StatefulWidget {
   const FlashCardOptionsSheet({
@@ -47,6 +26,37 @@ class _FlashCardOptionsSheetState extends State<FlashCardOptionsSheet> {
     HapticFeedback.selectionClick();
     setState(() => _options = options);
     widget.onChanged(options);
+  }
+
+  Future<void> _confirmReset() async {
+    HapticFeedback.selectionClick();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Reset progress?'),
+        content: const Text(
+          'All teams in this deck will move back to Still learning. '
+          'This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Reset progress'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    widget.onReset();
+    Navigator.pop(context);
   }
 
   @override
@@ -144,11 +154,7 @@ class _FlashCardOptionsSheetState extends State<FlashCardOptionsSheet> {
                             contentPadding: EdgeInsets.zero,
                             leading: const Icon(LucideIcons.rotateCcw),
                             title: const Text('Reset progress'),
-                            onTap: () {
-                              HapticFeedback.selectionClick();
-                              widget.onReset();
-                              Navigator.pop(context);
-                            },
+                            onTap: _confirmReset,
                           ),
                         ],
                       ),

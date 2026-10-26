@@ -24,6 +24,10 @@ import 'package:beariscope/pages/up_next/match_preview_page.dart';
 import 'package:beariscope/pages/up_next/up_next_page.dart';
 import 'package:beariscope/pages/utilities/utilities_page.dart';
 import 'package:beariscope/pages/flash_cards/flash_cards_page.dart';
+import 'package:beariscope/pages/flash_cards/flash_card_study_page.dart';
+import 'package:beariscope/pages/flash_cards/flash_card_deck_editor_page.dart';
+import 'package:beariscope/pages/flash_cards/flash_card_deck_import_page.dart';
+import 'package:beariscope/pages/flash_cards/flash_card_deck_share_page.dart';
 import 'package:beariscope/providers/app_boot_provider.dart';
 import 'package:beariscope/providers/app_phase_provider.dart';
 import 'package:beariscope/providers/shared_preferences_provider.dart';
@@ -191,6 +195,37 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/flash_cards',
             pageBuilder: (_, _) =>
                 const NoTransitionPage(child: FlashCardsPage()),
+            routes: [
+              GoRoute(
+                path: 'current',
+                builder: (_, _) => const FlashCardStudyPage(),
+              ),
+              GoRoute(
+                path: 'create',
+                builder: (_, _) => const FlashCardDeckEditorPage(),
+              ),
+              GoRoute(
+                path: 'import',
+                builder: (_, _) => const FlashCardDeckImportPage(),
+              ),
+              GoRoute(
+                path: 'edit/:deckId',
+                builder: (_, state) => FlashCardDeckEditorPage(
+                  deckId: state.pathParameters['deckId'],
+                ),
+              ),
+              GoRoute(
+                path: 'share/:deckId',
+                builder: (_, state) => FlashCardDeckSharePage(
+                  deckId: state.pathParameters['deckId']!,
+                ),
+              ),
+              GoRoute(
+                path: ':deckId',
+                builder: (_, state) =>
+                    FlashCardStudyPage(deckId: state.pathParameters['deckId']),
+              ),
+            ],
           ),
         ],
       ),
