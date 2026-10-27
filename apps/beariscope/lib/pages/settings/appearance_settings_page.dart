@@ -1,3 +1,4 @@
+import 'package:beariscope/providers/appearance_provider.dart';
 import 'package:beariscope/providers/match_preview_layout_provider.dart';
 import 'package:beariscope/widgets/settings_group.dart';
 import 'package:flex_color_picker/flex_color_picker.dart';
@@ -8,12 +9,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-final themeModeProvider = NotifierProvider<ThemeModeNotifier, ThemeMode>(
-  ThemeModeNotifier.new,
-);
-final accentColorProvider = NotifierProvider<AccentColorNotifier, Color>(
-  AccentColorNotifier.new,
-);
 final appIconProvider = NotifierProvider<AppIconNotifier, AppIcon>(
   AppIconNotifier.new,
 );
@@ -49,54 +44,6 @@ enum AppIcon {
   final String displayName;
   final String? iconName;
   final String assetPath;
-}
-
-class AccentColorNotifier extends Notifier<Color> {
-  @override
-  Color build() {
-    _loadColor();
-    return Colors.lightBlue;
-  }
-
-  Future<void> _loadColor() async {
-    final preferences = await SharedPreferences.getInstance();
-    final savedColor = preferences.getInt('accentColor');
-    if (savedColor != null) {
-      state = Color(savedColor);
-    }
-  }
-
-  Future<void> setColor(Color color) async {
-    state = color;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('accentColor', color.toARGB32());
-  }
-}
-
-class ThemeModeNotifier extends Notifier<ThemeMode> {
-  @override
-  ThemeMode build() {
-    _loadThemeMode();
-    return ThemeMode.system;
-  }
-
-  Future<void> _loadThemeMode() async {
-    final prefs = await SharedPreferences.getInstance();
-    final savedMode = prefs.getString('themeMode');
-
-    if (savedMode != null) {
-      state = ThemeMode.values.firstWhere(
-        (mode) => mode.toString() == savedMode,
-        orElse: () => ThemeMode.system,
-      );
-    }
-  }
-
-  Future<void> setThemeMode(ThemeMode mode) async {
-    state = mode;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('themeMode', mode.toString());
-  }
 }
 
 class AppIconNotifier extends Notifier<AppIcon> {
@@ -158,6 +105,13 @@ class AppearanceSettingsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
     final selectedColor = ref.watch(accentColorProvider);
+    final supportsSystemColors = ref.watch(supportsSystemColorsProvider);
+    final useSystemColors =
+        supportsSystemColors &&
+        ref.watch(themeColorSourceProvider) == ThemeColorSource.system;
+    final systemColors = supportsSystemColors && useSystemColors
+        ? ref.watch(systemColorSchemesProvider)
+        : null;
     final selectedAppIcon = ref.watch(appIconProvider);
     final matchPreviewLayout = ref.watch(matchPreviewLayoutProvider);
 
@@ -226,8 +180,27 @@ class AppearanceSettingsPage extends ConsumerWidget {
           const SizedBox(height: 16),
 
           SettingsGroup(
-            title: 'Accent Color',
+            title: 'Colors',
             children: [
+              if (supportsSystemColors)
+                SwitchListTile(
+                  title: const Text('Use system colors'),
+                  subtitle: Text(
+                    systemColors != null &&
+                            !systemColors.isLoading &&
+                            systemColors.value == null
+                        ? 'System colors unavailable. Using your custom accent.'
+                        : 'Follow your device’s palette or accent color.',
+                  ),
+                  value: useSystemColors,
+                  onChanged: (enabled) => ref
+                      .read(themeColorSourceProvider.notifier)
+                      .setSource(
+                        enabled
+                            ? ThemeColorSource.system
+                            : ThemeColorSource.custom,
+                      ),
+                ),
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: GridView.builder(
@@ -243,9 +216,10 @@ class AppearanceSettingsPage extends ConsumerWidget {
                     if (index == accentColors.length) {
                       return GestureDetector(
                         onTap: () async {
-                          final Color newColor = await showColorPickerDialog(
-                            context,
-                            selectedColor,
+                          var newColor = selectedColor;
+                          final confirmed = await ColorPicker(
+                            color: selectedColor,
+                            onColorChanged: (color) => newColor = color,
                             title: Text(
                               'Custom Color',
                               style: Theme.of(context).textTheme.titleLarge,
@@ -266,7 +240,8 @@ class AppearanceSettingsPage extends ConsumerWidget {
                               ColorPickerType.custom: false,
                               ColorPickerType.wheel: true,
                             },
-                          );
+                          ).showPickerDialog(context);
+                          if (!context.mounted || !confirmed) return;
                           ref
                               .read(accentColorProvider.notifier)
                               .setColor(newColor);
@@ -286,6 +261,7 @@ class AppearanceSettingsPage extends ConsumerWidget {
 
                     final color = accentColors[index];
                     final isSelected =
+                        !useSystemColors &&
                         color.toARGB32() == selectedColor.toARGB32();
 
                     return GestureDetector(

@@ -5,6 +5,7 @@
 import FlutterMacOS
 import Foundation
 
+import dynamic_color
 import file_picker_darwin
 import flutter_secure_storage_darwin
 import oidc_darwin
@@ -16,6 +17,7 @@ import window_size
 import window_to_front
 
 func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
+  DynamicColorPlugin.register(with: registry.registrar(forPlugin: "DynamicColorPlugin"))
   FilePickerPlugin.register(with: registry.registrar(forPlugin: "FilePickerPlugin"))
   FlutterSecureStorageDarwinPlugin.register(with: registry.registrar(forPlugin: "FlutterSecureStorageDarwinPlugin"))
   OidcPlugin.register(with: registry.registrar(forPlugin: "OidcPlugin"))

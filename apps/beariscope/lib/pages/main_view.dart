@@ -1,5 +1,5 @@
 import 'package:beariscope/pages/scout_audit/scout_audit_provider.dart';
-import 'package:beariscope/pages/settings/appearance_settings_page.dart';
+import 'package:beariscope/providers/appearance_provider.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/scouting_data_provider.dart';
 import 'package:material_ui/material_ui.dart';
