@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:beariscope/pages/flash_cards/flash_card_options.dart';
+import 'package:beariscope/pages/flash_cards/study/flash_card_options.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class FlashCardReview {

@@ -1,8 +1,8 @@
 import 'dart:math' as math;
 
-import 'package:beariscope/pages/flash_cards/flash_card_deck_model.dart';
-import 'package:beariscope/pages/flash_cards/flash_card_deck_provider.dart';
-import 'package:beariscope/pages/flash_cards/flash_card_qr.dart';
+import 'package:beariscope/pages/flash_cards/decks/flash_card_deck_model.dart';
+import 'package:beariscope/pages/flash_cards/decks/flash_card_deck_provider.dart';
+import 'package:beariscope/pages/flash_cards/sharing/flash_card_qr.dart';
 import 'package:beariscope/pages/picklists/picklist_emoji.dart';
 import 'package:beariscope/pages/picklists/picklist_emoji_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

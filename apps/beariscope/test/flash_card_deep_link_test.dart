@@ -1,5 +1,5 @@
-import 'package:beariscope/pages/flash_cards/flash_card_deck_model.dart';
-import 'package:beariscope/pages/flash_cards/flash_card_deep_link.dart';
+import 'package:beariscope/pages/flash_cards/decks/flash_card_deck_model.dart';
+import 'package:beariscope/pages/flash_cards/sharing/flash_card_deep_link.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 FlashCardDeckDefinition _deck(String name) => FlashCardDeckDefinition.create(

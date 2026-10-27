@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:beariscope/pages/flash_cards/flash_card_progress.dart';
+import 'package:beariscope/pages/flash_cards/study/flash_card_progress.dart';
 
 /// Owns study progress and its persistence; the deck widget owns animation.
 class FlashCardSession {

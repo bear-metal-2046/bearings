@@ -2,12 +2,12 @@ import 'package:beariscope/widgets/beariscope_modal.dart';
 
 import 'dart:async';
 
-import 'package:beariscope/pages/flash_cards/flash_card_deck.dart';
-import 'package:beariscope/pages/flash_cards/flash_card_deck_model.dart';
-import 'package:beariscope/pages/flash_cards/flash_card_deck_provider.dart';
-import 'package:beariscope/pages/flash_cards/flash_card_options.dart';
-import 'package:beariscope/pages/flash_cards/flash_card_options_sheet.dart';
-import 'package:beariscope/pages/flash_cards/flash_card_progress.dart';
+import 'package:beariscope/pages/flash_cards/study/flash_card_deck.dart';
+import 'package:beariscope/pages/flash_cards/decks/flash_card_deck_model.dart';
+import 'package:beariscope/pages/flash_cards/decks/flash_card_deck_provider.dart';
+import 'package:beariscope/pages/flash_cards/study/flash_card_options.dart';
+import 'package:beariscope/pages/flash_cards/study/flash_card_options_sheet.dart';
+import 'package:beariscope/pages/flash_cards/study/flash_card_progress.dart';
 import 'package:beariscope/pages/main_view.dart';
 import 'package:beariscope/pages/picklists/picklist_emoji.dart';
 import 'package:beariscope/pages/team_lookup/team_providers.dart';

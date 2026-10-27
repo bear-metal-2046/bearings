@@ -1,14 +1,13 @@
-import 'package:beariscope/pages/flash_cards/flash_card_deck_model.dart';
-import 'package:beariscope/pages/flash_cards/flash_card_deck_provider.dart';
-import 'package:beariscope/pages/flash_cards/flash_card_qr.dart';
-import 'package:beariscope/pages/flash_cards/flash_card_scanner_page.dart';
-import 'package:beariscope/pages/flash_cards/flash_card_import_preview.dart';
+import 'package:beariscope/pages/flash_cards/decks/flash_card_deck_model.dart';
+import 'package:beariscope/pages/flash_cards/decks/flash_card_deck_provider.dart';
+import 'package:beariscope/pages/flash_cards/sharing/flash_card_qr.dart';
+import 'package:beariscope/pages/flash_cards/sharing/flash_card_scanner_page.dart';
+import 'package:beariscope/pages/flash_cards/sharing/flash_card_import_preview.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:beariscope/pages/flash_cards/flash_card_sheet.dart';
 import 'package:beariscope/widgets/beariscope_modal.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
@@ -165,9 +164,10 @@ class _FlashCardDeckImportPageState
               .watch(flashCardLibraryProvider)
               .where((deck) => deck.shareCode == preview.shareCode)
               .firstOrNull;
-    return FlashCardSheet(
+    final modal = BeariscopeModal(
+      size: BeariscopeModalSize.tall,
+      actions: const [],
       title: 'Import deck',
-      asSheet: widget.asSheet,
       canDismiss: !_busy,
       primaryAction: _preview == null
           ? null
@@ -179,7 +179,7 @@ class _FlashCardDeckImportPageState
               loading: _saving,
               onPressed: _import,
             ),
-      child: Column(
+      content: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (_preview case final deck?) ...[
@@ -279,6 +279,10 @@ class _FlashCardDeckImportPageState
           ],
         ],
       ),
+    );
+    if (widget.asSheet) return modal;
+    return Scaffold(
+      body: SafeArea(child: Center(child: modal)),
     );
   }
 }

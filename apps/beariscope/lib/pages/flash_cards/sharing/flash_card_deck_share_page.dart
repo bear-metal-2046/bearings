@@ -1,10 +1,9 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
-import 'package:beariscope/pages/flash_cards/flash_card_deck_provider.dart';
-import 'package:beariscope/pages/flash_cards/flash_card_deck_model.dart';
-import 'package:beariscope/pages/flash_cards/flash_card_share_card.dart';
-import 'package:beariscope/pages/flash_cards/flash_card_sheet.dart';
+import 'package:beariscope/pages/flash_cards/decks/flash_card_deck_provider.dart';
+import 'package:beariscope/pages/flash_cards/decks/flash_card_deck_model.dart';
+import 'package:beariscope/pages/flash_cards/sharing/flash_card_share_card.dart';
 import 'package:beariscope/widgets/beariscope_modal.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/services.dart';
@@ -119,9 +118,9 @@ class _FlashCardDeckSharePageState
       ref.watch(flashCardLibraryProvider),
       widget.deckId,
     );
-    return FlashCardSheet(
+    final modal = BeariscopeModal(
+      size: BeariscopeModalSize.tall,
       title: 'Share deck',
-      asSheet: widget.asSheet,
       actions: [
         if (deck != null)
           BeariscopeModalAction(
@@ -138,7 +137,7 @@ class _FlashCardDeckSharePageState
               onPressed: _saving ? null : () => _shareImage(deck),
               loading: _saving,
             ),
-      child: deck == null
+      content: deck == null
           ? const Text('Deck not found')
           : Padding(
               // Reserve space for the rotated corners and the table shadow.
@@ -179,6 +178,10 @@ class _FlashCardDeckSharePageState
                 ),
               ),
             ),
+    );
+    if (widget.asSheet) return modal;
+    return Scaffold(
+      body: SafeArea(child: Center(child: modal)),
     );
   }
 }

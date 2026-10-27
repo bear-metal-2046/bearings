@@ -1,12 +1,11 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:beariscope/pages/flash_cards/flash_card_animation.dart';
-import 'package:beariscope/pages/flash_cards/flash_card_card.dart';
-import 'package:beariscope/pages/flash_cards/flash_card_media.dart';
-import 'package:beariscope/pages/flash_cards/flash_card_options.dart';
-import 'package:beariscope/pages/flash_cards/flash_card_progress.dart';
-import 'package:beariscope/pages/flash_cards/flash_card_session.dart';
+import 'package:beariscope/pages/flash_cards/study/flash_card_card.dart';
+import 'package:beariscope/pages/flash_cards/study/flash_card_media.dart';
+import 'package:beariscope/pages/flash_cards/study/flash_card_options.dart';
+import 'package:beariscope/pages/flash_cards/study/flash_card_progress.dart';
+import 'package:beariscope/pages/flash_cards/study/flash_card_session.dart';
 import 'package:beariscope/pages/team_lookup/team_model.dart';
 import 'package:beariscope/pages/team_lookup/team_providers.dart';
 import 'package:beariscope/widgets/logo_badge.dart';
@@ -52,7 +51,10 @@ class _CardExitSimulation extends SpringSimulation {
     required this.viewportWidth,
   }) : _direction = known ? 1 : -1,
        super(
-         flashCardSpring,
+         SpringDescription.withDurationAndBounce(
+           duration: const Duration(milliseconds: 420),
+           bounce: .18,
+         ),
          position,
          (known ? 1 : -1) *
              (viewportWidth / 2 + cardWidth * .7 + cardHeight * .08 + 24),
@@ -251,7 +253,17 @@ class _FlashCardDeckState extends State<FlashCardDeck>
     }
     try {
       await _swipe
-          .animateWith(SpringSimulation(flashCardSpring, _swipe.value, 0, 0))
+          .animateWith(
+            SpringSimulation(
+              SpringDescription.withDurationAndBounce(
+                duration: const Duration(milliseconds: 420),
+                bounce: .18,
+              ),
+              _swipe.value,
+              0,
+              0,
+            ),
+          )
           .orCancel;
     } on TickerCanceled {
       return;

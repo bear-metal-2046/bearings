@@ -1,4 +1,4 @@
-import 'package:beariscope/pages/flash_cards/flash_card_deck_model.dart';
+import 'package:beariscope/pages/flash_cards/decks/flash_card_deck_model.dart';
 
 /// Holds an incoming deck link until startup, login, and onboarding finish.
 class FlashCardDeepLink {

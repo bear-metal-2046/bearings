@@ -1,6 +1,6 @@
 import 'package:beariscope/widgets/beariscope_alert_dialog.dart';
 import 'package:beariscope/widgets/beariscope_modal.dart';
-import 'package:beariscope/pages/flash_cards/flash_card_options.dart';
+import 'package:beariscope/pages/flash_cards/study/flash_card_options.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';

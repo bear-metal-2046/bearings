@@ -1,5 +1,4 @@
-import 'package:beariscope/pages/flash_cards/flash_card_deck_provider.dart';
-import 'package:beariscope/pages/flash_cards/flash_card_sheet.dart';
+import 'package:beariscope/pages/flash_cards/decks/flash_card_deck_provider.dart';
 import 'package:beariscope/pages/team_lookup/team_model.dart';
 import 'package:beariscope/widgets/beariscope_modal.dart';
 import 'package:beariscope/widgets/beariscope_search_bar.dart';
@@ -139,9 +138,10 @@ class _FlashCardTeamPickerState extends ConsumerState<FlashCardTeamPicker> {
           )
         : null;
 
-    return FlashCardSheet(
+    return BeariscopeModal(
+      size: BeariscopeModalSize.tall,
       title: 'Teams',
-      scrollable: false,
+      scrolling: BeariscopeModalScrolling.content,
       actions: [
         BeariscopeModalAction(
           label: 'Copy team numbers',
@@ -156,7 +156,7 @@ class _FlashCardTeamPickerState extends ConsumerState<FlashCardTeamPicker> {
         icon: LucideIcons.check,
         onPressed: ready ? () => Navigator.pop(context, _excluded) : null,
       ),
-      child: LayoutBuilder(
+      content: LayoutBuilder(
         builder: (context, constraints) => Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [

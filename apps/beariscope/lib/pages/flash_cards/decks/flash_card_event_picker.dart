@@ -1,6 +1,5 @@
-import 'package:beariscope/pages/flash_cards/flash_card_deck_model.dart';
-import 'package:beariscope/pages/flash_cards/flash_card_deck_provider.dart';
-import 'package:beariscope/pages/flash_cards/flash_card_sheet.dart';
+import 'package:beariscope/pages/flash_cards/decks/flash_card_deck_model.dart';
+import 'package:beariscope/pages/flash_cards/decks/flash_card_deck_provider.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/widgets/beariscope_modal.dart';
 import 'package:beariscope/widgets/beariscope_search_bar.dart';
@@ -12,7 +11,9 @@ import 'package:material_ui/material_ui.dart';
 
 class FlashCardEventPicker extends ConsumerStatefulWidget {
   const FlashCardEventPicker({super.key, required this.selected});
+
   final Set<String> selected;
+
   @override
   ConsumerState<FlashCardEventPicker> createState() =>
       _FlashCardEventPickerState();
@@ -98,16 +99,18 @@ class _FlashCardEventPickerState extends ConsumerState<FlashCardEventPicker> {
           )
         : null;
 
-    return FlashCardSheet(
+    return BeariscopeModal(
+      size: BeariscopeModalSize.tall,
+      actions: const [],
       title: 'Events',
-      scrollable: false,
+      scrolling: BeariscopeModalScrolling.content,
       primaryAction: BeariscopeModalPrimaryAction(
         label:
             'Use ${_selected.length} ${_selected.length == 1 ? 'event' : 'events'}',
         icon: LucideIcons.check,
         onPressed: () => Navigator.pop(context, _selected),
       ),
-      child: LayoutBuilder(
+      content: LayoutBuilder(
         builder: (context, constraints) => Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [

@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:beariscope/pages/flash_cards/flash_card_animation.dart';
-import 'package:beariscope/pages/flash_cards/flash_card_color.dart';
+import 'package:beariscope/pages/flash_cards/study/flash_card_color.dart';
 import 'package:beariscope/pages/team_lookup/team_model.dart';
 import 'package:beariscope/widgets/logo_badge.dart';
 import 'package:beariscope/widgets/team_avatar.dart';
@@ -58,7 +57,10 @@ class _FlashCardState extends State<FlashCard>
         // Preserve velocity when a tap reverses a flip in flight.
         _turn.animateWith(
           SpringSimulation(
-            flashCardSpring,
+            SpringDescription.withDurationAndBounce(
+              duration: const Duration(milliseconds: 420),
+              bounce: .18,
+            ),
             _turn.value,
             target,
             _turn.velocity,

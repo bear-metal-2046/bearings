@@ -1,11 +1,10 @@
 import 'package:beariscope/widgets/beariscope_alert_dialog.dart';
 import 'package:beariscope/widgets/beariscope_modal.dart';
-import 'package:beariscope/pages/flash_cards/flash_card_deck_model.dart';
-import 'package:beariscope/pages/flash_cards/flash_card_deck_provider.dart';
-import 'package:beariscope/pages/flash_cards/flash_card_deck_share_page.dart';
-import 'package:beariscope/pages/flash_cards/flash_card_event_picker.dart';
-import 'package:beariscope/pages/flash_cards/flash_card_sheet.dart';
-import 'package:beariscope/pages/flash_cards/flash_card_team_picker.dart';
+import 'package:beariscope/pages/flash_cards/decks/flash_card_deck_model.dart';
+import 'package:beariscope/pages/flash_cards/decks/flash_card_deck_provider.dart';
+import 'package:beariscope/pages/flash_cards/sharing/flash_card_deck_share_page.dart';
+import 'package:beariscope/pages/flash_cards/decks/flash_card_event_picker.dart';
+import 'package:beariscope/pages/flash_cards/decks/flash_card_team_picker.dart';
 import 'package:beariscope/pages/team_lookup/team_model.dart';
 import 'package:beariscope/widgets/library_identity_fields.dart';
 import 'package:beariscope/pages/picklists/picklist_model.dart';
@@ -226,8 +225,8 @@ class _FlashCardDeckEditorPageState
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final missing = widget.deckId != null && _original == null;
-    return FlashCardSheet(
-      asSheet: widget.asSheet,
+    final modal = BeariscopeModal(
+      size: BeariscopeModalSize.tall,
       title: widget.deckId == null ? 'New deck' : 'Deck options',
       actions: [
         if (_original != null)
@@ -252,7 +251,7 @@ class _FlashCardDeckEditorPageState
               loading: _saving,
               onPressed: _save,
             ),
-      child: missing
+      content: missing
           ? const Text('Deck not found')
           : Form(
               key: _form,
@@ -313,6 +312,10 @@ class _FlashCardDeckEditorPageState
                 ],
               ),
             ),
+    );
+    if (widget.asSheet) return modal;
+    return Scaffold(
+      body: SafeArea(child: Center(child: modal)),
     );
   }
 }

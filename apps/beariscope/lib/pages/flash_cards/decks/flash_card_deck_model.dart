@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:math';
 
-import 'package:beariscope/pages/flash_cards/flash_card_deck_codec.dart';
+import 'package:beariscope/pages/flash_cards/decks/flash_card_deck_codec.dart';
 import 'package:characters/characters.dart';
 
 const maxFlashCardDeckEvents = 32;

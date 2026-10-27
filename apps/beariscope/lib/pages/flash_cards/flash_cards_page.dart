@@ -1,8 +1,8 @@
-import 'package:beariscope/pages/flash_cards/flash_card_deck_editor_page.dart';
-import 'package:beariscope/pages/flash_cards/flash_card_deck_import_page.dart';
-import 'package:beariscope/pages/flash_cards/flash_card_deck_model.dart';
-import 'package:beariscope/pages/flash_cards/flash_card_deck_provider.dart';
-import 'package:beariscope/pages/flash_cards/flash_card_progress.dart';
+import 'package:beariscope/pages/flash_cards/decks/flash_card_deck_editor_page.dart';
+import 'package:beariscope/pages/flash_cards/sharing/flash_card_deck_import_page.dart';
+import 'package:beariscope/pages/flash_cards/decks/flash_card_deck_model.dart';
+import 'package:beariscope/pages/flash_cards/decks/flash_card_deck_provider.dart';
+import 'package:beariscope/pages/flash_cards/study/flash_card_progress.dart';
 import 'package:beariscope/widgets/beariscope_modal.dart';
 import 'package:beariscope/widgets/library_tile.dart';
 import 'package:beariscope/pages/main_view.dart';

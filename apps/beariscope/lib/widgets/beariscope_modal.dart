@@ -15,9 +15,11 @@ import 'package:stupid_simple_sheet/stupid_simple_sheet.dart';
 import 'package:ui/ui.dart' show FlutterMaterialScope;
 
 part 'beariscope_modal/android_header.dart';
+
 part 'beariscope_modal/desktop_header.dart';
-part 'beariscope_modal/header_actions.dart';
+
 part 'beariscope_modal/ios_header.dart';
+
 part 'beariscope_modal/ios_transitions.dart';
 
 enum _ModalPresentation { desktop, ios, android }
@@ -112,18 +114,18 @@ class BeariscopeModal extends StatefulWidget {
     required WidgetBuilder builder,
     bool useRootNavigator = true,
   }) {
-    // final presentation = kIsWeb
-    //     ? _ModalPresentation.desktop
-    //     : switch (Theme.of(context).platform) {
-    //         TargetPlatform.iOS => _ModalPresentation.ios,
-    //         TargetPlatform.android => _ModalPresentation.android,
-    //         TargetPlatform.fuchsia ||
-    //         TargetPlatform.linux ||
-    //         TargetPlatform.macOS ||
-    //         TargetPlatform.windows => _ModalPresentation.desktop,
-    //       };
+    final presentation = kIsWeb
+        ? _ModalPresentation.desktop
+        : switch (Theme.of(context).platform) {
+            TargetPlatform.iOS => _ModalPresentation.ios,
+            TargetPlatform.android => _ModalPresentation.android,
+            TargetPlatform.fuchsia ||
+            TargetPlatform.linux ||
+            TargetPlatform.macOS ||
+            TargetPlatform.windows => _ModalPresentation.desktop,
+          };
 
-    final presentation = _ModalPresentation.ios;
+    // final presentation = _ModalPresentation.ios;
 
     final navigator = Navigator.of(context, rootNavigator: useRootNavigator);
     final policy = _ModalPolicy();
@@ -198,10 +200,12 @@ class _ModalPolicy {
 
   bool get barrierDismissible =>
       dismissal == BeariscopeModalDismissal.standard && canDismiss;
+
   // A temporary dismissal lock must not remove the grabber and move the header.
   bool get showGrabber =>
       dismissal == BeariscopeModalDismissal.standard &&
       onDismissRequested == null;
+
   bool get dragDismissible => showGrabber && canDismiss;
 }
 
@@ -211,6 +215,7 @@ abstract interface class _GuardedRoute {
 
 mixin _DismissalGuard<T> on ModalRoute<T> implements _GuardedRoute {
   _ModalPolicy get policy;
+
   bool _allowPop = false;
   bool _asking = false;
 
@@ -292,6 +297,7 @@ class _DesktopModalRoute<T> extends DialogRoute<T> with _DismissalGuard<T> {
 
   @override
   bool get barrierDismissible => policy.barrierDismissible;
+
   @override
   Duration get reverseTransitionDuration =>
       reduceMotion ? Duration.zero : const Duration(milliseconds: 140);
@@ -334,8 +340,10 @@ class _MaterialModalRoute<T> extends StupidSimpleSheetRoute<T>
        );
   @override
   final _ModalPolicy policy;
+
   @override
   bool get barrierDismissible => policy.barrierDismissible;
+
   @override
   bool get draggable => policy.dragDismissible;
 }
@@ -353,6 +361,7 @@ class _CupertinoModalRoute<T> extends StupidSimpleCupertinoSheetRoute<T>
        );
   @override
   final _ModalPolicy policy;
+
   @override
   bool get draggable => policy.dragDismissible;
 
@@ -427,16 +436,20 @@ class _ModalScope extends InheritedWidget {
     required this.presentation,
     required super.child,
   });
+
   final _ModalPolicy policy;
   final _ModalPresentation presentation;
+
   static _ModalScope? maybeOf(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<_ModalScope>();
+
   @override
   bool updateShouldNotify(_ModalScope oldWidget) => false;
 }
 
 class _ModalBody extends StatelessWidget {
   const _ModalBody({required this.presentation, required this.builder});
+
   final _ModalPresentation presentation;
   final WidgetBuilder builder;
 
@@ -553,7 +566,10 @@ class _BeariscopeModalState extends State<BeariscopeModal> {
         : FilledButton(
             onPressed: canPressPrimary ? primary.onPressed : null,
             child: primary.loading
-                ? const _ModalActionProgress()
+                ? const SizedBox.square(
+                    dimension: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
                 : Text(primary.label),
           );
     final onClose = widget.canDismiss ? _close : null;
@@ -625,6 +641,7 @@ class _BeariscopeModalState extends State<BeariscopeModal> {
 
 class _DesktopModalTransition extends StatelessWidget {
   const _DesktopModalTransition({required this.child});
+
   final Widget child;
   static final _spring = SpringSimulation(
     SpringDescription.withDampingRatio(mass: 1, stiffness: 500, ratio: 0.62),
@@ -632,6 +649,7 @@ class _DesktopModalTransition extends StatelessWidget {
     1,
     0,
   );
+
   @override
   Widget build(BuildContext context) {
     final route = ModalRoute.of(context);
