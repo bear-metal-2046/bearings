@@ -19,6 +19,7 @@ import 'package:beariscope/providers/rankings_provider.dart';
 import 'package:beariscope/providers/team_scouting_provider.dart';
 import 'package:beariscope/widgets/beariscope_search_bar.dart';
 import 'package:beariscope/widgets/beariscope_status_view.dart';
+import 'package:beariscope/widgets/screenshot_guard.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -96,145 +97,149 @@ class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage>
         .watch(picklistLibraryProvider)
         .where((item) => item.id == widget.picklistId)
         .firstOrNull;
-    if (picklist == null) return _missingPicklist();
+    if (picklist == null) {
+      return ScreenshotGuard(child: _missingPicklist());
+    }
 
     _library = ref.read(picklistLibraryProvider.notifier);
     final session = _library!.open(picklist.id);
     final canEdit = _library!.canEdit(picklist);
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final desktop = constraints.maxWidth >= 850;
-        _isDesktopLayout = desktop;
+    return ScreenshotGuard(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final desktop = constraints.maxWidth >= 850;
+          _isDesktopLayout = desktop;
 
-        final editor = _PicklistSurface(
-          picklist: picklist,
-          canEdit: canEdit,
-          isDraggingTeam: _isDraggingTeam,
-          dragPosition: _dragPosition,
-          onDraggingChanged: _setTeamDragging,
-          onInsertTeam: (teamKey, index) =>
-              _insertTeam(picklist, teamKey, index),
-          onRemoveTeam: (teamKey) => _removeTeam(picklist, teamKey),
-        );
+          final editor = _PicklistSurface(
+            picklist: picklist,
+            canEdit: canEdit,
+            isDraggingTeam: _isDraggingTeam,
+            dragPosition: _dragPosition,
+            onDraggingChanged: _setTeamDragging,
+            onInsertTeam: (teamKey, index) =>
+                _insertTeam(picklist, teamKey, index),
+            onRemoveTeam: (teamKey) => _removeTeam(picklist, teamKey),
+          );
 
-        return _DragPresentationScope(
-          presentation: _dragPresentation,
-          child: Scaffold(
-            appBar: AppBar(
-              backgroundColor: Theme.of(context).colorScheme.surface,
-              scrolledUnderElevation: 0,
-              surfaceTintColor: Colors.transparent,
-              bottom: const PreferredSize(
-                preferredSize: Size.fromHeight(1),
-                child: Divider(height: 1, thickness: 1),
-              ),
-              leading: IconButton(
-                tooltip: 'Back to Picklists',
-                onPressed: () => context.go('/picklists'),
-                icon: const Icon(LucideIcons.arrowLeft),
-              ),
-              titleSpacing: 0,
-              title: Tooltip(
-                message: canEdit
-                    ? 'Edit picklist name and emoji'
-                    : picklist.title,
-                child: TextButton(
-                  onPressed: canEdit
-                      ? () => showPicklistOptions(context, ref, picklist)
-                      : null,
-                  style: TextButton.styleFrom(
-                    foregroundColor: Theme.of(context).colorScheme.onSurface,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    minimumSize: const Size(48, 48),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      PicklistEmoji(picklist.emoji, size: 26),
-                      const SizedBox(width: 10),
-                      Flexible(
-                        child: Text(
-                          picklist.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                      ),
-                      if (canEdit) ...[
-                        const SizedBox(width: 6),
-                        const Icon(Icons.expand_more, size: 20),
-                      ],
-                    ],
-                  ),
+          return _DragPresentationScope(
+            presentation: _dragPresentation,
+            child: Scaffold(
+              appBar: AppBar(
+                backgroundColor: Theme.of(context).colorScheme.surface,
+                scrolledUnderElevation: 0,
+                surfaceTintColor: Colors.transparent,
+                bottom: const PreferredSize(
+                  preferredSize: Size.fromHeight(1),
+                  child: Divider(height: 1, thickness: 1),
                 ),
-              ),
-              actions: [
-                if (session != null)
-                  PicklistPresenceStack(presence: session.presence),
-                if (desktop)
-                  IconButton(
-                    tooltip: 'Copy team numbers',
-                    onPressed: picklist.teamKeys.isEmpty
-                        ? null
-                        : () => _copyTeams(picklist.teamKeys),
-                    icon: AnimatedSwitcher(
-                      duration: _motionDuration(context),
-                      child: Icon(
-                        _showCopyCheck ? LucideIcons.check : LucideIcons.copy,
-                        key: ValueKey(_showCopyCheck),
-                      ),
+                leading: IconButton(
+                  tooltip: 'Back to Picklists',
+                  onPressed: () => context.go('/picklists'),
+                  icon: const Icon(LucideIcons.arrowLeft),
+                ),
+                titleSpacing: 0,
+                title: Tooltip(
+                  message: canEdit
+                      ? 'Edit picklist name and emoji'
+                      : picklist.title,
+                  child: TextButton(
+                    onPressed: canEdit
+                        ? () => showPicklistOptions(context, ref, picklist)
+                        : null,
+                    style: TextButton.styleFrom(
+                      foregroundColor: Theme.of(context).colorScheme.onSurface,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      minimumSize: const Size(48, 48),
                     ),
-                  ),
-                if (canEdit)
-                  PopupMenuButton<String>(
-                    onSelected: (value) {
-                      if (value == 'clear') _confirmClear(picklist);
-                      if (value == 'copy') _copyTeams(picklist.teamKeys);
-                    },
-                    tooltip: 'Picklist options',
-                    itemBuilder: (context) => [
-                      if (!desktop)
-                        PopupMenuItem(
-                          value: 'copy',
-                          enabled: picklist.teamKeys.isNotEmpty,
-                          child: ListTile(
-                            leading: Icon(LucideIcons.copy),
-                            title: Text('Copy team numbers'),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        PicklistEmoji(picklist.emoji, size: 26),
+                        const SizedBox(width: 10),
+                        Flexible(
+                          child: Text(
+                            picklist.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.titleLarge,
                           ),
                         ),
-                      PopupMenuItem(
-                        enabled: canEdit,
-                        value: 'clear',
-                        child: Row(
-                          children: [
-                            Icon(LucideIcons.trash2),
-                            SizedBox(width: 12),
-                            Text('Clear picklist'),
-                          ],
+                        if (canEdit) ...[
+                          const SizedBox(width: 6),
+                          const Icon(Icons.expand_more, size: 20),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+                actions: [
+                  if (session != null)
+                    PicklistPresenceStack(presence: session.presence),
+                  if (desktop)
+                    IconButton(
+                      tooltip: 'Copy team numbers',
+                      onPressed: picklist.teamKeys.isEmpty
+                          ? null
+                          : () => _copyTeams(picklist.teamKeys),
+                      icon: AnimatedSwitcher(
+                        duration: _motionDuration(context),
+                        child: Icon(
+                          _showCopyCheck ? LucideIcons.check : LucideIcons.copy,
+                          key: ValueKey(_showCopyCheck),
                         ),
                       ),
-                    ],
-                  ),
-              ],
+                    ),
+                  if (canEdit)
+                    PopupMenuButton<String>(
+                      onSelected: (value) {
+                        if (value == 'clear') _confirmClear(picklist);
+                        if (value == 'copy') _copyTeams(picklist.teamKeys);
+                      },
+                      tooltip: 'Picklist options',
+                      itemBuilder: (context) => [
+                        if (!desktop)
+                          PopupMenuItem(
+                            value: 'copy',
+                            enabled: picklist.teamKeys.isNotEmpty,
+                            child: ListTile(
+                              leading: Icon(LucideIcons.copy),
+                              title: Text('Copy team numbers'),
+                            ),
+                          ),
+                        PopupMenuItem(
+                          enabled: canEdit,
+                          value: 'clear',
+                          child: Row(
+                            children: [
+                              Icon(LucideIcons.trash2),
+                              SizedBox(width: 12),
+                              Text('Clear picklist'),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+              body: LayoutBuilder(
+                builder: (context, bodyConstraints) {
+                  _mobileMaxHeight = math.max(
+                    _collapsedSheetExtent,
+                    math.min(700, bodyConstraints.maxHeight * .8),
+                  );
+                  return desktop
+                      ? SafeArea(
+                          top: false,
+                          child: _desktopBody(picklist, editor, canEdit),
+                        )
+                      : _mobileBody(picklist, editor, canEdit);
+                },
+              ),
             ),
-            body: LayoutBuilder(
-              builder: (context, bodyConstraints) {
-                _mobileMaxHeight = math.max(
-                  _collapsedSheetExtent,
-                  math.min(700, bodyConstraints.maxHeight * .8),
-                );
-                return desktop
-                    ? SafeArea(
-                        top: false,
-                        child: _desktopBody(picklist, editor, canEdit),
-                      )
-                    : _mobileBody(picklist, editor, canEdit);
-              },
-            ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 
