@@ -39,7 +39,7 @@ class _FlashCardEventPickerState extends ConsumerState<FlashCardEventPicker> {
     }
     _error = null;
   });
-  
+
   @override
   Widget build(BuildContext context) {
     final catalog = ref.watch(flashCardEventCatalogProvider(_year));
