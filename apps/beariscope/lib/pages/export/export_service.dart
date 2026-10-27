@@ -610,7 +610,14 @@ class ExportService {
 
       writeCell(0, IntCellValue(teamNumber));
       writeCell(1, _toCellValue(doc.data['teamName']));
-      writeCell(2, TextCellValue(options.anonymizeScouters ? '' : doc.meta?['scoutedBy']?.toString() ?? ''));
+      writeCell(
+        2,
+        TextCellValue(
+          options.anonymizeScouters
+              ? ''
+              : doc.meta?['scoutedBy']?.toString() ?? '',
+        ),
+      );
       writeCell(3, TextCellValue(doc.timestamp.toIso8601String()));
 
       for (
