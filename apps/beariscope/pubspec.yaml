@@ -60,6 +60,7 @@ dependencies:
   web_socket_channel: ^3.0.0
   stupid_simple_sheet: ^0.9.1+1
   dynamic_color: ^2.1.0
+  screen_protector: ^1.5.3
 
 dependency_overrides:
   # crdt_socket_sync 0.6.0 still declares ^3.0.0, but its public relay API
