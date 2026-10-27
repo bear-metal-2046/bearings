@@ -108,7 +108,7 @@ class BeariscopeModal extends StatefulWidget {
         kIsWeb ||
         (platform != TargetPlatform.iOS && platform != TargetPlatform.android);
     final ios = !desktop && platform == TargetPlatform.iOS;
-    
+
     final navigator = Navigator.of(context, rootNavigator: useRootNavigator);
     final policy = _ModalPolicy();
     final contentKey = GlobalKey();
@@ -264,6 +264,11 @@ class _DesktopModalRoute<T> extends DialogRoute<T> with _DismissalGuard<T> {
   @override
   final _ModalPolicy policy;
   final bool reduceMotion;
+
+  @override
+  bool canTransitionTo(TransitionRoute<dynamic> nextRoute) =>
+      nextRoute is RawDialogRoute<dynamic>;
+
   @override
   bool get barrierDismissible => policy.barrierDismissible;
   @override
@@ -375,11 +380,15 @@ class _ModalBody extends StatelessWidget {
       );
     }
     if (ios) {
-      return Padding(
-        padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
-        child: SafeArea(
-          top: false,
-          child: Align(alignment: Alignment.topCenter, child: child),
+      // Include the blank sheet surface in the ancestor's drag hit testing.
+      return ColoredBox(
+        color: Colors.transparent,
+        child: Padding(
+          padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
+          child: SafeArea(
+            top: false,
+            child: Align(alignment: Alignment.topCenter, child: child),
+          ),
         ),
       );
     }
@@ -549,12 +558,14 @@ class _DesktopModalTransition extends StatelessWidget {
   );
   @override
   Widget build(BuildContext context) {
-    final animation = ModalRoute.of(context)?.animation;
+    final route = ModalRoute.of(context);
+    final animation = route?.animation;
+    final secondaryAnimation = route?.secondaryAnimation;
     if (animation == null || MediaQuery.disableAnimationsOf(context)) {
       return child;
     }
     return AnimatedBuilder(
-      animation: animation,
+      animation: Listenable.merge([animation, secondaryAnimation]),
       child: child,
       builder: (context, child) {
         final value = animation.value;
@@ -563,9 +574,19 @@ class _DesktopModalTransition extends StatelessWidget {
             : value == 1
             ? 1.0
             : _spring.x(value * 0.45);
+        // The secondary animation runs backward when the top dialog closes.
+        // Flip the curve so restoring the covered dialog also eases out.
+        final coveredCurve =
+            secondaryAnimation?.status == AnimationStatus.reverse
+            ? Curves.easeOutCubic.flipped
+            : Curves.easeOutCubic;
+        final coveredProgress = coveredCurve.transform(
+          secondaryAnimation?.value ?? 0,
+        );
         return Transform.scale(
           key: const ValueKey('beariscope-modal-scale'),
-          scale: 0.8 + 0.2 * progress,
+          // Give a covered dialog a little depth without changing its layout.
+          scale: (0.8 + 0.2 * progress) * (1 - 0.05 * coveredProgress),
           child: child,
         );
       },

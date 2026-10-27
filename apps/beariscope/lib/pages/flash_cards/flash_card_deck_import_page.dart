@@ -28,10 +28,13 @@ class FlashCardDeckImportPage extends ConsumerStatefulWidget {
 
 class _FlashCardDeckImportPageState
     extends ConsumerState<FlashCardDeckImportPage> {
-  late final _code = TextEditingController(text: widget.initialCode ?? '');
+  final _code = TextEditingController();
   FlashCardDeckDefinition? _preview;
-  bool _busy = false;
+  bool _readingImage = false;
+  bool _saving = false;
   String? _error;
+
+  bool get _busy => _readingImage || _saving;
 
   @override
   void initState() {
@@ -59,14 +62,25 @@ class _FlashCardDeckImportPageState
       _preview = preview;
       _error = error;
     });
+    if (preview != null) {
+      FocusManager.instance.primaryFocus?.unfocus();
+      _code.clear();
+    }
+  }
+
+  void _chooseAnother() {
+    _code.clear();
+    setState(() {
+      _preview = null;
+      _error = null;
+    });
   }
 
   Future<void> _paste() async {
     try {
       final clipboard = await Clipboard.getData(Clipboard.kTextPlain);
       if (!mounted) return;
-      _code.text = clipboard?.text ?? '';
-      _previewCode(_code.text, showErrors: true);
+      _previewCode(clipboard?.text ?? '', showErrors: true);
     } catch (_) {
       if (mounted) {
         setState(
@@ -82,14 +96,13 @@ class _FlashCardDeckImportPageState
       MaterialPageRoute(builder: (_) => const FlashCardScannerPage()),
     );
     if (!mounted || code == null) return;
-    _code.text = code;
     _previewCode(code, showErrors: true);
   }
 
   Future<void> _image() async {
     if (_busy) return;
     setState(() {
-      _busy = true;
+      _readingImage = true;
       _error = null;
     });
     try {
@@ -104,7 +117,6 @@ class _FlashCardDeckImportPageState
       final bytes = await file.readAsBytes();
       final code = await compute(decodeFlashCardQrImage, bytes);
       if (!mounted) return;
-      _code.text = code;
       _previewCode(code, showErrors: true);
     } on FormatException catch (error) {
       if (mounted) setState(() => _error = error.message);
@@ -115,16 +127,18 @@ class _FlashCardDeckImportPageState
         );
       }
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) setState(() => _readingImage = false);
     }
   }
 
   Future<void> _import() async {
     if (_busy) return;
-    _previewCode(_code.text, showErrors: true);
     final preview = _preview;
     if (preview == null) return;
-    setState(() => _busy = true);
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
     try {
       final imported = await ref
           .read(flashCardLibraryProvider.notifier)
@@ -138,73 +152,133 @@ class _FlashCardDeckImportPageState
     } catch (_) {
       if (mounted) setState(() => _error = 'Could not save the imported deck.');
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) setState(() => _saving = false);
     }
   }
 
   @override
-  Widget build(BuildContext context) => FlashCardSheet(
-    title: 'Import deck',
-    asSheet: widget.asSheet,
-    canDismiss: !_busy,
-    primaryAction: BeariscopeModalPrimaryAction(
-      label: 'Import deck',
-      icon: LucideIcons.check,
-      loading: _busy,
-      onPressed: _import,
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        TextField(
-          key: const ValueKey('deck-import-code'),
-          controller: _code,
-          enabled: !_busy,
-          minLines: 3,
-          maxLines: 5,
-          maxLength: 6000,
-          onChanged: (code) => _previewCode(code),
-          autocorrect: false,
-          enableSuggestions: false,
-          decoration: InputDecoration(
-            labelText: 'Deck code',
-            counterText: '',
-            border: const OutlineInputBorder(),
-            errorText: _error,
-            errorMaxLines: 3,
-            suffixIcon: IconButton(
-              tooltip: 'Paste deck code',
-              onPressed: _busy ? null : _paste,
-              icon: const Icon(LucideIcons.clipboardPaste),
+  Widget build(BuildContext context) {
+    final preview = _preview;
+    final existing = preview == null
+        ? null
+        : ref
+              .watch(flashCardLibraryProvider)
+              .where((deck) => deck.shareCode == preview.shareCode)
+              .firstOrNull;
+    return FlashCardSheet(
+      title: 'Import deck',
+      asSheet: widget.asSheet,
+      canDismiss: !_busy,
+      primaryAction: _preview == null
+          ? null
+          : BeariscopeModalPrimaryAction(
+              label: existing == null ? 'Import deck' : 'Open deck',
+              icon: existing == null
+                  ? LucideIcons.check
+                  : LucideIcons.arrowRight,
+              loading: _saving,
+              onPressed: _import,
             ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            if (flashCardCameraScanningSupported)
-              OutlinedButton.icon(
-                onPressed: _busy ? null : _scan,
-                icon: const Icon(LucideIcons.scanQrCode),
-                label: const Text('Scan QR code'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (_preview case final deck?) ...[
+            Semantics(
+              liveRegion: true,
+              child: Text(
+                existing == null
+                    ? 'Review this deck before adding it to your library.'
+                    : 'Already in your library',
               ),
-            OutlinedButton.icon(
-              onPressed: _busy ? null : _image,
-              icon: const Icon(LucideIcons.image),
-              label: const Text('QR image'),
+            ),
+            const SizedBox(height: 16),
+            FlashCardImportPreview(
+              key: const ValueKey('deck-import-preview'),
+              deck: deck,
+            ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: _busy ? null : _chooseAnother,
+                icon: const Icon(LucideIcons.arrowLeft, size: 18),
+                label: const Text('Choose another deck'),
+              ),
+            ),
+          ] else ...[
+            Text(
+              flashCardCameraScanningSupported
+                  ? 'Scan a deck QR code or choose a saved QR image.'
+                  : 'Choose a saved deck QR image to get started.',
+            ),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (flashCardCameraScanningSupported)
+                  FilledButton.tonalIcon(
+                    onPressed: _busy ? null : _scan,
+                    icon: const Icon(LucideIcons.scanQrCode),
+                    label: const Text('Scan QR code'),
+                  ),
+                OutlinedButton.icon(
+                  onPressed: _busy ? null : _image,
+                  icon: _readingImage
+                      ? const SizedBox.square(
+                          dimension: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(LucideIcons.image),
+                  label: Text(
+                    _readingImage ? 'Reading image…' : 'Choose QR image',
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Or paste a deck code or link',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              key: const ValueKey('deck-import-code'),
+              controller: _code,
+              enabled: !_busy,
+              maxLength: 6000,
+              onChanged: (code) => _previewCode(code),
+              onSubmitted: (code) => _previewCode(code, showErrors: true),
+              textInputAction: TextInputAction.done,
+              autocorrect: false,
+              enableSuggestions: false,
+              decoration: InputDecoration(
+                hintText: 'Deck code or link',
+                counterText: '',
+                border: const OutlineInputBorder(),
+                suffixIcon: IconButton(
+                  tooltip: 'Paste deck code',
+                  onPressed: _busy ? null : _paste,
+                  icon: const Icon(LucideIcons.clipboardPaste),
+                ),
+              ),
             ),
           ],
-        ),
-        if (_preview case final deck?) ...[
-          const SizedBox(height: 20),
-          FlashCardImportPreview(
-            key: const ValueKey('deck-import-preview'),
-            deck: deck,
-          ),
+          if (_error case final error?) ...[
+            const SizedBox(height: 12),
+            Semantics(
+              liveRegion: true,
+              child: Text(
+                error,
+                style: Theme.of(context).textTheme.bodyMedium
+                    ?.copyWith(color: Theme.of(context).colorScheme.error),
+              ),
+            ),
+          ],
         ],
-      ],
-    ),
-  );
+      ),
+    );
+  }
 }

@@ -86,17 +86,19 @@ class _FlashCardDeckEditorPageState
       ),
     );
     if (confirmed != true || !mounted) return;
-    setState(() => _saving = true);
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
     try {
       await ref.read(flashCardLibraryProvider.notifier).delete(deck);
-      if (mounted) Navigator.pop(context);
+      if (mounted) BeariscopeModal.complete(context);
     } catch (_) {
       if (mounted) {
-        setState(() {
-          _saving = false;
-          _error = 'Could not delete the deck.';
-        });
+        setState(() => _error = 'Could not delete the deck.');
       }
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 

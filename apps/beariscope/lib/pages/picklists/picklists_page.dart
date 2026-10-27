@@ -1,11 +1,9 @@
-import 'package:beariscope/widgets/beariscope_alert_dialog.dart';
 import 'package:beariscope/widgets/library_tile.dart';
 import 'package:beariscope/widgets/beariscope_modal.dart';
 import 'package:beariscope/pages/picklists/picklists_create_page.dart';
 import 'package:beariscope/pages/picklists/picklist_emoji_colors.dart';
 import 'package:beariscope/pages/picklists/picklist_emoji.dart';
 import 'package:beariscope/pages/picklists/picklist_options_sheet.dart';
-import 'package:beariscope/pages/picklists/picklist_duplicate_dialog.dart';
 import 'package:beariscope/pages/main_view.dart';
 import 'package:beariscope/pages/picklists/picklist_model.dart';
 import 'package:beariscope/pages/picklists/picklist_provider.dart';
@@ -121,79 +119,10 @@ class _PicklistCard extends ConsumerWidget {
             ?.copyWith(color: colors.onSurfaceVariant),
       ),
       options: canEdit
-          ? PopupMenuButton<String>(
+          ? IconButton(
               tooltip: 'Picklist options for ${item.title}',
               icon: const Icon(LucideIcons.ellipsis, size: 20),
-              onSelected: (value) async {
-                if (value == 'customize') {
-                  await showPicklistOptions(context, ref, item);
-                  return;
-                }
-                if (value == 'duplicate') {
-                  await duplicatePicklist(context, ref, item);
-                  return;
-                }
-                if (value == 'delete') {
-                  final confirmed = await BeariscopeAlertDialog.show<bool>(
-                    context: context,
-                    builder: (dialogContext) => AlertDialog(
-                      title: const Text('Delete picklist?'),
-                      content: Text(
-                        item.mode == PicklistMode.offline
-                            ? '“${item.title}” will be removed from this device.'
-                            : '“${item.title}” will be removed for everyone.',
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(dialogContext, false),
-                          child: const Text('Cancel'),
-                        ),
-                        FilledButton(
-                          onPressed: () => Navigator.pop(dialogContext, true),
-                          style: ButtonStyle(
-                            backgroundColor: WidgetStateProperty.all(
-                              colors.error,
-                            ),
-                            foregroundColor: WidgetStateProperty.all(
-                              colors.onError,
-                            ),
-                          ),
-                          child: const Text('Delete'),
-                        ),
-                      ],
-                    ),
-                  );
-                  if (confirmed == true) {
-                    ref.read(picklistLibraryProvider.notifier).delete(item.id);
-                  }
-                }
-              },
-              itemBuilder: (context) => [
-                const PopupMenuItem(
-                  value: 'customize',
-                  child: ListTile(
-                    leading: Icon(Icons.edit_outlined),
-                    title: Text('Customize'),
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: 'duplicate',
-                  child: ListTile(
-                    leading: Icon(LucideIcons.copyPlus),
-                    title: Text('Duplicate'),
-                  ),
-                ),
-                PopupMenuItem(
-                  value: 'delete',
-                  child: ListTile(
-                    leading: Icon(LucideIcons.trash, color: colors.error),
-                    title: Text(
-                      'Delete',
-                      style: TextStyle(color: colors.error),
-                    ),
-                  ),
-                ),
-              ],
+              onPressed: () => showPicklistOptions(context, ref, item),
             )
           : null,
     );
