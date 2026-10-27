@@ -53,17 +53,16 @@ class _AndroidModalHeader extends StatelessWidget {
             const SizedBox(width: _titleGap),
             for (final action in actions)
               IconButton(
-                  tooltip: action.label,
-                  onPressed: action.enabled ? action.onPressed : null,
-                  icon: Icon(action.icon),
-                ),
-              
-            IconButton(
-                tooltip: 'Close',
-                onPressed: onClose,
-                icon: const Icon(LucideIcons.x),
+                tooltip: action.label,
+                onPressed: action.enabled ? action.onPressed : null,
+                icon: Icon(action.icon),
               ),
-            
+
+            IconButton(
+              tooltip: 'Close',
+              onPressed: onClose,
+              icon: const Icon(LucideIcons.x),
+            ),
           ],
         ),
       ),

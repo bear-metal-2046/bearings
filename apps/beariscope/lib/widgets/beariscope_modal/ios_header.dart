@@ -55,8 +55,7 @@ class _IosModalHeader extends StatelessWidget {
                 textAlign: TextAlign.left,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.titleLarge
-                
+                style: Theme.of(context).textTheme.titleLarge,
               ),
             ),
             if (actions.isNotEmpty || primaryAction != null)

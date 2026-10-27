@@ -137,9 +137,7 @@ class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage>
               ),
               titleSpacing: 0,
               title: Tooltip(
-                message: canEdit
-                    ? 'Edit picklist'
-                    : picklist.title,
+                message: canEdit ? 'Edit picklist' : picklist.title,
                 child: TextButton(
                   onPressed: canEdit
                       ? () => showPicklistOptions(context, ref, picklist)

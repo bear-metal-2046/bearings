@@ -860,7 +860,7 @@ class _DriveTeamNotesSheetState extends ConsumerState<_DriveTeamNotesSheet> {
   Widget build(BuildContext context) {
     final notesAsync = ref.watch(myDriveTeamNotesProvider(widget.matchKey));
     final theme = Theme.of(context);
-    
+
     return BeariscopeModal(
       title: 'Drive team notes',
       size: BeariscopeModalSize.tall,
