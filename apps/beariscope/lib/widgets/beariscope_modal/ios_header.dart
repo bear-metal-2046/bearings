@@ -10,7 +10,7 @@ class _IosModalHeader extends StatelessWidget {
   });
 
   // iOS sheet toolbar. These values are independent of the other headers.
-  static const _padding = EdgeInsets.fromLTRB(8, 4, 8, 8);
+  static const _padding = EdgeInsets.fromLTRB(16, 0, 16, 8);
   static const _titleGap = 8.0;
   static const _grabberWidth = 32.0;
   static const _grabberHeight = 4.0;

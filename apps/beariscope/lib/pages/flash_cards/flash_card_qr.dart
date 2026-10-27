@@ -1,17 +1,42 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:beariscope/pages/flash_cards/flash_card_deck_model.dart';
 import 'package:image/image.dart' as img;
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:zxing2/qrcode.dart' as zx;
 
+/// Keep the registered deep-link scheme lowercase in a byte segment, then use
+/// alphanumeric mode for the Base41 code. fromData() would encode both as bytes.
+QrCode createFlashCardQr(String code) {
+  const prefix = '$flashCardDeckLinkScheme://deck/';
+  final linked = code.startsWith(prefix);
+  final payload = linked ? code.substring(prefix.length) : code;
+  if (!payload.startsWith('BFC3:Q')) {
+    return QrCode.fromData(
+      data: code,
+      errorCorrectLevel: QrErrorCorrectLevel.M,
+    );
+  }
+  for (var version = 1; version <= 40; version++) {
+    final qr = QrCode(version, QrErrorCorrectLevel.M);
+    if (linked) qr.addData(prefix);
+    qr.addAlphaNumeric(payload);
+    try {
+      // Validate capacity with a fixed mask; rendering chooses its best mask.
+      QrImage.withMaskPattern(qr, 0);
+      return qr;
+    } on InputTooLongException {
+      continue;
+    }
+  }
+  throw const FormatException('The deck is too large for a QR code.');
+}
+
 /// Includes a white quiet zone, independent of the app's current theme.
 Future<Uint8List> renderFlashCardQr(String code) async {
   const size = 1024.0;
-  final qr = QrCode.fromData(
-    data: code,
-    errorCorrectLevel: QrErrorCorrectLevel.M,
-  );
+  final qr = createFlashCardQr(code);
   // Four clear modules on every side, with whole-pixel modules for export.
   final moduleSize = (size / (qr.moduleCount + 8)).floorToDouble();
   final qrSize = moduleSize * qr.moduleCount;

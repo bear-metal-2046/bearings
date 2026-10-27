@@ -34,27 +34,18 @@ class _FlashCardOptionsSheetState extends State<FlashCardOptionsSheet> {
     HapticFeedback.selectionClick();
     final confirmed = await BeariscopeAlertDialog.show<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Reset progress?'),
-        content: const Text(
+      title: 'Reset progress?',
+      message:
           'All teams in this deck will move back to Still learning. '
           'This cannot be undone.',
+      actions: const [
+        BeariscopeAlertAction(label: 'Cancel', result: false),
+        BeariscopeAlertAction(
+          label: 'Reset progress',
+          result: true,
+          role: BeariscopeAlertActionRole.destructive,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-              foregroundColor: Theme.of(context).colorScheme.onError,
-            ),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Reset progress'),
-          ),
-        ],
-      ),
+      ],
     );
     if (confirmed != true || !mounted) return;
     widget.onReset();

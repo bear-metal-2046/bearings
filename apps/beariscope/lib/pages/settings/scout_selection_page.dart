@@ -192,27 +192,16 @@ class _ScoutSelectionPageState extends ConsumerState<ScoutSelectionPage> {
                   onPressed: () async {
                     final confirmed = await BeariscopeAlertDialog.show<bool>(
                       context: context,
-                      builder: (context) => AlertDialog(
-                        title: const Text('Delete Scout'),
-                        content: const Text(
-                          'Are you sure you want to delete this scout?',
+                      title: 'Delete Scout',
+                      message: 'Are you sure you want to delete this scout?',
+                      actions: const [
+                        BeariscopeAlertAction(label: 'Cancel', result: false),
+                        BeariscopeAlertAction(
+                          label: 'Delete',
+                          result: true,
+                          role: BeariscopeAlertActionRole.destructive,
                         ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(context).pop(false),
-                            child: const Text('Cancel'),
-                          ),
-                          TextButton(
-                            onPressed: () => Navigator.of(context).pop(true),
-                            style: TextButton.styleFrom(
-                              foregroundColor: Theme.of(context)
-                                  .colorScheme
-                                  .error,
-                            ),
-                            child: const Text('Delete'),
-                          ),
-                        ],
-                      ),
+                      ],
                     );
                     if (confirmed == true) {
                       final previous = List<Map<String, String>>.from(

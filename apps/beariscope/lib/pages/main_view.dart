@@ -786,27 +786,16 @@ class _MainViewState extends ConsumerState<MainView> {
                 final confirmed =
                     await BeariscopeAlertDialog.show<bool>(
                       context: context,
-                      builder: (context) => AlertDialog(
-                        title: const Text('Sign Out'),
-                        content: const Text(
-                          'Are you sure you want to sign out?',
+                      title: 'Sign Out',
+                      message: 'Are you sure you want to sign out?',
+                      actions: const [
+                        BeariscopeAlertAction(label: 'Cancel', result: false),
+                        BeariscopeAlertAction(
+                          label: 'Sign Out',
+                          result: true,
+                          role: BeariscopeAlertActionRole.primary,
                         ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(context).pop(false),
-                            child: const Text('Cancel'),
-                          ),
-                          TextButton(
-                            onPressed: () => Navigator.of(context).pop(true),
-                            style: TextButton.styleFrom(
-                              foregroundColor: Theme.of(context)
-                                  .colorScheme
-                                  .error,
-                            ),
-                            child: const Text('Sign Out'),
-                          ),
-                        ],
-                      ),
+                      ],
                     ) ??
                     false;
 

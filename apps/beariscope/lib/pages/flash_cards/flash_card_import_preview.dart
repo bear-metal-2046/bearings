@@ -32,11 +32,10 @@ class FlashCardImportPreview extends ConsumerWidget {
     final failed = rosters.values.any((roster) => roster.hasError);
     final ready = rosters.values.every((roster) => roster.asData != null);
     final teamCount = ready
-        ? {
-            for (final roster in rosters.values)
-              for (final team in roster.requireValue)
-                if (team.number > 0) team.number,
-          }.length
+        ? flashCardTeamsForDeck(deck, {
+            for (final entry in rosters.entries)
+              entry.key: entry.value.requireValue,
+          }).length
         : null;
     final eventsLabel =
         '${deck.eventKeys.length} ${deck.eventKeys.length == 1 ? 'event' : 'events'}';

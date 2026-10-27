@@ -15,7 +15,15 @@ class _ModalPrimaryIconButton extends StatelessWidget {
         backgroundColor: colors.primary,
         foregroundColor: colors.onPrimary,
       ),
-      icon: action.loading ? const _ModalActionProgress() : Icon(action.icon),
+      icon: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Retain the themed icon's footprint while the spinner is visible.
+          Opacity(opacity: action.loading ? 0 : 1, child: Icon(action.icon)),
+          if (action.loading)
+            const Positioned.fill(child: Center(child: _ModalActionProgress())),
+        ],
+      ),
     );
   }
 }

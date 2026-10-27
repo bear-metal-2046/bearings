@@ -2,18 +2,51 @@ import 'package:flutter/physics.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:stupid_simple_sheet/stupid_simple_sheet.dart';
 
+enum BeariscopeAlertActionRole {
+  /// Cancels, dismisses, or offers an alternative to the main action.
+  secondary,
+
+  /// Confirms or acknowledges without deleting or discarding data.
+  primary,
+
+  /// Deletes, clears, resets, or otherwise discards data or progress.
+  destructive,
+}
+
+/// A button that closes the alert and returns [result] from [BeariscopeAlertDialog.show].
+/// Perform any follow-up work after awaiting the dialog's result.
+class BeariscopeAlertAction<T> {
+  const BeariscopeAlertAction({
+    required this.label,
+    this.result,
+    this.role = BeariscopeAlertActionRole.secondary,
+    this.enabled = true,
+  });
+
+  final String label;
+  final T? result;
+  final BeariscopeAlertActionRole role;
+  final bool enabled;
+}
+
+/// Shared alert layout, actions, and presentation.
 class BeariscopeAlertDialog {
   BeariscopeAlertDialog._();
 
+  /// Shows an alert with buttons in the supplied order. Choosing a button
+  /// returns its result; dismissing the alert returns null.
   static Future<T?> show<T>({
     required BuildContext context,
-    required WidgetBuilder builder,
+    required String title,
+    required String message,
+    required List<BeariscopeAlertAction<T>> actions,
     bool useRootNavigator = true,
     bool barrierDismissible = true,
     Color? barrierColor,
     RouteSettings? routeSettings,
     Offset? anchorPoint,
   }) {
+    assert(actions.isNotEmpty, 'An alert needs at least one action.');
     final navigator = Navigator.of(context, rootNavigator: useRootNavigator);
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
     final themes = InheritedTheme.capture(from: context, to: navigator.context);
@@ -21,8 +54,13 @@ class BeariscopeAlertDialog {
     return navigator.push<T>(
       _BeariscopeAlertDialogRoute<T>(
         context: context,
-        builder: (_) =>
-            _DesktopAlertDialogTransition(child: Builder(builder: builder)),
+        builder: (_) => _DesktopAlertDialogTransition(
+          child: _AlertContent<T>(
+            title: title,
+            message: message,
+            actions: actions,
+          ),
+        ),
         barrierColor:
             barrierColor ??
             DialogTheme.of(context).barrierColor ??
@@ -36,6 +74,51 @@ class BeariscopeAlertDialog {
         anchorPoint: anchorPoint,
         reduceMotion: reduceMotion,
       ),
+    );
+  }
+}
+
+class _AlertContent<T> extends StatelessWidget {
+  const _AlertContent({
+    required this.title,
+    required this.message,
+    required this.actions,
+  });
+
+  final String title;
+  final String message;
+  final List<BeariscopeAlertAction<T>> actions;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return AlertDialog(
+      scrollable: true,
+      title: Text(title),
+      content: Text(message),
+      actions: [
+        for (final action in actions)
+          if (action.role == BeariscopeAlertActionRole.secondary)
+            TextButton(
+              onPressed: action.enabled
+                  ? () => Navigator.of(context).pop<T>(action.result)
+                  : null,
+              child: Text(action.label),
+            )
+          else
+            FilledButton(
+              onPressed: action.enabled
+                  ? () => Navigator.of(context).pop<T>(action.result)
+                  : null,
+              style: action.role == BeariscopeAlertActionRole.destructive
+                  ? FilledButton.styleFrom(
+                      backgroundColor: colors.error,
+                      foregroundColor: colors.onError,
+                    )
+                  : null,
+              child: Text(action.label),
+            ),
+      ],
     );
   }
 }

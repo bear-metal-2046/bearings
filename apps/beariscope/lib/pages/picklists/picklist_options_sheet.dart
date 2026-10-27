@@ -68,28 +68,18 @@ class _PicklistOptionsSheetState extends ConsumerState<PicklistOptionsSheet> {
     final picklist = widget.picklist;
     final confirmed = await BeariscopeAlertDialog.show<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete picklist?'),
-        content: Text(
-          picklist.mode == PicklistMode.offline
-              ? '“${picklist.title}” will be removed from this device.'
-              : '“${picklist.title}” will be removed for everyone.',
+      title: 'Delete picklist?',
+      message: picklist.mode == PicklistMode.offline
+          ? '“${picklist.title}” will be removed from this device.'
+          : '“${picklist.title}” will be removed for everyone.',
+      actions: const [
+        BeariscopeAlertAction(label: 'Cancel', result: false),
+        BeariscopeAlertAction(
+          label: 'Delete',
+          result: true,
+          role: BeariscopeAlertActionRole.destructive,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(dialogContext).colorScheme.error,
-              foregroundColor: Theme.of(dialogContext).colorScheme.onError,
-            ),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+      ],
     );
     if (confirmed != true || !mounted) return;
     ref.read(picklistLibraryProvider.notifier).delete(picklist.id);

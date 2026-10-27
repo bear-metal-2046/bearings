@@ -32,7 +32,9 @@ class FlashCardDeepLink {
     if (segments.length == 2 && segments.first == 'deck') {
       return segments.last;
     }
-    if (segments.length == 1 && segments.single.startsWith('BFC2:')) {
+    if (segments.length == 1 &&
+        (segments.single.startsWith('BFC2:') ||
+            segments.single.startsWith('BFC3:'))) {
       return segments.single;
     }
     return null;

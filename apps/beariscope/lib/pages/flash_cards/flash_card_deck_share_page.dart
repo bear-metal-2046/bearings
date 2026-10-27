@@ -88,6 +88,7 @@ class _FlashCardDeckSharePageState
         final box = _cardKey.currentContext!.findRenderObject() as RenderBox;
         await SharePlus.instance.share(
           ShareParams(
+            text: 'Study my flashcards on Beariscope:\n\n${deck.shareCode}',
             files: [
               XFile.fromData(bytes, mimeType: 'image/png', name: filename),
             ],
@@ -124,17 +125,18 @@ class _FlashCardDeckSharePageState
       actions: [
         if (deck != null)
           BeariscopeModalAction(
-            label: _nativeSharing ? 'Share image' : 'Save image',
-            icon: _nativeSharing ? LucideIcons.share : LucideIcons.download,
-            onPressed: _saving ? null : () => _shareImage(deck),
+            label: 'Copy code',
+            icon: LucideIcons.copy,
+            onPressed: () => _copy(deck.shareCode),
           ),
       ],
       primaryAction: deck == null
           ? null
           : BeariscopeModalPrimaryAction(
-              label: 'Copy code',
-              icon: LucideIcons.copy,
-              onPressed: () => _copy(deck.shareCode),
+              label: _nativeSharing ? 'Share image' : 'Save image',
+              icon: _nativeSharing ? LucideIcons.share : LucideIcons.download,
+              onPressed: _saving ? null : () => _shareImage(deck),
+              loading: _saving,
             ),
       child: deck == null
           ? const Text('Deck not found')

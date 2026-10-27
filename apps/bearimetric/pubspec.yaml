@@ -10,7 +10,7 @@ environment:
 dependencies:
   path: ^1.9.1
   path_provider: ^2.1.6
-  flutter_riverpod: 3.3.2
+  flutter_riverpod: 3.4.3
   go_router: ^18.0.0
   riverpod_annotation: 4.0.3
   http: ^1.6.0

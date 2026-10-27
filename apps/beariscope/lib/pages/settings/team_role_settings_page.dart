@@ -12,6 +12,8 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:services/providers/api_provider.dart';
 import 'package:services/providers/rbac_management_provider.dart';
 
+enum _RoleEditorAction { duplicate }
+
 class TeamRoleSettingsPage extends ConsumerStatefulWidget {
   const TeamRoleSettingsPage({super.key});
 
@@ -136,6 +138,7 @@ class _TeamRoleSettingsPageState extends ConsumerState<TeamRoleSettingsPage>
     required List<RbacPermissionMetadata> permissions,
     required List<ManagedRole> currentRoles,
     bool duplicate = false,
+    int assignedUsers = 0,
   }) async {
     final isEdit = role != null && !duplicate;
 
@@ -153,14 +156,16 @@ class _TeamRoleSettingsPageState extends ConsumerState<TeamRoleSettingsPage>
     );
     final selectedPermissions = <String>{...initialPermissions};
     var saving = false;
+    var deleting = false;
 
-    Future<void> showDialogBody() async {
-      await BeariscopeModal.show<void>(
+    Future<_RoleEditorAction?> showDialogBody() async {
+      return BeariscopeModal.show<_RoleEditorAction>(
         context,
         useRootNavigator: true,
         builder: (dialogContext) {
           return StatefulBuilder(
             builder: (dialogContext, setDialogState) {
+              final busy = saving || deleting;
               final currentId = idController.text.trim();
               final currentName = nameController.text.trim();
               final currentDescription = descriptionController.text.trim();
@@ -184,7 +189,7 @@ class _TeamRoleSettingsPageState extends ConsumerState<TeamRoleSettingsPage>
                   : 'Create Role';
 
               Future<void> handleSave() async {
-                if (saving) return;
+                if (busy) return;
                 setDialogState(() => saving = true);
                 final messenger = ScaffoldMessenger.of(context);
 
@@ -239,7 +244,7 @@ class _TeamRoleSettingsPageState extends ConsumerState<TeamRoleSettingsPage>
                   if (!mounted) return;
                   await _refreshRbacData();
                   if (dialogContext.mounted) {
-                    BeariscopeModal.complete<void>(dialogContext);
+                    BeariscopeModal.complete<_RoleEditorAction>(dialogContext);
                   }
                 } catch (error) {
                   if (!mounted) return;
@@ -307,12 +312,50 @@ class _TeamRoleSettingsPageState extends ConsumerState<TeamRoleSettingsPage>
                 title: titleText,
                 size: BeariscopeModalSize.tall,
                 content: formBody,
-                actions: const [],
-                canDismiss: !saving,
+                actions: [
+                  if (isEdit) ...[
+                    BeariscopeModalAction(
+                      label: 'Duplicate role',
+                      icon: LucideIcons.copy,
+                      enabled: !busy,
+                      onPressed: () => BeariscopeModal.complete(
+                        dialogContext,
+                        _RoleEditorAction.duplicate,
+                      ),
+                    ),
+                    BeariscopeModalAction(
+                      label: assignedUsers == 0
+                          ? 'Delete role'
+                          : 'Delete (assigned to $assignedUsers users)',
+                      icon: LucideIcons.trash2,
+                      enabled: !busy && assignedUsers == 0,
+                      onPressed: () async {
+                        if (busy) return;
+                        setDialogState(() => deleting = true);
+                        try {
+                          final deleted = await _deleteRole(
+                            role,
+                            assignedUsers,
+                          );
+                          if (deleted && dialogContext.mounted) {
+                            BeariscopeModal.complete<_RoleEditorAction>(
+                              dialogContext,
+                            );
+                          }
+                        } finally {
+                          if (dialogContext.mounted) {
+                            setDialogState(() => deleting = false);
+                          }
+                        }
+                      },
+                    ),
+                  ],
+                ],
+                canDismiss: !busy,
                 primaryAction: BeariscopeModalPrimaryAction(
                   label: 'Save',
                   icon: LucideIcons.check,
-                  enabled: canSave,
+                  enabled: canSave && !deleting,
                   loading: saving,
                   onPressed: handleSave,
                 ),
@@ -323,51 +366,49 @@ class _TeamRoleSettingsPageState extends ConsumerState<TeamRoleSettingsPage>
       );
     }
 
-    await showDialogBody();
+    final action = await showDialogBody();
+    if (action == _RoleEditorAction.duplicate && mounted) {
+      await _showRoleDialog(
+        role: role,
+        permissions: permissions,
+        currentRoles: currentRoles,
+        duplicate: true,
+      );
+    }
   }
 
-  Future<void> _deleteRole(ManagedRole role, int assignedUsers) async {
+  Future<bool> _deleteRole(ManagedRole role, int assignedUsers) async {
     if (assignedUsers > 0) {
       await BeariscopeAlertDialog.show<void>(
         context: context,
-        builder: (_) => AlertDialog(
-          title: const Text('Cannot delete role'),
-          content: Text(
+        title: 'Cannot delete role',
+        message:
             'This role is assigned to $assignedUsers users. Please reassign them before deleting.',
+        actions: const [
+          BeariscopeAlertAction(
+            label: 'OK',
+            role: BeariscopeAlertActionRole.primary,
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
+        ],
       );
-      return;
+      return false;
     }
 
     final confirmed = await BeariscopeAlertDialog.show<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Delete Role'),
-        content: Text('Delete ${role.name}?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+      title: 'Delete Role',
+      message: 'Delete ${role.name}?',
+      actions: const [
+        BeariscopeAlertAction(label: 'Cancel', result: false),
+        BeariscopeAlertAction(
+          label: 'Delete',
+          result: true,
+          role: BeariscopeAlertActionRole.destructive,
+        ),
+      ],
     );
 
-    if (confirmed != true) return;
+    if (confirmed != true || !mounted) return false;
 
     final previousRoles = List<ManagedRole>.from(
       _optimisticRoles ??
@@ -389,8 +430,9 @@ class _TeamRoleSettingsPageState extends ConsumerState<TeamRoleSettingsPage>
 
       await ref.read(rbacManagementServiceProvider).deleteRole(role.id);
       await _refreshRbacData();
+      return true;
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted) return false;
       setState(() {
         _optimisticRoles = previousRoles;
         _optimisticUsers = previousUsers;
@@ -398,6 +440,7 @@ class _TeamRoleSettingsPageState extends ConsumerState<TeamRoleSettingsPage>
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Failed to delete role: $error')));
+      return false;
     }
   }
 
@@ -942,101 +985,23 @@ class _TeamRoleSettingsPageState extends ConsumerState<TeamRoleSettingsPage>
                                                         ),
                                                       ),
                                                     ),
-                                                    PopupMenuButton<String>(
-                                                      onSelected: (action) {
-                                                        final assignedUsers =
-                                                            roleUserCounts[role
-                                                                .id] ??
-                                                            0;
-                                                        if (action == 'edit') {
+                                                    IconButton(
+                                                      tooltip: 'Edit role',
+                                                      icon: const Icon(
+                                                        LucideIcons.ellipsis,
+                                                      ),
+                                                      onPressed: () =>
                                                           _showRoleDialog(
                                                             role: role,
                                                             permissions: metadata
                                                                 .permissions,
                                                             currentRoles:
                                                                 effectiveRoles,
-                                                          );
-                                                        } else if (action ==
-                                                            'duplicate') {
-                                                          _showRoleDialog(
-                                                            role: role,
-                                                            permissions: metadata
-                                                                .permissions,
-                                                            currentRoles:
-                                                                effectiveRoles,
-                                                            duplicate: true,
-                                                          );
-                                                        } else if (action ==
-                                                            'delete') {
-                                                          _deleteRole(
-                                                            role,
-                                                            assignedUsers,
-                                                          );
-                                                        }
-                                                      },
-                                                      itemBuilder: (context) {
-                                                        final assignedUsers =
-                                                            roleUserCounts[role
-                                                                .id] ??
-                                                            0;
-                                                        return [
-                                                          const PopupMenuItem(
-                                                            value: 'edit',
-                                                            child: Row(
-                                                              children: [
-                                                                Icon(
-                                                                  LucideIcons
-                                                                      .pencil,
-                                                                ),
-                                                                SizedBox(
-                                                                  width: 8,
-                                                                ),
-                                                                Text('Edit'),
-                                                              ],
-                                                            ),
-                                                          ),
-                                                          const PopupMenuItem(
-                                                            value: 'duplicate',
-                                                            child: Row(
-                                                              children: [
-                                                                Icon(
-                                                                  LucideIcons
-                                                                      .copy,
-                                                                ),
-                                                                SizedBox(
-                                                                  width: 8,
-                                                                ),
-                                                                Text(
-                                                                  'Duplicate',
-                                                                ),
-                                                              ],
-                                                            ),
-                                                          ),
-                                                          PopupMenuItem(
-                                                            value: 'delete',
-                                                            enabled:
-                                                                assignedUsers ==
+                                                            assignedUsers:
+                                                                roleUserCounts[role
+                                                                    .id] ??
                                                                 0,
-                                                            child: Row(
-                                                              children: [
-                                                                const Icon(
-                                                                  LucideIcons
-                                                                      .trash2,
-                                                                ),
-                                                                const SizedBox(
-                                                                  width: 8,
-                                                                ),
-                                                                Text(
-                                                                  assignedUsers ==
-                                                                          0
-                                                                      ? 'Delete'
-                                                                      : 'Delete (assigned to $assignedUsers users)',
-                                                                ),
-                                                              ],
-                                                            ),
                                                           ),
-                                                        ];
-                                                      },
                                                     ),
                                                   ],
                                                 ),

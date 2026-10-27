@@ -1,8 +1,14 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/cupertino.dart'
+    show
+        CupertinoDynamicColor,
+        CupertinoUserInterfaceLevel,
+        CupertinoUserInterfaceLevelData;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/physics.dart';
+import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:stupid_simple_sheet/stupid_simple_sheet.dart';
@@ -12,6 +18,9 @@ part 'beariscope_modal/android_header.dart';
 part 'beariscope_modal/desktop_header.dart';
 part 'beariscope_modal/header_actions.dart';
 part 'beariscope_modal/ios_header.dart';
+part 'beariscope_modal/ios_transitions.dart';
+
+enum _ModalPresentation { desktop, ios, android }
 
 /// The space available to a modal's content.
 enum BeariscopeModalSize { compact, tall, expansive }
@@ -103,11 +112,18 @@ class BeariscopeModal extends StatefulWidget {
     required WidgetBuilder builder,
     bool useRootNavigator = true,
   }) {
-    final platform = Theme.of(context).platform;
-    final desktop =
-        kIsWeb ||
-        (platform != TargetPlatform.iOS && platform != TargetPlatform.android);
-    final ios = !desktop && platform == TargetPlatform.iOS;
+    // final presentation = kIsWeb
+    //     ? _ModalPresentation.desktop
+    //     : switch (Theme.of(context).platform) {
+    //         TargetPlatform.iOS => _ModalPresentation.ios,
+    //         TargetPlatform.android => _ModalPresentation.android,
+    //         TargetPlatform.fuchsia ||
+    //         TargetPlatform.linux ||
+    //         TargetPlatform.macOS ||
+    //         TargetPlatform.windows => _ModalPresentation.desktop,
+    //       };
+
+    final presentation = _ModalPresentation.ios;
 
     final navigator = Navigator.of(context, rootNavigator: useRootNavigator);
     final policy = _ModalPolicy();
@@ -117,43 +133,44 @@ class BeariscopeModal extends StatefulWidget {
       key: contentKey,
       child: _ModalScope(
         policy: policy,
-        ios: ios,
-        desktop: desktop,
-        child: _ModalBody(ios: ios, desktop: desktop, builder: builder),
+        presentation: presentation,
+        child: _ModalBody(presentation: presentation, builder: builder),
       ),
     );
 
-    if (desktop) {
-      final route = _DesktopModalRoute<T>(
-        context: context,
-        builder: body,
-        barrierColor:
-            DialogTheme.of(context).barrierColor ??
-            Theme.of(context).dialogTheme.barrierColor ??
-            Colors.black54,
-        themes: InheritedTheme.capture(from: context, to: navigator.context),
-        reduceMotion: MediaQuery.disableAnimationsOf(context),
-        policy: policy,
-      );
-      policy.refresh = route.refreshPolicy;
-      return navigator.push<T>(route);
+    switch (presentation) {
+      case _ModalPresentation.desktop:
+        final route = _DesktopModalRoute<T>(
+          context: context,
+          builder: body,
+          barrierColor:
+              DialogTheme.of(context).barrierColor ??
+              Theme.of(context).dialogTheme.barrierColor ??
+              Colors.black54,
+          themes: InheritedTheme.capture(from: context, to: navigator.context),
+          reduceMotion: MediaQuery.disableAnimationsOf(context),
+          policy: policy,
+        );
+        policy.refresh = route.refreshPolicy;
+        return navigator.push<T>(route);
+      case _ModalPresentation.ios:
+        final route = _CupertinoModalRoute<T>(
+          policy: policy,
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          child: Builder(builder: body),
+        );
+        policy.refresh = route.refreshPolicy;
+        return navigator.push<T>(route);
+      case _ModalPresentation.android:
+        final route = _MaterialModalRoute<T>(
+          policy: policy,
+          barrierLabel: MaterialLocalizations.of(context)
+              .modalBarrierDismissLabel,
+          child: Builder(builder: body),
+        );
+        policy.refresh = route.refreshPolicy;
+        return navigator.push<T>(route);
     }
-    if (ios) {
-      final route = _CupertinoModalRoute<T>(
-        policy: policy,
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        child: Builder(builder: body),
-      );
-      policy.refresh = route.refreshPolicy;
-      return navigator.push<T>(route);
-    }
-    final route = _MaterialModalRoute<T>(
-      policy: policy,
-      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
-      child: Builder(builder: body),
-    );
-    policy.refresh = route.refreshPolicy;
-    return navigator.push<T>(route);
   }
 
   /// Completes a modal without running its user-dismissal guard.
@@ -181,7 +198,11 @@ class _ModalPolicy {
 
   bool get barrierDismissible =>
       dismissal == BeariscopeModalDismissal.standard && canDismiss;
-  bool get dragDismissible => barrierDismissible && onDismissRequested == null;
+  // A temporary dismissal lock must not remove the grabber and move the header.
+  bool get showGrabber =>
+      dismissal == BeariscopeModalDismissal.standard &&
+      onDismissRequested == null;
+  bool get dragDismissible => showGrabber && canDismiss;
 }
 
 abstract interface class _GuardedRoute {
@@ -325,23 +346,89 @@ class _CupertinoModalRoute<T> extends StupidSimpleCupertinoSheetRoute<T>
     required this.policy,
     required super.backgroundColor,
     required super.child,
-  });
+  }) : super(
+         shape: const RoundedRectangleBorder(
+           borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+         ),
+       );
   @override
   final _ModalPolicy policy;
   @override
   bool get draggable => policy.dragDismissible;
+
+  StupidSimpleSheetTransitionMixin<dynamic>? _nextSheet;
+
+  @override
+  void didChangeNext(Route<dynamic>? nextRoute) {
+    _nextSheet = nextRoute is StupidSimpleSheetTransitionMixin
+        ? nextRoute
+        : null;
+    super.didChangeNext(nextRoute);
+  }
+
+  @override
+  void didPopNext(Route<dynamic> nextRoute) {
+    _nextSheet = null;
+    super.didPopNext(nextRoute);
+  }
+
+  @override
+  DelegatedTransitionBuilder? get delegatedTransition =>
+      (context, animation, secondaryAnimation, canSnapshot, child) {
+        final snapping =
+            _nextSheet?.effectiveSnappingConfig ?? effectiveSnappingConfig;
+        return _IosModalTransitions.secondarySlideDownTransition(
+          context,
+          animation: animation.clamped,
+          secondaryAnimation: secondaryAnimation.clamped,
+          opacityRange: snapping.bottomTwoPoints,
+          slideBackRange: snapping.topTwoPoints,
+          primaryShape: shape,
+          child: SnapshotWidget(
+            controller: backgroundSnapshotController,
+            mode: SnapshotMode.permissive,
+            autoresize: true,
+            child: child,
+          ),
+        );
+      };
+
+  @override
+  Widget buildTransitions(
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) => CupertinoUserInterfaceLevel(
+    data: CupertinoUserInterfaceLevelData.elevated,
+    child: Builder(
+      builder: (context) => _IosModalTransitions.fullTransition(
+        context,
+        animation: controller!.view,
+        secondaryAnimation: secondaryAnimation.clamped,
+        opacityRange: effectiveSnappingConfig.bottomTwoPoints,
+        slideBackRange: effectiveSnappingConfig.topTwoPoints,
+        backgroundColor: backgroundColor,
+        shape: shape,
+        child: maybeSnapshotChild(child),
+      ),
+    ),
+  );
+
+  @override
+  bool canTransitionTo(TransitionRoute<dynamic> nextRoute) =>
+      // Menus and dialogs float over the sheet; other sheets still stack.
+      nextRoute is! PopupRoute || nextRoute is StupidSimpleSheetTransitionMixin;
 }
 
 class _ModalScope extends InheritedWidget {
   const _ModalScope({
     required this.policy,
-    required this.ios,
-    required this.desktop,
+    required this.presentation,
     required super.child,
   });
   final _ModalPolicy policy;
-  final bool ios;
-  final bool desktop;
+  final _ModalPresentation presentation;
   static _ModalScope? maybeOf(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<_ModalScope>();
   @override
@@ -349,13 +436,8 @@ class _ModalScope extends InheritedWidget {
 }
 
 class _ModalBody extends StatelessWidget {
-  const _ModalBody({
-    required this.ios,
-    required this.desktop,
-    required this.builder,
-  });
-  final bool ios;
-  final bool desktop;
+  const _ModalBody({required this.presentation, required this.builder});
+  final _ModalPresentation presentation;
   final WidgetBuilder builder;
 
   @override
@@ -367,8 +449,8 @@ class _ModalBody extends StatelessWidget {
         child: Builder(builder: builder),
       ),
     );
-    if (desktop) {
-      return _DesktopModalTransition(
+    return switch (presentation) {
+      _ModalPresentation.desktop => _DesktopModalTransition(
         child: Dialog(
           clipBehavior: Clip.antiAlias,
           insetPadding: const EdgeInsets.symmetric(
@@ -377,11 +459,9 @@ class _ModalBody extends StatelessWidget {
           ),
           child: child,
         ),
-      );
-    }
-    if (ios) {
+      ),
       // Include the blank sheet surface in the ancestor's drag hit testing.
-      return ColoredBox(
+      _ModalPresentation.ios => ColoredBox(
         color: Colors.transparent,
         child: Padding(
           padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
@@ -390,16 +470,16 @@ class _ModalBody extends StatelessWidget {
             child: Align(alignment: Alignment.topCenter, child: child),
           ),
         ),
-      );
-    }
-    return SafeArea(
-      top: true,
-      bottom: false,
-      child: SheetBackground(
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        child: SafeArea(top: false, child: child),
       ),
-    );
+      _ModalPresentation.android => SafeArea(
+        top: true,
+        bottom: false,
+        child: SheetBackground(
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          child: SafeArea(top: false, child: child),
+        ),
+      ),
+    };
   }
 }
 
@@ -451,8 +531,7 @@ class _BeariscopeModalState extends State<BeariscopeModal> {
   @override
   Widget build(BuildContext context) {
     final scope = _scope;
-    final ios = scope?.ios ?? false;
-    final desktop = scope?.desktop ?? false;
+    final presentation = scope?.presentation ?? _ModalPresentation.android;
     final primary = widget.primaryAction;
     final canPressPrimary =
         primary != null &&
@@ -478,30 +557,27 @@ class _BeariscopeModalState extends State<BeariscopeModal> {
                 : Text(primary.label),
           );
     final onClose = widget.canDismiss ? _close : null;
-    final showGrabber = scope?.policy.dragDismissible ?? false;
-    final Widget header;
-    if (desktop) {
-      header = _DesktopModalHeader(
+    final showGrabber = scope?.policy.showGrabber ?? false;
+    final header = switch (presentation) {
+      _ModalPresentation.desktop => _DesktopModalHeader(
         title: widget.title,
         actions: widget.actions,
         onClose: onClose,
-      );
-    } else if (ios) {
-      header = _IosModalHeader(
+      ),
+      _ModalPresentation.ios => _IosModalHeader(
         title: widget.title,
         actions: widget.actions,
         primaryAction: primary,
         onClose: onClose,
         showGrabber: showGrabber,
-      );
-    } else {
-      header = _AndroidModalHeader(
+      ),
+      _ModalPresentation.android => _AndroidModalHeader(
         title: widget.title,
         actions: widget.actions,
         onClose: onClose,
         showGrabber: showGrabber,
-      );
-    }
+      ),
+    };
     final body = widget.scrolling == BeariscopeModalScrolling.managed
         ? SingleChildScrollView(child: widget.content)
         : widget.content;
@@ -513,11 +589,11 @@ class _BeariscopeModalState extends State<BeariscopeModal> {
         Flexible(
           child: Padding(padding: _contentPadding, child: body),
         ),
-        if (!ios && primary != null) ...[
+        if (presentation != _ModalPresentation.ios && primary != null) ...[
           const SizedBox(height: 12),
           Padding(
             padding: _contentPadding,
-            child: desktop
+            child: presentation == _ModalPresentation.desktop
                 ? OverflowBar(
                     alignment: MainAxisAlignment.end,
                     spacing: 8,
@@ -574,12 +650,12 @@ class _DesktopModalTransition extends StatelessWidget {
             : value == 1
             ? 1.0
             : _spring.x(value * 0.45);
-        // The secondary animation runs backward when the top dialog closes.
-        // Flip the curve so restoring the covered dialog also eases out.
+        // Shrink in the first 140 ms of the top dialog's 350 ms entrance,
+        // settling before its spring. The 140 ms return also eases out.
         final coveredCurve =
             secondaryAnimation?.status == AnimationStatus.reverse
             ? Curves.easeOutCubic.flipped
-            : Curves.easeOutCubic;
+            : const Interval(0, 0.4, curve: Curves.easeOutCubic);
         final coveredProgress = coveredCurve.transform(
           secondaryAnimation?.value ?? 0,
         );

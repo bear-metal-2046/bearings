@@ -172,10 +172,14 @@ class _FlashCardStudyPageState extends ConsumerState<FlashCardStudyPage> {
               ),
               data: (teams) {
                 if (teams.isEmpty) {
-                  return const BeariscopeStatusView(
+                  return BeariscopeStatusView(
                     icon: LucideIcons.layers,
-                    title: 'No teams in this event',
-                    subtitle: 'Try another event or edit the deck’s events.',
+                    title: id == null
+                        ? 'No teams in this event'
+                        : 'No teams in this deck',
+                    subtitle: id == null
+                        ? 'Try another event.'
+                        : 'Edit the deck’s events or team overrides.',
                   );
                 }
 

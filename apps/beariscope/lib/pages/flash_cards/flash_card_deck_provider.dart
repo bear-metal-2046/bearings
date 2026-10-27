@@ -163,6 +163,68 @@ List<Team> combineFlashCardRosters(Map<String, List<Team>> rosters) {
   return combined.values.toList()..sort((a, b) => a.number.compareTo(b.number));
 }
 
+/// Resolve positions before combining rosters so removing a team applies to all
+/// of its appearances. API response order never determines a team's position.
+Set<int> resolveFlashCardExcludedTeams(
+  Map<String, List<int>> overrides,
+  Map<String, List<Team>> rosters,
+) {
+  final excluded = <int>{};
+  for (final entry in overrides.entries) {
+    final roster = normalizeFlashCardRoster(rosters[entry.key] ?? []);
+    for (final index in entry.value) {
+      if (index >= 0 && index < roster.length) {
+        excluded.add(roster[index].number);
+      }
+    }
+  }
+  return excluded;
+}
+
+/// Choose one reference per excluded team, preferring the smallest roster index
+/// to keep shared codes compact. Event keys break ties deterministically.
+Map<String, List<int>> buildFlashCardTeamOverrides(
+  Set<int> excludedTeams,
+  Map<String, List<Team>> rosters,
+) {
+  final references = <int, (String, int)>{};
+  for (final event in rosters.keys.toList()..sort()) {
+    final roster = normalizeFlashCardRoster(rosters[event]!);
+    for (var index = 0; index < roster.length; index++) {
+      final team = roster[index].number;
+      if (!excludedTeams.contains(team)) continue;
+      final previous = references[team];
+      if (previous == null || index < previous.$2) {
+        references[team] = (event, index);
+      }
+    }
+  }
+  final result = <String, List<int>>{};
+  for (final (event, index) in references.values) {
+    result.putIfAbsent(event, () => []).add(index);
+  }
+  for (final indexes in result.values) {
+    indexes.sort();
+  }
+  return result;
+}
+
+List<Team> flashCardTeamsForDeck(
+  FlashCardDeckDefinition deck,
+  Map<String, List<Team>> rosters,
+) {
+  final selected = {
+    for (final event in deck.eventKeys) event: rosters[event] ?? <Team>[],
+  };
+  final excluded = resolveFlashCardExcludedTeams(
+    deck.excludedTeamIndexes,
+    selected,
+  );
+  return combineFlashCardRosters(selected)
+      .where((team) => !excluded.contains(team.number))
+      .toList();
+}
+
 List<TeamMediaRecord> combineFlashCardMedia(
   Map<String, List<TeamMediaRecord>> sources,
 ) {
@@ -221,7 +283,7 @@ final flashCardCustomTeamsProvider = FutureProvider.family<List<Team>, String>((
       }
     }),
   );
-  return combineFlashCardRosters(Map.fromEntries(rosters));
+  return flashCardTeamsForDeck(deck, Map.fromEntries(rosters));
 });
 
 final flashCardCustomMediaProvider =

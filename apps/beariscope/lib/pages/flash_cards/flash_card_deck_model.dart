@@ -1,14 +1,13 @@
 import 'dart:convert';
 import 'dart:math';
 
-import 'package:archive/archive.dart';
+import 'package:beariscope/pages/flash_cards/flash_card_deck_codec.dart';
 import 'package:characters/characters.dart';
 
 const maxFlashCardDeckEvents = 32;
 const maxFlashCardDeckCodeLength = 2200;
 const flashCardDeckLinkScheme = 'org.tahomarobotics.beariscope';
 const _shareCodePrefix = 'BFC2:';
-const _maxSharePayloadBytes = 2048;
 final _sharePayloadPattern = RegExp(r'^[A-Za-z0-9_-]+$');
 final _eventKeyPattern = RegExp(r'^\d{4}[a-z0-9_-]{1,32}$');
 
@@ -35,6 +34,7 @@ class FlashCardDeckDefinition {
     required this.name,
     required this.emoji,
     required this.eventKeys,
+    required this.excludedTeamIndexes,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -44,6 +44,7 @@ class FlashCardDeckDefinition {
     required String name,
     required String emoji,
     required Iterable<String> eventKeys,
+    Map<String, Iterable<int>> excludedTeamIndexes = const {},
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -67,16 +68,32 @@ class FlashCardDeckDefinition {
     if (keys.isEmpty || keys.length > maxFlashCardDeckEvents) {
       throw const FormatException('Choose between 1 and 32 events.');
     }
+    final exclusions = <String, List<int>>{};
+    for (final entry in excludedTeamIndexes.entries) {
+      final event = normalizeFlashCardEventKey(entry.key);
+      if (!keys.contains(event) ||
+          entry.value.any((index) => index < 0 || index > 65535)) {
+        throw const FormatException('The deck has invalid team overrides.');
+      }
+      final indexes = {...?exclusions[event], ...entry.value}.toList()..sort();
+      if (indexes.isNotEmpty) exclusions[event] = List.unmodifiable(indexes);
+    }
+    if (exclusions.values.fold(0, (count, indexes) => count + indexes.length) >
+        maxFlashCardDeckOverrides) {
+      throw const FormatException('The deck has too many team overrides.');
+    }
     final now = DateTime.now().toUtc();
     final deck = FlashCardDeckDefinition._(
       id: id ?? _newDeckId(),
       name: title,
       emoji: symbol,
       eventKeys: List.unmodifiable(keys),
+      excludedTeamIndexes: Map.unmodifiable(exclusions),
       createdAt: createdAt ?? now,
       updatedAt: updatedAt ?? now,
     );
-    if (deck.shareCode.length > maxFlashCardDeckCodeLength) {
+    if (deck.shareCode.length > maxFlashCardDeckCodeLength ||
+        deck.qrCode.length > maxFlashCardDeckQrCodeLength) {
       throw const FormatException(
         'Use fewer events or a shorter name to fit the QR code.',
       );
@@ -88,13 +105,25 @@ class FlashCardDeckDefinition {
   final String name;
   final String emoji;
   final List<String> eventKeys;
+
+  /// Zero-based positions in each event's roster sorted by team number.
+  /// A referenced team is excluded from the entire deck, including other events.
+  final Map<String, List<int>> excludedTeamIndexes;
   final DateTime createdAt;
   final DateTime updatedAt;
   String get progressScope => flashCardDeckProgressScope(id);
 
-  // BFC2:N is a raw JSON tuple; BFC2:Z is zlib-compressed. Both use unpadded
-  // base64url. Definitions are immutable, so encode only once per definition.
-  late final String shareCode = _encodeShareCode();
+  late final _payload = encodeFlashCardDeckFields((
+    name: name,
+    emoji: emoji,
+    events: eventKeys,
+    exclusions: excludedTeamIndexes,
+  ));
+  late final _codes = encodeFlashCardDeckEnvelopes(_payload);
+
+  /// URL-safe copied text; QR deep links use a separate Base41 payload.
+  late final String shareCode = _codes.text;
+  late final String qrCode = _codes.qr;
 
   String get shareLink => Uri(
     scheme: flashCardDeckLinkScheme,
@@ -102,20 +131,17 @@ class FlashCardDeckDefinition {
     path: '/$shareCode',
   ).toString();
 
-  String _encodeShareCode() {
-    final payload = utf8.encode(jsonEncode([name, emoji, eventKeys]));
-    final compressed = const ZLibEncoder().encode(payload, level: 9);
-    final useCompression = compressed.length < payload.length;
-    final encoded = base64UrlEncode(useCompression ? compressed : payload)
-        .replaceAll('=', '');
-    return '$_shareCodePrefix${useCompression ? 'Z' : 'N'}$encoded';
-  }
+  String get qrLink => Uri(
+    scheme: flashCardDeckLinkScheme,
+    host: 'deck',
+    path: '/$qrCode',
+  ).toString();
 
   factory FlashCardDeckDefinition.fromShareCode(String raw) {
     if (raw.length > 6000) {
       throw const FormatException('That deck code is too long.');
     }
-    var code = raw.replaceAll(RegExp(r'\s+'), '');
+    var code = raw.trim();
     final link = Uri.tryParse(code);
     if (link?.scheme == flashCardDeckLinkScheme) {
       if (link!.host != 'deck' ||
@@ -130,8 +156,26 @@ class FlashCardDeckDefinition {
       }
       code = link.pathSegments.single;
     }
-    if (code.isEmpty || code.length > maxFlashCardDeckCodeLength) {
+    // Both text encodings have no whitespace in their alphabets.
+    final qr = code.startsWith('BFC3:Q');
+    code = code.replaceAll(RegExp(r'\s+'), '');
+    if (code.isEmpty ||
+        code.length >
+            (qr ? maxFlashCardDeckQrCodeLength : maxFlashCardDeckCodeLength)) {
       throw const FormatException('Paste a valid flashcard deck code.');
+    }
+    if (code.startsWith('BFC3:')) {
+      try {
+        final fields = decodeFlashCardDeckEnvelope(code);
+        return FlashCardDeckDefinition.create(
+          name: fields.name,
+          emoji: fields.emoji,
+          eventKeys: fields.events,
+          excludedTeamIndexes: fields.exclusions,
+        );
+      } catch (_) {
+        throw const FormatException('This is not a valid flashcard deck code.');
+      }
     }
     if (!code.startsWith(_shareCodePrefix)) {
       throw const FormatException(
@@ -148,17 +192,17 @@ class FlashCardDeckDefinition {
       final bytes = base64Url.decode(base64Url.normalize(encoded));
       final payload = switch (mode) {
         'N' => bytes,
-        'Z' => const ZLibDecoder().decodeBytes(bytes, verify: true),
+        'Z' => decodeFlashCardDeckZlib(bytes),
         _ => throw const FormatException('Invalid deck encoding.'),
       };
-      if (payload.length > _maxSharePayloadBytes) {
+      if (payload.length > maxFlashCardDeckPayloadBytes) {
         throw const FormatException('The deck payload is too large.');
       }
       decoded = jsonDecode(utf8.decode(payload));
     } catch (_) {
       throw const FormatException('This is not a valid flashcard deck code.');
     }
-    if (decoded is! List || decoded.length != 3) {
+    if (decoded is! List || (decoded.length != 3 && decoded.length != 4)) {
       throw const FormatException(
         'The deck is missing its name, emoji, or events.',
       );
@@ -167,7 +211,33 @@ class FlashCardDeckDefinition {
       'name': decoded[0],
       'emoji': decoded[1],
       'events': decoded[2],
+      if (decoded.length == 4)
+        'excludedTeamIndexes': _decodeSharedExclusions(decoded[3], decoded[2]),
     });
+  }
+
+  static Map<String, List<int>> _decodeSharedExclusions(
+    Object? value,
+    Object? events,
+  ) {
+    if (value is! List ||
+        events is! List ||
+        events.any((event) => event is! String)) {
+      throw const FormatException('The deck has invalid team overrides.');
+    }
+    final result = <String, List<int>>{};
+    for (final group in value) {
+      if (group is! List ||
+          group.length < 2 ||
+          group.any((index) => index is! int) ||
+          (group.first as int) < 0 ||
+          (group.first as int) >= events.length) {
+        throw const FormatException('The deck has invalid team overrides.');
+      }
+      final event = events[group.first as int] as String;
+      result.putIfAbsent(event, () => []).addAll(group.skip(1).cast<int>());
+    }
+    return result;
   }
 
   static FlashCardDeckDefinition _fromFields(Map json, {bool stored = false}) {
@@ -184,11 +254,28 @@ class FlashCardDeckDefinition {
             !RegExp(r'^[a-z0-9-]{1,80}$').hasMatch(json['id']))) {
       throw const FormatException('The saved deck has an invalid ID.');
     }
+    final overrides = json['excludedTeamIndexes'];
+    if (json.containsKey('excludedTeamIndexes') &&
+        (overrides is! Map ||
+            overrides.entries.any(
+              (entry) =>
+                  entry.key is! String ||
+                  entry.value is! List ||
+                  (entry.value as List).any((index) => index is! int),
+            ))) {
+      throw const FormatException('The deck has invalid team overrides.');
+    }
     return FlashCardDeckDefinition.create(
       id: stored ? json['id'] as String : null,
       name: json['name'] as String,
       emoji: json['emoji'] as String,
       eventKeys: (json['events'] as List).cast<String>(),
+      excludedTeamIndexes: overrides == null
+          ? const {}
+          : {
+              for (final entry in (overrides as Map).entries)
+                entry.key as String: (entry.value as List).cast<int>(),
+            },
       createdAt: stored ? DateTime.tryParse('${json['createdAt']}') : null,
       updatedAt: stored ? DateTime.tryParse('${json['updatedAt']}') : null,
     );
@@ -202,6 +289,8 @@ class FlashCardDeckDefinition {
     'name': name,
     'emoji': emoji,
     'events': eventKeys,
+    if (excludedTeamIndexes.isNotEmpty)
+      'excludedTeamIndexes': excludedTeamIndexes,
     'createdAt': createdAt.toIso8601String(),
     'updatedAt': updatedAt.toIso8601String(),
   };

@@ -20,7 +20,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:services/providers/api_provider.dart';
 import 'package:syncfusion_flutter_sliders/sliders.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:beariscope/utils/match_video_opener.dart';
 
 class ScoutAuditPage extends ConsumerStatefulWidget {
   const ScoutAuditPage({super.key});
@@ -721,7 +721,7 @@ class _IncompleteMatchDetailPageState
     final noun = widget.entryType == ScoutAuditEntryType.strat
         ? 'strat entries'
         : 'scouted entries';
-    final confirmed = await _confirm(
+    final confirmed = await _confirmDestructiveAction(
       context,
       title: 'Delete all entries?',
       message: 'This will remove all $noun for match ${widget.matchNumber}.',
@@ -879,7 +879,7 @@ class _NotInTbaDetailPageState extends ConsumerState<_NotInTbaDetailPage> {
   }
 
   Future<void> _deleteDoc(BuildContext context, String docId) async {
-    final confirmed = await _confirm(
+    final confirmed = await _confirmDestructiveAction(
       context,
       title: 'Delete entry?',
       message: 'This action cannot be undone.',
@@ -1068,7 +1068,7 @@ class _DuplicateDetailPageState extends ConsumerState<_DuplicateDetailPage> {
     ScoutingDocument selected,
     List<ScoutingDocument> all,
   ) async {
-    final confirmed = await _confirm(
+    final confirmed = await _confirmDestructiveAction(
       context,
       title: 'Keep this entry?',
       message: 'Keep this entry and delete the others?',
@@ -1557,7 +1557,7 @@ class _ManualScoutDialogState extends ConsumerState<_ManualScoutDialog> {
       canDismiss: !_submitting,
       primaryAction: BeariscopeModalPrimaryAction(
         label: 'Scout',
-        icon: LucideIcons.check,
+        icon: LucideIcons.chevronRight,
         loading: _submitting,
         onPressed: _submit,
       ),
@@ -1618,7 +1618,7 @@ class _AuditIssueItem {
   });
 }
 
-Future<bool> _confirm(
+Future<bool> _confirmDestructiveAction(
   BuildContext context, {
   required String title,
   required String message,
@@ -1626,26 +1626,16 @@ Future<bool> _confirm(
 }) async {
   final confirmed = await BeariscopeAlertDialog.show<bool>(
     context: context,
-    builder: (context) => AlertDialog(
-      title: Text(title),
-      content: Text(message),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.of(context).pop(true),
-          style: FilledButton.styleFrom(
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-          child: Text(
-            confirmLabel,
-            style: TextStyle(color: Theme.of(context).colorScheme.onError),
-          ),
-        ),
-      ],
-    ),
+    title: title,
+    message: message,
+    actions: [
+      BeariscopeAlertAction(label: 'Cancel', result: false),
+      BeariscopeAlertAction(
+        label: confirmLabel,
+        result: true,
+        role: BeariscopeAlertActionRole.destructive,
+      ),
+    ],
   );
 
   return confirmed == true;
@@ -1657,21 +1647,10 @@ Future<void> _launchMatchVideo(
   List<Map<String, dynamic>> matches,
   int matchNumber,
 ) async {
-  final match = findTbaMatchForNumber(matches, eventKey, matchNumber);
-  final videoKey = match == null ? null : matchVideoKey(match);
-
-  if (videoKey == null) {
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No match video is available.')),
-      );
-    }
-    return;
-  }
-
-  await launchUrl(
-    Uri.parse('https://www.youtube.com/watch?v=$videoKey'),
-    mode: LaunchMode.externalApplication,
+  await openMatchVideo(
+    context,
+    match: findTbaMatchForNumber(matches, eventKey, matchNumber),
+    matchTitle: 'Qualification Match $matchNumber',
   );
 }
 

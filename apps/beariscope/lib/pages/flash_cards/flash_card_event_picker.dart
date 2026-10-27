@@ -1,9 +1,12 @@
 import 'package:beariscope/pages/flash_cards/flash_card_deck_model.dart';
 import 'package:beariscope/pages/flash_cards/flash_card_deck_provider.dart';
 import 'package:beariscope/pages/flash_cards/flash_card_sheet.dart';
-import 'package:beariscope/widgets/beariscope_modal.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
+import 'package:beariscope/widgets/beariscope_modal.dart';
+import 'package:beariscope/widgets/beariscope_search_bar.dart';
+import 'package:beariscope/widgets/beariscope_status_view.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -21,18 +24,32 @@ class _FlashCardEventPickerState extends ConsumerState<FlashCardEventPicker> {
       ? DateTime.now().year
       : int.parse(_selected.last.substring(0, 4));
   final _search = TextEditingController();
+  final _scroll = ScrollController();
+  final _knownEvents = <String, EventOption>{};
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _search.addListener(_searchChanged);
+  }
+
+  void _searchChanged() {
+    setState(() {});
+    if (_scroll.hasClients) _scroll.jumpTo(0);
+  }
 
   @override
   void dispose() {
     _search.dispose();
+    _scroll.dispose();
     super.dispose();
   }
 
   void _toggle(String key) => setState(() {
     if (!_selected.remove(key)) {
       if (_selected.length >= maxFlashCardDeckEvents) {
-        _error = 'You can include up to 32 events.';
+        _error = 'You can include up to $maxFlashCardDeckEvents events.';
         return;
       }
       _selected.add(key);
@@ -42,17 +59,45 @@ class _FlashCardEventPickerState extends ConsumerState<FlashCardEventPicker> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
     final catalog = ref.watch(flashCardEventCatalogProvider(_year));
     final events = catalog.asData?.value ?? <EventOption>[];
+    _knownEvents.addEntries(events.map((event) => MapEntry(event.key, event)));
     final query = _search.text.trim().toLowerCase();
     final filtered = events
         .where(
-          (event) => '${event.name} ${event.key}'.toLowerCase().contains(query),
+          (event) => '${event.name} ${event.shortName} ${event.key}'
+              .toLowerCase()
+              .contains(query),
         )
         .toList();
-    final names = {for (final event in events) event.key: event.shortName};
-    final headerHeight =
-        56.0 + (_error == null ? 0 : 28) + (_selected.isEmpty ? 0 : 56);
+    final Widget? status = catalog.isLoading
+        ? const Padding(
+            padding: EdgeInsets.all(32),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        : catalog.hasError
+        ? BeariscopeStatusView(
+            icon: LucideIcons.calendarDays,
+            title: 'Events unavailable',
+            subtitle: 'Could not load the $_year season.',
+            action: TextButton(
+              onPressed: () =>
+                  ref.invalidate(flashCardEventCatalogProvider(_year)),
+              child: const Text('Retry'),
+            ),
+          )
+        : filtered.isEmpty
+        ? BeariscopeStatusView(
+            icon: LucideIcons.search,
+            title: 'No events found.',
+            subtitle: query.isEmpty
+                ? 'Try a different season.'
+                : 'Try another name or event code.',
+          )
+        : null;
+
     return FlashCardSheet(
       title: 'Events',
       scrollable: false,
@@ -62,176 +107,167 @@ class _FlashCardEventPickerState extends ConsumerState<FlashCardEventPicker> {
         icon: LucideIcons.check,
         onPressed: () => Navigator.pop(context, _selected),
       ),
-      child: CustomScrollView(
-        slivers: [
-          SliverPersistentHeader(
-            pinned: true,
-            delegate: _EventPickerHeaderDelegate(
-              height: headerHeight,
-              child: Material(
-                color:
-                    DialogTheme.of(context).backgroundColor ??
-                    Theme.of(context).colorScheme.surfaceContainerHigh,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _search,
-                            onChanged: (_) => setState(() {}),
-                            decoration: const InputDecoration(
-                              labelText: 'Find an event',
-                              prefixIcon: Icon(LucideIcons.search),
-                              border: OutlineInputBorder(),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        SizedBox(
-                          width: 104,
-                          child: DropdownButtonFormField<int>(
-                            initialValue: _year,
-                            isExpanded: true,
-                            decoration: const InputDecoration(
-                              labelText: 'Year',
-                              border: OutlineInputBorder(),
-                            ),
-                            items: [
-                              if (_year > DateTime.now().year + 1)
-                                DropdownMenuItem(
-                                  value: _year,
-                                  child: Text('$_year'),
-                                ),
-                              for (
-                                var year = DateTime.now().year + 1;
-                                year >= 1992;
-                                year--
-                              )
-                                DropdownMenuItem(
-                                  value: year,
-                                  child: Text('$year'),
-                                ),
-                            ],
-                            onChanged: (year) {
-                              if (year != null) setState(() => _year = year);
-                            },
-                          ),
-                        ),
-                      ],
+      child: LayoutBuilder(
+        builder: (context, constraints) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SearchBarTheme(
+              data: theme.searchBarTheme.copyWith(
+                backgroundColor: WidgetStatePropertyAll(
+                  colors.surfaceContainerHighest,
+                ),
+              ),
+              child: BeariscopeSearchBar(
+                controller: _search,
+                hintText: 'Find an event',
+                elevation: 0,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '${_selected.length} of $maxFlashCardDeckEvents selected',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: colors.onSurfaceVariant,
                     ),
-                    if (_error != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: Text(
-                          _error!,
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.error,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: colors.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Semantics(
+                      label: 'Season',
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<int>(
+                          value: _year,
+                          icon: const Icon(LucideIcons.chevronDown, size: 16),
+                          borderRadius: BorderRadius.circular(16),
+                          onChanged: (year) {
+                            if (year == null) return;
+                            setState(() => _year = year);
+                            if (_scroll.hasClients) _scroll.jumpTo(0);
+                          },
+                          items: [
+                            if (_year > DateTime.now().year + 1)
+                              DropdownMenuItem(
+                                value: _year,
+                                child: Text('$_year'),
+                              ),
+                            for (
+                              var year = DateTime.now().year + 1;
+                              year >= 1992;
+                              year--
+                            )
+                              DropdownMenuItem(
+                                value: year,
+                                child: Text('$year'),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (_selected.isNotEmpty && constraints.maxHeight >= 320)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      for (final key in _selected)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: InputChip(
+                            key: ValueKey('selected-event-$key'),
+                            deleteIcon: const Icon(LucideIcons.x, size: 16),
+                            label: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 180),
+                              child: Text(
+                                _knownEvents[key]?.shortName ?? key,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            onDeleted: () => _toggle(key),
                           ),
                         ),
+                    ],
+                  ),
+                ),
+              ),
+            const SizedBox(height: 12),
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Text(_error!, style: TextStyle(color: colors.error)),
+              ),
+            Expanded(
+              child: Scrollbar(
+                controller: _scroll,
+                child: ListView.separated(
+                  key: const ValueKey('event-picker-list'),
+                  controller: _scroll,
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  padding: const EdgeInsets.only(bottom: 8),
+                  itemCount: status == null ? filtered.length : 1,
+                  separatorBuilder: (_, _) => const SizedBox(height: 8),
+                  itemBuilder: (context, index) {
+                    if (status != null) return status;
+                    final event = filtered[index];
+                    final isSelected = _selected.contains(event.key);
+                    final shape = RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: BorderSide(
+                        color: isSelected ? colors.primary : Colors.transparent,
                       ),
-                    if (_selected.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      SizedBox(
-                        height: 48,
-                        child: ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: _selected.length,
-                          separatorBuilder: (_, _) => const SizedBox(width: 6),
-                          itemBuilder: (context, index) {
-                            final key = _selected.elementAt(index);
-                            return InputChip(
-                              key: ValueKey('selected-event-$key'),
-                              label: ConstrainedBox(
-                                constraints: const BoxConstraints(
-                                  maxWidth: 180,
-                                ),
-                                child: Text(
-                                  names[key] ?? key,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              onDeleted: () => _toggle(key),
-                            );
-                          },
+                    );
+                    return Material(
+                      color: isSelected
+                          ? colors.primaryContainer.withValues(alpha: .45)
+                          : colors.surfaceContainerLow,
+                      shape: shape,
+                      clipBehavior: Clip.antiAlias,
+                      child: CheckboxListTile(
+                        key: ValueKey('catalog-event-${event.key}'),
+                        shape: shape,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
+                        ),
+                        value: isSelected,
+                        onChanged: (_) => _toggle(event.key),
+                        secondary: Icon(
+                          event.leadingIcon,
+                          color: colors.primary,
+                        ),
+                        title: Text(
+                          event.shortName,
+                          style: theme.textTheme.titleSmall,
+                        ),
+                        subtitle: Text(
+                          event.startDate == null
+                              ? event.key
+                              : DateFormat.yMMMd().format(event.startDate!),
                         ),
                       ),
-                    ],
-                  ],
+                    );
+                  },
                 ),
               ),
             ),
-          ),
-          if (catalog.isLoading)
-            const SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Center(child: CircularProgressIndicator()),
-              ),
-            )
-          else if (catalog.hasError)
-            SliverToBoxAdapter(
-              child: Column(
-                children: [
-                  const Text('Events unavailable'),
-                  TextButton(
-                    onPressed: () =>
-                        ref.invalidate(flashCardEventCatalogProvider(_year)),
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
-            )
-          else if (filtered.isEmpty)
-            const SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Center(child: Text('No events found.')),
-              ),
-            )
-          else
-            SliverList.builder(
-              itemCount: filtered.length,
-              itemBuilder: (context, index) {
-                final event = filtered[index];
-                return CheckboxListTile(
-                  key: ValueKey('catalog-event-${event.key}'),
-                  contentPadding: EdgeInsets.zero,
-                  value: _selected.contains(event.key),
-                  onChanged: (_) => _toggle(event.key),
-                  title: Text(event.shortName),
-                  subtitle: Text(event.key),
-                  controlAffinity: ListTileControlAffinity.leading,
-                );
-              },
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
-}
-
-class _EventPickerHeaderDelegate extends SliverPersistentHeaderDelegate {
-  const _EventPickerHeaderDelegate({required this.height, required this.child});
-
-  final double height;
-  final Widget child;
-
-  @override
-  double get minExtent => height;
-
-  @override
-  double get maxExtent => height;
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) => child;
-
-  @override
-  bool shouldRebuild(_EventPickerHeaderDelegate oldDelegate) =>
-      height != oldDelegate.height || child != oldDelegate.child;
 }

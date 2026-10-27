@@ -519,22 +519,16 @@ class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage>
   Future<void> _confirmClear(Picklist picklist) async {
     final clear = await BeariscopeAlertDialog.show<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Clear this picklist?'),
-        content: const Text(
-          'All teams will be removed. The empty picklist will remain in your library.',
+      title: 'Clear this picklist?',
+      message: 'All teams will be removed. The empty picklist will remain in your library.',
+      actions: const [
+        BeariscopeAlertAction(label: 'Cancel', result: false),
+        BeariscopeAlertAction(
+          label: 'Clear',
+          result: true,
+          role: BeariscopeAlertActionRole.destructive,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Clear'),
-          ),
-        ],
-      ),
+      ],
     );
     if (clear == true) {
       ref.read(picklistLibraryProvider.notifier).setTeams(picklist.id, []);

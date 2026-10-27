@@ -1,8 +1,8 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:beariscope/pages/team_lookup/tabs/media_save_helper.dart';
 import 'package:beariscope/pages/team_lookup/team_providers.dart';
+import 'package:beariscope/providers/youtube_video_metadata_provider.dart';
 import 'package:beariscope/widgets/beariscope_card.dart';
 import 'package:beariscope/widgets/settings_group.dart';
 import 'package:beariscope/widgets/beariscope_status_view.dart';
@@ -565,17 +565,15 @@ class _MediaLinkTile extends StatelessWidget {
 
     final defaultTitle = record.title ?? fallback;
 
-    if (record.type == 'youtube' && record.openUrl != null) {
-      return FutureBuilder<String?>(
-        future: YoutubeTitleProvider.titleForUrl(record.openUrl!),
-        builder: (context, snapshot) {
-          final resolved = snapshot.data?.trim();
-          final displayTitle = (resolved != null && resolved.isNotEmpty)
-              ? resolved
-              : defaultTitle;
-
+    final videoId = record.type == 'youtube' && record.openUrl != null
+        ? youtubeVideoIdFromUrl(record.openUrl!)
+        : null;
+    if (videoId != null) {
+      return Consumer(
+        builder: (context, ref, _) {
+          final metadata = ref.watch(youtubeVideoMetadataProvider(videoId));
           return Text(
-            displayTitle,
+            metadata.asData?.value?.title ?? defaultTitle,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           );
@@ -619,52 +617,6 @@ class _MediaLinkTile extends StatelessWidget {
         context,
       ).showSnackBar(const SnackBar(content: Text('Could not open website')));
     }
-  }
-}
-
-class YoutubeTitleProvider {
-  static final Map<String, Future<String?>> _cache = {};
-
-  static Future<String?> titleForUrl(String url) {
-    return _cache.putIfAbsent(url, () => _fetchTitle(url));
-  }
-
-  static Future<String?> _fetchTitle(String url) async {
-    final videoId = _extractVideoId(url);
-    if (videoId == null) return null;
-
-    final response = await http.get(
-      Uri.parse(
-        'https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=$videoId&format=json',
-      ),
-      headers: const {'Accept': 'application/json'},
-    );
-    if (response.statusCode != 200) return null;
-
-    final json = jsonDecode(response.body);
-    if (json is Map<String, dynamic>) {
-      return json['title']?.toString().trim();
-    }
-    return null;
-  }
-
-  static String? _extractVideoId(String url) {
-    final uri = Uri.tryParse(url);
-    if (uri == null) return null;
-
-    if (uri.host.contains('youtu.be')) {
-      return uri.pathSegments.isNotEmpty ? uri.pathSegments.first : null;
-    }
-
-    final videoId = uri.queryParameters['v'];
-    if (videoId != null && videoId.isNotEmpty) return videoId;
-
-    final segments = uri.pathSegments;
-    if (segments.length >= 2 && segments.first == 'shorts') {
-      return segments[1];
-    }
-
-    return null;
   }
 }
 
