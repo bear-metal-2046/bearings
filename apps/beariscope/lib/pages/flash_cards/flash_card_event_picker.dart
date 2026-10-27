@@ -1,6 +1,7 @@
 import 'package:beariscope/pages/flash_cards/flash_card_deck_model.dart';
 import 'package:beariscope/pages/flash_cards/flash_card_deck_provider.dart';
 import 'package:beariscope/pages/flash_cards/flash_card_sheet.dart';
+import 'package:beariscope/widgets/beariscope_modal.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -80,11 +81,11 @@ class _FlashCardEventPickerState extends ConsumerState<FlashCardEventPicker> {
     return FlashCardSheet(
       title: 'Events',
       scrollable: false,
-      footer: FilledButton(
+      primaryAction: BeariscopeModalPrimaryAction(
+        label:
+            'Use ${_selected.length} ${_selected.length == 1 ? 'event' : 'events'}',
+        icon: LucideIcons.check,
         onPressed: () => Navigator.pop(context, _selected),
-        child: Text(
-          'Use ${_selected.length} ${_selected.length == 1 ? 'event' : 'events'}',
-        ),
       ),
       child: SizedBox(
         height: 480,

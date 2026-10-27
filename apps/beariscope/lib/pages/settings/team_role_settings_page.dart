@@ -1,3 +1,5 @@
+import 'package:beariscope/widgets/beariscope_alert_dialog.dart';
+import 'package:beariscope/widgets/beariscope_modal.dart';
 import 'package:beariscope/utils/platform_utils_stub.dart'
     if (dart.library.io) 'package:beariscope/utils/platform_utils.dart';
 import 'package:beariscope/widgets/beariscope_card.dart';
@@ -77,9 +79,6 @@ class _TeamRoleSettingsPageState extends ConsumerState<TeamRoleSettingsPage>
     super.dispose();
   }
 
-  bool _isMobileDialog(BuildContext context) =>
-      MediaQuery.of(context).size.width < 700;
-
   InputDecoration _outlinedInput({required String label, String? hint}) {
     return InputDecoration(
       labelText: label,
@@ -153,10 +152,12 @@ class _TeamRoleSettingsPageState extends ConsumerState<TeamRoleSettingsPage>
       text: initialDescription,
     );
     final selectedPermissions = <String>{...initialPermissions};
+    var saving = false;
 
     Future<void> showDialogBody() async {
-      await showDialog<void>(
-        context: context,
+      await BeariscopeModal.show<void>(
+        context,
+        useRootNavigator: true,
         builder: (dialogContext) {
           return StatefulBuilder(
             builder: (dialogContext, setDialogState) {
@@ -183,8 +184,9 @@ class _TeamRoleSettingsPageState extends ConsumerState<TeamRoleSettingsPage>
                   : 'Create Role';
 
               Future<void> handleSave() async {
+                if (saving) return;
+                setDialogState(() => saving = true);
                 final messenger = ScaffoldMessenger.of(context);
-                final navigator = Navigator.of(context);
 
                 final permissionList = selectedPermissions.toList()..sort();
                 final previousRoles = List<ManagedRole>.from(
@@ -236,7 +238,9 @@ class _TeamRoleSettingsPageState extends ConsumerState<TeamRoleSettingsPage>
 
                   if (!mounted) return;
                   await _refreshRbacData();
-                  navigator.pop();
+                  if (dialogContext.mounted) {
+                    BeariscopeModal.complete<void>(dialogContext);
+                  }
                 } catch (error) {
                   if (!mounted) return;
                   setState(() {
@@ -245,6 +249,10 @@ class _TeamRoleSettingsPageState extends ConsumerState<TeamRoleSettingsPage>
                   messenger.showSnackBar(
                     SnackBar(content: Text('Failed to save role: $error')),
                   );
+                } finally {
+                  if (dialogContext.mounted) {
+                    setDialogState(() => saving = false);
+                  }
                 }
               }
 
@@ -295,48 +303,19 @@ class _TeamRoleSettingsPageState extends ConsumerState<TeamRoleSettingsPage>
                 ],
               );
 
-              if (_isMobileDialog(dialogContext)) {
-                return Dialog.fullscreen(
-                  child: Scaffold(
-                    appBar: AppBar(
-                      title: Text(titleText),
-                      leading: IconButton(
-                        onPressed: () => Navigator.pop(dialogContext),
-                        icon: const Icon(LucideIcons.x),
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: canSave ? handleSave : null,
-                          child: const Text('Save'),
-                        ),
-                      ],
-                    ),
-                    body: SingleChildScrollView(
-                      child: Padding(
-                        padding: EdgeInsets.all(16),
-                        child: formBody,
-                      ),
-                    ),
-                  ),
-                );
-              }
-
-              return AlertDialog(
-                title: Text(titleText),
-                content: SizedBox(
-                  width: 560,
-                  child: SingleChildScrollView(child: formBody),
+              return BeariscopeModal(
+                title: titleText,
+                size: BeariscopeModalSize.tall,
+                content: formBody,
+                actions: const [],
+                canDismiss: !saving,
+                primaryAction: BeariscopeModalPrimaryAction(
+                  label: 'Save',
+                  icon: LucideIcons.check,
+                  enabled: canSave,
+                  loading: saving,
+                  onPressed: handleSave,
                 ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(dialogContext),
-                    child: const Text('Cancel'),
-                  ),
-                  TextButton(
-                    onPressed: canSave ? handleSave : null,
-                    child: const Text('Save'),
-                  ),
-                ],
               );
             },
           );
@@ -349,7 +328,7 @@ class _TeamRoleSettingsPageState extends ConsumerState<TeamRoleSettingsPage>
 
   Future<void> _deleteRole(ManagedRole role, int assignedUsers) async {
     if (assignedUsers > 0) {
-      await showDialog<void>(
+      await BeariscopeAlertDialog.show<void>(
         context: context,
         builder: (_) => AlertDialog(
           title: const Text('Cannot delete role'),
@@ -367,7 +346,7 @@ class _TeamRoleSettingsPageState extends ConsumerState<TeamRoleSettingsPage>
       return;
     }
 
-    final confirmed = await showDialog<bool>(
+    final confirmed = await BeariscopeAlertDialog.show<bool>(
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Delete Role'),
@@ -432,9 +411,11 @@ class _TeamRoleSettingsPageState extends ConsumerState<TeamRoleSettingsPage>
 
     final nameController = TextEditingController(text: initialName);
     final selectedRoles = <String>{...initialRoles};
+    var saving = false;
 
-    await showDialog<void>(
-      context: context,
+    await BeariscopeModal.show<void>(
+      context,
+      useRootNavigator: true,
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (dialogContext, setDialogState) {
@@ -447,8 +428,9 @@ class _TeamRoleSettingsPageState extends ConsumerState<TeamRoleSettingsPage>
             final canSave = hasChanges;
 
             Future<void> handleSave() async {
+              if (saving) return;
+              setDialogState(() => saving = true);
               final messenger = ScaffoldMessenger.of(context);
-              final navigator = Navigator.of(context);
 
               final previousUsers = List<ManagedUser>.from(
                 _optimisticUsers ?? currentUsers,
@@ -476,7 +458,9 @@ class _TeamRoleSettingsPageState extends ConsumerState<TeamRoleSettingsPage>
                     );
                 if (!mounted) return;
                 await _refreshRbacData();
-                navigator.pop();
+                if (dialogContext.mounted) {
+                  BeariscopeModal.complete<void>(dialogContext);
+                }
               } catch (error) {
                 if (!mounted) return;
                 setState(() {
@@ -485,6 +469,8 @@ class _TeamRoleSettingsPageState extends ConsumerState<TeamRoleSettingsPage>
                 messenger.showSnackBar(
                   SnackBar(content: Text('Failed to update user: $error')),
                 );
+              } finally {
+                if (dialogContext.mounted) setDialogState(() => saving = false);
               }
             }
 
@@ -526,48 +512,19 @@ class _TeamRoleSettingsPageState extends ConsumerState<TeamRoleSettingsPage>
               ],
             );
 
-            if (_isMobileDialog(dialogContext)) {
-              return Dialog.fullscreen(
-                child: Scaffold(
-                  appBar: AppBar(
-                    title: const Text('Edit User'),
-                    leading: IconButton(
-                      onPressed: () => Navigator.pop(dialogContext),
-                      icon: const Icon(LucideIcons.x),
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: canSave ? handleSave : null,
-                        child: const Text('Save'),
-                      ),
-                    ],
-                  ),
-                  body: SingleChildScrollView(
-                    child: Padding(
-                      padding: EdgeInsets.all(16),
-                      child: formBody,
-                    ),
-                  ),
-                ),
-              );
-            }
-
-            return AlertDialog(
-              title: const Text('Edit User'),
-              content: SizedBox(
-                width: 620,
-                child: SingleChildScrollView(child: formBody),
+            return BeariscopeModal(
+              title: 'Edit User',
+              size: BeariscopeModalSize.tall,
+              content: formBody,
+              actions: const [],
+              canDismiss: !saving,
+              primaryAction: BeariscopeModalPrimaryAction(
+                label: 'Save',
+                icon: LucideIcons.check,
+                enabled: canSave,
+                loading: saving,
+                onPressed: handleSave,
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogContext),
-                  child: const Text('Cancel'),
-                ),
-                TextButton(
-                  onPressed: canSave ? handleSave : null,
-                  child: const Text('Save'),
-                ),
-              ],
             );
           },
         );

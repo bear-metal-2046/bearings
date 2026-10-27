@@ -1,3 +1,4 @@
+import 'package:beariscope/widgets/beariscope_modal.dart';
 import 'package:beariscope/models/drive_team_note.dart';
 import 'package:beariscope/pages/up_next/up_next_provider.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
@@ -446,11 +447,9 @@ class _DriveTeamMatchPreviewPageState
                                               '2046',
                                         )
                                         .toList();
-                                    showModalBottomSheet(
-                                      context: context,
-                                      showDragHandle: true,
-                                      isScrollControlled: true,
-                                      useSafeArea: true,
+                                    BeariscopeModal.show<void>(
+                                      context,
+
                                       builder: (context) =>
                                           _DriveTeamNotesSheet(
                                             matchKey: widget.matchKey,
@@ -623,11 +622,9 @@ class _DriveTeamMatchPreviewPageState
                                             '2046',
                                       )
                                       .toList();
-                                  showModalBottomSheet(
-                                    context: context,
-                                    showDragHandle: true,
-                                    isScrollControlled: true,
-                                    useSafeArea: true,
+                                  BeariscopeModal.show<void>(
+                                    context,
+
                                     builder: (context) => _DriveTeamNotesSheet(
                                       matchKey: widget.matchKey,
                                       redAllianceTeamKeys: filteredRedTeams,
@@ -795,7 +792,7 @@ class _DriveTeamNotesSheetState extends ConsumerState<_DriveTeamNotesSheet> {
         await ref.read(scoutingDataProvider.notifier).refresh();
       }
 
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) BeariscopeModal.complete<void>(context);
     } catch (e) {
       if (mounted) {
         setState(() => _isSaving = false);
@@ -863,30 +860,44 @@ class _DriveTeamNotesSheetState extends ConsumerState<_DriveTeamNotesSheet> {
   Widget build(BuildContext context) {
     final notesAsync = ref.watch(myDriveTeamNotesProvider(widget.matchKey));
     final theme = Theme.of(context);
-
-    return notesAsync.when(
-      loading: () => const SizedBox(
-        height: 200,
-        child: Center(child: CircularProgressIndicator()),
+    
+    return BeariscopeModal(
+      title: 'Drive team notes',
+      size: BeariscopeModalSize.tall,
+      scrolling: BeariscopeModalScrolling.content,
+      actions: const [],
+      canDismiss: !_isSaving,
+      primaryAction: BeariscopeModalPrimaryAction(
+        label: 'Save Notes',
+        icon: LucideIcons.check,
+        enabled:
+            notesAsync.asData != null &&
+            (widget.redAllianceTeamKeys.isNotEmpty ||
+                widget.blueAllianceTeamKeys.isNotEmpty),
+        loading: _isSaving,
+        onPressed: _save,
       ),
-      error: (e, _) => SizedBox(
-        height: 200,
-        child: Center(child: Text('Error loading notes: $e')),
-      ),
-      data: (existingNotes) {
-        _initControllers(existingNotes);
+      content: notesAsync.when(
+        loading: () => const SizedBox(
+          height: 200,
+          child: Center(child: CircularProgressIndicator()),
+        ),
+        error: (e, _) => SizedBox(
+          height: 200,
+          child: Center(child: Text('Error loading notes: $e')),
+        ),
+        data: (existingNotes) {
+          _initControllers(existingNotes);
 
-        if (widget.redAllianceTeamKeys.isEmpty &&
-            widget.blueAllianceTeamKeys.isEmpty) {
-          return const Padding(
-            padding: EdgeInsets.all(32),
-            child: Center(child: Text('Cannot load notes for this match.')),
-          );
-        }
+          if (widget.redAllianceTeamKeys.isEmpty &&
+              widget.blueAllianceTeamKeys.isEmpty) {
+            return const Padding(
+              padding: EdgeInsets.all(32),
+              child: Center(child: Text('Cannot load notes for this match.')),
+            );
+          }
 
-        return SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          return SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -901,25 +912,11 @@ class _DriveTeamNotesSheetState extends ConsumerState<_DriveTeamNotesSheet> {
                   'Blue Alliance',
                   widget.blueAllianceTeamKeys,
                 ),
-                const SizedBox(height: 4),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: _isSaving ? null : _save,
-                    child: _isSaving
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('Save Notes'),
-                  ),
-                ),
               ],
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }

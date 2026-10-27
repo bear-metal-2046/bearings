@@ -1,3 +1,4 @@
+import 'package:beariscope/widgets/beariscope_alert_dialog.dart';
 import 'package:beariscope/pages/settings/image_crop_dialog.dart';
 
 import 'dart:typed_data';
@@ -291,7 +292,7 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
   }
 
   Future<void> _deleteAccount(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await BeariscopeAlertDialog.show<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Account'),
@@ -338,7 +339,7 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
 
   Future<void> _signOut(BuildContext context) async {
     final confirmed =
-        await showDialog<bool>(
+        await BeariscopeAlertDialog.show<bool>(
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('Sign Out'),
@@ -367,7 +368,7 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
   }
 
   Future<void> _sendPasswordReset() async {
-    final confirm = await showDialog<bool>(
+    final confirm = await BeariscopeAlertDialog.show<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Reset Password'),

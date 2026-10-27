@@ -1,10 +1,15 @@
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:archive/archive.dart';
 import 'package:characters/characters.dart';
 
 const maxFlashCardDeckEvents = 32;
 const maxFlashCardDeckCodeLength = 2200;
+const flashCardDeckLinkScheme = 'org.tahomarobotics.beariscope';
+const _shareCodePrefix = 'BFC2:';
+const _maxSharePayloadBytes = 2048;
+final _sharePayloadPattern = RegExp(r'^[A-Za-z0-9_-]+$');
 final _eventKeyPattern = RegExp(r'^\d{4}[a-z0-9_-]{1,32}$');
 
 String flashCardDeckProgressScope(String id) => 'custom-deck:$id';
@@ -25,7 +30,7 @@ String _newDeckId() =>
 /// A live collection of event rosters. Sharing intentionally excludes local IDs
 /// and learning progress, so each imported deck has its own progress scope.
 class FlashCardDeckDefinition {
-  const FlashCardDeckDefinition._({
+  FlashCardDeckDefinition._({
     required this.id,
     required this.name,
     required this.emoji,
@@ -87,43 +92,82 @@ class FlashCardDeckDefinition {
   final DateTime updatedAt;
   String get progressScope => flashCardDeckProgressScope(id);
 
-  String get shareCode => base64UrlEncode(
-    utf8.encode(
-      jsonEncode({
-        'type': 'beariscope.flashcards',
-        'version': 1,
-        'name': name,
-        'emoji': emoji,
-        'events': eventKeys,
-      }),
-    ),
-  );
+  // BFC2:N is a raw JSON tuple; BFC2:Z is zlib-compressed. Both use unpadded
+  // base64url. Definitions are immutable, so encode only once per definition.
+  late final String shareCode = _encodeShareCode();
+
+  String get shareLink => Uri(
+    scheme: flashCardDeckLinkScheme,
+    host: 'deck',
+    path: '/$shareCode',
+  ).toString();
+
+  String _encodeShareCode() {
+    final payload = utf8.encode(jsonEncode([name, emoji, eventKeys]));
+    final compressed = const ZLibEncoder().encode(payload, level: 9);
+    final useCompression = compressed.length < payload.length;
+    final encoded = base64UrlEncode(useCompression ? compressed : payload)
+        .replaceAll('=', '');
+    return '$_shareCodePrefix${useCompression ? 'Z' : 'N'}$encoded';
+  }
 
   factory FlashCardDeckDefinition.fromShareCode(String raw) {
     if (raw.length > 6000) {
       throw const FormatException('That deck code is too long.');
     }
-    final code = raw.replaceAll(RegExp(r'\s+'), '');
+    var code = raw.replaceAll(RegExp(r'\s+'), '');
+    final link = Uri.tryParse(code);
+    if (link?.scheme == flashCardDeckLinkScheme) {
+      if (link!.host != 'deck' ||
+          link.userInfo.isNotEmpty ||
+          link.hasPort ||
+          link.hasQuery ||
+          link.hasFragment ||
+          link.pathSegments.length != 1) {
+        throw const FormatException(
+          'This is not a shared Beariscope deck link.',
+        );
+      }
+      code = link.pathSegments.single;
+    }
     if (code.isEmpty || code.length > maxFlashCardDeckCodeLength) {
       throw const FormatException('Paste a valid flashcard deck code.');
     }
+    if (!code.startsWith(_shareCodePrefix)) {
+      throw const FormatException(
+        'This is not a supported Beariscope deck code.',
+      );
+    }
     Object? decoded;
     try {
-      decoded = jsonDecode(utf8.decode(base64.decode(base64.normalize(code))));
+      final mode = code[_shareCodePrefix.length];
+      final encoded = code.substring(_shareCodePrefix.length + 1);
+      if (!_sharePayloadPattern.hasMatch(encoded)) {
+        throw const FormatException('Invalid deck encoding.');
+      }
+      final bytes = base64Url.decode(base64Url.normalize(encoded));
+      final payload = switch (mode) {
+        'N' => bytes,
+        'Z' => const ZLibDecoder().decodeBytes(bytes, verify: true),
+        _ => throw const FormatException('Invalid deck encoding.'),
+      };
+      if (payload.length > _maxSharePayloadBytes) {
+        throw const FormatException('The deck payload is too large.');
+      }
+      decoded = jsonDecode(utf8.decode(payload));
     } catch (_) {
       throw const FormatException('This is not a valid flashcard deck code.');
     }
-    if (decoded is! Map || decoded['type'] != 'beariscope.flashcards') {
+    if (decoded is! List || decoded.length != 3) {
       throw const FormatException(
-        'This code is not a Beariscope flashcard deck.',
+        'The deck is missing its name, emoji, or events.',
       );
     }
-    if (decoded['version'] != 1) {
-      throw const FormatException(
-        'This deck uses an unsupported sharing version.',
-      );
-    }
-    return _fromFields(decoded);
+    return _fromFields({
+      'name': decoded[0],
+      'emoji': decoded[1],
+      'events': decoded[2],
+    });
   }
 
   static FlashCardDeckDefinition _fromFields(Map json, {bool stored = false}) {

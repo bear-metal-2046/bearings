@@ -1,3 +1,4 @@
+import 'package:beariscope/widgets/beariscope_alert_dialog.dart';
 import 'package:beariscope/pages/picklists/picklist_emoji.dart';
 // dart format width=120
 
@@ -518,7 +519,7 @@ class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage>
   }
 
   Future<void> _confirmClear(Picklist picklist) async {
-    final clear = await showDialog<bool>(
+    final clear = await BeariscopeAlertDialog.show<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Clear this picklist?'),
@@ -755,10 +756,14 @@ class _TeamLibraryState extends ConsumerState<_TeamLibrary> {
                         .toList();
                     _sortTeams(teams, selectedSort, rankings);
                     if (teams.isEmpty) {
-                      return const BeariscopeStatusView(
-                        icon: LucideIcons.users,
-                        title: 'No teams found',
-                        subtitle: 'Try adjusting your search or selecting another event.',
+                      return const Center(
+                        child: SingleChildScrollView(
+                          child: BeariscopeStatusView(
+                            icon: LucideIcons.users,
+                            title: 'No teams found',
+                            subtitle: 'Try adjusting your search or selecting another event.',
+                          ),
+                        ),
                       );
                     }
                     return ListView.separated(

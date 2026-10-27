@@ -7,13 +7,20 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:beariscope/pages/flash_cards/flash_card_sheet.dart';
+import 'package:beariscope/widgets/beariscope_modal.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 
 class FlashCardDeckImportPage extends ConsumerStatefulWidget {
-  const FlashCardDeckImportPage({super.key, this.asSheet = false});
+  const FlashCardDeckImportPage({
+    super.key,
+    this.asSheet = false,
+    this.initialCode,
+  });
   final bool asSheet;
+  final String? initialCode;
   @override
   ConsumerState<FlashCardDeckImportPage> createState() =>
       _FlashCardDeckImportPageState();
@@ -21,10 +28,19 @@ class FlashCardDeckImportPage extends ConsumerStatefulWidget {
 
 class _FlashCardDeckImportPageState
     extends ConsumerState<FlashCardDeckImportPage> {
-  final _code = TextEditingController();
+  late final _code = TextEditingController(text: widget.initialCode ?? '');
   FlashCardDeckDefinition? _preview;
   bool _busy = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialCode case final code?) {
+      _previewCode(code, showErrors: true);
+    }
+  }
+
   @override
   void dispose() {
     _code.dispose();
@@ -113,7 +129,12 @@ class _FlashCardDeckImportPageState
       final imported = await ref
           .read(flashCardLibraryProvider.notifier)
           .importDeck(preview);
-      if (mounted) Navigator.pop(context, imported);
+      if (!mounted) return;
+      if (widget.asSheet) {
+        BeariscopeModal.complete(context, imported);
+      } else {
+        context.go('/flash_cards/${imported.id}');
+      }
     } catch (_) {
       if (mounted) setState(() => _error = 'Could not save the imported deck.');
     } finally {
@@ -125,9 +146,12 @@ class _FlashCardDeckImportPageState
   Widget build(BuildContext context) => FlashCardSheet(
     title: 'Import deck',
     asSheet: widget.asSheet,
-    footer: FilledButton(
-      onPressed: _busy ? null : _import,
-      child: Text(_busy ? 'Importing…' : 'Import deck'),
+    canDismiss: !_busy,
+    primaryAction: BeariscopeModalPrimaryAction(
+      label: 'Import deck',
+      icon: LucideIcons.check,
+      loading: _busy,
+      onPressed: _import,
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

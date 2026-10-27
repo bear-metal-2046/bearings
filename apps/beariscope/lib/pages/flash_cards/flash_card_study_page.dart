@@ -1,3 +1,5 @@
+import 'package:beariscope/widgets/beariscope_modal.dart';
+
 import 'dart:async';
 
 import 'package:beariscope/pages/flash_cards/flash_card_deck.dart';
@@ -15,7 +17,6 @@ import 'package:beariscope/widgets/beariscope_status_view.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:stupid_simple_sheet/stupid_simple_sheet.dart';
 
 class FlashCardStudyPage extends ConsumerStatefulWidget {
   const FlashCardStudyPage({super.key, this.deckId});
@@ -64,24 +65,21 @@ class _FlashCardStudyPageState extends ConsumerState<FlashCardStudyPage> {
   }
 
   Future<void> _showOptions() async {
-    await Navigator.of(context).push<void>(
-      StupidSimpleSheetRoute(
-        barrierLabel: MaterialLocalizations.of(context)
-            .modalBarrierDismissLabel,
-        child: FlashCardOptionsSheet(
-          options: _options,
-          onReset: () {
-            final event = widget.deckId == null
-                ? ref.read(currentEventProvider)
-                : flashCardDeckProgressScope(widget.deckId!);
-            unawaited(_store.saveProgress(event, const FlashCardProgress()));
-            setState(() => _resetGeneration++);
-          },
-          onChanged: (options) {
-            if (mounted) setState(() => _options = options);
-            unawaited(_store.saveOptions(options));
-          },
-        ),
+    await BeariscopeModal.show<void>(
+      context,
+      builder: (_) => FlashCardOptionsSheet(
+        options: _options,
+        onReset: () {
+          final event = widget.deckId == null
+              ? ref.read(currentEventProvider)
+              : flashCardDeckProgressScope(widget.deckId!);
+          unawaited(_store.saveProgress(event, const FlashCardProgress()));
+          setState(() => _resetGeneration++);
+        },
+        onChanged: (options) {
+          if (mounted) setState(() => _options = options);
+          unawaited(_store.saveOptions(options));
+        },
       ),
     );
     if (mounted && _studyFocus.context != null) _studyFocus.requestFocus();

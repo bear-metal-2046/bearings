@@ -2,6 +2,8 @@ import 'package:beariscope/models/match_field_ids.dart';
 import 'package:beariscope/models/team_scouting_bundle.dart';
 import 'package:beariscope/pages/picklists/picklist_model.dart';
 import 'package:beariscope/pages/picklists/picklist_provider.dart';
+import 'package:beariscope/widgets/library_identity_fields.dart';
+import 'package:beariscope/widgets/beariscope_modal.dart';
 import 'package:beariscope/pages/team_lookup/team_model.dart';
 import 'package:beariscope/pages/team_lookup/team_providers.dart';
 import 'package:beariscope/providers/rankings_provider.dart';
@@ -37,7 +39,9 @@ extension on _StartingOrder {
 }
 
 class PicklistsCreatePage extends ConsumerStatefulWidget {
-  const PicklistsCreatePage({super.key});
+  const PicklistsCreatePage({super.key, this.asSheet = false});
+
+  final bool asSheet;
 
   @override
   ConsumerState<PicklistsCreatePage> createState() =>
@@ -48,9 +52,11 @@ class _PicklistsCreatePageState extends ConsumerState<PicklistsCreatePage> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController(text: 'My Picklist');
   final _teamCountController = TextEditingController(text: '24');
+  String _emoji = randomPicklistEmoji();
   _StartingOrder _order = _StartingOrder.blank;
   PicklistMode _mode = PicklistMode.offline;
   bool _creating = false;
+  String? _error;
 
   @override
   void dispose() {
@@ -67,142 +73,132 @@ class _PicklistsCreatePageState extends ConsumerState<PicklistsCreatePage> {
             ?.hasPermission(PermissionKey.picklistsManage) ??
         false;
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('New Picklist')),
-      body: SafeArea(
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            padding: const EdgeInsets.all(20),
-            children: [
-              Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 680),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      TextFormField(
-                        controller: _titleController,
-                        autofocus: true,
-                        decoration: const InputDecoration(
-                          labelText: 'Picklist name',
-                          border: OutlineInputBorder(),
-                        ),
-                        validator: (value) =>
-                            value == null || value.trim().isEmpty
-                            ? 'Enter a name'
-                            : null,
-                      ),
-                      const SizedBox(height: 26),
-                      Text(
-                        'Picklist type',
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      const SizedBox(height: 10),
-                      ...PicklistMode.values.map(
-                        (mode) => Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: _ModeCard(
-                            mode: mode,
-                            selected: mode == _mode,
-                            enabled:
-                                mode == PicklistMode.offline ||
-                                canCreateMultiplayer,
-                            onTap: () => setState(() => _mode = mode),
-                          ),
-                        ),
-                      ),
-                      if (!canCreateMultiplayer)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 18),
-                          child: Text(
-                            'Multiplayer picklists require the picklists.manage permission.',
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        ),
-                      const SizedBox(height: 26),
-                      Text(
-                        'Choose a starting point',
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      const SizedBox(height: 10),
-                      ..._StartingOrder.values.map(
-                        (order) => Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: _OrderCard(
-                            order: order,
-                            selected: order == _order,
-                            onTap: () => setState(() => _order = order),
-                          ),
-                        ),
-                      ),
-                      AnimatedSize(
-                        duration: const Duration(milliseconds: 220),
-                        curve: Curves.easeOutCubic,
-                        child: _order == _StartingOrder.blank
-                            ? const SizedBox.shrink()
-                            : Padding(
-                                padding: const EdgeInsets.only(top: 8),
-                                child: TextFormField(
-                                  controller: _teamCountController,
-                                  keyboardType: TextInputType.number,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Amount to add',
-                                    helperText: 'You can add, remove, and reorder teams later.',
-                                    border: OutlineInputBorder(),
-                                    prefixIcon: Icon(LucideIcons.users),
-                                  ),
-                                  validator: (value) {
-                                    if (_order == _StartingOrder.blank) {
-                                      return null;
-                                    }
-                                    final count = int.tryParse(value ?? '');
-                                    return count == null || count < 1
-                                        ? 'Enter a number greater than zero'
-                                        : null;
-                                  },
-                                ),
-                              ),
-                      ),
-                      const SizedBox(height: 28),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          TextButton(
-                            onPressed: _creating ? null : () => context.pop(),
-                            child: const Text('Cancel'),
-                          ),
-                          const SizedBox(width: 12),
-                          FilledButton.icon(
-                            onPressed: _creating ? null : _create,
-                            icon: _creating
-                                ? const SizedBox.square(
-                                    dimension: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : const Icon(LucideIcons.arrowRight),
-                            label: Text(
-                              _creating ? 'Building…' : 'Create and Edit',
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+    final modal = BeariscopeModal(
+      title: 'New picklist',
+      actions: const [],
+      size: BeariscopeModalSize.tall,
+      canDismiss: !_creating,
+      primaryAction: BeariscopeModalPrimaryAction(
+        label: 'Create picklist',
+        icon: LucideIcons.check,
+        loading: _creating,
+        onPressed: _create,
+      ),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            LibraryIdentityFields(
+              nameController: _titleController,
+              nameLabel: 'Picklist name',
+              emoji: _emoji,
+              maxLength: 200,
+              enabled: !_creating,
+              onEmojiChanged: (emoji) => setState(() => _emoji = emoji),
+            ),
+            const SizedBox(height: 26),
+            Text(
+              'Picklist type',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 10),
+            ...PicklistMode.values.map(
+              (mode) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _ModeCard(
+                  mode: mode,
+                  selected: mode == _mode,
+                  enabled: mode == PicklistMode.offline || canCreateMultiplayer,
+                  onTap: () {
+                    if (!_creating) setState(() => _mode = mode);
+                  },
                 ),
               ),
-            ],
-          ),
+            ),
+            if (!canCreateMultiplayer)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 18),
+                child: Text(
+                  'Multiplayer picklists require editing access.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
+            const SizedBox(height: 26),
+            Text(
+              'Choose a starting point',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 10),
+            ..._StartingOrder.values.map(
+              (order) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _OrderCard(
+                  order: order,
+                  selected: order == _order,
+                  onTap: () {
+                    if (!_creating) setState(() => _order = order);
+                  },
+                ),
+              ),
+            ),
+            AnimatedSize(
+              duration: MediaQuery.disableAnimationsOf(context)
+                  ? Duration.zero
+                  : const Duration(milliseconds: 220),
+              curve: Curves.easeOutCubic,
+              child: _order == _StartingOrder.blank
+                  ? const SizedBox.shrink()
+                  : Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: TextFormField(
+                        controller: _teamCountController,
+                        enabled: !_creating,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Amount to add',
+                          helperText:
+                              'You can add, remove, and reorder teams later.',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(LucideIcons.users),
+                        ),
+                        validator: (value) {
+                          if (_order == _StartingOrder.blank) {
+                            return null;
+                          }
+                          final count = int.tryParse(value ?? '');
+                          return count == null || count < 1
+                              ? 'Enter a number greater than zero'
+                              : null;
+                        },
+                      ),
+                    ),
+            ),
+
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Text(
+                  _error!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ),
+          ],
         ),
       ),
+    );
+    if (widget.asSheet) return modal;
+    return Scaffold(
+      body: SafeArea(child: Center(child: modal)),
     );
   }
 
   Future<void> _create() async {
-    if (!_formKey.currentState!.validate()) return;
-    setState(() => _creating = true);
+    if (_creating || !_formKey.currentState!.validate()) return;
+    setState(() {
+      _creating = true;
+      _error = null;
+    });
     try {
       final teams = await _prepopulatedTeams();
       final canCreateMultiplayer =
@@ -214,18 +210,24 @@ class _PicklistsCreatePageState extends ConsumerState<PicklistsCreatePage> {
           .read(picklistLibraryProvider.notifier)
           .create(
             title: _titleController.text,
+            emoji: _emoji,
             teamKeys: teams,
             mode: _mode == PicklistMode.multiplayer && canCreateMultiplayer
                 ? PicklistMode.multiplayer
                 : PicklistMode.offline,
           );
-      if (mounted) context.go('/picklists/${picklist.id}');
+      if (!mounted) return;
+      if (widget.asSheet) {
+        BeariscopeModal.complete(context, picklist);
+      } else {
+        context.go('/picklists/${picklist.id}');
+      }
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not prepopulate the picklist: $error')),
-      );
-      setState(() => _creating = false);
+      setState(() {
+        _creating = false;
+        _error = 'Could not create the picklist: $error';
+      });
     }
   }
 

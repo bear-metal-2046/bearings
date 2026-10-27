@@ -1,3 +1,4 @@
+import 'package:beariscope/widgets/beariscope_modal.dart';
 import 'package:beariscope/models/match_field_ids.dart';
 import 'package:beariscope/models/team_scouting_bundle.dart';
 import 'package:beariscope/pages/team_lookup/tabs/averages_tab.dart';
@@ -667,10 +668,9 @@ class TeamDetailsPage extends ConsumerWidget {
                     floatingActionButton: showObservationFab
                         ? FloatingActionButton.extended(
                             onPressed: () {
-                              showModalBottomSheet<void>(
-                                context: context,
-                                isScrollControlled: true,
-                                useSafeArea: true,
+                              BeariscopeModal.show<void>(
+                                context,
+
                                 builder: (_) => ObservationSheet(
                                   teamName: teamName,
                                   teamNumber: teamNumber,

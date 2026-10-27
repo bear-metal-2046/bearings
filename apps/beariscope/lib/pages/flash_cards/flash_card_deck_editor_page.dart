@@ -1,10 +1,11 @@
+import 'package:beariscope/widgets/beariscope_alert_dialog.dart';
+import 'package:beariscope/widgets/beariscope_modal.dart';
 import 'package:beariscope/pages/flash_cards/flash_card_deck_model.dart';
 import 'package:beariscope/pages/flash_cards/flash_card_deck_provider.dart';
 import 'package:beariscope/pages/flash_cards/flash_card_deck_share_page.dart';
 import 'package:beariscope/pages/flash_cards/flash_card_event_picker.dart';
 import 'package:beariscope/pages/flash_cards/flash_card_sheet.dart';
-import 'package:beariscope/pages/picklists/picklist_emoji.dart';
-import 'package:beariscope/pages/picklists/picklist_emoji_colors.dart';
+import 'package:beariscope/widgets/library_identity_fields.dart';
 import 'package:beariscope/pages/picklists/picklist_model.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -49,9 +50,10 @@ class _FlashCardDeckEditorPageState
 
   Future<void> _chooseEvents() async {
     FocusScope.of(context).unfocus();
-    final events = await showFlashCardSheet<Set<String>>(
+    final events = await BeariscopeModal.show<Set<String>>(
       context,
-      FlashCardEventPicker(selected: _events),
+
+      builder: (_) => FlashCardEventPicker(selected: _events),
     );
     if (mounted && events != null) {
       setState(() {
@@ -64,7 +66,7 @@ class _FlashCardDeckEditorPageState
   Future<void> _delete() async {
     final deck = _original;
     if (deck == null || _saving) return;
-    final confirmed = await showDialog<bool>(
+    final confirmed = await BeariscopeAlertDialog.show<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete deck?'),
@@ -115,12 +117,15 @@ class _FlashCardDeckEditorPageState
       await ref.read(flashCardLibraryProvider.notifier).save(deck);
       if (!mounted) return;
       if (share) {
-        await showFlashCardSheet<void>(
+        setState(() => _saving = false);
+        await BeariscopeModal.show<void>(
           context,
-          FlashCardDeckSharePage(deckId: deck.id, asSheet: true),
+
+          builder: (_) =>
+              FlashCardDeckSharePage(deckId: deck.id, asSheet: true),
         );
       } else {
-        Navigator.pop(context, deck);
+        BeariscopeModal.complete(context, deck);
       }
     } on FormatException catch (error) {
       if (mounted) setState(() => _error = error.message);
@@ -142,64 +147,39 @@ class _FlashCardDeckEditorPageState
       title: widget.deckId == null ? 'New deck' : 'Deck options',
       actions: [
         if (_original != null)
-          IconButton(
-            tooltip: 'Share deck',
+          BeariscopeModalAction(
+            label: 'Share deck',
+            icon: LucideIcons.share,
             onPressed: _saving ? null : () => _save(share: true),
-            icon: const Icon(LucideIcons.share),
           ),
         if (_original != null)
-          IconButton(
-            tooltip: 'Delete deck',
+          BeariscopeModalAction(
+            label: 'Delete deck',
+            icon: LucideIcons.trash2,
             onPressed: _saving ? null : _delete,
-            icon: Icon(LucideIcons.trash2, color: colors.error),
           ),
       ],
-      footer: missing
+      canDismiss: !_saving,
+      primaryAction: missing
           ? null
-          : FilledButton(
-              onPressed: _saving ? null : _save,
-              child: Text(
-                _saving
-                    ? 'Saving…'
-                    : widget.deckId == null
-                    ? 'Create deck'
-                    : 'Save changes',
-              ),
+          : BeariscopeModalPrimaryAction(
+              label: widget.deckId == null ? 'Create deck' : 'Save changes',
+              icon: LucideIcons.check,
+              loading: _saving,
+              onPressed: _save,
             ),
       child: missing
           ? const Text('Deck not found')
           : Form(
               key: _form,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Center(
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 220),
-                      curve: Curves.easeOutCubic,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: picklistThumbnailColor(_emoji, colors),
-                        borderRadius: BorderRadius.circular(22),
-                      ),
-                      child: PicklistEmoji(_emoji, size: 56),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  TextFormField(
-                    controller: _name,
-                    enabled: !_saving,
-                    maxLength: 64,
-                    textCapitalization: TextCapitalization.sentences,
-                    decoration: const InputDecoration(
-                      labelText: 'Deck name',
-                      counterText: '',
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (value) => value == null || value.trim().isEmpty
-                        ? 'Enter a name'
-                        : null,
-                  ),
+              child: LibraryIdentityFields(
+                nameController: _name,
+                nameLabel: 'Deck name',
+                emoji: _emoji,
+                maxLength: 64,
+                enabled: !_saving,
+                onEmojiChanged: (emoji) => setState(() => _emoji = emoji),
+                details: [
                   const SizedBox(height: 12),
                   Material(
                     color: colors.surfaceContainerLow,
@@ -227,71 +207,6 @@ class _FlashCardDeckEditorPageState
                         style: TextStyle(color: colors.error),
                       ),
                     ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'Choose an emoji',
-                          style: Theme.of(context).textTheme.titleSmall,
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: 'Surprise me',
-                        onPressed: _saving
-                            ? null
-                            : () => setState(
-                                () => _emoji = randomPicklistEmoji(),
-                              ),
-                        icon: const Icon(LucideIcons.shuffle, size: 18),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    alignment: WrapAlignment.center,
-                    children: [
-                      for (final emoji in picklistEmojis)
-                        Semantics(
-                          button: true,
-                          selected: _emoji == emoji,
-                          label: 'Use $emoji as thumbnail',
-                          excludeSemantics: true,
-                          onTap: _saving
-                              ? null
-                              : () => setState(() => _emoji = emoji),
-                          child: SizedBox(
-                            width: 48,
-                            height: 48,
-                            child: Material(
-                              color: _emoji == emoji
-                                  ? colors.primaryContainer
-                                  : colors.surfaceContainerLow,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                                side: BorderSide(
-                                  color: _emoji == emoji
-                                      ? colors.primary
-                                      : Colors.transparent,
-                                  width: 2,
-                                ),
-                              ),
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(14),
-                                onTap: _saving
-                                    ? null
-                                    : () => setState(() => _emoji = emoji),
-                                child: Center(
-                                  child: PicklistEmoji(emoji, size: 28),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
                 ],
               ),
             ),

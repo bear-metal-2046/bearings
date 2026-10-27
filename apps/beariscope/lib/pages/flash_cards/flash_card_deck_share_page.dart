@@ -1,14 +1,19 @@
+import 'dart:math' as math;
+import 'dart:ui' as ui;
+
 import 'package:beariscope/pages/flash_cards/flash_card_deck_provider.dart';
-import 'package:beariscope/pages/flash_cards/flash_card_qr.dart';
-import 'package:beariscope/pages/picklists/picklist_emoji.dart';
+import 'package:beariscope/pages/flash_cards/flash_card_deck_model.dart';
+import 'package:beariscope/pages/flash_cards/flash_card_share_card.dart';
 import 'package:beariscope/pages/flash_cards/flash_card_sheet.dart';
-import 'package:beariscope/pages/picklists/picklist_emoji_colors.dart';
+import 'package:beariscope/widgets/beariscope_modal.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:qr_flutter/qr_flutter.dart';
+import 'package:share_plus/share_plus.dart';
 
 class FlashCardDeckSharePage extends ConsumerStatefulWidget {
   const FlashCardDeckSharePage({
@@ -25,7 +30,19 @@ class FlashCardDeckSharePage extends ConsumerStatefulWidget {
 
 class _FlashCardDeckSharePageState
     extends ConsumerState<FlashCardDeckSharePage> {
+  final _cardKey = GlobalKey();
+  // Deal once per sheet, so copying or exporting never makes the card jump.
+  late final double _angle =
+      (math.Random().nextBool() ? 1 : -1) *
+      (1.2 + math.Random().nextDouble() * 1.6) *
+      math.pi /
+      180;
   bool _saving = false;
+
+  bool get _nativeSharing =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.iOS ||
+          defaultTargetPlatform == TargetPlatform.android);
   void _message(String text) {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
@@ -41,25 +58,55 @@ class _FlashCardDeckSharePageState
     }
   }
 
-  Future<void> _download(String code, String name) async {
+  Future<Uint8List> _cardImage() async {
+    final boundary =
+        _cardKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+    final image = await boundary.toImage(
+      pixelRatio: 1200 / boundary.size.width,
+    );
+    try {
+      final data = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (data == null) throw StateError('The card could not be rendered.');
+      return data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+    } finally {
+      image.dispose();
+    }
+  }
+
+  Future<void> _shareImage(FlashCardDeckDefinition deck) async {
     if (_saving) return;
     setState(() => _saving = true);
     try {
-      final bytes = await renderFlashCardQr(code);
+      final bytes = await _cardImage();
       if (!mounted) return;
-      final slug = name
+      final slug = deck.name
           .toLowerCase()
           .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
           .replaceAll(RegExp(r'^-|-$'), '');
-      final saved = await FilePicker.saveFile(
-        dialogTitle: 'Save deck QR code',
-        fileName: '${slug.isEmpty ? 'flashcard-deck' : slug}.png',
-        bytes: bytes,
-        mimeType: 'image/png',
-      );
-      if (saved != null) _message('QR code saved.');
+      final filename = '${slug.isEmpty ? 'flashcard-deck' : slug}.png';
+      if (_nativeSharing) {
+        final box = _cardKey.currentContext!.findRenderObject() as RenderBox;
+        await SharePlus.instance.share(
+          ShareParams(
+            files: [
+              XFile.fromData(bytes, mimeType: 'image/png', name: filename),
+            ],
+            fileNameOverrides: [filename],
+            subject: deck.name,
+            sharePositionOrigin: box.localToGlobal(Offset.zero) & box.size,
+          ),
+        );
+      } else {
+        final saved = await FilePicker.saveFile(
+          dialogTitle: 'Save deck card',
+          fileName: filename,
+          bytes: bytes,
+          mimeType: 'image/png',
+        );
+        if (saved != null) _message('Deck card saved.');
+      }
     } catch (_) {
-      _message('Could not save the QR code. Try again.');
+      _message('Could not share the deck card. Try again.');
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -74,73 +121,61 @@ class _FlashCardDeckSharePageState
     return FlashCardSheet(
       title: 'Share deck',
       asSheet: widget.asSheet,
-      footer: deck == null
+      actions: [
+        if (deck != null)
+          BeariscopeModalAction(
+            label: _nativeSharing ? 'Share image' : 'Save image',
+            icon: _nativeSharing ? LucideIcons.share : LucideIcons.download,
+            onPressed: _saving ? null : () => _shareImage(deck),
+          ),
+      ],
+      primaryAction: deck == null
           ? null
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                FilledButton.icon(
-                  onPressed: () => _copy(deck.shareCode),
-                  icon: const Icon(LucideIcons.copy),
-                  label: const Text('Copy code'),
-                ),
-                const SizedBox(height: 8),
-                OutlinedButton.icon(
-                  onPressed: _saving
-                      ? null
-                      : () => _download(deck.shareCode, deck.name),
-                  icon: const Icon(LucideIcons.download),
-                  label: Text(_saving ? 'Saving…' : 'Download QR code'),
-                ),
-              ],
+          : BeariscopeModalPrimaryAction(
+              label: 'Copy code',
+              icon: LucideIcons.copy,
+              onPressed: () => _copy(deck.shareCode),
             ),
       child: deck == null
           ? const Text('Deck not found')
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
+          : Padding(
+              // Reserve space for the rotated corners and the table shadow.
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 340),
+                  child: Transform.rotate(
+                    key: const ValueKey('deck-share-tilt'),
+                    angle: _angle,
+                    child: DecoratedBox(
                       decoration: BoxDecoration(
-                        color: picklistThumbnailColor(
-                          deck.emoji,
-                          Theme.of(context).colorScheme,
+                        borderRadius: BorderRadius.circular(
+                          FlashCardShareCard.cornerRadius,
                         ),
-                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: .18),
+                            blurRadius: 24,
+                            offset: const Offset(0, 12),
+                          ),
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: .10),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
-                      child: PicklistEmoji(deck.emoji, size: 32),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        deck.name,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                LayoutBuilder(
-                  builder: (context, bounds) => Center(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
                       child: RepaintBoundary(
-                        key: const ValueKey('deck-share-qr'),
-                        child: QrImageView(
-                          data: deck.shareCode,
-                          size: bounds.maxWidth.clamp(0, 300),
-                          padding: const EdgeInsets.all(20),
-                          backgroundColor: Colors.white,
-                          errorCorrectionLevel: QrErrorCorrectLevel.M,
-                          gapless: false,
+                        key: _cardKey,
+                        child: FlashCardShareCard(
+                          key: const ValueKey('deck-share-card'),
+                          deck: deck,
                         ),
                       ),
                     ),
                   ),
                 ),
-              ],
+              ),
             ),
     );
   }

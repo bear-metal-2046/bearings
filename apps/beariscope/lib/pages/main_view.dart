@@ -1,3 +1,4 @@
+import 'package:beariscope/widgets/beariscope_alert_dialog.dart';
 import 'package:beariscope/pages/scout_audit/scout_audit_provider.dart';
 import 'package:beariscope/pages/settings/appearance_settings_page.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
@@ -783,7 +784,7 @@ class _MainViewState extends ConsumerState<MainView> {
               ),
               onPressed: () async {
                 final confirmed =
-                    await showDialog<bool>(
+                    await BeariscopeAlertDialog.show<bool>(
                       context: context,
                       builder: (context) => AlertDialog(
                         title: const Text('Sign Out'),

@@ -9,6 +9,7 @@ environment:
   flutter: ^3.0.0
 
 dependencies:
+  archive: ^3.6.1
   characters: ^1.4.1
   core:
     path: ../../packages/core

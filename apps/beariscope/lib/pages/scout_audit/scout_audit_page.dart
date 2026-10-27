@@ -1,3 +1,6 @@
+import 'package:beariscope/widgets/beariscope_alert_dialog.dart';
+import 'package:beariscope/widgets/beariscope_modal.dart';
+
 import 'dart:convert';
 import 'dart:math' as math;
 
@@ -224,8 +227,9 @@ class _ScoutAuditPageState extends ConsumerState<ScoutAuditPage> {
   }
 
   Future<void> _showManualScoutDialog(BuildContext context) async {
-    final selection = await showDialog<_ManualScoutSelection>(
-      context: context,
+    final selection = await BeariscopeModal.show<_ManualScoutSelection>(
+      context,
+      useRootNavigator: true,
       builder: (_) => const _ManualScoutDialog(),
     );
 
@@ -418,12 +422,19 @@ class _ScoutAuditPageState extends ConsumerState<ScoutAuditPage> {
   ) async {
     var value = threshold;
 
-    final changed = await showDialog<bool>(
-      context: context,
+    final changed = await BeariscopeModal.show<bool>(
+      context,
+      useRootNavigator: true,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) {
-          return AlertDialog(
-            title: const Text('Incorrect Data Threshold'),
+          return BeariscopeModal(
+            title: 'Incorrect Data Threshold',
+            actions: const [],
+            primaryAction: BeariscopeModalPrimaryAction(
+              label: 'Apply',
+              icon: LucideIcons.check,
+              onPressed: () => Navigator.of(context).pop(true),
+            ),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -443,16 +454,6 @@ class _ScoutAuditPageState extends ConsumerState<ScoutAuditPage> {
                 ),
               ],
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('Apply'),
-              ),
-            ],
           );
         },
       ),
@@ -1527,7 +1528,8 @@ class _ManualScoutDialogState extends ConsumerState<_ManualScoutDialog> {
       }
 
       if (!mounted) return;
-      Navigator.of(context).pop(
+      BeariscopeModal.complete(
+        context,
         _ManualScoutSelection(
           matchNumber: matchNumber,
           teamNumber: teamNumber,
@@ -1549,8 +1551,16 @@ class _ManualScoutDialogState extends ConsumerState<_ManualScoutDialog> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return AlertDialog(
-      title: const Text('Manual Scout'),
+    return BeariscopeModal(
+      title: 'Manual Scout',
+      actions: const [],
+      canDismiss: !_submitting,
+      primaryAction: BeariscopeModalPrimaryAction(
+        label: 'Scout',
+        icon: LucideIcons.check,
+        loading: _submitting,
+        onPressed: _submit,
+      ),
       content: SizedBox(
         width: 420,
         child: Column(
@@ -1588,22 +1598,6 @@ class _ManualScoutDialogState extends ConsumerState<_ManualScoutDialog> {
           ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: _submitting ? null : () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: _submitting ? null : _submit,
-          child: _submitting
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Text('Scout'),
-        ),
-      ],
     );
   }
 }
@@ -1630,7 +1624,7 @@ Future<bool> _confirm(
   required String message,
   required String confirmLabel,
 }) async {
-  final confirmed = await showDialog<bool>(
+  final confirmed = await BeariscopeAlertDialog.show<bool>(
     context: context,
     builder: (context) => AlertDialog(
       title: Text(title),

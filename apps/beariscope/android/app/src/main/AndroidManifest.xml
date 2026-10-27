@@ -1,4 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     package="org.tahomarobotics.beariscope">
 
     <uses-permission android:name="android.permission.INTERNET" />
@@ -30,6 +31,32 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+            <meta-data
+                android:name="flutter_deeplinking_enabled"
+                android:value="true" />
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="org.tahomarobotics.beariscope"
+                    android:host="deck" />
+            </intent-filter>
+        </activity>
+        <!-- Keep the scheme shared with login, but give each host one receiver. -->
+        <activity
+            android:name="com.bdayadev.oidc.OidcRedirectActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            tools:node="replace">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="org.tahomarobotics.beariscope"
+                    android:host="callback" />
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

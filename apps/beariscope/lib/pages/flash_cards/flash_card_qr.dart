@@ -8,7 +8,14 @@ import 'package:zxing2/qrcode.dart' as zx;
 /// Includes a white quiet zone, independent of the app's current theme.
 Future<Uint8List> renderFlashCardQr(String code) async {
   const size = 1024.0;
-  const quietZone = 48.0;
+  final qr = QrCode.fromData(
+    data: code,
+    errorCorrectLevel: QrErrorCorrectLevel.M,
+  );
+  // Four clear modules on every side, with whole-pixel modules for export.
+  final moduleSize = (size / (qr.moduleCount + 8)).floorToDouble();
+  final qrSize = moduleSize * qr.moduleCount;
+  final quietZone = (size - qrSize) / 2;
   final recorder = ui.PictureRecorder();
   final canvas = ui.Canvas(recorder);
   canvas.drawRect(
@@ -16,12 +23,10 @@ Future<Uint8List> renderFlashCardQr(String code) async {
     ui.Paint()..color = const ui.Color(0xffffffff),
   );
   canvas.translate(quietZone, quietZone);
-  QrPainter(
-    data: code,
-    version: QrVersions.auto,
-    errorCorrectionLevel: QrErrorCorrectLevel.M,
-    gapless: false,
-  ).paint(canvas, const ui.Size(size - quietZone * 2, size - quietZone * 2));
+  QrPainter.withQr(
+    qr: qr,
+    gapless: true,
+  ).paint(canvas, ui.Size(qrSize, qrSize));
   final picture = recorder.endRecording();
   final image = await picture.toImage(size.toInt(), size.toInt());
   try {
@@ -54,8 +59,9 @@ String _readQrImage(Uint8List bytes) {
   if (info == null || info.width * info.height > 16000000) {
     throw const FormatException('Choose a smaller PNG or JPEG QR image.');
   }
-  var image = decoder!.decodeFrame(0);
-  if (image == null) throw const FormatException('Could not read this image.');
+  var image =
+      decoder!.decodeFrame(0) ??
+      (throw const FormatException('Could not read this image.'));
   if (image.width > 1800 || image.height > 1800) {
     image = img.copyResize(
       image,
@@ -63,6 +69,16 @@ String _readQrImage(Uint8List bytes) {
       height: image.height > image.width ? 1800 : null,
     );
   }
+  // Some valid data patterns confuse the detector in one orientation.
+  for (var turns = 0; turns < 4; turns++) {
+    final code = _readQrOrientation(image);
+    if (code != null) return code;
+    if (turns < 3) image = img.copyRotate(image, angle: 90);
+  }
+  throw const FormatException('No readable QR code was found in this image.');
+}
+
+String? _readQrOrientation(img.Image image) {
   final rgba = image
       .convert(numChannels: 4)
       .getBytes(order: img.ChannelOrder.rgba);
@@ -88,5 +104,5 @@ String _readQrImage(Uint8List bytes) {
       continue;
     }
   }
-  throw const FormatException('No readable QR code was found in this image.');
+  return null;
 }

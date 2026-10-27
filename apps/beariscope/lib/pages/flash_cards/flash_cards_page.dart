@@ -3,7 +3,8 @@ import 'package:beariscope/pages/flash_cards/flash_card_deck_import_page.dart';
 import 'package:beariscope/pages/flash_cards/flash_card_deck_model.dart';
 import 'package:beariscope/pages/flash_cards/flash_card_deck_provider.dart';
 import 'package:beariscope/pages/flash_cards/flash_card_progress.dart';
-import 'package:beariscope/pages/flash_cards/flash_card_sheet.dart';
+import 'package:beariscope/widgets/beariscope_modal.dart';
+import 'package:beariscope/widgets/library_tile.dart';
 import 'package:beariscope/pages/main_view.dart';
 import 'package:beariscope/pages/team_lookup/team_providers.dart';
 import 'package:beariscope/pages/picklists/picklist_emoji.dart';
@@ -28,9 +29,10 @@ class _FlashCardsPageState extends ConsumerState<FlashCardsPage> {
   }
 
   Future<void> _create({bool importing = false}) async {
-    final deck = await showFlashCardSheet<FlashCardDeckDefinition>(
+    final deck = await BeariscopeModal.show<FlashCardDeckDefinition>(
       context,
-      importing
+
+      builder: (_) => importing
           ? const FlashCardDeckImportPage(asSheet: true)
           : const FlashCardDeckEditorPage(asSheet: true),
     );
@@ -72,67 +74,45 @@ class _FlashCardsPageState extends ConsumerState<FlashCardsPage> {
       ),
       body: SafeArea(
         top: false,
-        child: LayoutBuilder(
-          builder: (context, bounds) {
-            final padding = ((bounds.maxWidth - 1080) / 2).clamp(
-              16.0,
-              double.infinity,
-            );
-            final width = bounds.maxWidth - padding * 2;
-            final largeText = MediaQuery.textScalerOf(context).scale(14) > 20;
-            final columns = ((width + 16) / (largeText ? 296 : 172))
-                .floor()
-                .clamp(1, 4);
-            return GridView.builder(
-              padding: EdgeInsets.fromLTRB(padding, 16, padding, 104),
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: columns,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-                mainAxisExtent: largeText ? 272 : 228,
+        child: LibraryGrid(
+          itemCount: decks.length + 1,
+          itemBuilder: (context, index) {
+            if (index == 0) {
+              return _DeckTile(
+                key: const ValueKey('flash-card-current-event'),
+                title: eventName,
+                caption: 'Current event',
+                progressScope: event,
+                color: colors.primaryContainer,
+                thumbnail: Icon(
+                  LucideIcons.calendarDays,
+                  size: 48,
+                  color: colors.onPrimaryContainer,
+                ),
+                onTap: () => _open('/flash_cards/current'),
+              );
+            }
+            final deck = decks[index - 1];
+            return _DeckTile(
+              key: ValueKey('deck-${deck.id}'),
+              title: deck.name,
+              caption:
+                  '${deck.eventKeys.length} ${deck.eventKeys.length == 1 ? 'event' : 'events'}',
+              progressScope: deck.progressScope,
+              deckId: deck.id,
+              color: picklistThumbnailColor(deck.emoji, colors),
+              thumbnail: PicklistEmoji(deck.emoji, size: 56),
+              onTap: () => _open('/flash_cards/${deck.id}'),
+              options: IconButton(
+                tooltip: 'Deck options for ${deck.name}',
+                icon: const Icon(LucideIcons.ellipsis, size: 20),
+                onPressed: () => BeariscopeModal.show<FlashCardDeckDefinition>(
+                  context,
+
+                  builder: (_) =>
+                      FlashCardDeckEditorPage(deckId: deck.id, asSheet: true),
+                ),
               ),
-              itemCount: decks.length + 1,
-              itemBuilder: (context, index) {
-                if (index == 0) {
-                  return _DeckTile(
-                    key: const ValueKey('flash-card-current-event'),
-                    title: eventName,
-                    caption: 'Current event',
-                    progressScope: event,
-                    color: colors.primaryContainer,
-                    thumbnail: Icon(
-                      LucideIcons.calendarDays,
-                      size: 48,
-                      color: colors.onPrimaryContainer,
-                    ),
-                    onTap: () => _open('/flash_cards/current'),
-                  );
-                }
-                final deck = decks[index - 1];
-                return _DeckTile(
-                  key: ValueKey('deck-${deck.id}'),
-                  title: deck.name,
-                  caption:
-                      '${deck.eventKeys.length} ${deck.eventKeys.length == 1 ? 'event' : 'events'}',
-                  progressScope: deck.progressScope,
-                  deckId: deck.id,
-                  color: picklistThumbnailColor(deck.emoji, colors),
-                  thumbnail: PicklistEmoji(deck.emoji, size: 56),
-                  onTap: () => _open('/flash_cards/${deck.id}'),
-                  options: IconButton(
-                    tooltip: 'Deck options for ${deck.name}',
-                    icon: const Icon(LucideIcons.ellipsis, size: 20),
-                    onPressed: () =>
-                        showFlashCardSheet<FlashCardDeckDefinition>(
-                          context,
-                          FlashCardDeckEditorPage(
-                            deckId: deck.id,
-                            asSheet: true,
-                          ),
-                        ),
-                  ),
-                );
-              },
             );
           },
         ),
@@ -169,7 +149,6 @@ class _DeckTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colors = Theme.of(context).colorScheme;
     final roster = deckId == null
         ? normalizeCurrentFlashCardRoster(ref.watch(teamsProvider))
         : ref.watch(flashCardCustomTeamsProvider(deckId!));
@@ -185,61 +164,17 @@ class _DeckTile extends ConsumerWidget {
         : teams.isEmpty
         ? 0.0
         : teams.where((key) => ratings[key] == true).length / teams.length;
-    return Material(
-      color: colors.surfaceContainerLow,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: colors.outlineVariant.withValues(alpha: .45)),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: ColoredBox(
-                color: color,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    Center(child: thumbnail),
-                    if (options != null)
-                      Positioned(top: 4, right: 4, child: options!),
-                  ],
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    caption,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall
-                        ?.copyWith(color: colors.onSurfaceVariant),
-                  ),
-                  const SizedBox(height: 10),
-                  _LearnedProgress(
-                    fraction: learned,
-                    label: title,
-                    failed: roster.hasError,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+    return LibraryTile(
+      title: title,
+      caption: caption,
+      color: color,
+      thumbnail: thumbnail,
+      onTap: onTap,
+      options: options,
+      footer: _LearnedProgress(
+        fraction: learned,
+        label: title,
+        failed: roster.hasError,
       ),
     );
   }

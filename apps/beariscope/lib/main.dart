@@ -24,6 +24,7 @@ import 'package:beariscope/pages/up_next/match_preview_page.dart';
 import 'package:beariscope/pages/up_next/up_next_page.dart';
 import 'package:beariscope/pages/utilities/utilities_page.dart';
 import 'package:beariscope/pages/flash_cards/flash_cards_page.dart';
+import 'package:beariscope/pages/flash_cards/flash_card_deep_link.dart';
 import 'package:beariscope/pages/flash_cards/flash_card_study_page.dart';
 import 'package:beariscope/pages/flash_cards/flash_card_deck_editor_page.dart';
 import 'package:beariscope/pages/flash_cards/flash_card_deck_import_page.dart';
@@ -109,6 +110,7 @@ class RouterRefreshNotifier extends ChangeNotifier {
 
 final routerProvider = Provider<GoRouter>((ref) {
   final refreshNotifier = RouterRefreshNotifier(ref);
+  final deckLink = FlashCardDeepLink();
 
   return GoRouter(
     initialLocation: '/splash',
@@ -206,7 +208,10 @@ final routerProvider = Provider<GoRouter>((ref) {
               ),
               GoRoute(
                 path: 'import',
-                builder: (_, _) => const FlashCardDeckImportPage(),
+                builder: (_, state) => FlashCardDeckImportPage(
+                  key: ValueKey(state.uri.queryParameters['code']),
+                  initialCode: state.uri.queryParameters['code'],
+                ),
               ),
               GoRoute(
                 path: 'edit/:deckId',
@@ -297,6 +302,10 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (_, state) {
       final location = state.matchedLocation;
       final phase = ref.read(appPhaseProvider);
+      final deckRedirect = deckLink.redirect(
+        state.uri,
+        ready: phase == AppPhase.ready,
+      );
 
       // 1. Route based on app phase
       final phaseRedirect = switch (phase) {
@@ -313,6 +322,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       };
 
       if (phaseRedirect != null) return phaseRedirect;
+      if (deckRedirect != null) return deckRedirect;
 
       // 2. AppPhase.ready — permission guards for protected routes
       final isRoleManagementRoute = location == '/settings/roles';
