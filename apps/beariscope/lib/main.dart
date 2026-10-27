@@ -28,6 +28,7 @@ import 'package:beariscope/pages/flash_cards/flash_card_deep_link.dart';
 import 'package:beariscope/pages/flash_cards/flash_card_study_page.dart';
 import 'package:beariscope/pages/flash_cards/flash_card_deck_editor_page.dart';
 import 'package:beariscope/pages/flash_cards/flash_card_deck_import_page.dart';
+import 'package:beariscope/pages/flash_cards/flash_card_deck_model.dart';
 import 'package:beariscope/pages/flash_cards/flash_card_deck_share_page.dart';
 import 'package:beariscope/providers/app_boot_provider.dart';
 import 'package:beariscope/providers/app_phase_provider.dart';
@@ -37,6 +38,7 @@ import 'package:beariscope/utils/platform_utils_stub.dart'
 import 'package:beariscope/utils/hive_storage.dart';
 import 'package:beariscope/utils/window_size_stub.dart'
     if (dart.library.io) 'package:window_size/window_size.dart';
+import 'package:beariscope/widgets/beariscope_modal.dart';
 import 'package:core/providers/device_info_provider.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
@@ -208,9 +210,14 @@ final routerProvider = Provider<GoRouter>((ref) {
               ),
               GoRoute(
                 path: 'import',
-                builder: (_, state) => FlashCardDeckImportPage(
-                  key: ValueKey(state.uri.queryParameters['code']),
-                  initialCode: state.uri.queryParameters['code'],
+                pageBuilder: (context, state) => CustomTransitionPage<void>(
+                  key: state.pageKey,
+                  opaque: false,
+                  child: _FlashCardDeckImportLink(
+                    key: ValueKey(state.uri.queryParameters['code']),
+                    initialCode: state.uri.queryParameters['code'],
+                  ),
+                  transitionsBuilder: (_, _, _, child) => child,
                 ),
               ),
               GoRoute(
@@ -385,6 +392,40 @@ final routerProvider = Provider<GoRouter>((ref) {
     },
   );
 });
+
+class _FlashCardDeckImportLink extends StatefulWidget {
+  const _FlashCardDeckImportLink({super.key, this.initialCode});
+
+  final String? initialCode;
+
+  @override
+  State<_FlashCardDeckImportLink> createState() =>
+      _FlashCardDeckImportLinkState();
+}
+
+class _FlashCardDeckImportLinkState extends State<_FlashCardDeckImportLink> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _showImport());
+  }
+
+  Future<void> _showImport() async {
+    if (!mounted) return;
+    final deck = await BeariscopeModal.show<FlashCardDeckDefinition>(
+      context,
+      builder: (_) => FlashCardDeckImportPage(
+        asSheet: true,
+        initialCode: widget.initialCode,
+      ),
+    );
+    if (!mounted) return;
+    context.go(deck == null ? '/flash_cards' : '/flash_cards/${deck.id}');
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
+}
 
 class Beariscope extends ConsumerStatefulWidget {
   const Beariscope({super.key});
