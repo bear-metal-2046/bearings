@@ -83,7 +83,7 @@ Future<void> main() async {
               DeviceOS.android: 'org.tahomarobotics.beariscope://callback',
               DeviceOS.web: 'https://scout.bearmet.al/auth.html',
               DeviceOS.windows: 'http://localhost:4000/auth',
-              DeviceOS.linux: 'http://localhoflutter run -d windows -v *> build.logst:4000/auth',
+              DeviceOS.linux: 'http://localhost:4000/auth',
             },
             storageKeyPrefix: 'beariscope_',
           );
