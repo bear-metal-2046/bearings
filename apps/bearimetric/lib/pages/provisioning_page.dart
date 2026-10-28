@@ -23,6 +23,36 @@ class ProvisioningPage extends ConsumerStatefulWidget {
 class _ProvisioningPageState extends ConsumerState<ProvisioningPage> {
   bool _provisioning = false;
   String? _error;
+  late final MobileScannerController _scannerController;
+  Future<void>? _scannerCleanup;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_scannerSupported) {
+      _scannerController = MobileScannerController();
+    }
+  }
+
+  Future<void> _stopAndDisposeScanner() {
+    if (!_scannerSupported) return Future.value();
+
+    return _scannerCleanup ??= _stopAndDisposeScannerOnce();
+  }
+
+  Future<void> _stopAndDisposeScannerOnce() async {
+    try {
+      await _scannerController.stop();
+    } finally {
+      await _scannerController.dispose();
+    }
+  }
+
+  @override
+  void dispose() {
+    unawaited(_stopAndDisposeScanner());
+    super.dispose();
+  }
 
   Future<void> _processPayload(String raw) async {
     if (_provisioning) return;
@@ -64,6 +94,8 @@ class _ProvisioningPageState extends ConsumerState<ProvisioningPage> {
           _error = 'Provisioning failed: $e';
         });
       }
+    } finally {
+      await _stopAndDisposeScanner();
     }
   }
 
@@ -98,6 +130,7 @@ class _ProvisioningPageState extends ConsumerState<ProvisioningPage> {
     return Stack(
       children: [
         MobileScanner(
+          controller: _scannerController,
           onDetect: (capture) {
             final raw = capture.barcodes.firstOrNull?.rawValue;
             if (raw != null) unawaited(_processPayload(raw));
