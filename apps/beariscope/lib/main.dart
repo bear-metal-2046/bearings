@@ -454,19 +454,14 @@ class _BeariscopeState extends ConsumerState<Beariscope> {
     final accentColor = ref.watch(accentColorProvider);
     final deviceInfo = ref.read(deviceInfoProvider);
 
-    // Wrap with builder to ensure HeroineController is available everywhere
-    final app = Builder(
-      builder: (context) {
-        return MaterialApp.router(
-          routerConfig: router,
-          theme: _createTheme(Brightness.light, accentColor),
-          darkTheme: _createTheme(Brightness.dark, accentColor),
-          themeMode: themeMode,
-          debugShowCheckedModeBanner: false,
-          builder: (context, child) =>
-              FlutterMaterialScope(child: child ?? const SizedBox.shrink()),
-        );
-      },
+    final app = MaterialApp.router(
+      routerConfig: router,
+      theme: _createTheme(Brightness.light, accentColor),
+      darkTheme: _createTheme(Brightness.dark, accentColor),
+      themeMode: themeMode,
+      debugShowCheckedModeBanner: false,
+      builder: (context, child) =>
+          FlutterMaterialScope(child: child ?? const SizedBox.shrink()),
     );
 
     if (deviceInfo.deviceOS == DeviceOS.macos) {

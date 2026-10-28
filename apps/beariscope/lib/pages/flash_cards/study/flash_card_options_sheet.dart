@@ -25,13 +25,11 @@ class _FlashCardOptionsSheetState extends State<FlashCardOptionsSheet> {
   late FlashCardOptions _options = widget.options;
 
   void _update(FlashCardOptions options) {
-    HapticFeedback.selectionClick();
     setState(() => _options = options);
     widget.onChanged(options);
   }
 
   Future<void> _confirmReset() async {
-    HapticFeedback.selectionClick();
     final confirmed = await BeariscopeAlertDialog.show<bool>(
       context: context,
       title: 'Reset progress?',
