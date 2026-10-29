@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:services/providers/api_provider.dart';
 import 'package:services/providers/user_profile_provider.dart';
+import 'package:linear_progress_bar/linear_progress_bar.dart';
 
 String? _pitsScouterName(ScoutingDocument? doc) {
   final scoutedBy = doc?.meta?['scoutedBy']?.toString().trim() ?? '';
@@ -518,5 +519,39 @@ class _PitsScoutingFormPageState extends ConsumerState<PitsScoutingFormPage> {
       return asDouble.toInt().toString();
     }
     return asDouble.toString();
+  }
+}
+
+// Progress bar that appears at the top of the Pits Scouting page
+class PitsProgressBar extends StatefulWidget {
+  final int numberOfTeams;
+  final int currentScoutedTeams;
+
+  PitsProgressBar({super.key, required this.numberOfTeams, required this.currentScoutedTeams});
+
+  @override
+  State<PitsProgressBar> createState() => PitsProgressBarState(numberOfTeams: numberOfTeams, currentScoutedTeams: currentScoutedTeams);
+}
+
+class PitsProgressBarState extends State<PitsProgressBar> {
+  final int numberOfTeams;
+  final int currentScoutedTeams;
+
+  PitsProgressBarState({required this.numberOfTeams, required this.currentScoutedTeams});
+
+  @override
+  Widget build(BuildContext context) {
+    double _percentCompleted = widget.currentScoutedTeams / widget.numberOfTeams;
+
+    return TitledProgressBar(
+      progressColor: Theme.of(context).primaryColor,
+      backgroundColor: Theme.of(context).shadowColor,
+      maxSteps: widget.numberOfTeams,
+      currentStep: widget.currentScoutedTeams,
+      labelType: LabelType.percentage,
+      labelColor: Theme.of(context).highlightColor,
+      labelFontWeight: FontWeight.bold,
+      minHeight: 24,
+    );
   }
 }

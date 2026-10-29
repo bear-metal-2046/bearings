@@ -12,6 +12,7 @@ import 'package:beariscope/utils/platform_utils_stub.dart'
 import 'package:beariscope/widgets/beariscope_card.dart';
 import 'package:beariscope/widgets/beariscope_search_bar.dart';
 import 'package:beariscope/widgets/beariscope_status_view.dart';
+import 'package:flutter/rendering.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -318,7 +319,15 @@ class PitsScoutingHomePageState extends ConsumerState<PitsScoutingHomePage>
         Positioned.fill(
           child: RefreshIndicator(
             onRefresh: onRefresh,
-            child: _buildTeamList(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Progress bar at the top of the Pits Scouting Page
+              PitsProgressBar(
+                  numberOfTeams: teams.length,
+                  currentScoutedTeams: countScoutedTeams(teams, scoutedNums),
+              ),
+            _buildTeamList(
               context,
               teams,
               scoutedNums,
@@ -327,6 +336,8 @@ class PitsScoutingHomePageState extends ConsumerState<PitsScoutingHomePage>
                   : searchAtTop
                   ? const EdgeInsets.fromLTRB(16, 72, 16, 16)
                   : EdgeInsets.fromLTRB(16, 16, 16, 120 + safeAreaBottom),
+            ),
+      ]
             ),
           ),
         ),
@@ -415,22 +426,39 @@ class PitsScoutingHomePageState extends ConsumerState<PitsScoutingHomePage>
       );
     }
 
-    return BeariscopeCardList(
-      padding: padding,
-      children: filteredTeams
-          .map(
-            (team) => PitsScoutingTeamCard(
-              teamName: team.name,
-              teamNumber: team.number,
-              scouted: scoutedNums.contains(team.number),
-              onScoutedChanged: (value) {
-                if (!value) return;
-                // The provider updates automatically; just refresh it.
-                ref.read(scoutingDataProvider.notifier).refresh();
-              },
-            ),
-          )
-          .toList(),
+    return
+        BeariscopeCardList(
+          padding: padding,
+          children: filteredTeams
+              .map(
+                (team) {
+                  return PitsScoutingTeamCard(
+                    teamName: team.name,
+                    teamNumber: team.number,
+                    scouted: scoutedNums.contains(team.number),
+                    onScoutedChanged: (value) {
+                      if (!value) return;
+                      // The provider updates automatically; just refresh it.
+                      ref.read(scoutingDataProvider.notifier).refresh();
+                    },
+                  );
+                }
+              )
+              .toList(),
     );
+  }
+
+  int countScoutedTeams(List<Team> teams, Set<int> scoutedNums) {
+    int numberScouted = 0;
+
+    for (int i = 0; i < teams.length; i++) {
+      teams.map((team) {
+        if (scoutedNums.contains(team.number)) {
+          numberScouted++;
+        }
+      });
+    }
+
+    return numberScouted;
   }
 }
