@@ -4,6 +4,7 @@ import 'package:beariscope/pages/picklists/picklist_emoji.dart';
 import 'dart:async';
 
 import 'package:beariscope/pages/picklists/picklist_options_sheet.dart';
+import 'package:beariscope/pages/picklists/picklist_team_quick_view_sheet.dart';
 
 import 'package:beariscope/pages/picklists/picklist_presence_stack.dart';
 
@@ -20,6 +21,7 @@ import 'package:beariscope/providers/team_scouting_provider.dart';
 import 'package:beariscope/widgets/beariscope_search_bar.dart';
 import 'package:beariscope/widgets/beariscope_status_view.dart';
 import 'package:beariscope/widgets/screenshot_guard.dart';
+import 'package:beariscope/widgets/team_card.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -1484,7 +1486,32 @@ class _PicklistSurfaceState extends ConsumerState<_PicklistSurface> {
                               LucideIcons.gripVertical,
                               size: 20,
                             ),
-                            onSelected: (value) {
+                            onSelected: (value) async {
+                              if (value == 'details') {
+                                final team = resolvedTeams[teams[index]];
+                                if (team == null) return;
+                                final diveDeeper = await showModalBottomSheet<bool>(
+                                  context: context,
+                                  isScrollControlled: true,
+                                  useSafeArea: true,
+                                  backgroundColor: Colors.transparent,
+                                  builder: (context) =>
+                                      PicklistTeamQuickViewSheet(team: team),
+                                );
+                                if (!context.mounted || diveDeeper != true) return;
+                                Navigator.of(
+                                  context,
+                                  rootNavigator: true,
+                                ).push(
+                                  MaterialPageRoute(
+                                    builder: (context) => TeamDetailsPage(
+                                      teamName: team.name,
+                                      teamNumber: team.number,
+                                      teamWebsite: team.website,
+                                    ),
+                                  ),
+                                );
+                              }
                               if (value == 'remove') {
                                 widget.onRemoveTeam(teams[index]);
                               }
@@ -1496,6 +1523,14 @@ class _PicklistSurfaceState extends ConsumerState<_PicklistSurface> {
                               }
                             },
                             itemBuilder: (context) => [
+                              if (resolvedTeams[teams[index]] != null)
+                                const PopupMenuItem(
+                                  value: 'details',
+                                  child: ListTile(
+                                    leading: Icon(LucideIcons.info),
+                                    title: Text('View team details'),
+                                  ),
+                                ),
                               if (index > 0)
                                 const PopupMenuItem(
                                   value: 'up',
