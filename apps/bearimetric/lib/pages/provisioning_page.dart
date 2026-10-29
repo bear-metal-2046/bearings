@@ -94,9 +94,10 @@ class _ProvisioningPageState extends ConsumerState<ProvisioningPage> {
           _error = 'Provisioning failed: $e';
         });
       }
-    } finally {
-      await _stopAndDisposeScanner();
+      return;
     }
+
+    await _stopAndDisposeScanner();
   }
 
   Future<void> _showPasteDialog() async {
