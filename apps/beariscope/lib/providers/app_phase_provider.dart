@@ -20,7 +20,7 @@ enum AppPhase {
   /// (set real name, verify email, etc.).
   onboarding,
 
-  /// Normal operation — user is authenticated and onboarding is done.
+  /// Normal operation - user is authenticated and onboarding is done.
   ready,
 }
 

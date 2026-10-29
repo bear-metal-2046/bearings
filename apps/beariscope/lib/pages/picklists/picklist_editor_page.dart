@@ -1,3 +1,4 @@
+import 'package:beariscope/widgets/beariscope_alert_dialog.dart';
 import 'package:beariscope/pages/picklists/picklist_emoji.dart';
 // dart format width=120
 
@@ -140,9 +141,7 @@ class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage>
                 ),
                 titleSpacing: 0,
                 title: Tooltip(
-                  message: canEdit
-                      ? 'Edit picklist name and emoji'
-                      : picklist.title,
+                  message: canEdit ? 'Edit picklist' : picklist.title,
                   child: TextButton(
                     onPressed: canEdit
                         ? () => showPicklistOptions(context, ref, picklist)
@@ -523,24 +522,18 @@ class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage>
   }
 
   Future<void> _confirmClear(Picklist picklist) async {
-    final clear = await showDialog<bool>(
+    final clear = await BeariscopeAlertDialog.show<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Clear this picklist?'),
-        content: const Text(
-          'All teams will be removed. The empty picklist will remain in your library.',
+      title: 'Clear this picklist?',
+      message: 'All teams will be removed. The empty picklist will remain in your library.',
+      actions: const [
+        BeariscopeAlertAction(label: 'Cancel', result: false),
+        BeariscopeAlertAction(
+          label: 'Clear',
+          result: true,
+          role: BeariscopeAlertActionRole.destructive,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Clear'),
-          ),
-        ],
-      ),
+      ],
     );
     if (clear == true) {
       ref.read(picklistLibraryProvider.notifier).setTeams(picklist.id, []);
@@ -760,10 +753,14 @@ class _TeamLibraryState extends ConsumerState<_TeamLibrary> {
                         .toList();
                     _sortTeams(teams, selectedSort, rankings);
                     if (teams.isEmpty) {
-                      return const BeariscopeStatusView(
-                        icon: LucideIcons.users,
-                        title: 'No teams found',
-                        subtitle: 'Try adjusting your search or selecting another event.',
+                      return const Center(
+                        child: SingleChildScrollView(
+                          child: BeariscopeStatusView(
+                            icon: LucideIcons.users,
+                            title: 'No teams found',
+                            subtitle: 'Try adjusting your search or selecting another event.',
+                          ),
+                        ),
                       );
                     }
                     return ListView.separated(

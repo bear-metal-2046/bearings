@@ -1,3 +1,4 @@
+import 'package:beariscope/widgets/beariscope_alert_dialog.dart';
 import 'package:beariscope/pages/scout_audit/scout_audit_provider.dart';
 import 'package:beariscope/providers/appearance_provider.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
@@ -132,6 +133,12 @@ class _MainViewState extends ConsumerState<MainView> {
       route: '/match_lookup',
       icon: LucideIcons.scale,
       label: 'Match Compare',
+      group: 'Utilities',
+    ),
+    const _NavItem(
+      route: '/flash_cards',
+      icon: LucideIcons.layers,
+      label: 'Flash Cards',
       group: 'Utilities',
     ),
   ];
@@ -777,29 +784,18 @@ class _MainViewState extends ConsumerState<MainView> {
               ),
               onPressed: () async {
                 final confirmed =
-                    await showDialog<bool>(
+                    await BeariscopeAlertDialog.show<bool>(
                       context: context,
-                      builder: (context) => AlertDialog(
-                        title: const Text('Sign Out'),
-                        content: const Text(
-                          'Are you sure you want to sign out?',
+                      title: 'Sign Out',
+                      message: 'Are you sure you want to sign out?',
+                      actions: const [
+                        BeariscopeAlertAction(label: 'Cancel', result: false),
+                        BeariscopeAlertAction(
+                          label: 'Sign Out',
+                          result: true,
+                          role: BeariscopeAlertActionRole.primary,
                         ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(context).pop(false),
-                            child: const Text('Cancel'),
-                          ),
-                          TextButton(
-                            onPressed: () => Navigator.of(context).pop(true),
-                            style: TextButton.styleFrom(
-                              foregroundColor: Theme.of(context)
-                                  .colorScheme
-                                  .error,
-                            ),
-                            child: const Text('Sign Out'),
-                          ),
-                        ],
-                      ),
+                      ],
                     ) ??
                     false;
 

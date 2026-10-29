@@ -194,23 +194,6 @@ AuditSlot? findAuditSlotForTeamInMatch(
   return null;
 }
 
-String? matchVideoKey(Map<String, dynamic> match) {
-  final videos = match['videos'];
-  if (videos is! List) return null;
-
-  for (final video in videos) {
-    final entry = _map(video);
-    if (entry == null) continue;
-    if (entry['type']?.toString() != 'youtube') continue;
-
-    final key = entry['key']?.toString();
-    if (key == null || key.isEmpty || key == 'null') continue;
-    return key;
-  }
-
-  return null;
-}
-
 class _TbaMatchGroundTruth {
   const _TbaMatchGroundTruth({
     required this.matchNumber,

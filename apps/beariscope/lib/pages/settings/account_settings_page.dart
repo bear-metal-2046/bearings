@@ -1,3 +1,4 @@
+import 'package:beariscope/widgets/beariscope_alert_dialog.dart';
 import 'package:beariscope/pages/settings/image_crop_dialog.dart';
 
 import 'dart:typed_data';
@@ -291,29 +292,21 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
   }
 
   Future<void> _deleteAccount(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await BeariscopeAlertDialog.show<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Account'),
-        content: const Text(
+      title: 'Delete Account',
+      message:
           'This will permanently delete your account and all associated data. '
           'This action cannot be undone.\n\n'
           'Are you sure you want to delete your account?',
+      actions: const [
+        BeariscopeAlertAction(label: 'Cancel', result: false),
+        BeariscopeAlertAction(
+          label: 'Delete Account',
+          result: true,
+          role: BeariscopeAlertActionRole.destructive,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: const Text('Delete Account'),
-          ),
-        ],
-      ),
+      ],
     );
 
     if (confirmed != true) return;
@@ -338,25 +331,18 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
 
   Future<void> _signOut(BuildContext context) async {
     final confirmed =
-        await showDialog<bool>(
+        await BeariscopeAlertDialog.show<bool>(
           context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Sign Out'),
-            content: const Text('Are you sure you want to sign out?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                style: TextButton.styleFrom(
-                  foregroundColor: Theme.of(context).colorScheme.error,
-                ),
-                child: const Text('Sign Out'),
-              ),
-            ],
-          ),
+          title: 'Sign Out',
+          message: 'Are you sure you want to sign out?',
+          actions: const [
+            BeariscopeAlertAction(label: 'Cancel', result: false),
+            BeariscopeAlertAction(
+              label: 'Sign Out',
+              result: true,
+              role: BeariscopeAlertActionRole.primary,
+            ),
+          ],
         ) ??
         false;
 
@@ -367,24 +353,18 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
   }
 
   Future<void> _sendPasswordReset() async {
-    final confirm = await showDialog<bool>(
+    final confirm = await BeariscopeAlertDialog.show<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Reset Password'),
-        content: const Text(
-          'Are you sure you want to send a password reset email?',
+      title: 'Reset Password',
+      message: 'Are you sure you want to send a password reset email?',
+      actions: const [
+        BeariscopeAlertAction(label: 'Cancel', result: false),
+        BeariscopeAlertAction(
+          label: 'Send',
+          result: true,
+          role: BeariscopeAlertActionRole.primary,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Send'),
-          ),
-        ],
-      ),
+      ],
     );
 
     if (confirm != true) return;

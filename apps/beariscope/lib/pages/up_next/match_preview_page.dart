@@ -1,3 +1,5 @@
+import 'package:beariscope/widgets/beariscope_modal.dart';
+import 'package:beariscope/utils/match_video_opener.dart';
 import 'package:beariscope/models/drive_team_note.dart';
 import 'package:beariscope/pages/up_next/up_next_provider.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
@@ -18,7 +20,13 @@ import 'package:services/providers/user_profile_provider.dart';
 import 'package:ui/ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-enum _TeamAction { switchLayout, openTba, openStatbotics, openYouTube }
+enum _TeamAction {
+  switchLayout,
+  copyStrategyMessage,
+  openTba,
+  openStatbotics,
+  openYouTube,
+}
 
 final matchProvider = FutureProvider.family<Map<String, dynamic>, String>((
   ref,
@@ -98,41 +106,6 @@ class _DriveTeamMatchPreviewPageState
           return teamKey.replaceFirst(RegExp('^frc'), '');
         }
 
-        void handleAction(
-          BuildContext context,
-          _TeamAction action,
-          String key,
-        ) {
-          switch (action) {
-            case _TeamAction.switchLayout:
-              final nextLayout = scrollVertical
-                  ? MatchPreviewLayout.horizontal
-                  : MatchPreviewLayout.vertical;
-              ref
-                  .read(matchPreviewLayoutProvider.notifier)
-                  .setLayout(nextLayout);
-            case _TeamAction.openTba:
-              launchUrl(
-                ref.tbaWebsiteUri('/match/${widget.matchKey}'),
-                mode: LaunchMode.externalApplication,
-              );
-            case _TeamAction.openStatbotics:
-              launchUrl(
-                Uri.parse('https://www.statbotics.io/match/${widget.matchKey}'),
-                mode: LaunchMode.externalApplication,
-              );
-            case _TeamAction.openYouTube:
-              key == 'null'
-                  ? ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('No video available')),
-                    )
-                  : launchUrl(
-                      Uri.parse('https://www.youtube.com/watch?v=$key'),
-                      mode: LaunchMode.externalApplication,
-                    );
-          }
-        }
-
         final match = Map<String, dynamic>.from(data);
         final alliances = match['alliances'];
         final redTeams = alliances is Map && alliances['red'] is Map
@@ -163,50 +136,63 @@ class _DriveTeamMatchPreviewPageState
                 'f' => 'Final Match',
                 _ => compLevel.toUpperCase(),
               }} $number';
-        final matchVideos = (match['videos'] as List<dynamic>? ?? [])
-            .map((e) => Map<String, dynamic>.from(e))
-            .toList();
-        final video = matchVideos.firstWhere(
-          (e) => e['type'] == 'youtube',
-          orElse: () => <String, dynamic>{},
-        );
+        Future<void> handleAction(
+          BuildContext context,
+          _TeamAction action,
+        ) async {
+          switch (action) {
+            case _TeamAction.switchLayout:
+              final nextLayout = scrollVertical
+                  ? MatchPreviewLayout.horizontal
+                  : MatchPreviewLayout.vertical;
+              ref
+                  .read(matchPreviewLayoutProvider.notifier)
+                  .setLayout(nextLayout);
+            case _TeamAction.copyStrategyMessage:
+              final message = matchStrategyMessage(
+                matchLabel: compLevel == 'qm' && number != null
+                    ? 'Match $number'
+                    : matchTitle,
+                redTeams: redTeams,
+                blueTeams: blueTeams,
+              );
+              try {
+                await Clipboard.setData(ClipboardData(text: message));
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Match strategy message copied'),
+                  ),
+                );
+              } catch (_) {
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Unable to copy message')),
+                );
+              }
+            case _TeamAction.openTba:
+              launchUrl(
+                ref.tbaWebsiteUri('/match/${widget.matchKey}'),
+                mode: LaunchMode.externalApplication,
+              );
+            case _TeamAction.openStatbotics:
+              launchUrl(
+                Uri.parse('https://www.statbotics.io/match/${widget.matchKey}'),
+                mode: LaunchMode.externalApplication,
+              );
+            case _TeamAction.openYouTube:
+              openMatchVideo(context, match: match, matchTitle: matchTitle);
+          }
+        }
 
         return Scaffold(
           appBar: AppBar(
             title: Text(matchTitle),
             actions: [
-              IconButton(
-                tooltip: 'Copy match strategy message',
-                icon: const Icon(LucideIcons.copy),
-                onPressed: () async {
-                  final message = matchStrategyMessage(
-                    matchLabel: compLevel == 'qm' && number != null
-                        ? 'Match $number'
-                        : matchTitle,
-                    redTeams: redTeams,
-                    blueTeams: blueTeams,
-                  );
-                  try {
-                    await Clipboard.setData(ClipboardData(text: message));
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Match strategy message copied'),
-                      ),
-                    );
-                  } catch (_) {
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Unable to copy message')),
-                    );
-                  }
-                },
-              ),
               PopupMenuButton<_TeamAction>(
                 icon: const Icon(LucideIcons.ellipsisVertical),
                 tooltip: 'More options',
-                onSelected: (action) =>
-                    handleAction(context, action, video['key'].toString()),
+                onSelected: (action) => handleAction(context, action),
                 itemBuilder: (context) => [
                   if (MediaQuery.sizeOf(context).width <= 1100) ...[
                     PopupMenuItem(
@@ -228,6 +214,23 @@ class _DriveTeamMatchPreviewPageState
                     const PopupMenuDivider(),
                   ],
                   const PopupMenuItem(
+                    value: _TeamAction.copyStrategyMessage,
+                    child: ListTile(
+                      leading: Icon(LucideIcons.copy),
+                      title: Text('Copy match strategy message'),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: _TeamAction.openYouTube,
+                    child: ListTile(
+                      leading: Icon(LucideIcons.squarePlay),
+                      title: Text('Watch match video'),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                  const PopupMenuDivider(),
+                  const PopupMenuItem(
                     value: _TeamAction.openTba,
                     child: ListTile(
                       leading: Icon(LucideIcons.externalLink),
@@ -240,14 +243,6 @@ class _DriveTeamMatchPreviewPageState
                     child: ListTile(
                       leading: Icon(LucideIcons.externalLink),
                       title: Text('Open in Statbotics'),
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: _TeamAction.openYouTube,
-                    child: ListTile(
-                      leading: Icon(LucideIcons.externalLink),
-                      title: Text('Watch Match Video'),
                       contentPadding: EdgeInsets.zero,
                     ),
                   ),
@@ -446,11 +441,9 @@ class _DriveTeamMatchPreviewPageState
                                               '2046',
                                         )
                                         .toList();
-                                    showModalBottomSheet(
-                                      context: context,
-                                      showDragHandle: true,
-                                      isScrollControlled: true,
-                                      useSafeArea: true,
+                                    BeariscopeModal.show<void>(
+                                      context,
+
                                       builder: (context) =>
                                           _DriveTeamNotesSheet(
                                             matchKey: widget.matchKey,
@@ -623,11 +616,9 @@ class _DriveTeamMatchPreviewPageState
                                             '2046',
                                       )
                                       .toList();
-                                  showModalBottomSheet(
-                                    context: context,
-                                    showDragHandle: true,
-                                    isScrollControlled: true,
-                                    useSafeArea: true,
+                                  BeariscopeModal.show<void>(
+                                    context,
+
                                     builder: (context) => _DriveTeamNotesSheet(
                                       matchKey: widget.matchKey,
                                       redAllianceTeamKeys: filteredRedTeams,
@@ -795,7 +786,7 @@ class _DriveTeamNotesSheetState extends ConsumerState<_DriveTeamNotesSheet> {
         await ref.read(scoutingDataProvider.notifier).refresh();
       }
 
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) BeariscopeModal.complete<void>(context);
     } catch (e) {
       if (mounted) {
         setState(() => _isSaving = false);
@@ -864,29 +855,43 @@ class _DriveTeamNotesSheetState extends ConsumerState<_DriveTeamNotesSheet> {
     final notesAsync = ref.watch(myDriveTeamNotesProvider(widget.matchKey));
     final theme = Theme.of(context);
 
-    return notesAsync.when(
-      loading: () => const SizedBox(
-        height: 200,
-        child: Center(child: CircularProgressIndicator()),
+    return BeariscopeModal(
+      title: 'Drive team notes',
+      size: BeariscopeModalSize.tall,
+      scrolling: BeariscopeModalScrolling.content,
+      actions: const [],
+      canDismiss: !_isSaving,
+      primaryAction: BeariscopeModalPrimaryAction(
+        label: 'Save Notes',
+        icon: LucideIcons.check,
+        enabled:
+            notesAsync.asData != null &&
+            (widget.redAllianceTeamKeys.isNotEmpty ||
+                widget.blueAllianceTeamKeys.isNotEmpty),
+        loading: _isSaving,
+        onPressed: _save,
       ),
-      error: (e, _) => SizedBox(
-        height: 200,
-        child: Center(child: Text('Error loading notes: $e')),
-      ),
-      data: (existingNotes) {
-        _initControllers(existingNotes);
+      content: notesAsync.when(
+        loading: () => const SizedBox(
+          height: 200,
+          child: Center(child: CircularProgressIndicator()),
+        ),
+        error: (e, _) => SizedBox(
+          height: 200,
+          child: Center(child: Text('Error loading notes: $e')),
+        ),
+        data: (existingNotes) {
+          _initControllers(existingNotes);
 
-        if (widget.redAllianceTeamKeys.isEmpty &&
-            widget.blueAllianceTeamKeys.isEmpty) {
-          return const Padding(
-            padding: EdgeInsets.all(32),
-            child: Center(child: Text('Cannot load notes for this match.')),
-          );
-        }
+          if (widget.redAllianceTeamKeys.isEmpty &&
+              widget.blueAllianceTeamKeys.isEmpty) {
+            return const Padding(
+              padding: EdgeInsets.all(32),
+              child: Center(child: Text('Cannot load notes for this match.')),
+            );
+          }
 
-        return SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          return SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -901,25 +906,11 @@ class _DriveTeamNotesSheetState extends ConsumerState<_DriveTeamNotesSheet> {
                   'Blue Alliance',
                   widget.blueAllianceTeamKeys,
                 ),
-                const SizedBox(height: 4),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: _isSaving ? null : _save,
-                    child: _isSaving
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('Save Notes'),
-                  ),
-                ),
               ],
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }

@@ -1,3 +1,6 @@
+import 'package:beariscope/widgets/beariscope_alert_dialog.dart';
+import 'package:beariscope/widgets/beariscope_modal.dart';
+
 import 'dart:convert';
 import 'dart:math' as math;
 
@@ -17,7 +20,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:services/providers/api_provider.dart';
 import 'package:syncfusion_flutter_sliders/sliders.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:beariscope/utils/match_video_opener.dart';
 
 class ScoutAuditPage extends ConsumerStatefulWidget {
   const ScoutAuditPage({super.key});
@@ -224,8 +227,9 @@ class _ScoutAuditPageState extends ConsumerState<ScoutAuditPage> {
   }
 
   Future<void> _showManualScoutDialog(BuildContext context) async {
-    final selection = await showDialog<_ManualScoutSelection>(
-      context: context,
+    final selection = await BeariscopeModal.show<_ManualScoutSelection>(
+      context,
+      useRootNavigator: true,
       builder: (_) => const _ManualScoutDialog(),
     );
 
@@ -418,12 +422,19 @@ class _ScoutAuditPageState extends ConsumerState<ScoutAuditPage> {
   ) async {
     var value = threshold;
 
-    final changed = await showDialog<bool>(
-      context: context,
+    final changed = await BeariscopeModal.show<bool>(
+      context,
+      useRootNavigator: true,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) {
-          return AlertDialog(
-            title: const Text('Incorrect Data Threshold'),
+          return BeariscopeModal(
+            title: 'Incorrect Data Threshold',
+            actions: const [],
+            primaryAction: BeariscopeModalPrimaryAction(
+              label: 'Apply',
+              icon: LucideIcons.check,
+              onPressed: () => Navigator.of(context).pop(true),
+            ),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -443,16 +454,6 @@ class _ScoutAuditPageState extends ConsumerState<ScoutAuditPage> {
                 ),
               ],
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('Apply'),
-              ),
-            ],
           );
         },
       ),
@@ -720,7 +721,7 @@ class _IncompleteMatchDetailPageState
     final noun = widget.entryType == ScoutAuditEntryType.strat
         ? 'strat entries'
         : 'scouted entries';
-    final confirmed = await _confirm(
+    final confirmed = await _confirmDestructiveAction(
       context,
       title: 'Delete all entries?',
       message: 'This will remove all $noun for match ${widget.matchNumber}.',
@@ -878,7 +879,7 @@ class _NotInTbaDetailPageState extends ConsumerState<_NotInTbaDetailPage> {
   }
 
   Future<void> _deleteDoc(BuildContext context, String docId) async {
-    final confirmed = await _confirm(
+    final confirmed = await _confirmDestructiveAction(
       context,
       title: 'Delete entry?',
       message: 'This action cannot be undone.',
@@ -1067,7 +1068,7 @@ class _DuplicateDetailPageState extends ConsumerState<_DuplicateDetailPage> {
     ScoutingDocument selected,
     List<ScoutingDocument> all,
   ) async {
-    final confirmed = await _confirm(
+    final confirmed = await _confirmDestructiveAction(
       context,
       title: 'Keep this entry?',
       message: 'Keep this entry and delete the others?',
@@ -1527,7 +1528,8 @@ class _ManualScoutDialogState extends ConsumerState<_ManualScoutDialog> {
       }
 
       if (!mounted) return;
-      Navigator.of(context).pop(
+      BeariscopeModal.complete(
+        context,
         _ManualScoutSelection(
           matchNumber: matchNumber,
           teamNumber: teamNumber,
@@ -1549,8 +1551,16 @@ class _ManualScoutDialogState extends ConsumerState<_ManualScoutDialog> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return AlertDialog(
-      title: const Text('Manual Scout'),
+    return BeariscopeModal(
+      title: 'Manual Scout',
+      actions: const [],
+      canDismiss: !_submitting,
+      primaryAction: BeariscopeModalPrimaryAction(
+        label: 'Scout',
+        icon: LucideIcons.chevronRight,
+        loading: _submitting,
+        onPressed: _submit,
+      ),
       content: SizedBox(
         width: 420,
         child: Column(
@@ -1588,22 +1598,6 @@ class _ManualScoutDialogState extends ConsumerState<_ManualScoutDialog> {
           ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: _submitting ? null : () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: _submitting ? null : _submit,
-          child: _submitting
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Text('Scout'),
-        ),
-      ],
     );
   }
 }
@@ -1624,34 +1618,24 @@ class _AuditIssueItem {
   });
 }
 
-Future<bool> _confirm(
+Future<bool> _confirmDestructiveAction(
   BuildContext context, {
   required String title,
   required String message,
   required String confirmLabel,
 }) async {
-  final confirmed = await showDialog<bool>(
+  final confirmed = await BeariscopeAlertDialog.show<bool>(
     context: context,
-    builder: (context) => AlertDialog(
-      title: Text(title),
-      content: Text(message),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.of(context).pop(true),
-          style: FilledButton.styleFrom(
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-          child: Text(
-            confirmLabel,
-            style: TextStyle(color: Theme.of(context).colorScheme.onError),
-          ),
-        ),
-      ],
-    ),
+    title: title,
+    message: message,
+    actions: [
+      BeariscopeAlertAction(label: 'Cancel', result: false),
+      BeariscopeAlertAction(
+        label: confirmLabel,
+        result: true,
+        role: BeariscopeAlertActionRole.destructive,
+      ),
+    ],
   );
 
   return confirmed == true;
@@ -1663,21 +1647,10 @@ Future<void> _launchMatchVideo(
   List<Map<String, dynamic>> matches,
   int matchNumber,
 ) async {
-  final match = findTbaMatchForNumber(matches, eventKey, matchNumber);
-  final videoKey = match == null ? null : matchVideoKey(match);
-
-  if (videoKey == null) {
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No match video is available.')),
-      );
-    }
-    return;
-  }
-
-  await launchUrl(
-    Uri.parse('https://www.youtube.com/watch?v=$videoKey'),
-    mode: LaunchMode.externalApplication,
+  await openMatchVideo(
+    context,
+    match: findTbaMatchForNumber(matches, eventKey, matchNumber),
+    matchTitle: 'Qualification Match $matchNumber',
   );
 }
 

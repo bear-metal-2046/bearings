@@ -1,7 +1,9 @@
+import 'package:beariscope/widgets/library_tile.dart';
+import 'package:beariscope/widgets/beariscope_modal.dart';
+import 'package:beariscope/pages/picklists/picklists_create_page.dart';
 import 'package:beariscope/pages/picklists/picklist_emoji_colors.dart';
 import 'package:beariscope/pages/picklists/picklist_emoji.dart';
 import 'package:beariscope/pages/picklists/picklist_options_sheet.dart';
-import 'package:beariscope/pages/picklists/picklist_duplicate_dialog.dart';
 import 'package:beariscope/pages/main_view.dart';
 import 'package:beariscope/pages/picklists/picklist_model.dart';
 import 'package:beariscope/pages/picklists/picklist_provider.dart';
@@ -15,6 +17,16 @@ import 'package:material_ui/material_ui.dart';
 
 class PicklistsPage extends ConsumerWidget {
   const PicklistsPage({super.key});
+
+  Future<void> _create(BuildContext context) async {
+    final picklist = await BeariscopeModal.show<Picklist>(
+      context,
+      builder: (_) => const PicklistsCreatePage(asSheet: true),
+    );
+    if (context.mounted && picklist != null) {
+      context.push('/picklists/${picklist.id}');
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -44,6 +56,7 @@ class PicklistsPage extends ConsumerWidget {
           leading: controller.isDesktop
               ? null
               : IconButton(
+                  tooltip: 'Open navigation',
                   icon: const Icon(LucideIcons.menu),
                   onPressed: controller.openDrawer,
                 ),
@@ -58,53 +71,27 @@ class PicklistsPage extends ConsumerWidget {
                     builder: (context, constraints) => ListView(
                       physics: const AlwaysScrollableScrollPhysics(),
                       children: [
-                        SizedBox(
-                          height: constraints.maxHeight,
-                          child: _EmptyLibrary(
-                            eventName: eventName,
-                            onCreate: () => context.push('/picklists/create'),
+                        ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: constraints.maxHeight,
                           ),
+                          child: _EmptyLibrary(eventName: eventName),
                         ),
                       ],
                     ),
                   )
-                : LayoutBuilder(
-                    builder: (context, constraints) {
-                      const minCardWidth = 200.0;
-                      const spacing = 8.0;
-                      final count =
-                          ((constraints.maxWidth - 32 + spacing) /
-                                  (minCardWidth + spacing))
-                              .floor()
-                              .clamp(1, 6);
-                      return CustomScrollView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        slivers: [
-                          SliverPadding(
-                            padding: const EdgeInsets.all(16),
-                            sliver: SliverGrid.builder(
-                              gridDelegate:
-                                  SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: count,
-                                    mainAxisSpacing: spacing,
-                                    crossAxisSpacing: spacing,
-                                    childAspectRatio: .82,
-                                  ),
-                              itemCount: picklists.length,
-                              itemBuilder: (context, index) =>
-                                  _PicklistCard(item: picklists[index]),
-                            ),
-                          ),
-                        ],
-                      );
-                    },
+                : LibraryGrid(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    itemCount: picklists.length,
+                    itemBuilder: (context, index) =>
+                        _PicklistCard(item: picklists[index]),
                   ),
           ),
         ),
         floatingActionButton: FloatingActionButton.extended(
-          onPressed: () => context.push('/picklists/create'),
+          onPressed: () => _create(context),
           icon: const Icon(LucideIcons.plus),
-          label: const Text('New Picklist'),
+          label: const Text('New picklist'),
         ),
       ),
     );
@@ -120,170 +107,36 @@ class _PicklistCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = Theme.of(context).colorScheme;
     final canEdit = ref.read(picklistLibraryProvider.notifier).canEdit(item);
-    return Card(
-      margin: EdgeInsets.zero,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => context.push('/picklists/${item.id}'),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: Container(
-                color: picklistThumbnailColor(item.emoji, colors),
-                padding: const EdgeInsets.all(8),
-                child: Column(
-                  children: [
-                    Expanded(
-                      child: Center(child: PicklistEmoji(item.emoji, size: 64)),
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        _ModeBadge(mode: item.mode),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: colors.surface.withValues(alpha: .8),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            '${item.teamKeys.length} teams',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          item.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Last edited ${_relativeTime(item.updatedAt)}',
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(color: colors.onSurfaceVariant),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (canEdit)
-                    PopupMenuButton<String>(
-                      onSelected: (value) async {
-                        if (value == 'customize') {
-                          await showPicklistOptions(context, ref, item);
-                          return;
-                        }
-                        if (value == 'duplicate') {
-                          await duplicatePicklist(context, ref, item);
-                          return;
-                        }
-                        if (value == 'delete') {
-                          final confirmed = await showDialog<bool>(
-                            context: context,
-                            builder: (dialogContext) => AlertDialog(
-                              title: const Text('Delete picklist?'),
-                              content: Text(
-                                item.mode == PicklistMode.offline
-                                    ? '“${item.title}” will be removed from this device.'
-                                    : '“${item.title}” will be removed for everyone.',
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () =>
-                                      Navigator.pop(dialogContext, false),
-                                  child: const Text('Cancel'),
-                                ),
-                                FilledButton(
-                                  onPressed: () =>
-                                      Navigator.pop(dialogContext, true),
-                                  style: ButtonStyle(
-                                    backgroundColor: WidgetStateProperty.all(
-                                      colors.error,
-                                    ),
-                                    foregroundColor: WidgetStateProperty.all(
-                                      colors.onError,
-                                    ),
-                                  ),
-                                  child: const Text('Delete'),
-                                ),
-                              ],
-                            ),
-                          );
-                          if (confirmed == true) {
-                            ref
-                                .read(picklistLibraryProvider.notifier)
-                                .delete(item.id);
-                          }
-                        }
-                      },
-                      itemBuilder: (context) => [
-                        const PopupMenuItem(
-                          value: 'customize',
-                          child: ListTile(
-                            leading: Icon(Icons.edit_outlined),
-                            title: Text('Customize'),
-                          ),
-                        ),
-                        const PopupMenuItem(
-                          value: 'duplicate',
-                          child: ListTile(
-                            leading: Icon(LucideIcons.copyPlus),
-                            title: Text('Duplicate'),
-                          ),
-                        ),
-                        PopupMenuItem(
-                          value: 'delete',
-                          child: ListTile(
-                            leading: Icon(
-                              LucideIcons.trash,
-                              color: colors.error,
-                            ),
-                            title: Text(
-                              'Delete',
-                              style: TextStyle(color: colors.error),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
+    return LibraryTile(
+      key: ValueKey('picklist-${item.id}'),
+      title: item.title,
+      caption:
+          '${item.teamKeys.length} ${item.teamKeys.length == 1 ? 'team' : 'teams'} · ${item.mode.label}',
+      color: picklistThumbnailColor(item.emoji, colors),
+      thumbnail: PicklistEmoji(item.emoji, size: 56),
+      onTap: () => context.push('/picklists/${item.id}'),
+      footer: Text(
+        'Edited ${_relativeTime(item.updatedAt)}',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: Theme.of(context).textTheme.bodySmall
+            ?.copyWith(color: colors.onSurfaceVariant),
       ),
+      options: canEdit
+          ? IconButton(
+              tooltip: 'Picklist options for ${item.title}',
+              icon: const Icon(LucideIcons.ellipsis, size: 20),
+              onPressed: () => showPicklistOptions(context, ref, item),
+            )
+          : null,
     );
   }
 }
 
 class _EmptyLibrary extends StatelessWidget {
   final String eventName;
-  final VoidCallback onCreate;
 
-  const _EmptyLibrary({required this.eventName, required this.onCreate});
+  const _EmptyLibrary({required this.eventName});
 
   @override
   Widget build(BuildContext context) {
@@ -291,52 +144,6 @@ class _EmptyLibrary extends StatelessWidget {
       icon: LucideIcons.notebookTabs,
       title: 'No picklists yet',
       subtitle: 'Create a picklist for $eventName to get started.',
-    );
-  }
-}
-
-class _ModeBadge extends StatelessWidget {
-  final PicklistMode mode;
-
-  const _ModeBadge({required this.mode});
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final multiplayer = mode == PicklistMode.multiplayer;
-    final foreground = multiplayer
-        ? colors.onTertiaryContainer
-        : colors.onSurfaceVariant;
-    final background = multiplayer
-        ? colors.tertiaryContainer
-        : colors.surfaceContainerHighest;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              multiplayer ? LucideIcons.users : LucideIcons.hardDrive,
-              size: 14,
-              color: foreground,
-            ),
-            const SizedBox(width: 5),
-            Text(
-              mode.label,
-              style: TextStyle(
-                color: foreground,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

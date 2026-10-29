@@ -1,14 +1,46 @@
+/// Opaque team colors supplied by Honeycomb's FRC Colors integration.
+class TeamColors {
+  const TeamColors({required this.primaryArgb, this.secondaryArgb});
+
+  final int primaryArgb;
+  final int? secondaryArgb;
+
+  static TeamColors? fromJson(Object? value) {
+    if (value is! Map) return null;
+    final primary = _parseHex(value['primaryHex']);
+    if (primary == null) return null;
+    return TeamColors(
+      primaryArgb: primary,
+      secondaryArgb: _parseHex(value['secondaryHex']),
+    );
+  }
+
+  static int? _parseHex(Object? value) {
+    if (value is! String) return null;
+    var hex = value.trim().replaceFirst(RegExp(r'^#'), '');
+    if (!RegExp(r'^(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$').hasMatch(hex)) {
+      return null;
+    }
+    if (hex.length == 3) {
+      hex = hex.split('').map((digit) => '$digit$digit').join();
+    }
+    return 0xff000000 | int.parse(hex, radix: 16);
+  }
+}
+
 class Team {
   final String key;
   final int number;
   final String name;
   final String? website;
+  final TeamColors? colors;
 
   Team({
     required this.key,
     required this.number,
     required this.name,
     required this.website,
+    this.colors,
   });
 
   factory Team.fromJson(Map<String, dynamic> json) {
@@ -37,7 +69,13 @@ class Team {
 
     final website = _cleanString(json['website']);
 
-    return Team(key: key, number: number, name: name, website: website);
+    return Team(
+      key: key,
+      number: number,
+      name: name,
+      website: website,
+      colors: TeamColors.fromJson(json['colors']),
+    );
   }
 
   static String? _cleanString(Object? value) {

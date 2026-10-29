@@ -1,3 +1,4 @@
+import 'package:beariscope/widgets/beariscope_modal.dart';
 import 'package:beariscope/models/match_field_ids.dart';
 import 'package:beariscope/models/team_scouting_bundle.dart';
 import 'package:beariscope/pages/team_lookup/tabs/averages_tab.dart';
@@ -12,6 +13,7 @@ import 'package:beariscope/providers/rankings_provider.dart';
 import 'package:beariscope/providers/tba_preferences_provider.dart';
 import 'package:beariscope/providers/team_scouting_provider.dart';
 import 'package:beariscope/widgets/beariscope_status_view.dart';
+import 'package:beariscope/widgets/team_avatar.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -221,35 +223,11 @@ class _TeamCardHeader extends StatelessWidget {
                 loading: () => _fallbackAvatar(context),
                 error: (_, _) => _fallbackAvatar(context),
                 data: (media) {
-                  final avatar = media
-                      .where((record) => record.isAvatar)
-                      .toList();
-                  final preferredAvatar = avatar.firstWhere(
-                    (record) => record.preferred && record.base64Image != null,
-                    orElse: () => avatar.firstWhere(
-                      (record) => record.base64Image != null,
-                      orElse: () => const TeamMediaRecord(
-                        foreignKey: '',
-                        type: '',
-                        preferred: false,
-                        teamKeys: [],
-                        details: {},
-                        directUrl: null,
-                        viewUrl: null,
-                        base64Image: null,
-                      ),
-                    ),
-                  );
-                  final bytes = preferredAvatar.base64Image;
-                  if (bytes == null) return _fallbackAvatar(context);
-                  return Image.memory(
-                    bytes,
+                  return TeamAvatarImage(
+                    images: teamAvatarImages(media, 'frc${team.number}'),
                     width: 32,
                     height: 32,
-                    fit: BoxFit.contain,
-                    gaplessPlayback: true,
-                    errorBuilder: (context, error, stackTrace) =>
-                        _fallbackAvatar(context),
+                    fallbackBuilder: _fallbackAvatar,
                   );
                 },
               ),
@@ -690,10 +668,9 @@ class TeamDetailsPage extends ConsumerWidget {
                     floatingActionButton: showObservationFab
                         ? FloatingActionButton.extended(
                             onPressed: () {
-                              showModalBottomSheet<void>(
-                                context: context,
-                                isScrollControlled: true,
-                                useSafeArea: true,
+                              BeariscopeModal.show<void>(
+                                context,
+
                                 builder: (_) => ObservationSheet(
                                   teamName: teamName,
                                   teamNumber: teamNumber,
