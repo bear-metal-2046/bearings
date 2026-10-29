@@ -9,6 +9,7 @@ import 'package:beariscope/pages/picklists/picklist_model.dart';
 import 'package:beariscope/pages/picklists/picklist_provider.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/widgets/beariscope_status_view.dart';
+import 'package:beariscope/widgets/screenshot_guard.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -40,55 +41,58 @@ class PicklistsPage extends ConsumerWidget {
             .firstOrNull
             ?.shortName ??
         eventKey;
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Picklists'),
-        actions: [
-          IconButton(
-            tooltip: 'Refresh picklists',
-            icon: const Icon(LucideIcons.refreshCw),
-            onPressed: () =>
-                ref.read(picklistLibraryProvider.notifier).refresh(),
-          ),
-        ],
-        leading: controller.isDesktop
-            ? null
-            : IconButton(
-                tooltip: 'Open navigation',
-                icon: const Icon(LucideIcons.menu),
-                onPressed: controller.openDrawer,
-              ),
-      ),
-      body: SafeArea(
-        top: false,
-        child: RefreshIndicator(
-          onRefresh: () => ref.read(picklistLibraryProvider.notifier).refresh(),
-          child: picklists.isEmpty
-              ? LayoutBuilder(
-                  builder: (context, constraints) => ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    children: [
-                      ConstrainedBox(
-                        constraints: BoxConstraints(
-                          minHeight: constraints.maxHeight,
-                        ),
-                        child: _EmptyLibrary(eventName: eventName),
-                      ),
-                    ],
-                  ),
-                )
-              : LibraryGrid(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  itemCount: picklists.length,
-                  itemBuilder: (context, index) =>
-                      _PicklistCard(item: picklists[index]),
+    return ScreenshotGuard(
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Picklists'),
+          actions: [
+            IconButton(
+              tooltip: 'Refresh picklists',
+              icon: const Icon(LucideIcons.refreshCw),
+              onPressed: () =>
+                  ref.read(picklistLibraryProvider.notifier).refresh(),
+            ),
+          ],
+          leading: controller.isDesktop
+              ? null
+              : IconButton(
+                  tooltip: 'Open navigation',
+                  icon: const Icon(LucideIcons.menu),
+                  onPressed: controller.openDrawer,
                 ),
         ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _create(context),
-        icon: const Icon(LucideIcons.plus),
-        label: const Text('New picklist'),
+        body: SafeArea(
+          top: false,
+          child: RefreshIndicator(
+            onRefresh: () =>
+                ref.read(picklistLibraryProvider.notifier).refresh(),
+            child: picklists.isEmpty
+                ? LayoutBuilder(
+                    builder: (context, constraints) => ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      children: [
+                        ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: constraints.maxHeight,
+                          ),
+                          child: _EmptyLibrary(eventName: eventName),
+                        ),
+                      ],
+                    ),
+                  )
+                : LibraryGrid(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    itemCount: picklists.length,
+                    itemBuilder: (context, index) =>
+                        _PicklistCard(item: picklists[index]),
+                  ),
+          ),
+        ),
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: () => _create(context),
+          icon: const Icon(LucideIcons.plus),
+          label: const Text('New picklist'),
+        ),
       ),
     );
   }

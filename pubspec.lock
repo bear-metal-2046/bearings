@@ -409,6 +409,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.0.1"
+  dynamic_color:
+    dependency: transitive
+    description:
+      name: dynamic_color
+      sha256: "869b3bce0100eb519768ecd71c0111f0b5ea679f5f62e1f59c49d80067e730c5"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.1.0"
   ed25519_edwards:
     dependency: transitive
     description:
@@ -1405,6 +1413,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.1.4"
+  screen_protector:
+    dependency: transitive
+    description:
+      name: screen_protector
+      sha256: "66f2ffbfbe7acc26db49de893e0c49078c67b546c27a57958d9bd9901f77c38e"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.5.3"
   scroll_drag_detector:
     dependency: transitive
     description:

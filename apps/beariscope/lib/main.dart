@@ -1,3 +1,5 @@
+import 'dart:ui' show ViewFocusEvent, ViewFocusState;
+
 import 'package:beariscope/pages/auth/post_sign_in_onboarding_page.dart';
 import 'package:beariscope/pages/auth/sign_up_flow_page.dart';
 import 'package:beariscope/pages/auth/splash_screen.dart';
@@ -32,6 +34,7 @@ import 'package:beariscope/pages/flash_cards/decks/flash_card_deck_model.dart';
 import 'package:beariscope/pages/flash_cards/sharing/flash_card_deck_share_page.dart';
 import 'package:beariscope/providers/app_boot_provider.dart';
 import 'package:beariscope/providers/app_phase_provider.dart';
+import 'package:beariscope/providers/appearance_provider.dart';
 import 'package:beariscope/providers/shared_preferences_provider.dart';
 import 'package:beariscope/utils/platform_utils_stub.dart'
     if (dart.library.io) 'package:beariscope/utils/platform_utils.dart';
@@ -434,10 +437,12 @@ class Beariscope extends ConsumerStatefulWidget {
   ConsumerState<Beariscope> createState() => _BeariscopeState();
 }
 
-class _BeariscopeState extends ConsumerState<Beariscope> {
+class _BeariscopeState extends ConsumerState<Beariscope>
+    with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Initialize endpoint preference from SharedPreferences
@@ -448,16 +453,39 @@ class _BeariscopeState extends ConsumerState<Beariscope> {
   }
 
   @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _refreshSystemColors();
+  }
+
+  @override
+  void didChangeViewFocus(ViewFocusEvent event) {
+    if (event.state == ViewFocusState.focused) _refreshSystemColors();
+  }
+
+  void _refreshSystemColors() {
+    if (ref.read(supportsSystemColorsProvider) &&
+        ref.read(themeColorSourceProvider) == ThemeColorSource.system) {
+      ref.invalidate(systemColorSchemesProvider);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
     final themeMode = ref.watch(themeModeProvider);
-    final accentColor = ref.watch(accentColorProvider);
+    final colorSchemes = ref.watch(appColorSchemesProvider);
     final deviceInfo = ref.read(deviceInfoProvider);
 
     final app = MaterialApp.router(
       routerConfig: router,
-      theme: _createTheme(Brightness.light, accentColor),
-      darkTheme: _createTheme(Brightness.dark, accentColor),
+      theme: _createTheme(colorSchemes.light),
+      darkTheme: _createTheme(colorSchemes.dark),
       themeMode: themeMode,
       debugShowCheckedModeBanner: false,
       builder: (context, child) =>
@@ -472,11 +500,8 @@ class _BeariscopeState extends ConsumerState<Beariscope> {
   }
 }
 
-ThemeData _createTheme(Brightness brightness, Color accentColor) {
-  final colorScheme = ColorScheme.fromSeed(
-    seedColor: accentColor,
-    brightness: brightness,
-  );
+ThemeData _createTheme(ColorScheme colorScheme) {
+  final brightness = colorScheme.brightness;
 
   final baseTheme = ThemeData(
     brightness: brightness,
