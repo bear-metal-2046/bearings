@@ -47,11 +47,17 @@ class Team {
   }
 }
 
-bool teamMatchesSearch(Team team, String query) {
-  final normalizedQuery = query.trim().toLowerCase();
-  if (normalizedQuery.isEmpty) return true;
+// remove punctuation
+String _normalize(String input) {
+  return input.replaceAll(RegExp(r'[^\w\s]'), '').toLowerCase();
+}
 
-  return team.name.toLowerCase().contains(normalizedQuery) ||
-      team.number.toString().contains(normalizedQuery) ||
-      team.key.toLowerCase().contains(normalizedQuery);
+bool teamMatchesSearch(Team team, String query) {
+  final cleanQuery = _normalize(query).trim();
+  if (cleanQuery.isEmpty) return true;
+
+  final cleanName = _normalize(team.name ?? '');
+  final teamNumber = team.number.toString();
+
+  return cleanName.contains(cleanQuery) || teamNumber.contains(cleanQuery);
 }
