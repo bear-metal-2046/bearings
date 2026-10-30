@@ -5,6 +5,7 @@ import 'package:beariscope/pages/picklists/picklist_emoji.dart';
 import 'dart:async';
 
 import 'package:beariscope/pages/picklists/picklist_options_sheet.dart';
+import 'package:beariscope/pages/picklists/picklist_team_quick_view_sheet.dart';
 
 import 'package:beariscope/pages/picklists/picklist_presence_stack.dart';
 
@@ -21,6 +22,7 @@ import 'package:beariscope/providers/team_scouting_provider.dart';
 import 'package:beariscope/widgets/beariscope_search_bar.dart';
 import 'package:beariscope/widgets/beariscope_status_view.dart';
 import 'package:beariscope/widgets/screenshot_guard.dart';
+import 'package:beariscope/widgets/team_card.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -1038,33 +1040,44 @@ class _EditorTeamTile extends StatelessWidget {
     this.rank,
   });
 
-  Widget _card(BuildContext context, {int? landingRank}) {
+  Widget _teamContent(BuildContext context, {int? landingRank}) {
     final rank = landingRank ?? this.rank;
+    return Row(
+      children: [
+        if (rank != null)
+          SizedBox(
+            width: 28,
+            child: AnimatedSwitcher(
+              duration: _motionDuration(context),
+              child: Text(
+                '$rank',
+                key: ValueKey(rank),
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
+            ),
+          ),
+        Expanded(
+          child: _PicklistTeamCard(
+            team: team,
+            teamKey: teamKey,
+            avatarBytes: avatarBytes,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _card(BuildContext context, {int? landingRank, Widget? dragContent}) {
     return Material(
       color: Theme.of(context).colorScheme.surfaceContainer,
       borderRadius: BorderRadius.circular(12),
       clipBehavior: Clip.antiAlias,
       child: Row(
         children: [
-          if (rank != null)
-            SizedBox(
-              width: 28,
-              child: AnimatedSwitcher(
-                duration: _motionDuration(context),
-                child: Text(
-                  '$rank',
-                  key: ValueKey(rank),
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.labelLarge,
-                ),
-              ),
-            ),
           Expanded(
-            child: _PicklistTeamCard(
-              team: team,
-              teamKey: teamKey,
-              avatarBytes: avatarBytes,
-            ),
+            child:
+                dragContent ?? _teamContent(context, landingRank: landingRank),
           ),
           if (landingRank == null)
             action
@@ -1083,17 +1096,23 @@ class _EditorTeamTile extends StatelessWidget {
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
       final presentation = _DragPresentationScope.of(context);
-      final card = AnimatedSize(
+
+      Widget present(Widget child) => AnimatedSize(
         duration: _motionDuration(context),
         curve: Curves.easeOutCubic,
         alignment: Alignment.topCenter,
         child: AnimatedOpacity(
           opacity: selected ? .5 : 1,
           duration: _motionDuration(context),
-          child: _card(context),
+          child: child,
         ),
       );
-      if (selected || !draggable) return card;
+
+      final content = _teamContent(context);
+      if (selected || !draggable) {
+        return present(_card(context, dragContent: content));
+      }
+
       final feedback = SizedBox(
         width: constraints.maxWidth,
         child: TweenAnimationBuilder<double>(
@@ -1119,20 +1138,20 @@ class _EditorTeamTile extends StatelessWidget {
         onDraggingChanged(teamKey);
       }
 
-      final placeholder = AnimatedOpacity(
-        opacity: .2,
-        duration: _motionDuration(context),
-        child: card,
-      );
-      return _AdaptiveTeamDrag(
+      final dragContent = _AdaptiveTeamDrag(
         teamKey: teamKey,
         feedback: feedback,
-        placeholder: placeholder,
+        placeholder: AnimatedOpacity(
+          opacity: .2,
+          duration: _motionDuration(context),
+          child: content,
+        ),
         onStart: start,
         onUpdate: onDragUpdate,
         onEnd: () => onDraggingChanged(null),
-        child: card,
+        child: content,
       );
+      return present(_card(context, dragContent: dragContent));
     },
   );
 }
@@ -1481,7 +1500,34 @@ class _PicklistSurfaceState extends ConsumerState<_PicklistSurface> {
                               LucideIcons.gripVertical,
                               size: 20,
                             ),
-                            onSelected: (value) {
+                            onSelected: (value) async {
+                              if (value == 'details') {
+                                final team = resolvedTeams[teams[index]];
+                                if (team == null) return;
+                                final diveDeeper =
+                                    await showModalBottomSheet<bool>(
+                                      context: context,
+                                      isScrollControlled: true,
+                                      useSafeArea: true,
+                                      backgroundColor: Colors.transparent,
+                                      builder: (context) =>
+                                          PicklistTeamQuickViewSheet(
+                                            team: team,
+                                          ),
+                                    );
+                                if (!context.mounted || diveDeeper != true) {
+                                  return;
+                                }
+                                Navigator.of(context, rootNavigator: true).push(
+                                  MaterialPageRoute(
+                                    builder: (context) => TeamDetailsPage(
+                                      teamName: team.name,
+                                      teamNumber: team.number,
+                                      teamWebsite: team.website,
+                                    ),
+                                  ),
+                                );
+                              }
                               if (value == 'remove') {
                                 widget.onRemoveTeam(teams[index]);
                               }
@@ -1493,6 +1539,14 @@ class _PicklistSurfaceState extends ConsumerState<_PicklistSurface> {
                               }
                             },
                             itemBuilder: (context) => [
+                              if (resolvedTeams[teams[index]] != null)
+                                const PopupMenuItem(
+                                  value: 'details',
+                                  child: ListTile(
+                                    leading: Icon(LucideIcons.info),
+                                    title: Text('View team details'),
+                                  ),
+                                ),
                               if (index > 0)
                                 const PopupMenuItem(
                                   value: 'up',
