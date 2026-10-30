@@ -527,23 +527,26 @@ class PitsProgressBar extends StatefulWidget {
   final int _numberOfTeams;
   final int _currentScoutedTeams;
 
-  PitsProgressBar({super.key, required this._numberOfTeams, required this._currentScoutedTeams});
+  PitsProgressBar({
+    super.key,
+    required this._numberOfTeams,
+    required this._currentScoutedTeams,
+  });
 
   @override
   State<PitsProgressBar> createState() => PitsProgressBarState();
 }
 
 class PitsProgressBarState extends State<PitsProgressBar> {
-
   @override
   Widget build(BuildContext context) {
     return TitledProgressBar(
-      progressColor: Theme.of(context).primaryColor,
-      backgroundColor: Theme.of(context).cardColor,
+      progressColor: Colors.green,
+      backgroundColor: Theme.of(context).colorScheme.secondary,
       maxSteps: widget._numberOfTeams,
       currentStep: widget._currentScoutedTeams,
       labelType: LabelType.percentage,
-      labelColor: Theme.of(context).highlightColor,
+      labelColor: Theme.of(context).colorScheme.primary,
       labelFontWeight: FontWeight.bold,
       minHeight: 24,
       percentageDecimals: 2,
