@@ -1518,8 +1518,9 @@ class _PicklistSurfaceState extends ConsumerState<_PicklistSurface> {
                                             team: team,
                                           ),
                                     );
-                                if (!context.mounted || diveDeeper != true)
+                                if (!context.mounted || diveDeeper != true) {
                                   return;
+                                }
                                 Navigator.of(context, rootNavigator: true).push(
                                   MaterialPageRoute(
                                     builder: (context) => TeamDetailsPage(
