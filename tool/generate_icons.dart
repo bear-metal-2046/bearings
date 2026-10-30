@@ -1,8 +1,9 @@
 // Generates every non-preview app icon from the SVG masters in
 // tool/app_icons/. Inkscape must be available on PATH for SVG rasterization.
-// The per-app foreground.svg files are the hand-composed Android foreground
-// masters. The per-app desktop.svg files are the baked-white-background
-// masters used by Android legacy icons, web, Windows, and Linux.
+// The per-app foreground.svg files supply the Android foreground artwork and
+// are rendered over common/desktop_background.svg for Android legacy icons,
+// web, Windows, and Linux. The shared background preserves the custom white
+// squircle with transparent corners.
 // Android adaptive foreground and monochrome layers are emitted as vector
 // drawables; density-specific PNGs are retained only for legacy launchers.
 
@@ -232,14 +233,27 @@ $pathXml    </group>
   return output.toString();
 }
 
-img.Image _renderSvg(File source, Directory temporaryDirectory) {
+img.Image _renderDesktopIcon(
+  File source,
+  File background,
+  Directory temporaryDirectory,
+) {
+  final composed = File(
+    _path(temporaryDirectory.path, <String>['desktop.svg']),
+  );
+  composed.writeAsStringSync(
+    source.readAsStringSync().replaceFirstMapped(
+      RegExp(r'<svg\b[^>]*>'),
+      (match) => '${match.group(0)}\n${background.readAsStringSync()}',
+    ),
+  );
   final output = File(
     _path(temporaryDirectory.path, <String>[
       '${source.uri.pathSegments.last}.png',
     ]),
   );
   final result = Process.runSync('inkscape', <String>[
-    source.path,
+    composed.path,
     '--export-filename=${output.path}',
     '--export-width=1024',
     '--export-height=1024',
@@ -518,12 +532,18 @@ void _writeApp(
   final common = _path(root, <String>['tool', 'app_icons', 'common']);
   final appSource = _path(root, <String>['tool', 'app_icons', app.name]);
   final baseFile = File(_path(common, <String>['base.svg']));
+  final backgroundFile = File(
+    _path(common, <String>['desktop_background.svg']),
+  );
   final badgeFile = File(_path(appSource, <String>['badge.svg']));
   final foregroundFile = File(_path(appSource, <String>['foreground.svg']));
-  final desktopFile = File(_path(appSource, <String>['desktop.svg']));
 
   final foregroundPaths = _readSvgPaths(foregroundFile);
-  final desktop = _renderSvg(desktopFile, temporaryDirectory);
+  final desktop = _renderDesktopIcon(
+    foregroundFile,
+    backgroundFile,
+    temporaryDirectory,
+  );
 
   _writeAndroid(root, writer, app.name, desktop, foregroundPaths);
   _writeWeb(root, writer, app.name, desktop);
