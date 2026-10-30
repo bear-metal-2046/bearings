@@ -540,16 +540,20 @@ class PitsProgressBar extends StatefulWidget {
 class PitsProgressBarState extends State<PitsProgressBar> {
   @override
   Widget build(BuildContext context) {
-    return TitledProgressBar(
-      progressColor: Colors.green,
-      backgroundColor: Theme.of(context).colorScheme.secondary,
-      maxSteps: widget._numberOfTeams,
-      currentStep: widget._currentScoutedTeams,
-      labelType: LabelType.percentage,
-      labelColor: Theme.of(context).colorScheme.primary,
-      labelFontWeight: FontWeight.bold,
-      minHeight: 24,
-      percentageDecimals: 2,
+    return Padding(
+      padding: EdgeInsetsGeometry.all(4),
+      child: TitledProgressBar(
+        progressColor: Colors.green,
+        backgroundColor: Theme.of(context).colorScheme.secondary,
+        maxSteps: widget._numberOfTeams,
+        currentStep: widget._currentScoutedTeams,
+        labelType: LabelType.percentage,
+        labelColor: Theme.of(context).colorScheme.primary,
+        labelFontWeight: FontWeight.bold,
+        borderRadius: BorderRadiusGeometry.all(Radius.circular(14)),
+        minHeight: 24,
+        percentageDecimals: 2,
+      ),
     );
   }
 }

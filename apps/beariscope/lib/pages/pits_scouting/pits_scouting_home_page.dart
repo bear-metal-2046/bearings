@@ -160,6 +160,7 @@ class PitsScoutingHomePageState extends ConsumerState<PitsScoutingHomePage>
               preferredSize: Size.fromHeight(80),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
+                // Prevents the Column from taking up the whole screen
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // The original TabBar
@@ -172,8 +173,14 @@ class PitsScoutingHomePageState extends ConsumerState<PitsScoutingHomePage>
                   ),
                   // Loads all the team data outside of _buildListTab()
                   teamsAsync.when(
-                    loading: () =>
-                        const Center(child: LinearProgressIndicator()),
+                    // Padding prevents "Failed to update ui" error
+                    loading: () => const Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 16.0,
+                        vertical: 12.0,
+                      ),
+                      child: Center(child: LinearProgressIndicator()),
+                    ),
                     error: (err, stack) => BeariscopeStatusView(
                       icon: LucideIcons.circleAlert,
                       iconColor: Theme.of(context).colorScheme.error,
@@ -189,7 +196,9 @@ class PitsScoutingHomePageState extends ConsumerState<PitsScoutingHomePage>
                       // Progress bar at the top of the Pits Scouting Page
                       return PitsProgressBar(
                         numberOfTeams: teams.length,
-                        currentScoutedTeams: teams.where((t) => scoutedNums.contains(t.number)).length
+                        currentScoutedTeams: teams
+                            .where((t) => scoutedNums.contains(t.number))
+                            .length,
                       );
                     },
                   ),
