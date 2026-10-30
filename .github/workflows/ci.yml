@@ -19,21 +19,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  commitlint:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Lint commit messages
-        uses: wagoid/commitlint-github-action@v6
-        with:
-          configFile: commitlint.config.cjs
-
   validate:
     runs-on: ubuntu-latest
 
