@@ -374,7 +374,10 @@ class _SummaryMetrics extends ConsumerWidget {
                         ),
                       ),
                       plotAreaBorderWidth: 0,
-                      series: _buildLineSeries(context, bundle.matchDocs),
+                      series: buildTeamCardLineSeries(
+                        context,
+                        bundle.matchDocs,
+                      ),
                     ),
                   ),
                 ),
@@ -402,7 +405,7 @@ class _SummaryMetrics extends ConsumerWidget {
                   ),
                 ),
                 plotAreaBorderWidth: 0,
-                series: _buildLineSeries(context, bundle.matchDocs),
+                series: buildTeamCardLineSeries(context, bundle.matchDocs),
               ),
             ),
         ],
@@ -813,7 +816,7 @@ class TeamDetailsPage extends ConsumerWidget {
   }
 }
 
-List<LineSeries<ProcessedScoutingDoc, String>> _buildLineSeries(
+List<LineSeries<ProcessedScoutingDoc, String>> buildTeamCardLineSeries(
   BuildContext context,
   List<ProcessedScoutingDoc> data,
 ) {

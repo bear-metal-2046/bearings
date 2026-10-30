@@ -4,9 +4,11 @@ import 'package:beariscope/pages/team_lookup/tabs/scouting_tab_widgets.dart';
 import 'package:beariscope/pages/team_lookup/team_model.dart';
 import 'package:beariscope/providers/team_scouting_provider.dart';
 import 'package:beariscope/widgets/settings_group.dart';
+import 'package:beariscope/widgets/team_card.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:syncfusion_flutter_charts/charts.dart';
 
 class PicklistTeamQuickViewSheet extends ConsumerWidget {
   final Team team;
@@ -46,9 +48,8 @@ class PicklistTeamQuickViewSheet extends ConsumerWidget {
                   const SizedBox(height: 16),
                   Text(
                     team.name,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: Theme.of(context).textTheme.titleLarge
+                        ?.copyWith(fontWeight: FontWeight.bold),
                   ),
                   Text(
                     'Team ${team.number}',
@@ -103,10 +104,7 @@ class _QuickViewBody extends StatelessWidget {
   final TeamScoutingBundle bundle;
   final ScrollController scrollController;
 
-  const _QuickViewBody({
-    required this.bundle,
-    required this.scrollController,
-  });
+  const _QuickViewBody({required this.bundle, required this.scrollController});
 
   @override
   Widget build(BuildContext context) {
@@ -185,6 +183,15 @@ class _QuickViewBody extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       children: [
         _section('Scoring', [
+          if (hasMatches) ...[
+            Text(
+              'Fuel scored by match',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            const SizedBox(height: 8),
+            _FuelTrendChart(bundle: bundle),
+            const SizedBox(height: 16),
+          ],
           ScoutingDataRow(
             label: 'Total Avg Fuel / Match',
             value: autoFuel != null && teleFuel != null
@@ -300,9 +307,8 @@ class _QuickViewBody extends StatelessWidget {
         Text(
           'Based on ${bundle.matchDocs.length} match${bundle.matchDocs.length == 1 ? '' : 'es'}',
           textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
+          style: Theme.of(context).textTheme.bodySmall
+              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
       ],
     );
@@ -356,14 +362,46 @@ class _QuickViewBody extends StatelessWidget {
 
   String _decimal(double value) => value.toStringAsFixed(1);
 
-  String _decimalOrDash(double? value) =>
-      value == null ? '—' : _decimal(value);
+  String _decimalOrDash(double? value) => value == null ? '—' : _decimal(value);
 
   String _percent(double value) => '${value.toStringAsFixed(1)}%';
 
-  String _percentOrDash(double? value) =>
-      value == null ? '—' : _percent(value);
+  String _percentOrDash(double? value) => value == null ? '—' : _percent(value);
 
   String _rateOrDash(double? value) =>
       value == null ? '—' : _percent(value * 100);
+}
+
+class _FuelTrendChart extends StatelessWidget {
+  final TeamScoutingBundle bundle;
+
+  const _FuelTrendChart({required this.bundle});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 210,
+      child: SfCartesianChart(
+        margin: EdgeInsets.zero,
+        primaryXAxis: CategoryAxis(
+          labelPlacement: LabelPlacement.onTicks,
+          labelStyle: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+          majorGridLines: MajorGridLines(width: 0),
+        ),
+        primaryYAxis: NumericAxis(
+          labelStyle: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+          majorGridLines: MajorGridLines(
+            color: Theme.of(context).colorScheme.outlineVariant,
+            width: 2,
+          ),
+        ),
+        plotAreaBorderWidth: 0,
+        series: buildTeamCardLineSeries(context, bundle.matchDocs),
+      ),
+    );
+  }
 }
