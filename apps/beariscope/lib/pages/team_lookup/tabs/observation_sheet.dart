@@ -1,3 +1,5 @@
+import 'package:beariscope/widgets/beariscope_modal.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:beariscope/models/observation_note.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/scouting_data_provider.dart';
@@ -88,7 +90,7 @@ class _ObservationSheetState extends ConsumerState<ObservationSheet> {
 
       await ref.read(scoutingDataProvider.notifier).refresh();
 
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) BeariscopeModal.complete<void>(context);
     } catch (e) {
       if (mounted) {
         setState(() => _isSaving = false);
@@ -104,82 +106,42 @@ class _ObservationSheetState extends ConsumerState<ObservationSheet> {
     final theme = Theme.of(context);
     final canSubmit = !_isSaving && _controller.text.trim().isNotEmpty;
 
-    final maxHeight = MediaQuery.of(context).size.height * 0.9;
-
-    return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
+    return BeariscopeModal(
+      title: 'New Observation',
+      size: BeariscopeModalSize.tall,
+      actions: const [],
+      canDismiss: !_isSaving,
+      primaryAction: BeariscopeModalPrimaryAction(
+        label: 'Upload Observation',
+        icon: LucideIcons.check,
+        enabled: canSubmit,
+        loading: _isSaving,
+        onPressed: _submit,
       ),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxHeight: maxHeight),
-        child: SingleChildScrollView(
-          child: IntrinsicHeight(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 36,
-                      height: 4,
-                      margin: const EdgeInsets.only(bottom: 12),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.outlineVariant,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  Text(
-                    'New Observation',
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontFamily: 'Xolonium',
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${widget.teamName} — ${widget.teamNumber}',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  Flexible(
-                    child: TextField(
-                      controller: _controller,
-                      autofocus: true,
-                      maxLines: null,
-                      minLines: 6,
-                      textInputAction: TextInputAction.newline,
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
-                        labelText: 'Observation',
-                        floatingLabelBehavior: FloatingLabelBehavior.always,
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      onPressed: canSubmit ? _submit : null,
-                      child: _isSaving
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Text('Upload Observation'),
-                    ),
-                  ),
-                ],
-              ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${widget.teamName} — ${widget.teamNumber}',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
-        ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _controller,
+            autofocus: true,
+            maxLines: null,
+            minLines: 6,
+            textInputAction: TextInputAction.newline,
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              labelText: 'Observation',
+              floatingLabelBehavior: FloatingLabelBehavior.always,
+            ),
+          ),
+        ],
       ),
     );
   }
