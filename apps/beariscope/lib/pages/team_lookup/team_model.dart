@@ -47,7 +47,7 @@ class Team {
   }
 }
 
-// ignores punctuation
+// ignores punctuation hi
 String _normalize(String input) {
   return input.replaceAll(RegExp(r'[^\w\s]'), '').toLowerCase();
 }
