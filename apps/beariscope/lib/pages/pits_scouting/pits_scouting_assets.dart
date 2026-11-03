@@ -543,12 +543,12 @@ class PitsProgressBarState extends State<PitsProgressBar> {
     return Padding(
       padding: EdgeInsetsGeometry.all(4),
       child: TitledProgressBar(
-        progressColor: Colors.green,
+        progressColor: Theme.of(context).colorScheme.primary,
         backgroundColor: Theme.of(context).colorScheme.secondary,
         maxSteps: widget._numberOfTeams,
         currentStep: widget._currentScoutedTeams,
         labelType: LabelType.percentage,
-        labelColor: Theme.of(context).colorScheme.primary,
+        labelColor: Theme.of(context).colorScheme.onPrimary,
         labelFontWeight: FontWeight.bold,
         borderRadius: BorderRadiusGeometry.all(Radius.circular(14)),
         minHeight: 24,
