@@ -1,17 +1,17 @@
-// Generates every non-preview app icon from the SVG masters in
-// tool/app_icons/. Inkscape must be available on PATH for SVG rasterization.
-// The per-app foreground.svg files supply the Android foreground artwork and
-// are rendered over common/desktop_background.svg for Android legacy icons,
-// web, Windows, and Linux. The shared background preserves the custom white
-// squircle with transparent corners.
-// Android adaptive foreground and monochrome layers are emitted as vector
-// drawables; density-specific PNGs are retained only for legacy launchers.
+// Run with `melos run icons`. Flutter's headless renderer rasterizes the SVGs;
+// no external graphics tools are needed. Only primary app icons are generated.
 
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui' as ui;
 
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
+import 'package:xml/xml.dart';
 
+const _size = 1024;
+const _maskableScale = 0.75;
 const _androidDensities = <String, int>{
   'mdpi': 48,
   'hdpi': 72,
@@ -19,115 +19,53 @@ const _androidDensities = <String, int>{
   'xxhdpi': 144,
   'xxxhdpi': 192,
 };
-
 const _windowsSizes = <int>[16, 24, 32, 48, 64, 128, 256];
 
-class SvgPath {
-  const SvgPath({
-    required this.data,
-    required this.fill,
-    required this.opacity,
-    this.translateX,
-    this.translateY,
-  });
+typedef SvgPath = ({String data, String color, (double, double)? translation});
 
-  final String data;
-  final String fill;
-  final double opacity;
-  final double? translateX;
-  final double? translateY;
+void _writeBytes(String path, List<int> bytes) {
+  final file = File(path);
+  file.parent.createSync(recursive: true);
+  file.writeAsBytesSync(bytes);
 }
 
-class IconApp {
-  const IconApp(this.name);
+void _writeText(String path, String text) =>
+    _writeBytes(path, utf8.encode(text));
 
-  final String name;
+void _remove(String path) {
+  final file = File(path);
+  if (file.existsSync()) file.deleteSync();
 }
 
-class IconWriter {
-  IconWriter({required this.checkOnly});
+Map<String, String> _properties(XmlElement element) => {
+  for (final attribute in element.attributes)
+    attribute.name.qualified: attribute.value,
+  for (final declaration in (element.getAttribute('style') ?? '').split(';'))
+    if (declaration.contains(':'))
+      declaration.substring(0, declaration.indexOf(':')).trim(): declaration
+          .substring(declaration.indexOf(':') + 1)
+          .trim(),
+};
 
-  final bool checkOnly;
-  final List<String> mismatches = <String>[];
-
-  void bytes(File file, List<int> expected) {
-    if (checkOnly) {
-      if (!file.existsSync() || !_sameBytes(file.readAsBytesSync(), expected)) {
-        mismatches.add(file.path);
-      }
-      return;
-    }
-
-    file.parent.createSync(recursive: true);
-    file.writeAsBytesSync(expected);
-  }
-
-  void text(File file, String expected) => bytes(file, utf8.encode(expected));
-
-  void absent(File file) {
-    if (!file.existsSync()) {
-      return;
-    }
-    if (checkOnly) {
-      mismatches.add(file.path);
-    } else {
-      file.deleteSync();
+void _validatePaint(Map<String, String> properties) {
+  for (final entry in const {
+    'stroke': 'none',
+    'clip-path': 'none',
+    'mask': 'none',
+    'filter': 'none',
+    'display': 'inline',
+    'visibility': 'visible',
+    'fill-rule': 'nonzero',
+  }.entries) {
+    if (properties.containsKey(entry.key) &&
+        properties[entry.key] != entry.value) {
+      throw FormatException('Unsupported Android SVG property: ${entry.key}');
     }
   }
-}
-
-String _path(String root, List<String> parts) =>
-    <String>[root, ...parts].join(Platform.pathSeparator);
-
-bool _sameBytes(List<int> left, List<int> right) {
-  if (left.length != right.length) {
-    return false;
-  }
-  for (var i = 0; i < left.length; i++) {
-    if (left[i] != right[i]) {
-      return false;
-    }
-  }
-  return true;
-}
-
-Map<String, String> _attributes(String source) {
-  final attributes = <String, String>{};
-  final pattern = RegExp(
-    r'''([A-Za-z_][A-Za-z0-9_.:-]*)\s*=\s*("([^"]*)"|'([^']*)')''',
-  );
-  for (final match in pattern.allMatches(source)) {
-    attributes[match.group(1)!] = match.group(3) ?? match.group(4) ?? '';
-  }
-  return attributes;
-}
-
-Map<String, String> _styleProperties(String style) {
-  final properties = <String, String>{};
-  for (final declaration in style.split(';')) {
-    final separator = declaration.indexOf(':');
-    if (separator == -1) {
-      continue;
-    }
-    properties[declaration.substring(0, separator).trim()] = declaration
-        .substring(separator + 1)
-        .trim();
-  }
-  return properties;
-}
-
-double _number(String value, String description) {
-  final parsed = double.tryParse(value);
-  if (parsed == null) {
-    throw FormatException('Invalid $description: $value');
-  }
-  return parsed;
 }
 
 (double, double)? _translation(String? transform) {
-  if (transform == null || transform.trim().isEmpty) {
-    return null;
-  }
+  if (transform == null || transform.trim().isEmpty) return null;
   final match = RegExp(r'^translate\(([^)]*)\)$').firstMatch(transform.trim());
   if (match == null) {
     throw FormatException('Unsupported SVG transform: $transform');
@@ -136,50 +74,12 @@ double _number(String value, String description) {
       .group(1)!
       .trim()
       .split(RegExp(r'[,\s]+'))
-      .where((value) => value.isNotEmpty)
-      .map((value) => _number(value, 'translation'))
+      .map(double.parse)
       .toList();
   if (values.isEmpty || values.length > 2) {
     throw FormatException('Invalid SVG translation: $transform');
   }
   return (values[0], values.length == 2 ? values[1] : 0);
-}
-
-List<SvgPath> _readSvgPaths(File source) {
-  final contents = source.readAsStringSync();
-  final paths = <SvgPath>[];
-  final pathTags = RegExp(r'<path\b([\s\S]*?)/>');
-  for (final match in pathTags.allMatches(contents)) {
-    final attributes = _attributes(match.group(1)!);
-    final data = attributes['d'];
-    if (data == null || data.trim().isEmpty) {
-      continue;
-    }
-    final style = _styleProperties(attributes['style'] ?? '');
-    final fill = style['fill'] ?? attributes['fill'] ?? '#000000';
-    final opacity = _number(
-      style['fill-opacity'] ??
-          attributes['fill-opacity'] ??
-          style['opacity'] ??
-          attributes['opacity'] ??
-          '1',
-      'fill opacity',
-    );
-    final translation = _translation(attributes['transform']);
-    paths.add(
-      SvgPath(
-        data: data,
-        fill: fill,
-        opacity: opacity,
-        translateX: translation?.$1,
-        translateY: translation?.$2,
-      ),
-    );
-  }
-  if (paths.isEmpty) {
-    throw FormatException('No SVG paths found in ${source.path}');
-  }
-  return paths;
 }
 
 String _argbColor(String fill, double opacity) {
@@ -197,182 +97,205 @@ String _argbColor(String fill, double opacity) {
   return '#${alpha.toRadixString(16).padLeft(2, '0')}$rgb';
 }
 
-String _xmlAttribute(String value) => value
-    .replaceAll('&', '&amp;')
-    .replaceAll('"', '&quot;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;');
-
-String _decimal(double value) => value == value.roundToDouble()
-    ? value.toInt().toString()
-    : value.toString();
-
-String _vectorDrawable(List<SvgPath> paths, {required bool monochrome}) {
-  final output = StringBuffer('''<?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp"
-    android:height="108dp"
-    android:viewportWidth="1024"
-    android:viewportHeight="1024">
-''');
-  for (final path in paths) {
-    final fill = monochrome ? '#FFFFFFFF' : _argbColor(path.fill, path.opacity);
-    final pathXml =
-        '        <path android:fillColor="$fill" android:pathData="${_xmlAttribute(path.data)}" />\n';
-    if (path.translateX == null || path.translateY == null) {
-      output.write(pathXml.replaceFirst('        ', '    '));
-      continue;
-    }
-    output.write('''    <group
-        android:translateX="${_decimal(path.translateX!)}"
-        android:translateY="${_decimal(path.translateY!)}">
-$pathXml    </group>
-''');
-  }
-  output.write('</vector>\n');
-  return output.toString();
-}
-
-img.Image _renderDesktopIcon(
-  File source,
-  File background,
-  Directory temporaryDirectory,
-) {
-  final composed = File(
-    _path(temporaryDirectory.path, <String>['desktop.svg']),
-  );
-  composed.writeAsStringSync(
-    source.readAsStringSync().replaceFirstMapped(
-      RegExp(r'<svg\b[^>]*>'),
-      (match) => '${match.group(0)}\n${background.readAsStringSync()}',
-    ),
-  );
-  final output = File(
-    _path(temporaryDirectory.path, <String>[
-      '${source.uri.pathSegments.last}.png',
-    ]),
-  );
-  final result = Process.runSync('inkscape', <String>[
-    composed.path,
-    '--export-filename=${output.path}',
-    '--export-width=1024',
-    '--export-height=1024',
-  ]);
-  if (result.exitCode != 0) {
-    throw StateError(
-      'Inkscape failed for ${source.path}: ${result.stderr}'.trim(),
+List<SvgPath> _readSvgPaths(XmlElement svg) {
+  final viewBox = (svg.getAttribute('viewBox') ?? '')
+      .trim()
+      .split(RegExp(r'[,\s]+'))
+      .map(double.parse)
+      .toList();
+  if (viewBox.length != 4 ||
+      viewBox[0] != 0 ||
+      viewBox[1] != 0 ||
+      viewBox[2] != _size ||
+      viewBox[3] != _size) {
+    throw const FormatException(
+      'Android artwork must use viewBox="0 0 1024 1024".',
     );
   }
-
-  final rendered = img.decodeImage(output.readAsBytesSync());
-  if (rendered == null) {
-    throw StateError('Could not decode rendered SVG: ${source.path}');
+  final inherited = _properties(svg);
+  _validatePaint(inherited);
+  if (inherited.containsKey('transform')) {
+    throw const FormatException('Move SVG root transforms into the paths.');
   }
-  return rendered;
+  final paths = <SvgPath>[];
+  for (final element in svg.childElements) {
+    if (element.namespaceUri != null &&
+        element.namespaceUri != 'http://www.w3.org/2000/svg')
+      continue;
+    final name = element.name.local;
+    if (name == 'metadata' || name == 'title' || name == 'desc') continue;
+    if (name == 'defs' && element.childElements.isEmpty) continue;
+    if (name != 'path') {
+      throw FormatException(
+        'Unsupported Android SVG element <$name>. Convert artwork to paths.',
+      );
+    }
+    final local = _properties(element);
+    final properties = {...inherited, ...local};
+    _validatePaint(properties);
+    final data = element.getAttribute('d');
+    if (data == null || data.isEmpty) continue;
+    final opacity =
+        double.parse(inherited['opacity'] ?? '1') *
+        double.parse(local['opacity'] ?? '1') *
+        double.parse(properties['fill-opacity'] ?? '1');
+    paths.add((
+      data: data,
+      color: _argbColor(properties['fill'] ?? '#000000', opacity),
+      translation: _translation(local['transform']),
+    ));
+  }
+  if (paths.isEmpty) throw const FormatException('No SVG paths found.');
+  return paths;
 }
 
-List<int> _png(img.Image source, int size) => img.encodePng(
-  img.copyResize(
-    source,
-    width: size,
-    height: size,
-    interpolation: img.Interpolation.average,
-  ),
-);
+String _vectorDrawable(List<SvgPath> paths, {required bool monochrome}) {
+  final vector = XmlElement.tag(
+    'vector',
+    attributes:
+        {
+          'xmlns:android': 'http://schemas.android.com/apk/res/android',
+          'android:width': '108dp',
+          'android:height': '108dp',
+          'android:viewportWidth': '$_size',
+          'android:viewportHeight': '$_size',
+        }.entries.map(
+          (entry) => XmlAttribute(XmlName.fromString(entry.key), entry.value),
+        ),
+  );
+  for (final path in paths) {
+    final node = XmlElement.tag(
+      'path',
+      attributes: [
+        XmlAttribute(
+          XmlName.fromString('android:fillColor'),
+          monochrome ? '#FFFFFFFF' : path.color,
+        ),
+        XmlAttribute(XmlName.fromString('android:pathData'), path.data),
+      ],
+    );
+    if (path.translation case final translation?) {
+      vector.children.add(
+        XmlElement.tag(
+          'group',
+          attributes: [
+            XmlAttribute(
+              XmlName.fromString('android:translateX'),
+              '${translation.$1}',
+            ),
+            XmlAttribute(
+              XmlName.fromString('android:translateY'),
+              '${translation.$2}',
+            ),
+          ],
+          children: [node],
+        ),
+      );
+    } else {
+      vector.children.add(node);
+    }
+  }
+  return '<?xml version="1.0" encoding="utf-8"?>\n${vector.toXmlString(pretty: true)}\n';
+}
 
-void _writeAndroid(
-  String root,
-  IconWriter writer,
-  String app,
-  img.Image desktop,
-  List<SvgPath> foregroundPaths,
-) {
-  writer.text(
-    File(
-      _path(root, <String>[
-        'apps',
-        app,
-        'android',
-        'app',
-        'src',
-        'main',
-        'res',
-        'drawable',
-        'ic_launcher_foreground.xml',
-      ]),
-    ),
-    _vectorDrawable(foregroundPaths, monochrome: false),
+Future<img.Image> _renderIcon(
+  XmlDocument foreground, {
+  File? background,
+  bool maskable = false,
+}) async {
+  final document = foreground.copy();
+  if (background != null) {
+    document.rootElement.children.insertAll(
+      0,
+      XmlDocument.parse(background.readAsStringSync()).rootElement.childElements
+          .map((element) => element.copy()),
+    );
+  }
+  // Editor metadata and empty definitions do not contribute to the drawing.
+  document.rootElement.children.removeWhere(
+    (node) =>
+        node is XmlElement &&
+        ((node.namespaceUri != null &&
+                node.namespaceUri != 'http://www.w3.org/2000/svg') ||
+            node.name.local == 'metadata' ||
+            (node.name.local == 'defs' && node.childElements.isEmpty)),
   );
-  writer.text(
-    File(
-      _path(root, <String>[
-        'apps',
-        app,
-        'android',
-        'app',
-        'src',
-        'main',
-        'res',
-        'drawable',
-        'ic_launcher_monochrome.xml',
-      ]),
-    ),
-    _vectorDrawable(foregroundPaths, monochrome: true),
+  final picture = await vg.loadPicture(
+    SvgStringLoader(document.toXmlString()),
+    null,
   );
-  writer.text(
-    File(
-      _path(root, <String>[
-        'apps',
-        app,
-        'android',
-        'app',
-        'src',
-        'main',
-        'res',
-        'drawable',
-        'ic_launcher_monochrome_inset.xml',
-      ]),
-    ),
+  final recorder = ui.PictureRecorder();
+  final canvas = ui.Canvas(recorder);
+  final scale = maskable ? _maskableScale : 1.0;
+  if (maskable) {
+    canvas.drawColor(const ui.Color(0xFFFFFFFF), ui.BlendMode.src);
+    canvas.translate(_size * (1 - scale) / 2, _size * (1 - scale) / 2);
+  }
+  canvas
+    ..scale(
+      _size * scale / picture.size.width,
+      _size * scale / picture.size.height,
+    )
+    ..drawPicture(picture.picture);
+  final scaled = recorder.endRecording();
+  try {
+    final raster = await scaled.toImage(_size, _size);
+    try {
+      final bytes = (await raster.toByteData(
+        format: ui.ImageByteFormat.rawStraightRgba,
+      ))!;
+      return img.Image.fromBytes(
+        width: _size,
+        height: _size,
+        bytes: bytes.buffer,
+        bytesOffset: bytes.offsetInBytes,
+        numChannels: 4,
+      );
+    } finally {
+      raster.dispose();
+    }
+  } finally {
+    scaled.dispose();
+    picture.picture.dispose();
+  }
+}
+
+img.Image _resize(img.Image source, int size) => img.copyResize(
+  source,
+  width: size,
+  height: size,
+  interpolation: img.Interpolation.average,
+);
+List<int> _png(img.Image source, int size) =>
+    img.encodePng(_resize(source, size));
+
+void _writeAndroid(String resources, img.Image desktop, List<SvgPath> paths) {
+  _writeText(
+    '$resources/drawable/ic_launcher_foreground.xml',
+    _vectorDrawable(paths, monochrome: false),
+  );
+  _writeText(
+    '$resources/drawable/ic_launcher_monochrome.xml',
+    _vectorDrawable(paths, monochrome: true),
+  );
+  _writeText(
+    '$resources/drawable/ic_launcher_monochrome_inset.xml',
     '''<?xml version="1.0" encoding="utf-8"?>
 <inset xmlns:android="http://schemas.android.com/apk/res/android"
     android:drawable="@drawable/ic_launcher_monochrome"
     android:inset="25%" />
 ''',
   );
-  writer.text(
-    File(
-      _path(root, <String>[
-        'apps',
-        app,
-        'android',
-        'app',
-        'src',
-        'main',
-        'res',
-        'values',
-        'icon_colors.xml',
-      ]),
-    ),
+  _writeText(
+    '$resources/values/icon_colors.xml',
     '''<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="icon_background">#FFFFFF</color>
 </resources>
 ''',
   );
-  writer.text(
-    File(
-      _path(root, <String>[
-        'apps',
-        app,
-        'android',
-        'app',
-        'src',
-        'main',
-        'res',
-        'mipmap-anydpi-v26',
-        'launcher_icon.xml',
-      ]),
-    ),
+  _writeText(
+    '$resources/mipmap-anydpi-v26/launcher_icon.xml',
     '''<?xml version="1.0" encoding="utf-8"?>
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
   <background android:drawable="@color/icon_background"/>
@@ -385,210 +308,131 @@ void _writeAndroid(
 </adaptive-icon>
 ''',
   );
-
   for (final entry in _androidDensities.entries) {
-    writer.bytes(
-      File(
-        _path(root, <String>[
-          'apps',
-          app,
-          'android',
-          'app',
-          'src',
-          'main',
-          'res',
-          'mipmap-${entry.key}',
-          'launcher_icon.png',
-        ]),
-      ),
+    _writeBytes(
+      '$resources/mipmap-${entry.key}/launcher_icon.png',
       _png(desktop, entry.value),
     );
-  }
-  for (final density in _androidDensities.keys) {
-    writer.absent(
-      File(
-        _path(root, <String>[
-          'apps',
-          app,
-          'android',
-          'app',
-          'src',
-          'main',
-          'res',
-          'drawable-$density',
-          'ic_launcher_foreground.png',
-        ]),
-      ),
-    );
+    _remove('$resources/drawable-${entry.key}/ic_launcher_foreground.png');
   }
 }
 
-void _writeWeb(String root, IconWriter writer, String app, img.Image desktop) {
-  writer.bytes(
-    File(_path(root, <String>['apps', app, 'web', 'favicon.png'])),
-    _png(desktop, 32),
+void _writeWeb(String web, img.Image desktop, img.Image maskable) {
+  _writeBytes('$web/favicon.png', _png(desktop, 32));
+  for (final size in [192, 512]) {
+    _writeBytes('$web/icons/Icon-$size.png', _png(desktop, size));
+    _writeBytes('$web/icons/Icon-maskable-$size.png', _png(maskable, size));
+  }
+}
+
+void _writeWindows(String windows, img.Image desktop) {
+  final frames = _windowsSizes.map((size) => _resize(desktop, size)).toList();
+  final icon = frames.first;
+  for (final frame in frames.skip(1)) {
+    icon.addFrame(frame);
+  }
+  _writeBytes('$windows/runner/resources/app_icon.ico', img.encodeIco(icon));
+}
+
+Map<String, List<int>> _composerFiles(String source, String common) {
+  final metadata = File('$source/AppIcon.icon/icon.json').readAsBytesSync();
+  final config = jsonDecode(utf8.decode(metadata)) as Map<String, dynamic>;
+  final files = <String, List<int>>{'icon.json': metadata};
+  for (final group in config['groups'] as List) {
+    for (final layer in group['layers'] as List) {
+      final name = layer['image-name'] as String?;
+      if (name == null) continue;
+      if (name.contains('/') || name.contains('\\'))
+        throw FormatException('Invalid Composer image name: $name');
+      final local = File('$source/$name');
+      final master = local.existsSync() ? local : File('$common/$name');
+      files['Assets/$name'] = master.readAsBytesSync();
+    }
+  }
+  return files;
+}
+
+void _writeBundle(String destination, Map<String, List<int>> files) {
+  final directory = Directory(destination);
+  for (final entry in files.entries) {
+    _writeBytes('$destination/${entry.key}', entry.value);
+  }
+  for (final file in directory.listSync(recursive: true).whereType<File>()) {
+    final relative = file.path
+        .substring(directory.path.length + 1)
+        .replaceAll(Platform.pathSeparator, '/');
+    if (!files.containsKey(relative)) file.deleteSync();
+  }
+}
+
+Future<void> _generateApp(String source, String project, String common) async {
+  bool hasPlatform(String name) => Directory('$project/$name').existsSync();
+  final foreground = XmlDocument.parse(
+    File('$source/foreground.svg').readAsStringSync(),
   );
-  for (final size in <int>[192, 512]) {
-    writer.bytes(
-      File(
-        _path(root, <String>['apps', app, 'web', 'icons', 'Icon-$size.png']),
-      ),
-      _png(desktop, size),
-    );
-    writer.bytes(
-      File(
-        _path(root, <String>[
-          'apps',
-          app,
-          'web',
-          'icons',
-          'Icon-maskable-$size.png',
-        ]),
-      ),
-      _png(desktop, size),
-    );
-  }
-}
-
-void _writeWindows(
-  String root,
-  IconWriter writer,
-  String app,
-  img.Image desktop,
-) {
-  final frames = _windowsSizes.map(
-    (size) => img.copyResize(
+  final paths = hasPlatform('android')
+      ? _readSvgPaths(foreground.rootElement)
+      : <SvgPath>[];
+  final composer = hasPlatform('ios') || hasPlatform('macos')
+      ? _composerFiles(source, common)
+      : null;
+  final desktop = await _renderIcon(
+    foreground,
+    background: File('$common/desktop_background.svg'),
+  );
+  if (hasPlatform('android'))
+    _writeAndroid('$project/android/app/src/main/res', desktop, paths);
+  if (hasPlatform('web')) {
+    _writeWeb(
+      '$project/web',
       desktop,
-      width: size,
-      height: size,
-      interpolation: img.Interpolation.average,
-    ),
-  );
-  final iterator = frames.iterator..moveNext();
-  final ico = iterator.current;
-  while (iterator.moveNext()) {
-    ico.addFrame(iterator.current);
-  }
-  writer.bytes(
-    File(
-      _path(root, <String>[
-        'apps',
-        app,
-        'windows',
-        'runner',
-        'resources',
-        'app_icon.ico',
-      ]),
-    ),
-    img.encodeIco(ico),
-  );
-}
-
-void _writeLinux(
-  String root,
-  IconWriter writer,
-  String app,
-  img.Image desktop,
-) {
-  writer.bytes(
-    File(_path(root, <String>['apps', app, 'linux', 'icon.png'])),
-    _png(desktop, 64),
-  );
-}
-
-void _writeComposerLayers(
-  String root,
-  IconWriter writer,
-  String app,
-  File base,
-  File badge,
-) {
-  for (final platform in <String>['ios', 'macos']) {
-    final directory = <String>[
-      'apps',
-      app,
-      platform,
-      'Runner',
-      'AppIcon.icon',
-      'Assets',
-    ];
-    writer.bytes(
-      File(_path(root, <String>[...directory, '1 – Layer.svg'])),
-      base.readAsBytesSync(),
-    );
-    writer.bytes(
-      File(_path(root, <String>[...directory, '2 – Layer.svg'])),
-      badge.readAsBytesSync(),
+      await _renderIcon(foreground, maskable: true),
     );
   }
+  if (hasPlatform('windows')) _writeWindows('$project/windows', desktop);
+  if (hasPlatform('linux'))
+    _writeBytes('$project/linux/icon.png', _png(desktop, 64));
+  if (composer != null) {
+    _writeBundle('$source/AppIcon.icon', composer);
+    for (final platform in ['ios', 'macos']) {
+      if (hasPlatform(platform))
+        _writeBundle('$project/$platform/Runner/AppIcon.icon', composer);
+    }
+  }
 }
 
-void _writeApp(
-  String root,
-  IconWriter writer,
-  IconApp app,
-  Directory temporaryDirectory,
-) {
-  final common = _path(root, <String>['tool', 'app_icons', 'common']);
-  final appSource = _path(root, <String>['tool', 'app_icons', app.name]);
-  final baseFile = File(_path(common, <String>['base.svg']));
-  final backgroundFile = File(
-    _path(common, <String>['desktop_background.svg']),
-  );
-  final badgeFile = File(_path(appSource, <String>['badge.svg']));
-  final foregroundFile = File(_path(appSource, <String>['foreground.svg']));
-
-  final foregroundPaths = _readSvgPaths(foregroundFile);
-  final desktop = _renderDesktopIcon(
-    foregroundFile,
-    backgroundFile,
-    temporaryDirectory,
-  );
-
-  _writeAndroid(root, writer, app.name, desktop, foregroundPaths);
-  _writeWeb(root, writer, app.name, desktop);
-  _writeWindows(root, writer, app.name, desktop);
-  _writeLinux(root, writer, app.name, desktop);
-  _writeComposerLayers(root, writer, app.name, baseFile, badgeFile);
-}
-
-void main(List<String> arguments) {
-  final checkOnly = arguments.contains('--check');
-  final unknownArguments = arguments.where((argument) => argument != '--check');
-  if (unknownArguments.isNotEmpty) {
-    stderr.writeln('Usage: dart run tool/generate_icons.dart [--check]');
-    exitCode = 64;
-    return;
-  }
-
-  final root = Directory.current.path;
-  final writer = IconWriter(checkOnly: checkOnly);
-  final temporaryDirectory = Directory.systemTemp.createTempSync(
-    'bearings-icons-',
-  );
-
-  try {
-    for (final app in <IconApp>[
-      const IconApp('beariscope'),
-      const IconApp('bearimetric'),
-    ]) {
-      _writeApp(root, writer, app, temporaryDirectory);
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  // The Flutter runner supplies dart:ui for rendering; this is a manual tool,
+  // outside the test suite and CI.
+  test('Generate primary app icons', () async {
+    final root = Directory.current.path;
+    final sources =
+        Directory('$root/tool/app_icons')
+            .listSync()
+            .whereType<Directory>()
+            .where(
+              (directory) =>
+                  directory.uri.pathSegments
+                      .where((part) => part.isNotEmpty)
+                      .last !=
+                  'common',
+            )
+            .toList()
+          ..sort((a, b) => a.path.compareTo(b.path));
+    for (final source in sources) {
+      final name = source.uri.pathSegments
+          .where((part) => part.isNotEmpty)
+          .last;
+      final project = '$root/apps/$name';
+      if (!Directory(project).existsSync())
+        throw FileSystemException('No app project for icon source', project);
+      try {
+        await _generateApp(source.path, project, '$root/tool/app_icons/common');
+      } catch (error) {
+        throw StateError('Failed to generate $name icons: $error');
+      }
+      print('Generated $name icons.');
     }
-  } finally {
-    temporaryDirectory.deleteSync(recursive: true);
-  }
-
-  if (writer.mismatches.isNotEmpty) {
-    stderr.writeln('Icon outputs are stale or missing:');
-    for (final mismatch in writer.mismatches) {
-      stderr.writeln('  $mismatch');
-    }
-    stderr.writeln('Run: dart run tool/generate_icons.dart');
-    exitCode = 1;
-    return;
-  }
-
-  stdout.writeln(
-    checkOnly ? 'Icon outputs are up to date.' : 'Icons generated.',
-  );
+  }, timeout: const Timeout(Duration(minutes: 2)));
 }
