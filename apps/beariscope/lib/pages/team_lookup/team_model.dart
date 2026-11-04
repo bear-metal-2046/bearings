@@ -47,9 +47,9 @@ class Team {
   }
 }
 
-// ignores punctuation hi
+//FIXED punctuation :)
 String _normalize(String input) {
-  return input.replaceAll(RegExp(r'[^\w\s]'), '').toLowerCase();
+  return input.replaceAll(RegExp(r'\W'), '').toLowerCase();
 }
 
 bool teamMatchesSearch(Team team, String query) {
@@ -59,5 +59,6 @@ bool teamMatchesSearch(Team team, String query) {
   final cleanName = _normalize(team.name ?? '');
   final teamNumber = team.number.toString();
 
-  return cleanName.contains(cleanQuery) || teamNumber.contains(cleanQuery);
+  return cleanName.contains(cleanQuery) ||
+      teamNumber.contains(cleanQuery);
 }
