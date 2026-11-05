@@ -19,6 +19,7 @@ import 'package:beariscope/pages/team_lookup/team_model.dart';
 import 'package:beariscope/pages/team_lookup/team_providers.dart';
 import 'package:beariscope/providers/rankings_provider.dart';
 import 'package:beariscope/providers/team_scouting_provider.dart';
+import 'package:beariscope/widgets/beariscope_modal.dart';
 import 'package:beariscope/widgets/beariscope_search_bar.dart';
 import 'package:beariscope/widgets/beariscope_status_view.dart';
 import 'package:beariscope/widgets/screenshot_guard.dart';
@@ -1505,12 +1506,9 @@ class _PicklistSurfaceState extends ConsumerState<_PicklistSurface> {
                                 final team = resolvedTeams[teams[index]];
                                 if (team == null) return;
                                 final diveDeeper =
-                                    await showModalBottomSheet<bool>(
-                                      context: context,
-                                      isScrollControlled: true,
-                                      useSafeArea: true,
-                                      backgroundColor: Colors.transparent,
-                                      builder: (context) =>
+                                    await BeariscopeModal.show<bool>(
+                                      context,
+                                      builder: (_) =>
                                           PicklistTeamQuickViewSheet(
                                             team: team,
                                           ),

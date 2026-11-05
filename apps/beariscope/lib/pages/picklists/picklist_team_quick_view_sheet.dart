@@ -3,6 +3,7 @@ import 'package:beariscope/models/team_scouting_bundle.dart';
 import 'package:beariscope/pages/team_lookup/tabs/scouting_tab_widgets.dart';
 import 'package:beariscope/pages/team_lookup/team_model.dart';
 import 'package:beariscope/providers/team_scouting_provider.dart';
+import 'package:beariscope/widgets/beariscope_modal.dart';
 import 'package:beariscope/widgets/settings_group.dart';
 import 'package:beariscope/widgets/team_card.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,82 +20,28 @@ class PicklistTeamQuickViewSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final scouting = ref.watch(teamScoutingProvider(team.number));
 
-    return DraggableScrollableSheet(
-      expand: false,
-      initialChildSize: .78,
-      minChildSize: .5,
-      maxChildSize: .92,
-      builder: (context, scrollController) => Material(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 32,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    team.name,
-                    style: Theme.of(context).textTheme.titleLarge
-                        ?.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                  Text(
-                    'Team ${team.number}',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Divider(height: 1),
-            Expanded(
-              child: scouting.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (_, _) => _QuickViewBody(
-                  bundle: TeamScoutingBundle(
-                    matchDocs: const [],
-                    pitsDoc: null,
-                    stratDocs: const [],
-                    driveTeamDocs: const [],
-                    observationDocs: const [],
-                  ),
-                  scrollController: scrollController,
-                ),
-                data: (bundle) => _QuickViewBody(
-                  bundle: bundle,
-                  scrollController: scrollController,
-                ),
-              ),
-            ),
-            const Divider(height: 1),
-            SafeArea(
-              top: false,
-              minimum: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-              child: SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: () => Navigator.of(context).pop(true),
-                  icon: const Icon(LucideIcons.arrowUpRight),
-                  label: const Text('Dive deeper'),
-                ),
-              ),
-            ),
-          ],
+    return BeariscopeModal(
+      title: 'Team ${team.number} — ${team.name}',
+      size: BeariscopeModalSize.tall,
+      scrolling: BeariscopeModalScrolling.content,
+      actions: const [],
+      primaryAction: BeariscopeModalPrimaryAction(
+        label: 'Dive deeper',
+        icon: LucideIcons.arrowUpRight,
+        onPressed: () => BeariscopeModal.complete(context, true),
+      ),
+      content: scouting.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (_, _) => _QuickViewBody(
+          bundle: TeamScoutingBundle(
+            matchDocs: const [],
+            pitsDoc: null,
+            stratDocs: const [],
+            driveTeamDocs: const [],
+            observationDocs: const [],
+          ),
         ),
+        data: (bundle) => _QuickViewBody(bundle: bundle),
       ),
     );
   }
@@ -102,9 +49,8 @@ class PicklistTeamQuickViewSheet extends ConsumerWidget {
 
 class _QuickViewBody extends StatelessWidget {
   final TeamScoutingBundle bundle;
-  final ScrollController scrollController;
 
-  const _QuickViewBody({required this.bundle, required this.scrollController});
+  const _QuickViewBody({required this.bundle});
 
   @override
   Widget build(BuildContext context) {
@@ -179,8 +125,7 @@ class _QuickViewBody extends StatelessWidget {
     final pitsAccuracy = bundle.getPitsDouble('averageAccuracy');
 
     return ListView(
-      controller: scrollController,
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      padding: const EdgeInsets.only(top: 8, bottom: 16),
       children: [
         _section('Scoring', [
           if (hasMatches) ...[
