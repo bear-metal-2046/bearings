@@ -59,6 +59,5 @@ bool teamMatchesSearch(Team team, String query) {
   final cleanName = _normalize(team.name ?? '');
   final teamNumber = team.number.toString();
 
-  return cleanName.contains(cleanQuery) ||
-      teamNumber.contains(cleanQuery);
+  return cleanName.contains(cleanQuery) || teamNumber.contains(cleanQuery);
 }
