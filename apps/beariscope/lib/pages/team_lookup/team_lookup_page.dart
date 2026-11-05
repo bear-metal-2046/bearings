@@ -99,11 +99,18 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage> {
                     );
                   }
 
+                  final scoutingBundles = <TeamScoutingBundle>[];
+                  for (final team in teams) {
+                    final bundle = ref.watch(teamScoutingProvider(team.number)).asData?.value;
+                    if (bundle != null) scoutingBundles.add(bundle);
+                  }
+                  final sharedMaxY = teamCardSharedYAxisMax(scoutingBundles);
+
                   return RefreshIndicator(
                     onRefresh: _refresh,
                     child: BeariscopeCardList(
                       padding: listPadding,
-                      children: teams.map((team) => TeamCard(teamKey: team.key)).toList(),
+                      children: teams.map((team) => TeamCard(teamKey: team.key, minY: 0, maxY: sharedMaxY)).toList(),
                     ),
                   );
                 },

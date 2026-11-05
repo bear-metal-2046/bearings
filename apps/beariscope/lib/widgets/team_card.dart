@@ -30,6 +30,8 @@ class TeamCard extends ConsumerWidget {
   final bool headerOnly;
   final double? height;
   final Color? allianceColor;
+  final double? minY;
+  final double? maxY;
 
   static const double _defaultPlaceholderHeight = 120;
 
@@ -39,6 +41,8 @@ class TeamCard extends ConsumerWidget {
     required this.teamKey,
     this.height,
     this.allianceColor,
+    this.minY,
+    this.maxY,
   });
 
   @override
@@ -102,6 +106,8 @@ class TeamCard extends ConsumerWidget {
               : _TeamCardSummary(
                   team: resolvedTeam,
                   expandToFillHeight: height != null,
+                  minY: minY,
+                  maxY: maxY,
                 ),
         );
       },
@@ -143,10 +149,14 @@ class TeamCard extends ConsumerWidget {
 class _TeamCardSummary extends ConsumerWidget {
   final Team team;
   final bool expandToFillHeight;
+  final double? minY;
+  final double? maxY;
 
   const _TeamCardSummary({
     required this.team,
     required this.expandToFillHeight,
+    required this.minY,
+    required this.maxY,
   });
 
   @override
@@ -179,6 +189,8 @@ class _TeamCardSummary extends ConsumerWidget {
                 teamNumber: team.number,
                 bundle: bundle,
                 expandToFillHeight: expandToFillHeight,
+                minY: minY,
+                maxY: maxY,
                 stratZScores:
                     ref
                         .watch(stratZScoresProvider)
@@ -271,6 +283,8 @@ class _SummaryMetrics extends ConsumerWidget {
   final int teamNumber;
   final TeamScoutingBundle bundle;
   final bool expandToFillHeight;
+  final double? minY;
+  final double? maxY;
   final StratZScoreData? stratZScores;
   final TeamRanking? ranking;
 
@@ -278,6 +292,8 @@ class _SummaryMetrics extends ConsumerWidget {
     required this.teamNumber,
     required this.bundle,
     required this.expandToFillHeight,
+    required this.minY,
+    required this.maxY,
     required this.stratZScores,
     required this.ranking,
   });
@@ -343,6 +359,9 @@ class _SummaryMetrics extends ConsumerWidget {
                         majorGridLines: MajorGridLines(width: 0),
                       ),
                       primaryYAxis: NumericAxis(
+                        minimum: minY,
+                        maximum: maxY,
+                        interval: 50,
                         labelStyle: TextStyle(
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
@@ -371,6 +390,9 @@ class _SummaryMetrics extends ConsumerWidget {
                   majorGridLines: MajorGridLines(width: 0),
                 ),
                 primaryYAxis: NumericAxis(
+                  minimum: minY,
+                  maximum: maxY,
+                  interval: 50,
                   labelStyle: TextStyle(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
@@ -948,6 +970,23 @@ double _scaledMatchField(
     return raw * doc.teleFuelScalar;
   }
   return raw;
+}
+
+double teamCardSharedYAxisMax(Iterable<TeamScoutingBundle> bundles) {
+  var maximum = 0.0;
+  for (final bundle in bundles) {
+    if (bundle.matchDocs.length <= 1) continue;
+    for (final doc in bundle.matchDocs) {
+      final auto = _scaledMatchField(doc, kSectionAuto, kAutoFuelScored);
+      final tele = _scaledMatchField(doc, kSectionTele, kTeleFuelScored);
+      final total = auto + tele;
+      if (auto > maximum) maximum = auto;
+      if (tele > maximum) maximum = tele;
+      if (total > maximum) maximum = total;
+    }
+  }
+  if (maximum <= 0) return 50;
+  return (maximum / 50).ceil() * 50.0;
 }
 
 const _scaledAutoFields = {kAutoFuelScored, kAutoFuelPassed};
