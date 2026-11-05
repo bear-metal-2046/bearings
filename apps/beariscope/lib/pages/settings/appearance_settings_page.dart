@@ -1,3 +1,4 @@
+import 'package:beariscope/widgets/beariscope_modal.dart';
 import 'package:beariscope/providers/appearance_provider.dart';
 import 'package:beariscope/providers/match_preview_layout_provider.dart';
 import 'package:beariscope/widgets/settings_group.dart';
@@ -216,35 +217,17 @@ class AppearanceSettingsPage extends ConsumerWidget {
                     if (index == accentColors.length) {
                       return GestureDetector(
                         onTap: () async {
-                          var newColor = selectedColor;
-                          final confirmed = await ColorPicker(
-                            color: selectedColor,
-                            onColorChanged: (color) => newColor = color,
-                            title: Text(
-                              'Custom Color',
-                              style: Theme.of(context).textTheme.titleLarge,
-                            ),
-                            width: 44,
-                            height: 44,
-                            spacing: 3,
-                            runSpacing: 3,
-                            borderRadius: 22,
-                            wheelDiameter: 169,
-                            enableOpacity: false,
-                            showColorCode: false,
-                            pickersEnabled: const <ColorPickerType, bool>{
-                              ColorPickerType.both: false,
-                              ColorPickerType.primary: false,
-                              ColorPickerType.accent: false,
-                              ColorPickerType.bw: false,
-                              ColorPickerType.custom: false,
-                              ColorPickerType.wheel: true,
-                            },
-                          ).showPickerDialog(context);
-                          if (!context.mounted || !confirmed) return;
-                          ref
-                              .read(accentColorProvider.notifier)
-                              .setColor(newColor);
+                          final newColor = await BeariscopeModal.show<Color>(
+                            context,
+                            useRootNavigator: true,
+                            builder: (_) =>
+                                _CustomColorModal(initialColor: selectedColor),
+                          );
+                          if (newColor != null) {
+                            ref
+                                .read(accentColorProvider.notifier)
+                                .setColor(newColor);
+                          }
                         },
                         child: Container(
                           decoration: BoxDecoration(
@@ -365,4 +348,47 @@ class AppearanceSettingsPage extends ConsumerWidget {
       ),
     );
   }
+}
+
+class _CustomColorModal extends StatefulWidget {
+  const _CustomColorModal({required this.initialColor});
+  final Color initialColor;
+
+  @override
+  State<_CustomColorModal> createState() => _CustomColorModalState();
+}
+
+class _CustomColorModalState extends State<_CustomColorModal> {
+  late Color _color = widget.initialColor;
+
+  @override
+  Widget build(BuildContext context) => BeariscopeModal(
+    title: 'Custom Color',
+    actions: const [],
+    primaryAction: BeariscopeModalPrimaryAction(
+      label: 'Select',
+      icon: LucideIcons.check,
+      onPressed: () => Navigator.pop(context, _color),
+    ),
+    content: ColorPicker(
+      color: _color,
+      onColorChanged: (color) => setState(() => _color = color),
+      width: 44,
+      height: 44,
+      spacing: 3,
+      runSpacing: 3,
+      borderRadius: 22,
+      wheelDiameter: 169,
+      enableOpacity: false,
+      showColorCode: false,
+      pickersEnabled: const <ColorPickerType, bool>{
+        ColorPickerType.both: false,
+        ColorPickerType.primary: false,
+        ColorPickerType.accent: false,
+        ColorPickerType.bw: false,
+        ColorPickerType.custom: false,
+        ColorPickerType.wheel: true,
+      },
+    ),
+  );
 }

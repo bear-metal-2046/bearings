@@ -1,3 +1,6 @@
+import 'package:beariscope/widgets/beariscope_alert_dialog.dart';
+import 'package:beariscope/widgets/beariscope_modal.dart';
+
 import 'dart:convert';
 
 import 'package:beariscope/utils/platform_utils_stub.dart'
@@ -105,10 +108,11 @@ class _ScoutSelectionPageState extends ConsumerState<ScoutSelectionPage> {
                 child: IconButton(
                   onPressed: () async {
                     newNameTEC.clear();
-                    await showDialog(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: const Text('Rename Scout'),
+                    await BeariscopeModal.show<void>(
+                      context,
+                      useRootNavigator: true,
+                      builder: (context) => BeariscopeModal(
+                        title: 'Rename Scout',
                         content: TextField(
                           controller: newNameTEC,
                           decoration: const InputDecoration(
@@ -116,74 +120,65 @@ class _ScoutSelectionPageState extends ConsumerState<ScoutSelectionPage> {
                             labelText: 'New name',
                           ),
                         ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(context).pop(),
-                            child: const Text('Cancel'),
-                          ),
-                          TextButton(
-                            onPressed: () async {
-                              if (newNameTEC.text.isNotEmpty) {
-                                final previous = List<Map<String, String>>.from(
-                                  _optimisticScouts ??
-                                      _normalizeScouts(
-                                        ref
-                                                .read(_scoutsProvider)
-                                                .asData
-                                                ?.value ??
-                                            const [],
-                                      ),
-                                );
+                        actions: const [],
+                        primaryAction: BeariscopeModalPrimaryAction(
+                          label: 'Rename',
+                          icon: LucideIcons.check,
+                          onPressed: () async {
+                            if (newNameTEC.text.isNotEmpty) {
+                              final previous = List<Map<String, String>>.from(
+                                _optimisticScouts ??
+                                    _normalizeScouts(
+                                      ref.read(_scoutsProvider).asData?.value ??
+                                          const [],
+                                    ),
+                              );
 
-                                setState(() {
-                                  _optimisticScouts =
-                                      previous
-                                          .map(
-                                            (entry) => entry['uuid'] == id
-                                                ? {
-                                                    'name': newNameTEC.text,
-                                                    'uuid': id,
-                                                  }
-                                                : entry,
-                                          )
-                                          .toList()
-                                        ..sort(
-                                          (a, b) =>
-                                              a['name']!.compareTo(b['name']!),
-                                        );
-                                });
-
-                                try {
-                                  await ref
-                                      .read(honeycombClientProvider)
-                                      .put(
-                                        '/scouts/$id',
-                                        data: {"name": newNameTEC.text},
+                              setState(() {
+                                _optimisticScouts =
+                                    previous
+                                        .map(
+                                          (entry) => entry['uuid'] == id
+                                              ? {
+                                                  'name': newNameTEC.text,
+                                                  'uuid': id,
+                                                }
+                                              : entry,
+                                        )
+                                        .toList()
+                                      ..sort(
+                                        (a, b) =>
+                                            a['name']!.compareTo(b['name']!),
                                       );
-                                  await _refreshScouts();
-                                  if (mounted) {
-                                    Navigator.of(this.context).pop();
-                                  }
-                                } catch (e) {
-                                  if (mounted) {
-                                    setState(
-                                      () => _optimisticScouts = previous,
+                              });
+
+                              try {
+                                await ref
+                                    .read(honeycombClientProvider)
+                                    .put(
+                                      '/scouts/$id',
+                                      data: {"name": newNameTEC.text},
                                     );
-                                    ScaffoldMessenger.of(this.context)
-                                        .showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              'Failed to rename scout: $e',
-                                            ),
+                                await _refreshScouts();
+                                if (context.mounted) {
+                                  Navigator.of(context).pop();
+                                }
+                              } catch (e) {
+                                if (mounted) {
+                                  setState(() => _optimisticScouts = previous);
+                                  ScaffoldMessenger.of(this.context)
+                                      .showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Failed to rename scout: $e',
                                           ),
-                                        );
-                                  }
+                                        ),
+                                      );
                                 }
                               }
-                            },
-                            child: const Text('Rename'),
-                          ),
-                        ],
+                            }
+                          },
+                        ),
                       ),
                     );
                   },
@@ -195,29 +190,18 @@ class _ScoutSelectionPageState extends ConsumerState<ScoutSelectionPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 2),
                 child: IconButton(
                   onPressed: () async {
-                    final confirmed = await showDialog<bool>(
+                    final confirmed = await BeariscopeAlertDialog.show<bool>(
                       context: context,
-                      builder: (context) => AlertDialog(
-                        title: const Text('Delete Scout'),
-                        content: const Text(
-                          'Are you sure you want to delete this scout?',
+                      title: 'Delete Scout',
+                      message: 'Are you sure you want to delete this scout?',
+                      actions: const [
+                        BeariscopeAlertAction(label: 'Cancel', result: false),
+                        BeariscopeAlertAction(
+                          label: 'Delete',
+                          result: true,
+                          role: BeariscopeAlertActionRole.destructive,
                         ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(context).pop(false),
-                            child: const Text('Cancel'),
-                          ),
-                          TextButton(
-                            onPressed: () => Navigator.of(context).pop(true),
-                            style: TextButton.styleFrom(
-                              foregroundColor: Theme.of(context)
-                                  .colorScheme
-                                  .error,
-                            ),
-                            child: const Text('Delete'),
-                          ),
-                        ],
-                      ),
+                      ],
                     );
                     if (confirmed == true) {
                       final previous = List<Map<String, String>>.from(
@@ -269,8 +253,9 @@ class _ScoutSelectionPageState extends ConsumerState<ScoutSelectionPage> {
   }
 
   Future<void> _importFromCsv() async {
-    final result = await showDialog<_CsvImportResult>(
-      context: context,
+    final result = await BeariscopeModal.show<_CsvImportResult>(
+      context,
+      useRootNavigator: true,
       builder: (context) => const _CsvImportDialog(),
     );
 
@@ -326,59 +311,56 @@ class _ScoutSelectionPageState extends ConsumerState<ScoutSelectionPage> {
 
   Future<void> _showAddScoutDialog() async {
     _addScoutTEC.clear();
-    await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add Scout'),
+    await BeariscopeModal.show<void>(
+      context,
+      useRootNavigator: true,
+      builder: (context) => BeariscopeModal(
+        title: 'Add Scout',
         content: TextField(
           controller: _addScoutTEC,
           decoration: const InputDecoration(labelText: 'Scout name'),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              if (_addScoutTEC.text.isNotEmpty) {
-                final previous = List<Map<String, String>>.from(
-                  _optimisticScouts ??
-                      _normalizeScouts(
-                        ref.read(_scoutsProvider).asData?.value ?? const [],
-                      ),
-                );
-                setState(() {
-                  _optimisticScouts = [
-                    ...previous,
-                    {
-                      'name': _addScoutTEC.text,
-                      'uuid': 'temp-${DateTime.now().microsecondsSinceEpoch}',
-                    },
-                  ]..sort((a, b) => a['name']!.compareTo(b['name']!));
-                });
+        actions: const [],
+        primaryAction: BeariscopeModalPrimaryAction(
+          label: 'Add',
+          icon: LucideIcons.check,
+          onPressed: () async {
+            if (_addScoutTEC.text.isNotEmpty) {
+              final previous = List<Map<String, String>>.from(
+                _optimisticScouts ??
+                    _normalizeScouts(
+                      ref.read(_scoutsProvider).asData?.value ?? const [],
+                    ),
+              );
+              setState(() {
+                _optimisticScouts = [
+                  ...previous,
+                  {
+                    'name': _addScoutTEC.text,
+                    'uuid': 'temp-${DateTime.now().microsecondsSinceEpoch}',
+                  },
+                ]..sort((a, b) => a['name']!.compareTo(b['name']!));
+              });
 
-                try {
-                  await ref
-                      .read(honeycombClientProvider)
-                      .post('/scouts', data: {"name": _addScoutTEC.text});
-                  await _refreshScouts();
-                  if (mounted) {
-                    Navigator.of(this.context).pop();
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    setState(() => _optimisticScouts = previous);
-                    ScaffoldMessenger.of(this.context).showSnackBar(
-                      SnackBar(content: Text('Failed to add scout: $e')),
-                    );
-                  }
+              try {
+                await ref
+                    .read(honeycombClientProvider)
+                    .post('/scouts', data: {"name": _addScoutTEC.text});
+                await _refreshScouts();
+                if (context.mounted) {
+                  Navigator.of(context).pop();
+                }
+              } catch (e) {
+                if (mounted) {
+                  setState(() => _optimisticScouts = previous);
+                  ScaffoldMessenger.of(this.context).showSnackBar(
+                    SnackBar(content: Text('Failed to add scout: $e')),
+                  );
                 }
               }
-            },
-            child: const Text('Add'),
-          ),
-        ],
+            }
+          },
+        ),
       ),
     );
   }
@@ -637,8 +619,20 @@ class _CsvImportDialogState extends State<_CsvImportDialog> {
         ? (_fileContents?.trim().isNotEmpty ?? false)
         : _pasteController.text.trim().isNotEmpty;
 
-    return AlertDialog(
-      title: const Text('Import From CSV'),
+    return BeariscopeModal(
+      title: 'Import From CSV',
+      actions: const [],
+      primaryAction: BeariscopeModalPrimaryAction(
+        label: 'Import',
+        icon: LucideIcons.check,
+        enabled: canImport,
+        onPressed: () {
+          final csvText = _mode == _CsvImportMode.file
+              ? _fileContents ?? ''
+              : _pasteController.text;
+          Navigator.of(context).pop(_CsvImportResult(csvText));
+        },
+      ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -690,23 +684,6 @@ class _CsvImportDialogState extends State<_CsvImportDialog> {
           ],
         ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        TextButton(
-          onPressed: canImport
-              ? () {
-                  final csvText = _mode == _CsvImportMode.file
-                      ? _fileContents ?? ''
-                      : _pasteController.text;
-                  Navigator.of(context).pop(_CsvImportResult(csvText));
-                }
-              : null,
-          child: const Text('Import'),
-        ),
-      ],
     );
   }
 }

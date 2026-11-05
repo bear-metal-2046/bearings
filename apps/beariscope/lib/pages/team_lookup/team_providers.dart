@@ -72,17 +72,26 @@ Uint8List? _decodeBase64Image(String? value) {
   }
 }
 
-final teamsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
-  final selectedEvent = ref.watch(currentEventProvider);
-  final client = ref.watch(honeycombClientProvider);
+/// Roster data is keyed by event so callers can share it without changing the
+/// selected event. Consumers can apply their own presentation-specific mapping.
+final eventTeamsProvider =
+    FutureProvider.family<List<Map<String, dynamic>>, String>((
+      ref,
+      event,
+    ) async {
+      final teamData = await ref
+          .watch(honeycombClientProvider)
+          .get<List<dynamic>>(
+            '/teams',
+            queryParams: {'event': event},
+            cachePolicy: CachePolicy.networkFirst,
+          );
+      return _toStringKeyMaps(teamData);
+    });
 
-  final teamData = await client.get<List<dynamic>>(
-    '/teams',
-    queryParams: {'event': selectedEvent},
-    cachePolicy: CachePolicy.networkFirst,
-  );
-
-  return _toStringKeyMaps(teamData);
+final teamsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) {
+  final event = ref.watch(currentEventProvider);
+  return ref.watch(eventTeamsProvider(event).future);
 });
 
 class TeamMediaRecord {
@@ -135,7 +144,7 @@ class TeamMediaRecord {
 
   bool get isAvatar => type == 'avatar';
 
-  bool get isPhoto => type == 'imgur' || type == 'instagram-image';
+  bool get isPhoto => type == 'imgur';
 
   bool get isChiefDelphiThread => type == 'cd-thread';
 

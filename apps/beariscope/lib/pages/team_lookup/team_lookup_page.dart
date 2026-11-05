@@ -204,6 +204,7 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage> {
     client.invalidateCache('/teams', queryParams: {'event': selectedEvent});
     client.invalidateCache('/rankings', queryParams: {'event': selectedEvent});
     client.invalidateCache('/event/$selectedEvent/team_media');
+    ref.invalidate(eventTeamsProvider(selectedEvent));
     ref.invalidate(teamsProvider);
     ref.invalidate(eventRankingsProvider);
     ref.invalidate(eventTeamMediaProvider);

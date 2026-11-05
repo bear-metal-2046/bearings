@@ -1,3 +1,5 @@
+import 'package:beariscope/widgets/beariscope_modal.dart';
+
 import 'dart:typed_data';
 
 import 'package:beariscope/utils/image_processor.dart';
@@ -14,9 +16,9 @@ class ImageCropDialog extends StatefulWidget {
     BuildContext context,
     Uint8List imageBytes,
   ) async {
-    return showDialog<Uint8List>(
-      context: context,
-      barrierDismissible: false,
+    return BeariscopeModal.show<Uint8List>(
+      context,
+      useRootNavigator: true,
       builder: (context) => ImageCropDialog(imageBytes: imageBytes),
     );
   }
@@ -28,10 +30,6 @@ class ImageCropDialog extends StatefulWidget {
 class _ImageCropDialogState extends State<ImageCropDialog> {
   final _cropController = CropController();
   bool _isProcessing = false;
-
-  void _cancel() {
-    Navigator.of(context).pop(null);
-  }
 
   Future<void> _confirm() async {
     setState(() => _isProcessing = true);
@@ -69,7 +67,7 @@ class _ImageCropDialogState extends State<ImageCropDialog> {
           'Processed image: ${ImageProcessor.formatFileSize(processed.length)}',
         );
 
-        Navigator.of(context).pop(processed);
+        BeariscopeModal.complete(context, processed);
 
       case CropFailure(:final cause, :final stackTrace):
         if (!mounted) return;
@@ -83,34 +81,20 @@ class _ImageCropDialogState extends State<ImageCropDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-        title: const Text('Crop Photo'),
-        leading: IconButton(
-          icon: const Icon(LucideIcons.x),
-          onPressed: _isProcessing ? null : _cancel,
-        ),
-        actions: [
-          TextButton(
-            onPressed: _isProcessing ? null : _confirm,
-            child: _isProcessing
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Text('Done', style: TextStyle(color: Colors.white)),
-          ),
-          const SizedBox(width: 8),
-        ],
+    return BeariscopeModal(
+      title: 'Crop Photo',
+      size: BeariscopeModalSize.expansive,
+      scrolling: BeariscopeModalScrolling.content,
+      dismissal: BeariscopeModalDismissal.fixed,
+      canDismiss: !_isProcessing,
+      actions: const [],
+      primaryAction: BeariscopeModalPrimaryAction(
+        label: 'Done',
+        icon: LucideIcons.check,
+        loading: _isProcessing,
+        onPressed: _confirm,
       ),
-      body: Column(
+      content: Column(
         children: [
           Expanded(
             child: Stack(
