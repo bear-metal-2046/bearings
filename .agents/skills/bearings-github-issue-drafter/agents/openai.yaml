@@ -1,0 +1,16 @@
+interface:
+  display_name: bearings github issue drafter
+  short_description: Convert rough Bear Metal Apps notes or bullet points into clean,
+    copy-paste-ready GitHub issue drafts for the Bearings repository. Use when the
+    user provides one or more informal ideas, bugs, or desired changes and wants them
+    triaged into Bug/Feature issues with priority and effort ratings, concise titles,
+    useful bodies, and parent-child relationships when appropriate.
+  icon_small: assets/icon.svg
+  icon_large: assets/icon.svg
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true
