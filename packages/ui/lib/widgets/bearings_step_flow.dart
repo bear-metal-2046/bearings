@@ -7,7 +7,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 ///
 /// Usage:
 /// ```dart
-/// StepFlow(
+/// BearingsStepFlow(
 ///   totalSteps: 3,
 ///   currentStep: _currentStep,     // 1-indexed
 ///   navigatorKey: _nestedNavKey,
@@ -17,7 +17,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 ///   onExitRequested: () => context.pop(),
 /// )
 /// ```
-class StepFlow extends StatelessWidget {
+class BearingsStepFlow extends StatelessWidget {
   /// Total number of steps in the flow (used to compute the progress bar
   /// fraction: `(currentStep - 1) / totalSteps`).
   final int totalSteps;
@@ -49,7 +49,7 @@ class StepFlow extends StatelessWidget {
   /// button is hidden on the first step.
   final VoidCallback? onExitRequested;
 
-  const StepFlow({
+  const BearingsStepFlow({
     super.key,
     required this.totalSteps,
     required this.currentStep,

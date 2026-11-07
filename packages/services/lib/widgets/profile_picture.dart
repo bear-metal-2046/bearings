@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:services/providers/user_profile_provider.dart';
+import 'package:ui/widgets/bearings_spinner.dart';
 
 class ProfilePicture extends ConsumerWidget {
   final double size;
@@ -19,7 +20,7 @@ class ProfilePicture extends ConsumerWidget {
       loading: () => SizedBox(
         width: size * 2,
         height: size * 2,
-        child: const CircularProgressIndicator(strokeWidth: 2),
+        child: const BearingsSpinner(strokeWidth: 2),
       ),
       error: (err, stack) => CircleAvatar(
         radius: size,

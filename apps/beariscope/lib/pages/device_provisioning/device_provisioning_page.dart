@@ -1,11 +1,12 @@
-import 'package:beariscope/widgets/beariscope_card.dart';
-import 'package:beariscope/widgets/beariscope_status_view.dart';
+import 'package:ui/widgets/bearings_card.dart';
+import 'package:ui/widgets/bearings_status_view.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:services/providers/device_credentials_provider.dart';
+import 'package:ui/widgets/bearings_spinner.dart';
 import 'package:ui/widgets/text_divider.dart';
 
 class DeviceProvisioningPage extends ConsumerWidget {
@@ -18,8 +19,8 @@ class DeviceProvisioningPage extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Provision Device')),
       body: credentialsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => BeariscopeStatusView(
+        loading: () => const Center(child: BearingsSpinner()),
+        error: (error, _) => BearingsStatusView(
           icon: LucideIcons.circleAlert,
           iconColor: Theme.of(context).colorScheme.error,
           title: 'Could not load device credentials',
@@ -34,7 +35,7 @@ class DeviceProvisioningPage extends ConsumerWidget {
           final qrPayload = credentials.toQrPayload();
           final colorScheme = Theme.of(context).colorScheme;
 
-          return BeariscopeCardList(
+          return BearingsCardList(
             children: [
               Column(
                 children: [

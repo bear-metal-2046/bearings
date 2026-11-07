@@ -57,12 +57,12 @@ dependencies:
   path_provider: ^2.1.6
   flutter_animate: ^4.5.2
   flex_color_picker: ^4.0.0
+  flex_seed_scheme: ^5.0.1
   material_ui: ^1.1.0
   cupertino_ui: ^1.0.1
   crdt_lf: 4.2.0
   crdt_socket_sync: ^0.6.0
   web_socket_channel: ^3.0.0
-  stupid_simple_sheet: ^0.9.1+1
   dynamic_color: ^2.1.0
   screen_protector: ^1.5.3
 

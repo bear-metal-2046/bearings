@@ -8,9 +8,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:beariscope/widgets/beariscope_modal.dart';
+import 'package:ui/widgets/bearings_modal.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:ui/widgets/bearings_spinner.dart';
 
 class FlashCardDeckImportPage extends ConsumerStatefulWidget {
   const FlashCardDeckImportPage({
@@ -144,7 +145,7 @@ class _FlashCardDeckImportPageState
           .importDeck(preview);
       if (!mounted) return;
       if (widget.asSheet) {
-        BeariscopeModal.complete(context, imported);
+        BearingsModal.complete(context, imported);
       } else {
         context.go('/flash_cards/${imported.id}');
       }
@@ -164,14 +165,14 @@ class _FlashCardDeckImportPageState
               .watch(flashCardLibraryProvider)
               .where((deck) => deck.shareCode == preview.shareCode)
               .firstOrNull;
-    final modal = BeariscopeModal(
-      size: BeariscopeModalSize.tall,
+    final modal = BearingsModal(
+      size: BearingsModalSize.tall,
       actions: const [],
       title: 'Import deck',
       canDismiss: !_busy,
       primaryAction: _preview == null
           ? null
-          : BeariscopeModalPrimaryAction(
+          : BearingsModalPrimaryAction(
               label: existing == null ? 'Import deck' : 'Open deck',
               icon: existing == null
                   ? LucideIcons.check
@@ -227,7 +228,7 @@ class _FlashCardDeckImportPageState
                   icon: _readingImage
                       ? const SizedBox.square(
                           dimension: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: BearingsSpinner(strokeWidth: 2),
                         )
                       : const Icon(LucideIcons.image),
                   label: Text(

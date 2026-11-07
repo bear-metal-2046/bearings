@@ -7,15 +7,15 @@ import 'package:beariscope/pages/team_lookup/team_model.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/pits_scouting_provider.dart';
 import 'package:beariscope/providers/scouting_data_provider.dart';
-import 'package:beariscope/utils/platform_utils_stub.dart'
-    if (dart.library.io) 'package:beariscope/utils/platform_utils.dart';
-import 'package:beariscope/widgets/beariscope_card.dart';
-import 'package:beariscope/widgets/beariscope_search_bar.dart';
-import 'package:beariscope/widgets/beariscope_status_view.dart';
+import 'package:ui/widgets/bearings_popup_menu.dart';
+import 'package:ui/widgets/bearings_card.dart';
+import 'package:ui/widgets/bearings_scaffold.dart';
+import 'package:ui/widgets/bearings_status_view.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:services/providers/api_provider.dart';
+import 'package:ui/widgets/bearings_spinner.dart';
 
 class PitsScoutingHomePage extends ConsumerStatefulWidget {
   const PitsScoutingHomePage({super.key});
@@ -25,9 +25,8 @@ class PitsScoutingHomePage extends ConsumerStatefulWidget {
       PitsScoutingHomePageState();
 }
 
-class PitsScoutingHomePageState extends ConsumerState<PitsScoutingHomePage>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabController;
+class PitsScoutingHomePageState extends ConsumerState<PitsScoutingHomePage> {
+  late final TextEditingController _searchController;
   PitsScoutingFilter _statusFilter = PitsScoutingFilter.allTeams;
 
   void _openScoutingForm(
@@ -75,23 +74,13 @@ class PitsScoutingHomePageState extends ConsumerState<PitsScoutingHomePage>
   @override
   void initState() {
     super.initState();
-    ref
-        .read(pitsSearchControllerProvider)
-        .addListener(_handleSearchControllerChanged);
-    _tabController = TabController(length: 2, vsync: this)
-      ..addListener(() {
-        if (mounted) {
-          setState(() {});
-        }
-      });
+    _searchController = ref.read(pitsSearchControllerProvider);
+    _searchController.addListener(_handleSearchControllerChanged);
   }
 
   @override
   void dispose() {
-    ref
-        .read(pitsSearchControllerProvider)
-        .removeListener(_handleSearchControllerChanged);
-    _tabController.dispose();
+    _searchController.removeListener(_handleSearchControllerChanged);
     super.dispose();
   }
 
@@ -103,148 +92,111 @@ class PitsScoutingHomePageState extends ConsumerState<PitsScoutingHomePage>
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final main = MainViewController.of(context);
-        final selectedEvent = ref.watch(currentEventProvider);
-        final teamsAsync = ref.watch(pitsTeamsProvider);
-        final scoutedNums = ref.watch(pitsScoutedProvider);
-        final teamNameMap = ref.watch(pitsTeamNameMapProvider);
-        final searchController = ref.watch(pitsSearchControllerProvider);
-        final searchFocusNode = ref.watch(pitsSearchFocusNodeProvider);
-        final isMobile = PlatformUtils.isMobile();
-        final searchInAppBar = !isMobile && constraints.maxWidth > 900;
+    final main = MainViewController.of(context);
+    final selectedEvent = ref.watch(currentEventProvider);
+    final teamsAsync = ref.watch(pitsTeamsProvider);
+    final scoutedNums = ref.watch(pitsScoutedProvider);
+    final teamNameMap = ref.watch(pitsTeamNameMapProvider);
+    final searchController = ref.watch(pitsSearchControllerProvider);
+    final searchFocusNode = ref.watch(pitsSearchFocusNodeProvider);
 
-        Future<void> onRefresh() async {
-          final client = ref.read(honeycombClientProvider);
-          client.invalidateCache(
-            '/teams',
-            queryParams: {'event': selectedEvent},
-          );
-          client.invalidateCache(
-            '/pits',
-            queryParams: {'event': selectedEvent},
-          );
-          ref.invalidate(pitsTeamsProvider);
-          ref.invalidate(pitsMapProvider);
-          await ref.read(scoutingDataProvider.notifier).refresh();
-        }
+    Future<void> onRefresh() async {
+      final client = ref.read(honeycombClientProvider);
+      client.invalidateCache('/teams', queryParams: {'event': selectedEvent});
+      client.invalidateCache('/pits', queryParams: {'event': selectedEvent});
+      ref.invalidate(pitsTeamsProvider);
+      ref.invalidate(pitsMapProvider);
+      await ref.read(scoutingDataProvider.notifier).refresh();
+    }
 
-        return Scaffold(
-          appBar: AppBar(
-            title: const Text('Pits'),
-            flexibleSpace: searchInAppBar
-                ? AnimatedBuilder(
-                    animation: _tabController.animation!,
-                    child: BeariscopeCenteredAppBarSearch(
-                      searchBar: _buildSearchBar(
-                        controller: searchController,
-                        focusNode: searchFocusNode,
-                      ),
+    Widget withTeams(Widget Function(List<Team>) builder) => teamsAsync.when(
+      loading: () => const Center(child: BearingsSpinner()),
+      error: (err, stack) => BearingsStatusView(
+        icon: LucideIcons.circleAlert,
+        iconColor: Theme.of(context).colorScheme.error,
+        title: 'Teams unavailable',
+        subtitle: 'Error loading teams: $err',
+        action: FilledButton.icon(
+          onPressed: () => ref.invalidate(pitsTeamsProvider),
+          icon: const Icon(LucideIcons.rotateCw),
+          label: const Text('Retry'),
+        ),
+      ),
+      data: builder,
+    );
+
+    return BearingsScaffold(
+      title: const Text('Pits'),
+      leading: main.isDesktop
+          ? null
+          : IconButton(
+              icon: const Icon(LucideIcons.menu),
+              onPressed: main.openDrawer,
+            ),
+      actions: [
+        BearingsPopupMenu.icon(
+          icon: const Icon(LucideIcons.listFilter),
+          tooltip: 'Filter & Sort',
+          menuChildren: [
+            for (final filter in PitsScoutingFilter.values)
+              BearingsMenuItem(
+                selected: _statusFilter == filter,
+                onPressed: () => setState(() => _statusFilter = filter),
+                child: Text(switch (filter) {
+                  PitsScoutingFilter.allTeams => 'All Teams',
+                  PitsScoutingFilter.notScouted => 'Not Scouted',
+                  PitsScoutingFilter.scouted => 'Scouted',
+                }),
+              ),
+          ],
+        ),
+      ],
+      content: BearingsTabs(
+        tabs: [
+          BearingsTab(
+            id: 'map',
+            label: const Text('Map'),
+            swipeEnabled: false,
+            page: BearingsPage(
+              bodyBuilder: (context, layout) => withTeams(
+                (_) => _buildMapView(
+                  context,
+                  onRefresh: onRefresh,
+                  scoutedNums: scoutedNums,
+                  teamNameMap: teamNameMap,
+                ),
+              ),
+            ),
+          ),
+          BearingsTab(
+            id: 'list',
+            label: const Text('List'),
+            page: BearingsPage(
+              search: BearingsSearch(
+                controller: searchController,
+                focusNode: searchFocusNode,
+                hintText: 'Team name or number',
+              ),
+              bodyBuilder: (context, layout) => withTeams(
+                (teams) => RefreshIndicator(
+                  onRefresh: onRefresh,
+                  child: _buildTeamList(
+                    context,
+                    filterPitsTeams(
+                      teams: teams,
+                      query: searchController.text,
+                      scoutedTeamNumbers: scoutedNums,
+                      statusFilter: _statusFilter,
                     ),
-                    builder: (context, child) {
-                      final progress = _tabController.animation!.value.clamp(
-                        0.0,
-                        1.0,
-                      );
-
-                      return IgnorePointer(
-                        ignoring: progress == 0,
-                        child: Opacity(opacity: progress, child: child),
-                      );
-                    },
-                  )
-                : null,
-            bottom: TabBar(
-              controller: _tabController,
-              tabs: const [
-                Tab(text: 'Map'),
-                Tab(text: 'List'),
-              ],
-            ),
-            leading: main.isDesktop
-                ? null
-                : IconButton(
-                    icon: const Icon(LucideIcons.menu),
-                    onPressed: main.openDrawer,
+                    scoutedNums,
+                    padding: layout.scrollPadding,
                   ),
-            actions: [
-              PopupMenuButton<PitsScoutingFilter>(
-                icon: const Icon(LucideIcons.listFilter),
-                tooltip: 'Filter & Sort',
-                itemBuilder: (context) => [
-                  CheckedPopupMenuItem<PitsScoutingFilter>(
-                    value: PitsScoutingFilter.allTeams,
-                    checked: _statusFilter == PitsScoutingFilter.allTeams,
-                    child: const Text('All Teams'),
-                  ),
-                  CheckedPopupMenuItem<PitsScoutingFilter>(
-                    value: PitsScoutingFilter.notScouted,
-                    checked: _statusFilter == PitsScoutingFilter.notScouted,
-                    child: const Text('Not Scouted'),
-                  ),
-                  CheckedPopupMenuItem<PitsScoutingFilter>(
-                    value: PitsScoutingFilter.scouted,
-                    checked: _statusFilter == PitsScoutingFilter.scouted,
-                    child: const Text('Scouted'),
-                  ),
-                ],
-                onSelected: (selection) {
-                  setState(() {
-                    _statusFilter = selection;
-                  });
-                },
-              ),
-            ],
-          ),
-          body: teamsAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (err, stack) => BeariscopeStatusView(
-              icon: LucideIcons.circleAlert,
-              iconColor: Theme.of(context).colorScheme.error,
-              title: 'Teams unavailable',
-              subtitle: 'Error loading teams: $err',
-              action: FilledButton.icon(
-                onPressed: () => ref.invalidate(pitsTeamsProvider),
-                icon: const Icon(LucideIcons.rotateCw),
-                label: const Text('Retry'),
+                ),
               ),
             ),
-            data: (teams) {
-              final filteredTeams = filterPitsTeams(
-                teams: teams,
-                query: searchController.text,
-                scoutedTeamNumbers: scoutedNums,
-                statusFilter: _statusFilter,
-              );
-
-              return TabBarView(
-                controller: _tabController,
-                physics: _tabController.index == 1
-                    ? const PageScrollPhysics()
-                    : const NeverScrollableScrollPhysics(),
-                children: [
-                  _buildMapView(
-                    context,
-                    onRefresh: onRefresh,
-                    scoutedNums: scoutedNums,
-                    teamNameMap: teamNameMap,
-                  ),
-                  _buildListTab(
-                    context,
-                    onRefresh: onRefresh,
-                    teams: filteredTeams,
-                    scoutedNums: scoutedNums,
-                    searchController: searchController,
-                    searchFocusNode: searchFocusNode,
-                    searchInAppBar: searchInAppBar,
-                  ),
-                ],
-              );
-            },
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 
@@ -257,7 +209,7 @@ class PitsScoutingHomePageState extends ConsumerState<PitsScoutingHomePage>
     final pitsMapAsync = ref.watch(pitsMapProvider);
 
     return pitsMapAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const Center(child: BearingsSpinner()),
       error: (err, stack) => _buildMapError(context),
       data: (mapData) {
         if (mapData == null) {
@@ -293,92 +245,11 @@ class PitsScoutingHomePageState extends ConsumerState<PitsScoutingHomePage>
   }
 
   Widget _buildMapError(BuildContext context) {
-    return BeariscopeStatusView(
+    return BearingsStatusView(
       icon: LucideIcons.mapPinXInside,
       iconColor: Theme.of(context).colorScheme.error,
       title: 'Pits map unavailable',
       subtitle: 'No pits map published by Nexus for this event',
-    );
-  }
-
-  Widget _buildListTab(
-    BuildContext context, {
-    required Future<void> Function() onRefresh,
-    required List<Team> teams,
-    required Set<int> scoutedNums,
-    required TextEditingController searchController,
-    required FocusNode searchFocusNode,
-    required bool searchInAppBar,
-  }) {
-    final isMobile = PlatformUtils.isMobile();
-    final searchAtTop = !isMobile && !searchInAppBar;
-    final safeAreaBottom = MediaQuery.of(context).padding.bottom;
-    final content = Stack(
-      children: [
-        Positioned.fill(
-          child: RefreshIndicator(
-            onRefresh: onRefresh,
-            child: _buildTeamList(
-              context,
-              teams,
-              scoutedNums,
-              padding: searchInAppBar
-                  ? const EdgeInsets.all(16)
-                  : searchAtTop
-                  ? const EdgeInsets.fromLTRB(16, 72, 16, 16)
-                  : EdgeInsets.fromLTRB(16, 16, 16, 120 + safeAreaBottom),
-            ),
-          ),
-        ),
-        if (!searchInAppBar && searchAtTop)
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 720),
-                    child: _buildSearchBar(
-                      controller: searchController,
-                      focusNode: searchFocusNode,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          )
-        else if (!searchInAppBar)
-          AnimatedPositioned(
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeOutBack,
-            left: 8,
-            right: 8,
-            bottom: 8,
-            child: SafeArea(
-              child: _buildSearchBar(
-                controller: searchController,
-                focusNode: searchFocusNode,
-              ),
-            ),
-          ),
-      ],
-    );
-
-    return content;
-  }
-
-  Widget _buildSearchBar({
-    required TextEditingController controller,
-    required FocusNode focusNode,
-  }) {
-    return BeariscopeSearchBar(
-      focusNode: focusNode,
-      controller: controller,
-      hintText: 'Team name or number',
     );
   }
 
@@ -403,7 +274,7 @@ class PitsScoutingHomePageState extends ConsumerState<PitsScoutingHomePage>
         children: [
           SizedBox(
             height: 320,
-            child: BeariscopeStatusView(
+            child: BearingsStatusView(
               icon: LucideIcons.users,
               title: hasFilters ? 'No matching teams' : 'No teams found',
               subtitle: hasFilters
@@ -415,7 +286,7 @@ class PitsScoutingHomePageState extends ConsumerState<PitsScoutingHomePage>
       );
     }
 
-    return BeariscopeCardList(
+    return BearingsCardList(
       padding: padding,
       children: filteredTeams
           .map(

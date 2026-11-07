@@ -1,13 +1,14 @@
 import 'package:beariscope/pages/flash_cards/decks/flash_card_deck_model.dart';
 import 'package:beariscope/pages/flash_cards/decks/flash_card_deck_provider.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
-import 'package:beariscope/widgets/beariscope_modal.dart';
-import 'package:beariscope/widgets/beariscope_search_bar.dart';
-import 'package:beariscope/widgets/beariscope_status_view.dart';
+import 'package:ui/widgets/bearings_modal.dart';
+import 'package:ui/widgets/bearings_search_bar.dart';
+import 'package:ui/widgets/bearings_status_view.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:ui/widgets/bearings_spinner.dart';
 
 class FlashCardEventPicker extends ConsumerStatefulWidget {
   const FlashCardEventPicker({super.key, required this.selected});
@@ -76,10 +77,10 @@ class _FlashCardEventPickerState extends ConsumerState<FlashCardEventPicker> {
     final Widget? status = catalog.isLoading
         ? const Padding(
             padding: EdgeInsets.all(32),
-            child: Center(child: CircularProgressIndicator()),
+            child: Center(child: BearingsSpinner()),
           )
         : catalog.hasError
-        ? BeariscopeStatusView(
+        ? BearingsStatusView(
             icon: LucideIcons.calendarDays,
             title: 'Events unavailable',
             subtitle: 'Could not load the $_year season.',
@@ -90,7 +91,7 @@ class _FlashCardEventPickerState extends ConsumerState<FlashCardEventPicker> {
             ),
           )
         : filtered.isEmpty
-        ? BeariscopeStatusView(
+        ? BearingsStatusView(
             icon: LucideIcons.search,
             title: 'No events found.',
             subtitle: query.isEmpty
@@ -99,12 +100,12 @@ class _FlashCardEventPickerState extends ConsumerState<FlashCardEventPicker> {
           )
         : null;
 
-    return BeariscopeModal(
-      size: BeariscopeModalSize.tall,
+    return BearingsModal(
+      size: BearingsModalSize.tall,
       actions: const [],
       title: 'Events',
-      scrolling: BeariscopeModalScrolling.content,
-      primaryAction: BeariscopeModalPrimaryAction(
+      scrolling: BearingsModalScrolling.content,
+      primaryAction: BearingsModalPrimaryAction(
         label:
             'Use ${_selected.length} ${_selected.length == 1 ? 'event' : 'events'}',
         icon: LucideIcons.check,
@@ -120,7 +121,7 @@ class _FlashCardEventPickerState extends ConsumerState<FlashCardEventPicker> {
                   colors.surfaceContainerHighest,
                 ),
               ),
-              child: BeariscopeSearchBar(
+              child: BearingsSearchBar(
                 controller: _search,
                 hintText: 'Find an event',
                 elevation: 0,

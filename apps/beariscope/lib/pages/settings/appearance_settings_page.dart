@@ -1,7 +1,7 @@
-import 'package:beariscope/widgets/beariscope_modal.dart';
+import 'package:ui/widgets/bearings_modal.dart';
 import 'package:beariscope/providers/appearance_provider.dart';
 import 'package:beariscope/providers/match_preview_layout_provider.dart';
-import 'package:beariscope/widgets/settings_group.dart';
+import 'package:ui/widgets/bearings_setting_group.dart';
 import 'package:flex_color_picker/flex_color_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
@@ -121,7 +121,7 @@ class AppearanceSettingsPage extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         children: [
-          SettingsGroup(
+          BearingsSettingGroup(
             title: 'Interface',
             children: [
               ListTile(
@@ -180,7 +180,7 @@ class AppearanceSettingsPage extends ConsumerWidget {
 
           const SizedBox(height: 16),
 
-          SettingsGroup(
+          BearingsSettingGroup(
             title: 'Colors',
             children: [
               if (supportsSystemColors)
@@ -191,7 +191,7 @@ class AppearanceSettingsPage extends ConsumerWidget {
                             !systemColors.isLoading &&
                             systemColors.value == null
                         ? 'System colors unavailable. Using your custom accent.'
-                        : 'Follow your device’s palette or accent color.',
+                        : 'Follow your device’s accent color.',
                   ),
                   value: useSystemColors,
                   onChanged: (enabled) => ref
@@ -217,7 +217,7 @@ class AppearanceSettingsPage extends ConsumerWidget {
                     if (index == accentColors.length) {
                       return GestureDetector(
                         onTap: () async {
-                          final newColor = await BeariscopeModal.show<Color>(
+                          final newColor = await BearingsModal.show<Color>(
                             context,
                             useRootNavigator: true,
                             builder: (_) =>
@@ -281,7 +281,7 @@ class AppearanceSettingsPage extends ConsumerWidget {
 
           if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) ...[
             const SizedBox(height: 16),
-            SettingsGroup(
+            BearingsSettingGroup(
               title: 'App Icon',
               children: AppIcon.values.map((icon) {
                 return RadioListTile<AppIcon>(
@@ -362,10 +362,10 @@ class _CustomColorModalState extends State<_CustomColorModal> {
   late Color _color = widget.initialColor;
 
   @override
-  Widget build(BuildContext context) => BeariscopeModal(
+  Widget build(BuildContext context) => BearingsModal(
     title: 'Custom Color',
     actions: const [],
-    primaryAction: BeariscopeModalPrimaryAction(
+    primaryAction: BearingsModalPrimaryAction(
       label: 'Select',
       icon: LucideIcons.check,
       onPressed: () => Navigator.pop(context, _color),

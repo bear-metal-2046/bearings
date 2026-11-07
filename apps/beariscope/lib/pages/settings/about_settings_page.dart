@@ -1,5 +1,5 @@
 import 'package:beariscope/providers/tba_preferences_provider.dart';
-import 'package:beariscope/widgets/settings_group.dart';
+import 'package:ui/widgets/bearings_setting_group.dart';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -47,7 +47,7 @@ class AboutSettingsPage extends ConsumerWidget {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: 16),
         children: [
-          SettingsGroup(
+          BearingsSettingGroup(
             title: 'App',
             children: [
               ListTile(
@@ -97,7 +97,7 @@ class AboutSettingsPage extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 16),
-          SettingsGroup(
+          BearingsSettingGroup(
             title: 'Data Sources',
             children: [
               ListTile(
@@ -125,7 +125,7 @@ class AboutSettingsPage extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 16),
-          SettingsGroup(
+          BearingsSettingGroup(
             title: 'Legal',
             children: [
               ListTile(
@@ -142,7 +142,7 @@ class AboutSettingsPage extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 32),
-          SettingsGroup(
+          BearingsSettingGroup(
             children: [
               const ListTile(title: Text('Made with ❤️ by Bear Metal')),
             ],

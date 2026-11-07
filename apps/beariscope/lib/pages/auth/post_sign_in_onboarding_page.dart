@@ -1,11 +1,12 @@
 import 'package:beariscope/providers/post_sign_in_flow_provider.dart';
-import 'package:beariscope/widgets/step_flow.dart';
-import 'package:beariscope/widgets/step_layout.dart';
+import 'package:ui/widgets/bearings_step_flow.dart';
+import 'package:ui/widgets/bearings_step_layout.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:services/providers/user_profile_provider.dart';
+import 'package:ui/widgets/bearings_spinner.dart';
 
 /// Steps the user through post-sign-in onboarding tasks (set real name, verify
 /// email) using the same step-flow shell as [SignUpFlowPage].
@@ -22,7 +23,7 @@ class PostSignInOnboardingPage extends ConsumerStatefulWidget {
 }
 
 // =============================================================================
-// Parent state — owns the StepFlow shell and coordinates step routing.
+// Parent state — owns the BearingsStepFlow shell and coordinates step routing.
 // =============================================================================
 
 class _PostSignInOnboardingPageState
@@ -30,7 +31,7 @@ class _PostSignInOnboardingPageState
   final GlobalKey<NavigatorState> _nestedNavKey = GlobalKey<NavigatorState>();
   bool _isFinishingFlow = false;
 
-  /// 1-indexed current step (matches [StepFlow] convention so the progress bar
+  /// 1-indexed current step (matches [BearingsStepFlow] convention so the progress bar
   /// stays in sync with the nested navigator).
   int _currentStep = 1;
 
@@ -118,7 +119,7 @@ class _PostSignInOnboardingPageState
     final userInfo = _userInfo;
     if (userInfo == null) return const SizedBox.shrink();
 
-    return StepLayout(
+    return BearingsStepLayout(
       title: 'Verify your email',
       buttonText: 'Refresh verification status',
       buttonIcon: LucideIcons.refreshCcw,
@@ -143,8 +144,7 @@ class _PostSignInOnboardingPageState
     final userInfoAsync = ref.watch(userInfoProvider);
 
     return userInfoAsync.when(
-      loading: () =>
-          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      loading: () => const Scaffold(body: Center(child: BearingsSpinner())),
       error: (error, _) => Scaffold(
         body: Center(
           child: Padding(
@@ -170,9 +170,7 @@ class _PostSignInOnboardingPageState
       data: (userInfo) {
         if (userInfo == null) {
           WidgetsBinding.instance.addPostFrameCallback((_) => _finishFlow());
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
+          return const Scaffold(body: Center(child: BearingsSpinner()));
         }
 
         _userInfo = userInfo;
@@ -185,19 +183,15 @@ class _PostSignInOnboardingPageState
         if (_stepRoutes.contains('email_verification') &&
             userInfo.emailVerified == true) {
           WidgetsBinding.instance.addPostFrameCallback((_) => _finishFlow());
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
+          return const Scaffold(body: Center(child: BearingsSpinner()));
         }
 
         if (_stepRoutes.isEmpty) {
           WidgetsBinding.instance.addPostFrameCallback((_) => _finishFlow());
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
+          return const Scaffold(body: Center(child: BearingsSpinner()));
         }
 
-        return StepFlow(
+        return BearingsStepFlow(
           totalSteps: _stepRoutes.length,
           currentStep: _currentStep,
           title: 'Onboarding',
@@ -270,7 +264,7 @@ class _RealNameStepState extends ConsumerState<_RealNameStep> {
     final isNameEmpty = _controller.text.trim().isEmpty;
     final canSubmit = !_isSaving && !isNameEmpty && nameError == null;
 
-    return StepLayout(
+    return BearingsStepLayout(
       title: 'Set your real name',
       isLoading: _isSaving,
       onButtonPressed: canSubmit ? _save : null,

@@ -5,13 +5,14 @@ import 'package:beariscope/pages/team_lookup/tabs/scouting_tab_widgets.dart';
 import 'package:beariscope/pages/up_next/match_preview_page.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/team_scouting_provider.dart';
-import 'package:beariscope/widgets/beariscope_card.dart';
-import 'package:beariscope/widgets/settings_group.dart';
-import 'package:beariscope/widgets/beariscope_status_view.dart';
+import 'package:ui/widgets/bearings_card.dart';
+import 'package:ui/widgets/bearings_setting_group.dart';
+import 'package:ui/widgets/bearings_status_view.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:services/providers/api_provider.dart';
+import 'package:ui/widgets/bearings_spinner.dart';
 
 String? _scouterNameFromRaw(dynamic rawDoc) {
   final meta = rawDoc?.meta;
@@ -69,8 +70,8 @@ class MatchesTab extends ConsumerWidget {
     final scheduleAsync = ref.watch(_teamScheduleProvider(teamNumber));
 
     return scoutingAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => BeariscopeStatusView(
+      loading: () => const Center(child: BearingsSpinner()),
+      error: (e, _) => BearingsStatusView(
         icon: LucideIcons.circleAlert,
         iconColor: Theme.of(context).colorScheme.error,
         title: 'Scouting data unavailable',
@@ -129,7 +130,7 @@ class _MatchesBody extends StatelessWidget {
     ];
 
     if (items.isEmpty) {
-      return const BeariscopeStatusView(
+      return const BearingsStatusView(
         icon: LucideIcons.fileText,
         title: 'No match data recorded',
         subtitle:
@@ -137,7 +138,7 @@ class _MatchesBody extends StatelessWidget {
       );
     }
 
-    return BeariscopeCardList(
+    return BearingsCardList(
       spacing: 8,
       children: [
         for (final item in items)
@@ -173,7 +174,7 @@ class _UnscoutedMatchCard extends StatelessWidget {
         : 'Match (unknown)';
     final colorScheme = Theme.of(context).colorScheme;
 
-    return SettingsGroup(
+    return BearingsSettingGroup(
       children: [
         Padding(
           padding: const EdgeInsets.all(16),
@@ -269,7 +270,7 @@ class _MatchCard extends ConsumerWidget {
 
     final matchKey = _getMatchKey(context, ref);
 
-    return SettingsGroup(
+    return BearingsSettingGroup(
       children: [
         ExpansionTile(
           tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -384,7 +385,7 @@ class _MatchDetailSection extends StatelessWidget {
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: SettingsGroup(
+      child: BearingsSettingGroup(
         title: title,
         children: [
           Padding(

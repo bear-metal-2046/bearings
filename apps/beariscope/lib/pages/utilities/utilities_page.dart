@@ -1,6 +1,6 @@
 import 'package:material_ui/material_ui.dart';
-import 'package:beariscope/widgets/beariscope_search_bar.dart';
-import 'package:beariscope/widgets/beariscope_status_view.dart';
+import 'package:ui/widgets/bearings_search_bar.dart';
+import 'package:ui/widgets/bearings_status_view.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class UtilitiesPage extends StatefulWidget {
@@ -27,14 +27,14 @@ class _UtilitiesPageState extends State<UtilitiesPage> {
       appBar: AppBar(
         centerTitle: true,
         titleSpacing: 8.0,
-        title: BeariscopeSearchBar(
+        title: BearingsSearchBar(
           controller: _searchTermTEC,
           focusNode: _searchFocusNode,
           hintText: 'Search...',
         ),
         actions: [SizedBox(width: 48)],
       ),
-      body: const BeariscopeStatusView(
+      body: const BearingsStatusView(
         icon: LucideIcons.wrench,
         title: 'No utilities available',
         subtitle: 'There are no utilities to display.',

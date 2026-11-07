@@ -9,6 +9,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:bearimetric/services/device_auth_service.dart';
 import 'package:services/providers/device_credentials_provider.dart';
+import 'package:ui/widgets/bearings_spinner.dart';
 
 bool get _scannerSupported =>
     kIsWeb || Platform.isAndroid || Platform.isIOS || Platform.isMacOS;
@@ -221,7 +222,7 @@ class _ProvisioningPageState extends ConsumerState<ProvisioningPage> {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              CircularProgressIndicator(),
+                              BearingsSpinner(),
                               SizedBox(height: 16),
                               Text('Provisioning device…'),
                             ],
@@ -308,7 +309,7 @@ class _ProvisioningPageState extends ConsumerState<ProvisioningPage> {
                 ),
             if (_provisioning) ...[
               const SizedBox(height: 24),
-              const Center(child: CircularProgressIndicator()),
+              const Center(child: BearingsSpinner()),
               const SizedBox(height: 8),
               const Center(child: Text('Provisioning device…')),
             ],

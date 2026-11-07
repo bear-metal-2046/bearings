@@ -4,7 +4,7 @@ import 'dart:ui' as ui;
 import 'package:beariscope/pages/flash_cards/decks/flash_card_deck_provider.dart';
 import 'package:beariscope/pages/flash_cards/decks/flash_card_deck_model.dart';
 import 'package:beariscope/pages/flash_cards/sharing/flash_card_share_card.dart';
-import 'package:beariscope/widgets/beariscope_modal.dart';
+import 'package:ui/widgets/bearings_modal.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
@@ -118,12 +118,12 @@ class _FlashCardDeckSharePageState
       ref.watch(flashCardLibraryProvider),
       widget.deckId,
     );
-    final modal = BeariscopeModal(
-      size: BeariscopeModalSize.tall,
+    final modal = BearingsModal(
+      size: BearingsModalSize.tall,
       title: 'Share deck',
       actions: [
         if (deck != null)
-          BeariscopeModalAction(
+          BearingsModalAction(
             label: 'Copy code',
             icon: LucideIcons.copy,
             onPressed: () => _copy(deck.shareCode),
@@ -131,7 +131,7 @@ class _FlashCardDeckSharePageState
       ],
       primaryAction: deck == null
           ? null
-          : BeariscopeModalPrimaryAction(
+          : BearingsModalPrimaryAction(
               label: _nativeSharing ? 'Share image' : 'Save image',
               icon: _nativeSharing ? LucideIcons.share : LucideIcons.download,
               onPressed: _saving ? null : () => _shareImage(deck),

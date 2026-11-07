@@ -13,8 +13,8 @@ import 'package:beariscope/pages/scout_audit/scout_audit_preferences_provider.da
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/processed_scouting_provider.dart';
 import 'package:beariscope/providers/pits_form_schema_provider.dart';
-import 'package:beariscope/widgets/beariscope_status_view.dart';
-import 'package:beariscope/widgets/settings_group.dart';
+import 'package:ui/widgets/bearings_status_view.dart';
+import 'package:ui/widgets/bearings_setting_group.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -24,6 +24,7 @@ import 'package:services/providers/api_provider.dart';
 import 'package:services/providers/permissions_provider.dart';
 import 'package:syncfusion_flutter_core/theme.dart';
 import 'package:syncfusion_flutter_sliders/sliders.dart';
+import 'package:ui/widgets/bearings_spinner.dart';
 
 class ExportPage extends ConsumerStatefulWidget {
   const ExportPage({super.key});
@@ -267,14 +268,14 @@ class _ExportPageState extends ConsumerState<ExportPage> {
             : IconButton(icon: const Icon(LucideIcons.menu), onPressed: controller.openDrawer),
       ),
       body: _schemaError != null
-          ? BeariscopeStatusView(
+          ? BearingsStatusView(
               icon: LucideIcons.circleAlert,
               iconColor: Theme.of(context).colorScheme.error,
               title: 'Export unavailable',
               subtitle: 'Failed to load schema: $_schemaError',
             )
           : _schema == null
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: BearingsSpinner())
           : CustomScrollView(
               slivers: [
                 SliverPadding(
@@ -287,7 +288,7 @@ class _ExportPageState extends ConsumerState<ExportPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              SettingsGroup(
+                              BearingsSettingGroup(
                                 title: 'Export Sheets',
                                 children: [
                                   _SheetCheckbox(
@@ -342,7 +343,7 @@ class _ExportPageState extends ConsumerState<ExportPage> {
                               ),
                               const SizedBox(height: 16),
 
-                              SettingsGroup(
+                              BearingsSettingGroup(
                                 title: 'Filters',
                                 children: [
                                   SwitchListTile(
@@ -463,7 +464,7 @@ class _ExportPageState extends ConsumerState<ExportPage> {
                               const SizedBox(height: 16),
 
                               if (_sheets.hasMatchData)
-                                SettingsGroup(
+                                BearingsSettingGroup(
                                   title: 'Match Content Options',
                                   children: [
                                     SwitchListTile(
@@ -1034,7 +1035,7 @@ class _ExportPageState extends ConsumerState<ExportPage> {
                                             ? const SizedBox(
                                                 width: 18,
                                                 height: 18,
-                                                child: CircularProgressIndicator(strokeWidth: 2),
+                                                child: BearingsSpinner(strokeWidth: 2, useForegroundColor: true),
                                               )
                                             : const Icon(LucideIcons.download),
                                         label: Text(
@@ -1120,7 +1121,7 @@ class _SettingsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SettingsGroup(
+    return BearingsSettingGroup(
       title: title,
       children: [Padding(padding: const EdgeInsets.all(16), child: child)],
     );

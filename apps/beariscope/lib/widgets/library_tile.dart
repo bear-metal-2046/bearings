@@ -1,26 +1,29 @@
 import 'package:material_ui/material_ui.dart';
 
-/// Shared library spacing, including room for the floating create action.
+/// A responsive grid that uses the surrounding scaffold's scroll padding.
 class LibraryGrid extends StatelessWidget {
   const LibraryGrid({
     super.key,
     required this.itemCount,
     required this.itemBuilder,
+    required this.padding,
     this.physics,
   });
 
   final int itemCount;
   final IndexedWidgetBuilder itemBuilder;
   final ScrollPhysics? physics;
+  final EdgeInsets padding;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, bounds) {
-      final padding = ((bounds.maxWidth - 1080) / 2).clamp(
-        16.0,
-        double.infinity,
+      final gutter = (bounds.maxWidth - 1080) / 2;
+      final gridPadding = padding.copyWith(
+        left: gutter > padding.left ? gutter : padding.left,
+        right: gutter > padding.right ? gutter : padding.right,
       );
-      final width = bounds.maxWidth - padding * 2;
+      final width = bounds.maxWidth - gridPadding.horizontal;
       final scaler = MediaQuery.textScalerOf(context);
       final largeText = scaler.scale(14) > 20;
       final columns = ((width + 16) / (largeText ? 296 : 172)).floor().clamp(
@@ -34,7 +37,7 @@ class LibraryGrid extends StatelessWidget {
           (scaler.scale(12) - 12).clamp(0.0, double.infinity) * 3;
       return GridView.builder(
         physics: physics,
-        padding: EdgeInsets.fromLTRB(padding, 16, padding, 104),
+        padding: gridPadding,
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: columns,
           crossAxisSpacing: 16,

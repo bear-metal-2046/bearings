@@ -3,13 +3,14 @@ import 'package:beariscope/models/team_scouting_bundle.dart';
 import 'package:beariscope/pages/team_lookup/tabs/scouting_tab_widgets.dart';
 import 'package:beariscope/pages/team_lookup/team_model.dart';
 import 'package:beariscope/providers/team_scouting_provider.dart';
-import 'package:beariscope/widgets/beariscope_modal.dart';
-import 'package:beariscope/widgets/settings_group.dart';
+import 'package:ui/widgets/bearings_modal.dart';
+import 'package:ui/widgets/bearings_setting_group.dart';
 import 'package:beariscope/widgets/team_card.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
+import 'package:ui/widgets/bearings_spinner.dart';
 
 class PicklistTeamQuickViewSheet extends ConsumerWidget {
   final Team team;
@@ -20,18 +21,18 @@ class PicklistTeamQuickViewSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final scouting = ref.watch(teamScoutingProvider(team.number));
 
-    return BeariscopeModal(
+    return BearingsModal(
       title: 'Team ${team.number} — ${team.name}',
-      size: BeariscopeModalSize.tall,
-      scrolling: BeariscopeModalScrolling.content,
+      size: BearingsModalSize.tall,
+      scrolling: BearingsModalScrolling.content,
       actions: const [],
-      primaryAction: BeariscopeModalPrimaryAction(
+      primaryAction: BearingsModalPrimaryAction(
         label: 'Dive deeper',
         icon: LucideIcons.arrowUpRight,
-        onPressed: () => BeariscopeModal.complete(context, true),
+        onPressed: () => BearingsModal.complete(context, true),
       ),
       content: scouting.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(child: BearingsSpinner()),
         error: (_, _) => _QuickViewBody(
           bundle: TeamScoutingBundle(
             matchDocs: const [],
@@ -259,7 +260,7 @@ class _QuickViewBody extends StatelessWidget {
     );
   }
 
-  Widget _section(String title, List<Widget> rows) => SettingsGroup(
+  Widget _section(String title, List<Widget> rows) => BearingsSettingGroup(
     title: title,
     children: [
       Padding(

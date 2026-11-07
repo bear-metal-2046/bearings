@@ -1,7 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
 /// A list/column of cards with consistent spacing and max-width constraint
-class BeariscopeCardList extends StatelessWidget {
+class BearingsCardList extends StatelessWidget {
   final List<Widget> children;
   final EdgeInsetsGeometry? padding;
   final double maxWidth;
@@ -9,7 +9,7 @@ class BeariscopeCardList extends StatelessWidget {
   final ScrollPhysics? physics;
   final Key? listKey;
 
-  const BeariscopeCardList({
+  const BearingsCardList({
     super.key,
     required this.children,
     this.padding = const EdgeInsets.all(16),
@@ -44,7 +44,7 @@ class BeariscopeCardList extends StatelessWidget {
 }
 
 /// A card component with title, optional subtitle, optional trailing widget, and optional onTap
-class BeariscopeCard extends StatelessWidget {
+class BearingsCard extends StatelessWidget {
   final String title;
   final String? subtitle;
   final Widget? leading;
@@ -55,7 +55,7 @@ class BeariscopeCard extends StatelessWidget {
   final TextStyle? titleStyle;
   final TextStyle? subtitleStyle;
 
-  const BeariscopeCard({
+  const BearingsCard({
     super.key,
     required this.title,
     this.color,

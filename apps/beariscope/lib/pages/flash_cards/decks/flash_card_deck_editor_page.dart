@@ -1,5 +1,5 @@
-import 'package:beariscope/widgets/beariscope_alert_dialog.dart';
-import 'package:beariscope/widgets/beariscope_modal.dart';
+import 'package:ui/widgets/bearings_alert_dialog.dart';
+import 'package:ui/widgets/bearings_modal.dart';
 import 'package:beariscope/pages/flash_cards/decks/flash_card_deck_model.dart';
 import 'package:beariscope/pages/flash_cards/decks/flash_card_deck_provider.dart';
 import 'package:beariscope/pages/flash_cards/sharing/flash_card_deck_share_page.dart';
@@ -55,7 +55,7 @@ class _FlashCardDeckEditorPageState
     // Resolve existing references before changing the event list, preserving
     // removals when the same team also attends a newly selected event.
     if (!await _prepareTeamEditing() || !mounted) return;
-    final events = await BeariscopeModal.show<Set<String>>(
+    final events = await BearingsModal.show<Set<String>>(
       context,
 
       builder: (_) => FlashCardEventPicker(selected: _events),
@@ -121,7 +121,7 @@ class _FlashCardDeckEditorPageState
   Future<void> _chooseTeams() async {
     FocusScope.of(context).unfocus();
     if (!await _prepareTeamEditing() || !mounted) return;
-    final excluded = await BeariscopeModal.show<Set<int>>(
+    final excluded = await BearingsModal.show<Set<int>>(
       context,
       builder: (_) => FlashCardTeamPicker(
         eventKeys: _events,
@@ -139,17 +139,17 @@ class _FlashCardDeckEditorPageState
   Future<void> _delete() async {
     final deck = _original;
     if (deck == null || _saving) return;
-    final confirmed = await BeariscopeAlertDialog.show<bool>(
+    final confirmed = await BearingsAlertDialog.show<bool>(
       context: context,
       title: 'Delete deck?',
       message:
           '“${deck.name}” and its progress will be removed from this device.',
       actions: const [
-        BeariscopeAlertAction(label: 'Cancel', result: false),
-        BeariscopeAlertAction(
+        BearingsAlertAction(label: 'Cancel', result: false),
+        BearingsAlertAction(
           label: 'Delete',
           result: true,
-          role: BeariscopeAlertActionRole.destructive,
+          role: BearingsAlertActionRole.destructive,
         ),
       ],
     );
@@ -160,7 +160,7 @@ class _FlashCardDeckEditorPageState
     });
     try {
       await ref.read(flashCardLibraryProvider.notifier).delete(deck);
-      if (mounted) BeariscopeModal.complete(context);
+      if (mounted) BearingsModal.complete(context);
     } catch (_) {
       if (mounted) {
         setState(() => _error = 'Could not delete the deck.');
@@ -197,14 +197,14 @@ class _FlashCardDeckEditorPageState
       if (!mounted) return;
       if (share) {
         setState(() => _saving = false);
-        await BeariscopeModal.show<void>(
+        await BearingsModal.show<void>(
           context,
 
           builder: (_) =>
               FlashCardDeckSharePage(deckId: deck.id, asSheet: true),
         );
       } else {
-        BeariscopeModal.complete(context, deck);
+        BearingsModal.complete(context, deck);
       }
     } on FormatException catch (error) {
       if (mounted) setState(() => _error = error.message);
@@ -225,18 +225,18 @@ class _FlashCardDeckEditorPageState
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final missing = widget.deckId != null && _original == null;
-    final modal = BeariscopeModal(
-      size: BeariscopeModalSize.tall,
+    final modal = BearingsModal(
+      size: BearingsModalSize.tall,
       title: widget.deckId == null ? 'New deck' : 'Deck options',
       actions: [
         if (_original != null)
-          BeariscopeModalAction(
+          BearingsModalAction(
             label: 'Share deck',
             icon: LucideIcons.share,
             onPressed: _saving ? null : () => _save(share: true),
           ),
         if (_original != null)
-          BeariscopeModalAction(
+          BearingsModalAction(
             label: 'Delete deck',
             icon: LucideIcons.trash2,
             onPressed: _saving ? null : _delete,
@@ -245,7 +245,7 @@ class _FlashCardDeckEditorPageState
       canDismiss: !_saving,
       primaryAction: missing
           ? null
-          : BeariscopeModalPrimaryAction(
+          : BearingsModalPrimaryAction(
               label: widget.deckId == null ? 'Create deck' : 'Save changes',
               icon: LucideIcons.check,
               loading: _saving,

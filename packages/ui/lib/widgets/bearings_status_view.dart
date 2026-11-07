@@ -1,14 +1,14 @@
 import 'package:material_ui/material_ui.dart';
 
 /// A centered status message for pages without content or unavailable content.
-class BeariscopeStatusView extends StatelessWidget {
+class BearingsStatusView extends StatelessWidget {
   final IconData icon;
   final String title;
   final String? subtitle;
   final Color? iconColor;
   final Widget? action;
 
-  const BeariscopeStatusView({
+  const BearingsStatusView({
     super.key,
     required this.icon,
     required this.title,

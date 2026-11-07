@@ -8,6 +8,7 @@ import 'package:bearimetric/models/scouting_session.dart';
 import 'package:bearimetric/pages/flow/about_page.dart';
 import 'package:bearimetric/providers/scouting_providers.dart';
 import 'package:bearimetric/services/scout_sync_service.dart';
+import 'package:ui/widgets/bearings_spinner.dart';
 
 class ConfigPage extends ConsumerStatefulWidget {
   const ConfigPage({super.key});
@@ -535,7 +536,7 @@ class _ScheduleDownloadTileState extends ConsumerState<_ScheduleDownloadTile> {
             ? const SizedBox(
                 width: 20,
                 height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
+                child: BearingsSpinner(strokeWidth: 2),
               )
             : OutlinedButton.icon(
                 onPressed: _download,

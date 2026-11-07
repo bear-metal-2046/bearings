@@ -1,13 +1,12 @@
-import 'package:beariscope/widgets/beariscope_alert_dialog.dart';
-import 'package:beariscope/widgets/beariscope_modal.dart';
+import 'package:ui/widgets/bearings_popup_menu.dart';
+import 'package:ui/widgets/bearings_alert_dialog.dart';
+import 'package:ui/widgets/bearings_modal.dart';
 
 import 'dart:convert';
 
-import 'package:beariscope/utils/platform_utils_stub.dart'
-    if (dart.library.io) 'package:beariscope/utils/platform_utils.dart';
-import 'package:beariscope/widgets/beariscope_card.dart';
-import 'package:beariscope/widgets/beariscope_search_bar.dart';
-import 'package:beariscope/widgets/beariscope_status_view.dart';
+import 'package:ui/widgets/bearings_card.dart';
+import 'package:ui/widgets/bearings_scaffold.dart';
+import 'package:ui/widgets/bearings_status_view.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,6 +14,7 @@ import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:services/providers/api_provider.dart';
 import 'package:services/providers/permissions_provider.dart';
+import 'package:ui/widgets/bearings_spinner.dart';
 
 class CurrentScout extends Notifier<String> {
   @override
@@ -97,7 +97,7 @@ class _ScoutSelectionPageState extends ConsumerState<ScoutSelectionPage> {
       final name = scout["name"]!;
       final id = scout["uuid"]!;
 
-      return BeariscopeCard(
+      return BearingsCard(
         title: name,
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
@@ -108,10 +108,10 @@ class _ScoutSelectionPageState extends ConsumerState<ScoutSelectionPage> {
                 child: IconButton(
                   onPressed: () async {
                     newNameTEC.clear();
-                    await BeariscopeModal.show<void>(
+                    await BearingsModal.show<void>(
                       context,
                       useRootNavigator: true,
-                      builder: (context) => BeariscopeModal(
+                      builder: (context) => BearingsModal(
                         title: 'Rename Scout',
                         content: TextField(
                           controller: newNameTEC,
@@ -121,7 +121,7 @@ class _ScoutSelectionPageState extends ConsumerState<ScoutSelectionPage> {
                           ),
                         ),
                         actions: const [],
-                        primaryAction: BeariscopeModalPrimaryAction(
+                        primaryAction: BearingsModalPrimaryAction(
                           label: 'Rename',
                           icon: LucideIcons.check,
                           onPressed: () async {
@@ -190,16 +190,16 @@ class _ScoutSelectionPageState extends ConsumerState<ScoutSelectionPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 2),
                 child: IconButton(
                   onPressed: () async {
-                    final confirmed = await BeariscopeAlertDialog.show<bool>(
+                    final confirmed = await BearingsAlertDialog.show<bool>(
                       context: context,
                       title: 'Delete Scout',
                       message: 'Are you sure you want to delete this scout?',
                       actions: const [
-                        BeariscopeAlertAction(label: 'Cancel', result: false),
-                        BeariscopeAlertAction(
+                        BearingsAlertAction(label: 'Cancel', result: false),
+                        BearingsAlertAction(
                           label: 'Delete',
                           result: true,
-                          role: BeariscopeAlertActionRole.destructive,
+                          role: BearingsAlertActionRole.destructive,
                         ),
                       ],
                     );
@@ -253,7 +253,7 @@ class _ScoutSelectionPageState extends ConsumerState<ScoutSelectionPage> {
   }
 
   Future<void> _importFromCsv() async {
-    final result = await BeariscopeModal.show<_CsvImportResult>(
+    final result = await BearingsModal.show<_CsvImportResult>(
       context,
       useRootNavigator: true,
       builder: (context) => const _CsvImportDialog(),
@@ -282,14 +282,6 @@ class _ScoutSelectionPageState extends ConsumerState<ScoutSelectionPage> {
     ).showSnackBar(SnackBar(content: Text('Imported ${names.length} scouts.')));
   }
 
-  Widget _buildSearchBar() {
-    return BeariscopeSearchBar(
-      controller: _searchTEC,
-      focusNode: _searchFocusNode,
-      hintText: 'Search scouts',
-    );
-  }
-
   KeyEventResult _handleTypeToSearch(KeyEvent event) {
     if (event is! KeyDownEvent ||
         event.character == null ||
@@ -311,17 +303,17 @@ class _ScoutSelectionPageState extends ConsumerState<ScoutSelectionPage> {
 
   Future<void> _showAddScoutDialog() async {
     _addScoutTEC.clear();
-    await BeariscopeModal.show<void>(
+    await BearingsModal.show<void>(
       context,
       useRootNavigator: true,
-      builder: (context) => BeariscopeModal(
+      builder: (context) => BearingsModal(
         title: 'Add Scout',
         content: TextField(
           controller: _addScoutTEC,
           decoration: const InputDecoration(labelText: 'Scout name'),
         ),
         actions: const [],
-        primaryAction: BeariscopeModalPrimaryAction(
+        primaryAction: BearingsModalPrimaryAction(
           label: 'Add',
           icon: LucideIcons.check,
           onPressed: () async {
@@ -367,195 +359,102 @@ class _ScoutSelectionPageState extends ConsumerState<ScoutSelectionPage> {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final scoutsAsync = ref.watch(_scoutsProvider);
-        final permissionChecker = ref.watch(permissionCheckerProvider);
-        final canManageScouts =
-            permissionChecker?.hasPermission(PermissionKey.scoutsManage) ??
-            false;
-        final isMobile = PlatformUtils.isMobile();
-        final searchInAppBar = !isMobile && constraints.maxWidth > 900;
-        final searchAtTop = !isMobile && !searchInAppBar;
-        final safeAreaBottom = MediaQuery.of(context).padding.bottom;
-        final listPadding = searchInAppBar
-            ? const EdgeInsets.all(16)
-            : searchAtTop
-            ? const EdgeInsets.fromLTRB(16, 72, 16, 16)
-            : EdgeInsets.fromLTRB(16, 16, 16, 120 + safeAreaBottom);
-        return Focus(
-          focusNode: _pageFocusNode,
-          autofocus: true,
-          onKeyEvent: (node, event) => _handleTypeToSearch(event),
-          child: Scaffold(
-            appBar: AppBar(
-              titleSpacing: 8.0,
-              title: const Text('Scouts'),
-              flexibleSpace: searchInAppBar
-                  ? BeariscopeCenteredAppBarSearch(searchBar: _buildSearchBar())
-                  : null,
-              actions: [
-                if (canManageScouts)
-                  PopupMenuButton(
-                    itemBuilder: (context) => [
-                      PopupMenuItem(
-                        value: 'import',
-                        child: Row(
-                          children: [
-                            Icon(LucideIcons.import),
-                            const SizedBox(width: 8),
-                            const Text('Import From CSV'),
-                          ],
+    final scoutsAsync = ref.watch(_scoutsProvider);
+    final permissionChecker = ref.watch(permissionCheckerProvider);
+    final canManageScouts =
+        permissionChecker?.hasPermission(PermissionKey.scoutsManage) ?? false;
+    return Focus(
+      focusNode: _pageFocusNode,
+      autofocus: true,
+      onKeyEvent: (node, event) => _handleTypeToSearch(event),
+      child: BearingsScaffold(
+        title: const Text('Scouts'),
+        titleSpacing: 8,
+        actions: [
+          if (canManageScouts)
+            BearingsPopupMenu.overflow(
+              menuChildren: [
+                BearingsMenuItem(
+                  leadingIcon: const Icon(LucideIcons.import),
+                  onPressed: _importFromCsv,
+                  child: const Text('Import From CSV'),
+                ),
+              ],
+            )
+          else
+            const SizedBox(width: 48),
+        ],
+        content: BearingsPage(
+          search: BearingsSearch(
+            controller: _searchTEC,
+            focusNode: _searchFocusNode,
+            hintText: 'Search scouts',
+          ),
+          primaryAction: canManageScouts
+              ? BearingsAction(
+                  icon: const Icon(LucideIcons.plus),
+                  label: 'Add Scout',
+                  onPressed: _showAddScoutDialog,
+                )
+              : null,
+          bodyBuilder: (context, layout) => scoutsAsync.when(
+            loading: () => const Center(child: BearingsSpinner()),
+            error: (err, stack) => BearingsStatusView(
+              icon: LucideIcons.circleAlert,
+              iconColor: Theme.of(context).colorScheme.error,
+              title: 'Scouts unavailable',
+              subtitle: 'Error loading scouts: $err',
+              action: FilledButton.icon(
+                onPressed: _refreshScouts,
+                icon: const Icon(LucideIcons.rotateCw),
+                label: const Text('Retry'),
+              ),
+            ),
+            data: (data) {
+              final scoutData = _normalizeScouts(data);
+              final source = _optimisticScouts ?? scoutData;
+
+              final searchQuery = _searchTEC.text.trim().toLowerCase();
+              final filteredScouts = source.where((scout) {
+                return scout['name']!.toLowerCase().contains(searchQuery);
+              }).toList();
+
+              if (filteredScouts.isEmpty) {
+                final hasSearch = searchQuery.isNotEmpty;
+                return RefreshIndicator(
+                  onRefresh: _refreshScouts,
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: layout.scrollPadding,
+                    children: [
+                      SizedBox(
+                        height: 320,
+                        child: BearingsStatusView(
+                          icon: LucideIcons.users,
+                          title: hasSearch
+                              ? 'No matching scouts'
+                              : 'No scouts found',
+                          subtitle: hasSearch
+                              ? 'Try adjusting your search.'
+                              : 'Add a scout to get started.',
                         ),
                       ),
                     ],
-                    onSelected: (value) {
-                      if (value == 'import') {
-                        _importFromCsv();
-                      }
-                    },
-                  )
-                else
-                  SizedBox(width: 48),
-              ],
-            ),
-            body: Stack(
-              children: [
-                Positioned.fill(
-                  child: scoutsAsync.when(
-                    loading: () =>
-                        const Center(child: CircularProgressIndicator()),
-                    error: (err, stack) => BeariscopeStatusView(
-                      icon: LucideIcons.circleAlert,
-                      iconColor: Theme.of(context).colorScheme.error,
-                      title: 'Scouts unavailable',
-                      subtitle: 'Error loading scouts: $err',
-                      action: FilledButton.icon(
-                        onPressed: _refreshScouts,
-                        icon: const Icon(LucideIcons.rotateCw),
-                        label: const Text('Retry'),
-                      ),
-                    ),
-                    data: (data) {
-                      final scoutData = _normalizeScouts(data);
-                      final source = _optimisticScouts ?? scoutData;
-
-                      final searchQuery = _searchTEC.text.trim().toLowerCase();
-                      final filteredScouts = source.where((scout) {
-                        return scout['name']!.toLowerCase().contains(
-                          searchQuery,
-                        );
-                      }).toList();
-
-                      if (filteredScouts.isEmpty) {
-                        final hasSearch = searchQuery.isNotEmpty;
-                        return RefreshIndicator(
-                          onRefresh: _refreshScouts,
-                          child: ListView(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            padding: listPadding,
-                            children: [
-                              SizedBox(
-                                height: 320,
-                                child: BeariscopeStatusView(
-                                  icon: LucideIcons.users,
-                                  title: hasSearch
-                                      ? 'No matching scouts'
-                                      : 'No scouts found',
-                                  subtitle: hasSearch
-                                      ? 'Try adjusting your search.'
-                                      : 'Add a scout to get started.',
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }
-
-                      return RefreshIndicator(
-                        onRefresh: _refreshScouts,
-                        child: BeariscopeCardList(
-                          padding: listPadding,
-                          children: buildScoutList(filteredScouts),
-                        ),
-                      );
-                    },
                   ),
+                );
+              }
+
+              return RefreshIndicator(
+                onRefresh: _refreshScouts,
+                child: BearingsCardList(
+                  padding: layout.scrollPadding,
+                  children: buildScoutList(filteredScouts),
                 ),
-                if (!searchInAppBar && searchAtTop)
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    child: SafeArea(
-                      bottom: false,
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
-                        child: Center(
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 720),
-                            child: _buildSearchBar(),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                if (!searchInAppBar && !searchAtTop)
-                  Positioned(
-                    left: 8,
-                    right: 8,
-                    bottom: 8,
-                    child: SafeArea(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          if (canManageScouts)
-                            Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.end,
-                                  children: [
-                                    FloatingActionButton(
-                                      onPressed: _showAddScoutDialog,
-                                      tooltip: 'Add Scout',
-                                      child: const Icon(LucideIcons.plus),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                              ],
-                            ),
-                          _buildSearchBar(),
-                        ],
-                      ),
-                    ),
-                  ),
-                if ((searchAtTop || searchInAppBar) && canManageScouts)
-                  Positioned(
-                    left: 8,
-                    right: 8,
-                    bottom: 8,
-                    child: SafeArea(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          FloatingActionButton(
-                            onPressed: _showAddScoutDialog,
-                            tooltip: 'Add Scout',
-                            child: const Icon(LucideIcons.plus),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-              ],
-            ),
+              );
+            },
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }
@@ -619,10 +518,10 @@ class _CsvImportDialogState extends State<_CsvImportDialog> {
         ? (_fileContents?.trim().isNotEmpty ?? false)
         : _pasteController.text.trim().isNotEmpty;
 
-    return BeariscopeModal(
+    return BearingsModal(
       title: 'Import From CSV',
       actions: const [],
-      primaryAction: BeariscopeModalPrimaryAction(
+      primaryAction: BearingsModalPrimaryAction(
         label: 'Import',
         icon: LucideIcons.check,
         enabled: canImport,

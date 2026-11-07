@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:bearimetric/providers/match_config_provider.dart';
 import 'package:bearimetric/providers/scouting_flow_provider.dart';
 import 'package:bearimetric/providers/scouting_providers.dart';
+import 'package:ui/widgets/bearings_spinner.dart';
 import 'package:ui/widgets/forms/match_form_renderer.dart';
 
 class MatchPage extends ConsumerWidget {
@@ -20,7 +21,7 @@ class MatchPage extends ConsumerWidget {
     final store = ref.read(matchFormStoreProvider);
 
     return configAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const Center(child: BearingsSpinner()),
       error: (e, _) => Center(child: Text(e.toString())),
       data: (config) {
         final eventKey = session.event?.key;
@@ -29,11 +30,11 @@ class MatchPage extends ConsumerWidget {
         final scoutName = session.scout?.name;
 
         if (eventKey == null || matchNumber == null || pos == null) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(child: BearingsSpinner());
         }
 
         if (index >= config.pages.length) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(child: BearingsSpinner());
         }
         var data = store.load(eventKey, matchNumber, pos);
         if (data == null) {

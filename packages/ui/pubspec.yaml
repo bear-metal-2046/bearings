@@ -19,6 +19,7 @@ dependencies:
     path: ../core
   lucide_icons_flutter: ^3.1.17
   material_ui: any
+  stupid_simple_sheet: ^0.9.1+1
 
 dev_dependencies:
   flutter_test:

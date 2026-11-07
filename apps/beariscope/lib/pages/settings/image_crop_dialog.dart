@@ -1,4 +1,4 @@
-import 'package:beariscope/widgets/beariscope_modal.dart';
+import 'package:ui/widgets/bearings_modal.dart';
 
 import 'dart:typed_data';
 
@@ -16,7 +16,7 @@ class ImageCropDialog extends StatefulWidget {
     BuildContext context,
     Uint8List imageBytes,
   ) async {
-    return BeariscopeModal.show<Uint8List>(
+    return BearingsModal.show<Uint8List>(
       context,
       useRootNavigator: true,
       builder: (context) => ImageCropDialog(imageBytes: imageBytes),
@@ -67,7 +67,7 @@ class _ImageCropDialogState extends State<ImageCropDialog> {
           'Processed image: ${ImageProcessor.formatFileSize(processed.length)}',
         );
 
-        BeariscopeModal.complete(context, processed);
+        BearingsModal.complete(context, processed);
 
       case CropFailure(:final cause, :final stackTrace):
         if (!mounted) return;
@@ -81,14 +81,14 @@ class _ImageCropDialogState extends State<ImageCropDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return BeariscopeModal(
+    return BearingsModal(
       title: 'Crop Photo',
-      size: BeariscopeModalSize.expansive,
-      scrolling: BeariscopeModalScrolling.content,
-      dismissal: BeariscopeModalDismissal.fixed,
+      size: BearingsModalSize.expansive,
+      scrolling: BearingsModalScrolling.content,
+      dismissal: BearingsModalDismissal.fixed,
       canDismiss: !_isProcessing,
       actions: const [],
-      primaryAction: BeariscopeModalPrimaryAction(
+      primaryAction: BearingsModalPrimaryAction(
         label: 'Done',
         icon: LucideIcons.check,
         loading: _isProcessing,

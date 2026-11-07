@@ -1,4 +1,4 @@
-import 'package:beariscope/widgets/beariscope_modal.dart';
+import 'package:ui/widgets/bearings_modal.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:beariscope/models/observation_note.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
@@ -90,7 +90,7 @@ class _ObservationSheetState extends ConsumerState<ObservationSheet> {
 
       await ref.read(scoutingDataProvider.notifier).refresh();
 
-      if (mounted) BeariscopeModal.complete<void>(context);
+      if (mounted) BearingsModal.complete<void>(context);
     } catch (e) {
       if (mounted) {
         setState(() => _isSaving = false);
@@ -106,12 +106,12 @@ class _ObservationSheetState extends ConsumerState<ObservationSheet> {
     final theme = Theme.of(context);
     final canSubmit = !_isSaving && _controller.text.trim().isNotEmpty;
 
-    return BeariscopeModal(
+    return BearingsModal(
       title: 'New Observation',
-      size: BeariscopeModalSize.tall,
+      size: BearingsModalSize.tall,
       actions: const [],
       canDismiss: !_isSaving,
-      primaryAction: BeariscopeModalPrimaryAction(
+      primaryAction: BearingsModalPrimaryAction(
         label: 'Upload Observation',
         icon: LucideIcons.check,
         enabled: canSubmit,

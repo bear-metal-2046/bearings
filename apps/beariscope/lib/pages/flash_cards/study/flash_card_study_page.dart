@@ -1,4 +1,4 @@
-import 'package:beariscope/widgets/beariscope_modal.dart';
+import 'package:ui/widgets/bearings_modal.dart';
 
 import 'dart:async';
 
@@ -13,10 +13,11 @@ import 'package:beariscope/pages/picklists/picklist_emoji.dart';
 import 'package:beariscope/pages/team_lookup/team_providers.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/shared_preferences_provider.dart';
-import 'package:beariscope/widgets/beariscope_status_view.dart';
+import 'package:ui/widgets/bearings_status_view.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:ui/widgets/bearings_spinner.dart';
 
 class FlashCardStudyPage extends ConsumerStatefulWidget {
   const FlashCardStudyPage({super.key, this.deckId});
@@ -65,7 +66,7 @@ class _FlashCardStudyPageState extends ConsumerState<FlashCardStudyPage> {
   }
 
   Future<void> _showOptions() async {
-    await BeariscopeModal.show<void>(
+    await BearingsModal.show<void>(
       context,
       builder: (_) => FlashCardOptionsSheet(
         options: _options,
@@ -135,9 +136,9 @@ class _FlashCardStudyPageState extends ConsumerState<FlashCardStudyPage> {
               ),
       ),
       body: _refreshingCustom
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: BearingsSpinner())
           : id != null && deck == null
-          ? const BeariscopeStatusView(
+          ? const BearingsStatusView(
               icon: LucideIcons.layers,
               title: 'Deck not found',
               subtitle: 'This deck may have been deleted.',
@@ -145,8 +146,8 @@ class _FlashCardStudyPageState extends ConsumerState<FlashCardStudyPage> {
           : teamsAsync.when(
               skipLoadingOnRefresh: false,
               skipLoadingOnReload: false,
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (error, _) => BeariscopeStatusView(
+              loading: () => const Center(child: BearingsSpinner()),
+              error: (error, _) => BearingsStatusView(
                 icon: LucideIcons.circleAlert,
                 title: 'Teams unavailable',
                 subtitle: id == null
@@ -172,7 +173,7 @@ class _FlashCardStudyPageState extends ConsumerState<FlashCardStudyPage> {
               ),
               data: (teams) {
                 if (teams.isEmpty) {
-                  return BeariscopeStatusView(
+                  return BearingsStatusView(
                     icon: LucideIcons.layers,
                     title: id == null
                         ? 'No teams in this event'

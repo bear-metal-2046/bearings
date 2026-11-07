@@ -1,4 +1,4 @@
-import 'package:beariscope/widgets/beariscope_card.dart';
+import 'package:ui/widgets/bearings_card.dart';
 import 'package:beariscope/models/pits_form_schema.dart';
 import 'package:beariscope/models/pits_scouting_models.dart';
 import 'package:beariscope/models/scouting_document.dart';
@@ -6,12 +6,13 @@ import 'package:beariscope/pages/pits_scouting/pits_scouting_widgets.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/pits_form_schema_provider.dart';
 import 'package:beariscope/providers/scouting_data_provider.dart';
-import 'package:beariscope/widgets/beariscope_status_view.dart';
+import 'package:ui/widgets/bearings_status_view.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:services/providers/api_provider.dart';
 import 'package:services/providers/user_profile_provider.dart';
+import 'package:ui/widgets/bearings_spinner.dart';
 
 String? _pitsScouterName(ScoutingDocument? doc) {
   final scoutedBy = doc?.meta?['scoutedBy']?.toString().trim() ?? '';
@@ -53,7 +54,7 @@ class PitsScoutingTeamCard extends ConsumerWidget {
 
     final scouterName = _pitsScouterName(existingDoc);
 
-    return BeariscopeCard(
+    return BearingsCard(
       title: teamName,
       subtitle: '$teamNumber',
       trailing: Column(
@@ -151,8 +152,8 @@ class _PitsScoutingFormPageState extends ConsumerState<PitsScoutingFormPage> {
           title: Text('Scouting ${widget.teamNumber}: ${widget.teamName}'),
         ),
         body: schemaAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, _) => BeariscopeStatusView(
+          loading: () => const Center(child: BearingsSpinner()),
+          error: (error, _) => BearingsStatusView(
             icon: LucideIcons.circleAlert,
             iconColor: Theme.of(context).colorScheme.error,
             title: 'Pits form unavailable',

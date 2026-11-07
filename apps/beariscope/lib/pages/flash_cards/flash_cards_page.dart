@@ -3,7 +3,7 @@ import 'package:beariscope/pages/flash_cards/sharing/flash_card_deck_import_page
 import 'package:beariscope/pages/flash_cards/decks/flash_card_deck_model.dart';
 import 'package:beariscope/pages/flash_cards/decks/flash_card_deck_provider.dart';
 import 'package:beariscope/pages/flash_cards/study/flash_card_progress.dart';
-import 'package:beariscope/widgets/beariscope_modal.dart';
+import 'package:ui/widgets/bearings_modal.dart';
 import 'package:beariscope/widgets/library_tile.dart';
 import 'package:beariscope/pages/main_view.dart';
 import 'package:beariscope/pages/team_lookup/team_providers.dart';
@@ -11,6 +11,8 @@ import 'package:beariscope/pages/picklists/picklist_emoji.dart';
 import 'package:beariscope/pages/picklists/picklist_emoji_colors.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/shared_preferences_provider.dart';
+import 'package:ui/widgets/bearings_scaffold.dart';
+import 'package:ui/widgets/bearings_status_view.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -23,13 +25,21 @@ class FlashCardsPage extends ConsumerStatefulWidget {
 }
 
 class _FlashCardsPageState extends ConsumerState<FlashCardsPage> {
+  final _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   Future<void> _open(String route) async {
     await context.push(route);
     if (mounted) setState(() {});
   }
 
   Future<void> _create({bool importing = false}) async {
-    final deck = await BeariscopeModal.show<FlashCardDeckDefinition>(
+    final deck = await BearingsModal.show<FlashCardDeckDefinition>(
       context,
 
       builder: (_) => importing
@@ -54,73 +64,105 @@ class _FlashCardsPageState extends ConsumerState<FlashCardsPage> {
             ?.shortName ??
         event;
     final colors = Theme.of(context).colorScheme;
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Flash Cards'),
-        leading: controller.isDesktop
-            ? null
-            : IconButton(
-                tooltip: 'Open navigation',
-                icon: const Icon(LucideIcons.menu),
-                onPressed: controller.openDrawer,
-              ),
-        actions: [
-          IconButton(
-            tooltip: 'Import deck',
-            icon: const Icon(LucideIcons.import),
-            onPressed: () => _create(importing: true),
-          ),
-        ],
-      ),
-      body: SafeArea(
-        top: false,
-        child: LibraryGrid(
-          itemCount: decks.length + 1,
-          itemBuilder: (context, index) {
-            if (index == 0) {
-              return _DeckTile(
-                key: const ValueKey('flash-card-current-event'),
-                title: eventName,
-                caption: 'Current event',
-                progressScope: event,
-                color: colors.primaryContainer,
-                thumbnail: Icon(
-                  LucideIcons.calendarDays,
-                  size: 48,
-                  color: colors.onPrimaryContainer,
-                ),
-                onTap: () => _open('/flash_cards/current'),
-              );
-            }
-            final deck = decks[index - 1];
-            return _DeckTile(
-              key: ValueKey('deck-${deck.id}'),
-              title: deck.name,
-              caption:
-                  '${deck.eventKeys.length} ${deck.eventKeys.length == 1 ? 'event' : 'events'}',
-              progressScope: deck.progressScope,
-              deckId: deck.id,
-              color: picklistThumbnailColor(deck.emoji, colors),
-              thumbnail: PicklistEmoji(deck.emoji, size: 56),
-              onTap: () => _open('/flash_cards/${deck.id}'),
-              options: IconButton(
-                tooltip: 'Deck options for ${deck.name}',
-                icon: const Icon(LucideIcons.ellipsis, size: 20),
-                onPressed: () => BeariscopeModal.show<FlashCardDeckDefinition>(
-                  context,
-
-                  builder: (_) =>
-                      FlashCardDeckEditorPage(deckId: deck.id, asSheet: true),
-                ),
-              ),
-            );
-          },
+    return BearingsScaffold(
+      title: const Text('Flash Cards'),
+      leading: controller.isDesktop
+          ? null
+          : IconButton(
+              tooltip: 'Open navigation',
+              icon: const Icon(LucideIcons.menu),
+              onPressed: controller.openDrawer,
+            ),
+      actions: [
+        IconButton(
+          tooltip: 'Import deck',
+          icon: const Icon(LucideIcons.import),
+          onPressed: () => _create(importing: true),
         ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _create,
-        icon: const Icon(LucideIcons.plus),
-        label: const Text('New deck'),
+      ],
+      content: BearingsPage(
+        search: BearingsSearch(
+          controller: _searchController,
+          hintText: 'Search decks',
+        ),
+        primaryAction: BearingsAction(
+          icon: const Icon(LucideIcons.plus),
+          label: 'New deck',
+          onPressed: _create,
+        ),
+        bodyBuilder: (context, layout) => SafeArea(
+          top: false,
+          bottom: false,
+          child: ValueListenableBuilder(
+            valueListenable: _searchController,
+            builder: (context, value, _) {
+              final query = value.text.trim().toLowerCase();
+              final matches = decks
+                  .where((deck) => deck.name.toLowerCase().contains(query))
+                  .toList();
+              final showCurrentEvent =
+                  eventName.toLowerCase().contains(query) ||
+                  event.toLowerCase().contains(query) ||
+                  'current event'.contains(query);
+              final currentEventCount = showCurrentEvent ? 1 : 0;
+              if (matches.isEmpty && !showCurrentEvent) {
+                return Padding(
+                  padding: layout.scrollPadding,
+                  child: const BearingsStatusView(
+                    icon: LucideIcons.search,
+                    title: 'No matching decks',
+                    subtitle: 'Try a different search.',
+                  ),
+                );
+              }
+              return LibraryGrid(
+                padding: layout.scrollPadding,
+                itemCount: matches.length + currentEventCount,
+                itemBuilder: (context, index) {
+                  if (showCurrentEvent && index == 0) {
+                    return _DeckTile(
+                      key: const ValueKey('flash-card-current-event'),
+                      title: eventName,
+                      caption: 'Current event',
+                      progressScope: event,
+                      color: colors.primaryContainer,
+                      thumbnail: Icon(
+                        LucideIcons.calendarDays,
+                        size: 48,
+                        color: colors.onPrimaryContainer,
+                      ),
+                      onTap: () => _open('/flash_cards/current'),
+                    );
+                  }
+                  final deck = matches[index - currentEventCount];
+                  return _DeckTile(
+                    key: ValueKey('deck-${deck.id}'),
+                    title: deck.name,
+                    caption:
+                        '${deck.eventKeys.length} ${deck.eventKeys.length == 1 ? 'event' : 'events'}',
+                    progressScope: deck.progressScope,
+                    deckId: deck.id,
+                    color: picklistThumbnailColor(deck.emoji, colors),
+                    thumbnail: PicklistEmoji(deck.emoji, size: 56),
+                    onTap: () => _open('/flash_cards/${deck.id}'),
+                    options: IconButton(
+                      tooltip: 'Deck options for ${deck.name}',
+                      icon: const Icon(LucideIcons.ellipsis, size: 20),
+                      onPressed: () =>
+                          BearingsModal.show<FlashCardDeckDefinition>(
+                            context,
+                            builder: (_) => FlashCardDeckEditorPage(
+                              deckId: deck.id,
+                              asSheet: true,
+                            ),
+                          ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
       ),
     );
   }

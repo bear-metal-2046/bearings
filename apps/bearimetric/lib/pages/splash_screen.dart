@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:ui/widgets/bearings_spinner.dart';
 
 class SplashScreen extends ConsumerWidget {
   const SplashScreen({super.key});
@@ -9,7 +10,7 @@ class SplashScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       body: Center(
-        child: const CircularProgressIndicator()
+        child: const BearingsSpinner()
             .animate()
             .fadeIn(duration: 600.ms)
             .scale(delay: 300.ms, duration: 400.ms),

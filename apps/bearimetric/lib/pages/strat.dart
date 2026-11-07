@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:bearimetric/providers/scouting_flow_provider.dart';
 import 'package:bearimetric/providers/scouting_providers.dart';
 import 'package:bearimetric/store/strat_state.dart';
+import 'package:ui/widgets/bearings_spinner.dart';
 
 class StratPage extends ConsumerStatefulWidget {
   const StratPage({super.key});
@@ -22,7 +23,7 @@ class _StratPageState extends ConsumerState<StratPage> {
 
     // shouldn't ever never be null here since the route requires a configured session
     if (identity == null) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: BearingsSpinner());
     }
 
     final strat = ref.watch(stratStateProvider(identity));

@@ -1,4 +1,4 @@
-import 'package:beariscope/widgets/settings_group.dart';
+import 'package:ui/widgets/bearings_setting_group.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -31,7 +31,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: 16),
         children: [
-          SettingsGroup(
+          BearingsSettingGroup(
             title: 'General',
             children: [
               ListTile(
@@ -58,7 +58,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           const SizedBox(height: 16),
 
           if (canViewScouts || canEditScouts || canManageUsersRoles)
-            SettingsGroup(
+            BearingsSettingGroup(
               title: 'Team',
               children: [
                 if (canViewScouts || canEditScouts)
@@ -84,7 +84,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             const SizedBox(height: 16),
 
           // About Section
-          SettingsGroup(
+          BearingsSettingGroup(
             title: 'About',
             children: [
               ListTile(

@@ -1,5 +1,5 @@
 import 'package:beariscope/widgets/library_tile.dart';
-import 'package:beariscope/widgets/beariscope_modal.dart';
+import 'package:ui/widgets/bearings_modal.dart';
 import 'package:beariscope/pages/picklists/picklists_create_page.dart';
 import 'package:beariscope/pages/picklists/picklist_emoji_colors.dart';
 import 'package:beariscope/pages/picklists/picklist_emoji.dart';
@@ -8,18 +8,32 @@ import 'package:beariscope/pages/main_view.dart';
 import 'package:beariscope/pages/picklists/picklist_model.dart';
 import 'package:beariscope/pages/picklists/picklist_provider.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
-import 'package:beariscope/widgets/beariscope_status_view.dart';
+import 'package:ui/widgets/bearings_scaffold.dart';
+import 'package:ui/widgets/bearings_status_view.dart';
 import 'package:beariscope/widgets/screenshot_guard.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 
-class PicklistsPage extends ConsumerWidget {
+class PicklistsPage extends ConsumerStatefulWidget {
   const PicklistsPage({super.key});
 
+  @override
+  ConsumerState<PicklistsPage> createState() => _PicklistsPageState();
+}
+
+class _PicklistsPageState extends ConsumerState<PicklistsPage> {
+  final _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   Future<void> _create(BuildContext context) async {
-    final picklist = await BeariscopeModal.show<Picklist>(
+    final picklist = await BearingsModal.show<Picklist>(
       context,
       builder: (_) => const PicklistsCreatePage(asSheet: true),
     );
@@ -29,7 +43,7 @@ class PicklistsPage extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final controller = MainViewController.of(context);
     final picklists = ref.watch(picklistLibraryProvider);
     final eventKey = ref.watch(currentEventProvider);
@@ -42,56 +56,77 @@ class PicklistsPage extends ConsumerWidget {
             ?.shortName ??
         eventKey;
     return ScreenshotGuard(
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Picklists'),
-          actions: [
-            IconButton(
-              tooltip: 'Refresh picklists',
-              icon: const Icon(LucideIcons.refreshCw),
-              onPressed: () =>
-                  ref.read(picklistLibraryProvider.notifier).refresh(),
-            ),
-          ],
-          leading: controller.isDesktop
-              ? null
-              : IconButton(
-                  tooltip: 'Open navigation',
-                  icon: const Icon(LucideIcons.menu),
-                  onPressed: controller.openDrawer,
-                ),
-        ),
-        body: SafeArea(
-          top: false,
-          child: RefreshIndicator(
-            onRefresh: () =>
+      child: BearingsScaffold(
+        title: const Text('Picklists'),
+        leading: controller.isDesktop
+            ? null
+            : IconButton(
+                tooltip: 'Open navigation',
+                icon: const Icon(LucideIcons.menu),
+                onPressed: controller.openDrawer,
+              ),
+        actions: [
+          IconButton(
+            tooltip: 'Refresh picklists',
+            icon: const Icon(LucideIcons.refreshCw),
+            onPressed: () =>
                 ref.read(picklistLibraryProvider.notifier).refresh(),
-            child: picklists.isEmpty
-                ? LayoutBuilder(
-                    builder: (context, constraints) => ListView(
+          ),
+        ],
+        content: BearingsPage(
+          search: BearingsSearch(
+            controller: _searchController,
+            hintText: 'Search picklists',
+          ),
+          primaryAction: BearingsAction(
+            icon: const Icon(LucideIcons.plus),
+            label: 'New picklist',
+            onPressed: () => _create(context),
+          ),
+          bodyBuilder: (context, layout) => SafeArea(
+            top: false,
+            bottom: false,
+            child: RefreshIndicator(
+              onRefresh: () =>
+                  ref.read(picklistLibraryProvider.notifier).refresh(),
+              child: ValueListenableBuilder(
+                valueListenable: _searchController,
+                builder: (context, value, _) {
+                  final query = value.text.trim().toLowerCase();
+                  final matches = picklists
+                      .where((item) => item.title.toLowerCase().contains(query))
+                      .toList();
+                  if (matches.isEmpty) {
+                    return CustomScrollView(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      children: [
-                        ConstrainedBox(
-                          constraints: BoxConstraints(
-                            minHeight: constraints.maxHeight,
+                      slivers: [
+                        SliverFillRemaining(
+                          hasScrollBody: false,
+                          child: Padding(
+                            padding: layout.scrollPadding,
+                            child: picklists.isEmpty
+                                ? _EmptyLibrary(eventName: eventName)
+                                : const BearingsStatusView(
+                                    icon: LucideIcons.search,
+                                    title: 'No matching picklists',
+                                    subtitle: 'Try a different search.',
+                                  ),
                           ),
-                          child: _EmptyLibrary(eventName: eventName),
                         ),
                       ],
-                    ),
-                  )
-                : LibraryGrid(
+                    );
+                  }
+                  return LibraryGrid(
+                    padding: layout.scrollPadding,
                     physics: const AlwaysScrollableScrollPhysics(),
-                    itemCount: picklists.length,
+                    itemCount: matches.length,
                     itemBuilder: (context, index) =>
-                        _PicklistCard(item: picklists[index]),
-                  ),
+                        _PicklistCard(item: matches[index]),
+                  );
+                },
+              ),
+            ),
           ),
-        ),
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: () => _create(context),
-          icon: const Icon(LucideIcons.plus),
-          label: const Text('New picklist'),
         ),
       ),
     );
@@ -140,7 +175,7 @@ class _EmptyLibrary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BeariscopeStatusView(
+    return BearingsStatusView(
       icon: LucideIcons.notebookTabs,
       title: 'No picklists yet',
       subtitle: 'Create a picklist for $eventName to get started.',

@@ -1,10 +1,10 @@
 import 'package:material_ui/material_ui.dart';
 
-class SettingsGroup extends StatelessWidget {
+class BearingsSettingGroup extends StatelessWidget {
   final String? title;
   final List<Widget> children;
 
-  const SettingsGroup({super.key, this.title, required this.children});
+  const BearingsSettingGroup({super.key, this.title, required this.children});
 
   @override
   Widget build(BuildContext context) {

@@ -1,4 +1,5 @@
-import 'package:beariscope/widgets/beariscope_modal.dart';
+import 'package:ui/widgets/bearings_popup_menu.dart';
+import 'package:ui/widgets/bearings_modal.dart';
 import 'package:beariscope/models/match_field_ids.dart';
 import 'package:beariscope/models/team_scouting_bundle.dart';
 import 'package:beariscope/pages/team_lookup/tabs/averages_tab.dart';
@@ -12,7 +13,7 @@ import 'package:beariscope/pages/team_lookup/team_providers.dart';
 import 'package:beariscope/providers/rankings_provider.dart';
 import 'package:beariscope/providers/tba_preferences_provider.dart';
 import 'package:beariscope/providers/team_scouting_provider.dart';
-import 'package:beariscope/widgets/beariscope_status_view.dart';
+import 'package:ui/widgets/bearings_status_view.dart';
 import 'package:beariscope/widgets/team_avatar.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
@@ -21,6 +22,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:services/providers/permissions_provider.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:ui/widgets/bearings_spinner.dart';
 
 import '../models/processed_scouting_doc.dart';
 import '../providers/strat_z_score_provider.dart';
@@ -53,7 +55,7 @@ class TeamCard extends ConsumerWidget {
       loading: () => _buildCardShell(
         context,
         height: height ?? _defaultPlaceholderHeight,
-        child: const Center(child: CircularProgressIndicator()),
+        child: const Center(child: BearingsSpinner()),
       ),
       error: (err, _) => _buildCardShell(
         context,
@@ -657,11 +659,10 @@ class TeamDetailsPage extends ConsumerWidget {
     final mediaAsync = ref.watch(teamMediaProvider(teamNumber));
 
     return mediaAsync.when(
-      loading: () =>
-          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      loading: () => const Scaffold(body: Center(child: BearingsSpinner())),
       error: (e, _) => Scaffold(
         appBar: AppBar(title: Text('$teamName — $teamNumber')),
-        body: BeariscopeStatusView(
+        body: BearingsStatusView(
           icon: LucideIcons.circleAlert,
           iconColor: Theme.of(context).colorScheme.error,
           title: 'Team details unavailable',
@@ -693,7 +694,7 @@ class TeamDetailsPage extends ConsumerWidget {
                     floatingActionButton: showObservationFab
                         ? FloatingActionButton.extended(
                             onPressed: () {
-                              BeariscopeModal.show<void>(
+                              BearingsModal.show<void>(
                                 context,
 
                                 builder: (_) => ObservationSheet(
@@ -709,44 +710,45 @@ class TeamDetailsPage extends ConsumerWidget {
                     appBar: AppBar(
                       title: Text('$teamName — $teamNumber'),
                       actions: [
-                        PopupMenuButton<_TeamAction>(
-                          icon: const Icon(LucideIcons.ellipsisVertical),
+                        BearingsPopupMenu.overflow(
                           tooltip: 'More options',
-                          onSelected: (action) =>
-                              _handleAction(context, action, ref),
-                          itemBuilder: (context) => [
-                            PopupMenuItem(
-                              value: _TeamAction.openTba,
-                              child: ListTile(
-                                leading: const Icon(LucideIcons.externalLink),
-                                title: const Text('Open in TBA'),
-                                contentPadding: EdgeInsets.zero,
+                          menuChildren: [
+                            BearingsMenuItem(
+                              onPressed: () => _handleAction(
+                                context,
+                                _TeamAction.openTba,
+                                ref,
                               ),
+                              leadingIcon: const Icon(LucideIcons.externalLink),
+                              child: const Text('Open in TBA'),
                             ),
-                            PopupMenuItem(
-                              value: _TeamAction.openStatbotics,
-                              child: ListTile(
-                                leading: const Icon(LucideIcons.externalLink),
-                                title: const Text('Open in Statbotics'),
-                                contentPadding: EdgeInsets.zero,
+                            BearingsMenuItem(
+                              onPressed: () => _handleAction(
+                                context,
+                                _TeamAction.openStatbotics,
+                                ref,
                               ),
+                              leadingIcon: const Icon(LucideIcons.externalLink),
+                              child: const Text('Open in Statbotics'),
                             ),
-                            PopupMenuItem(
-                              value: _TeamAction.openFrcEvents,
-                              child: ListTile(
-                                leading: const Icon(LucideIcons.externalLink),
-                                title: const Text('Open in FRC Events'),
-                                contentPadding: EdgeInsets.zero,
+                            BearingsMenuItem(
+                              onPressed: () => _handleAction(
+                                context,
+                                _TeamAction.openFrcEvents,
+                                ref,
                               ),
+                              leadingIcon: const Icon(LucideIcons.externalLink),
+                              child: const Text('Open in FRC Events'),
                             ),
-                            const PopupMenuDivider(),
-                            PopupMenuItem(
-                              value: _TeamAction.copyNumber,
-                              child: ListTile(
-                                leading: const Icon(LucideIcons.copy),
-                                title: const Text('Copy team number'),
-                                contentPadding: EdgeInsets.zero,
+                            const Divider(height: 16),
+                            BearingsMenuItem(
+                              onPressed: () => _handleAction(
+                                context,
+                                _TeamAction.copyNumber,
+                                ref,
                               ),
+                              leadingIcon: const Icon(LucideIcons.copy),
+                              child: const Text('Copy team number'),
                             ),
                           ],
                         ),

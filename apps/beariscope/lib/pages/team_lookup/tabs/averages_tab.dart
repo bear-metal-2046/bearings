@@ -3,12 +3,13 @@ import 'package:beariscope/models/team_scouting_bundle.dart';
 import 'package:beariscope/pages/team_lookup/tabs/scouting_tab_widgets.dart';
 import 'package:beariscope/providers/strat_z_score_provider.dart';
 import 'package:beariscope/providers/team_scouting_provider.dart';
-import 'package:beariscope/widgets/beariscope_card.dart';
-import 'package:beariscope/widgets/settings_group.dart';
-import 'package:beariscope/widgets/beariscope_status_view.dart';
+import 'package:ui/widgets/bearings_card.dart';
+import 'package:ui/widgets/bearings_setting_group.dart';
+import 'package:ui/widgets/bearings_status_view.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:ui/widgets/bearings_spinner.dart';
 
 class AveragesTab extends ConsumerWidget {
   final int teamNumber;
@@ -22,8 +23,8 @@ class AveragesTab extends ConsumerWidget {
         ref.watch(stratZScoresProvider).asData?.value ?? StratZScoreData.empty;
 
     return async.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => BeariscopeStatusView(
+      loading: () => const Center(child: BearingsSpinner()),
+      error: (e, _) => BearingsStatusView(
         icon: LucideIcons.circleAlert,
         iconColor: Theme.of(context).colorScheme.error,
         title: 'Scouting data unavailable',
@@ -96,7 +97,7 @@ class _AveragesBodyState extends State<_AveragesBody> {
     final bundle = _filteredBundle;
 
     if (!widget.bundle.hasMatchData) {
-      return const BeariscopeStatusView(
+      return const BearingsStatusView(
         icon: LucideIcons.fileText,
         title: 'No match data recorded',
         subtitle: 'No match data has been recorded for this team.',
@@ -193,7 +194,7 @@ class _AveragesBodyState extends State<_AveragesBody> {
       }
     }
 
-    return BeariscopeCardList(
+    return BearingsCardList(
       children: [
         Align(
           alignment: Alignment.centerLeft,
@@ -213,7 +214,7 @@ class _AveragesBodyState extends State<_AveragesBody> {
             ),
           ),
         ),
-        SettingsGroup(
+        BearingsSettingGroup(
           title: 'Scoring',
           children: [
             Padding(
@@ -269,7 +270,7 @@ class _AveragesBodyState extends State<_AveragesBody> {
             ),
           ],
         ),
-        SettingsGroup(
+        BearingsSettingGroup(
           title: 'Behaviour',
           children: [
             Padding(
@@ -384,7 +385,7 @@ class _AveragesBodyState extends State<_AveragesBody> {
     required String title,
     required List<Widget> rows,
   }) {
-    return SettingsGroup(
+    return BearingsSettingGroup(
       title: title,
       children: [
         Padding(

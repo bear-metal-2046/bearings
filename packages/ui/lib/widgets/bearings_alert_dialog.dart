@@ -2,7 +2,7 @@ import 'package:flutter/physics.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:stupid_simple_sheet/stupid_simple_sheet.dart';
 
-enum BeariscopeAlertActionRole {
+enum BearingsAlertActionRole {
   /// Cancels, dismisses, or offers an alternative to the main action.
   secondary,
 
@@ -13,25 +13,25 @@ enum BeariscopeAlertActionRole {
   destructive,
 }
 
-/// A button that closes the alert and returns [result] from [BeariscopeAlertDialog.show].
+/// A button that closes the alert and returns [result] from [BearingsAlertDialog.show].
 /// Perform any follow-up work after awaiting the dialog's result.
-class BeariscopeAlertAction<T> {
-  const BeariscopeAlertAction({
+class BearingsAlertAction<T> {
+  const BearingsAlertAction({
     required this.label,
     this.result,
-    this.role = BeariscopeAlertActionRole.secondary,
+    this.role = BearingsAlertActionRole.secondary,
     this.enabled = true,
   });
 
   final String label;
   final T? result;
-  final BeariscopeAlertActionRole role;
+  final BearingsAlertActionRole role;
   final bool enabled;
 }
 
 /// Shared alert layout, actions, and presentation.
-class BeariscopeAlertDialog {
-  BeariscopeAlertDialog._();
+class BearingsAlertDialog {
+  BearingsAlertDialog._();
 
   /// Shows an alert with buttons in the supplied order. Choosing a button
   /// returns its result; dismissing the alert returns null.
@@ -39,7 +39,7 @@ class BeariscopeAlertDialog {
     required BuildContext context,
     required String title,
     required String message,
-    required List<BeariscopeAlertAction<T>> actions,
+    required List<BearingsAlertAction<T>> actions,
     bool useRootNavigator = true,
     bool barrierDismissible = true,
     Color? barrierColor,
@@ -52,7 +52,7 @@ class BeariscopeAlertDialog {
     final themes = InheritedTheme.capture(from: context, to: navigator.context);
 
     return navigator.push<T>(
-      _BeariscopeAlertDialogRoute<T>(
+      _BearingsAlertDialogRoute<T>(
         context: context,
         builder: (_) => _DesktopAlertDialogTransition(
           child: _AlertContent<T>(
@@ -87,7 +87,7 @@ class _AlertContent<T> extends StatelessWidget {
 
   final String title;
   final String message;
-  final List<BeariscopeAlertAction<T>> actions;
+  final List<BearingsAlertAction<T>> actions;
 
   @override
   Widget build(BuildContext context) {
@@ -98,7 +98,7 @@ class _AlertContent<T> extends StatelessWidget {
       content: Text(message),
       actions: [
         for (final action in actions)
-          if (action.role == BeariscopeAlertActionRole.secondary)
+          if (action.role == BearingsAlertActionRole.secondary)
             TextButton(
               onPressed: action.enabled
                   ? () => Navigator.of(context).pop<T>(action.result)
@@ -110,7 +110,7 @@ class _AlertContent<T> extends StatelessWidget {
               onPressed: action.enabled
                   ? () => Navigator.of(context).pop<T>(action.result)
                   : null,
-              style: action.role == BeariscopeAlertActionRole.destructive
+              style: action.role == BearingsAlertActionRole.destructive
                   ? FilledButton.styleFrom(
                       backgroundColor: colors.error,
                       foregroundColor: colors.onError,
@@ -123,8 +123,8 @@ class _AlertContent<T> extends StatelessWidget {
   }
 }
 
-class _BeariscopeAlertDialogRoute<T> extends DialogRoute<T> {
-  _BeariscopeAlertDialogRoute({
+class _BearingsAlertDialogRoute<T> extends DialogRoute<T> {
+  _BearingsAlertDialogRoute({
     required super.context,
     required super.builder,
     required super.barrierColor,
@@ -188,7 +188,7 @@ class _DesktopAlertDialogTransition extends StatelessWidget {
             ? 1.0
             : _spring.x(value * 0.45);
         return Transform.scale(
-          key: const ValueKey('beariscope-alert-dialog-scale'),
+          key: const ValueKey('bearings-alert-dialog-scale'),
           scale: 0.8 + 0.2 * progress,
           child: child,
         );

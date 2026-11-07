@@ -6,6 +6,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:bearimetric/custom_widgets/upload_status_indicator.dart';
 import 'package:bearimetric/models/scouting_session.dart';
 import 'package:bearimetric/providers/scouting_providers.dart';
+import 'package:ui/widgets/bearings_spinner.dart';
 
 class ScoutPage extends ConsumerStatefulWidget {
   const ScoutPage({super.key});
@@ -155,7 +156,7 @@ class _ScoutPageState extends ConsumerState<ScoutPage> {
                     },
                     loading: () => _showTimeout
                         ? _buildTimeoutWidget(context)
-                        : const Center(child: CircularProgressIndicator()),
+                        : const Center(child: BearingsSpinner()),
                     error: (_, _) => _buildTimeoutWidget(context),
                   ),
                 ),

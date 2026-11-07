@@ -1,7 +1,7 @@
 import 'package:beariscope/models/match_nexus_info.dart';
 import 'package:beariscope/models/up_next_match.dart';
 import 'package:beariscope/providers/tba_preferences_provider.dart';
-import 'package:beariscope/widgets/beariscope_card.dart';
+import 'package:ui/widgets/bearings_card.dart';
 import 'package:core/core.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,7 +23,7 @@ class UpNextScheduleCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final time = match.displayTime;
-    return BeariscopeCard(
+    return BearingsCard(
       title: match.displayName,
       subtitle: time == null ? 'Time TBD' : _timeFormat.format(time),
       onTap: () => context.push('/up_next/${match.key}'),
@@ -498,7 +498,7 @@ class UpNextEventCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return BeariscopeCard(
+    return BearingsCard(
       title: name,
       subtitle: dateLabel,
       trailing: Icon(LucideIcons.externalLink, size: 20),

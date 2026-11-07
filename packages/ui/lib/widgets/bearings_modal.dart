@@ -12,23 +12,25 @@ import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:stupid_simple_sheet/stupid_simple_sheet.dart';
-import 'package:ui/ui.dart' show FlutterMaterialScope;
 
-part 'beariscope_modal/android_header.dart';
+import 'bearings_spinner.dart';
+import 'flutter_material_scope.dart';
 
-part 'beariscope_modal/desktop_header.dart';
+part 'bearings_modal/android_header.dart';
 
-part 'beariscope_modal/ios_header.dart';
+part 'bearings_modal/desktop_header.dart';
 
-part 'beariscope_modal/ios_transitions.dart';
+part 'bearings_modal/ios_header.dart';
+
+part 'bearings_modal/ios_transitions.dart';
 
 enum _ModalPresentation { desktop, ios, android }
 
 /// The space available to a modal's content.
-enum BeariscopeModalSize { compact, tall, expansive }
+enum BearingsModalSize { compact, tall, expansive }
 
 /// How outside taps and sheet gestures interact with the modal.
-enum BeariscopeModalDismissal {
+enum BearingsModalDismissal {
   /// Outside taps and dragging may dismiss the modal.
   standard,
 
@@ -40,11 +42,11 @@ enum BeariscopeModalDismissal {
 }
 
 /// Whether the modal or its content owns the vertical scroll view.
-enum BeariscopeModalScrolling { managed, content }
+enum BearingsModalScrolling { managed, content }
 
 /// A secondary icon action. [label] is also its accessibility label.
-class BeariscopeModalAction {
-  const BeariscopeModalAction({
+class BearingsModalAction {
+  const BearingsModalAction({
     required this.icon,
     required this.label,
     required this.onPressed,
@@ -58,8 +60,8 @@ class BeariscopeModalAction {
 }
 
 /// A primary action, rendered appropriately for the active presentation.
-class BeariscopeModalPrimaryAction {
-  const BeariscopeModalPrimaryAction({
+class BearingsModalPrimaryAction {
+  const BearingsModalPrimaryAction({
     required this.label,
     required this.icon,
     required this.onPressed,
@@ -75,29 +77,29 @@ class BeariscopeModalPrimaryAction {
 }
 
 /// Adaptive modal chrome. Its content owns its own state and results.
-class BeariscopeModal extends StatefulWidget {
-  const BeariscopeModal({
+class BearingsModal extends StatefulWidget {
+  const BearingsModal({
     super.key,
     required this.title,
     required this.actions,
     required this.content,
     this.primaryAction,
-    this.size = BeariscopeModalSize.compact,
-    this.scrolling = BeariscopeModalScrolling.managed,
-    this.dismissal = BeariscopeModalDismissal.standard,
+    this.size = BearingsModalSize.compact,
+    this.scrolling = BearingsModalScrolling.managed,
+    this.dismissal = BearingsModalDismissal.standard,
     this.canDismiss = true,
     this.onDismissRequested,
   });
 
   final String title;
-  final List<BeariscopeModalAction> actions;
+  final List<BearingsModalAction> actions;
 
   /// Content with its own internal spacing. The modal provides outer padding.
   final Widget content;
-  final BeariscopeModalPrimaryAction? primaryAction;
-  final BeariscopeModalSize size;
-  final BeariscopeModalScrolling scrolling;
-  final BeariscopeModalDismissal dismissal;
+  final BearingsModalPrimaryAction? primaryAction;
+  final BearingsModalSize size;
+  final BearingsModalScrolling scrolling;
+  final BearingsModalDismissal dismissal;
   final bool canDismiss;
 
   /// Asks whether an attempted dismissal may proceed, e.g. for unsaved work.
@@ -106,7 +108,7 @@ class BeariscopeModal extends StatefulWidget {
   final Future<bool> Function()? onDismissRequested;
 
   /// Pushes a modal and returns its typed result. The builder should return a
-  /// [BeariscopeModal] or a stateful widget that builds one.
+  /// [BearingsModal] or a stateful widget that builds one.
   /// Uses the root navigator by default so the entire main view participates
   /// in the iOS sheet's background transition, including navigation chrome.
   static Future<T?> show<T>(
@@ -184,26 +186,26 @@ class BeariscopeModal extends StatefulWidget {
     Navigator.of(context).pop<T>(result);
   }
 
-  /// Whether this widget is inside a Beariscope modal route.
+  /// Whether this widget is inside a Bearings modal route.
   static bool contains(BuildContext context) =>
       _ModalScope.maybeOf(context) != null;
 
   @override
-  State<BeariscopeModal> createState() => _BeariscopeModalState();
+  State<BearingsModal> createState() => _BearingsModalState();
 }
 
 class _ModalPolicy {
-  BeariscopeModalDismissal dismissal = BeariscopeModalDismissal.standard;
+  BearingsModalDismissal dismissal = BearingsModalDismissal.standard;
   bool canDismiss = true;
   Future<bool> Function()? onDismissRequested;
   void Function({required bool rebuildPage})? refresh;
 
   bool get barrierDismissible =>
-      dismissal == BeariscopeModalDismissal.standard && canDismiss;
+      dismissal == BearingsModalDismissal.standard && canDismiss;
 
   // A temporary dismissal lock must not remove the grabber and move the header.
   bool get showGrabber =>
-      dismissal == BeariscopeModalDismissal.standard &&
+      dismissal == BearingsModalDismissal.standard &&
       onDismissRequested == null;
 
   bool get dragDismissible => showGrabber && canDismiss;
@@ -255,7 +257,7 @@ mixin _DismissalGuard<T> on ModalRoute<T> implements _GuardedRoute {
               FlutterErrorDetails(
                 exception: error,
                 stack: stack,
-                library: 'BeariscopeModal',
+                library: 'BearingsModal',
               ),
             );
           } finally {
@@ -315,7 +317,7 @@ mixin _SheetDragControl<T>
     Animation<double> animation,
     Animation<double> secondaryAnimation,
   ) {
-    if (policy.dismissal != BeariscopeModalDismissal.fixed) {
+    if (policy.dismissal != BearingsModalDismissal.fixed) {
       return super.buildPage(context, animation, secondaryAnimation);
     }
     return MediaQuery.removeViewInsets(
@@ -496,7 +498,7 @@ class _ModalBody extends StatelessWidget {
   }
 }
 
-class _BeariscopeModalState extends State<BeariscopeModal> {
+class _BearingsModalState extends State<BearingsModal> {
   static const _contentPadding = EdgeInsets.symmetric(horizontal: 16);
   static const _outerPadding = EdgeInsets.only(bottom: 12);
 
@@ -518,8 +520,8 @@ class _BeariscopeModalState extends State<BeariscopeModal> {
         if (mounted) {
           policy.refresh?.call(
             rebuildPage:
-                (oldDismissal == BeariscopeModalDismissal.fixed) !=
-                (policy.dismissal == BeariscopeModalDismissal.fixed),
+                (oldDismissal == BearingsModalDismissal.fixed) !=
+                (policy.dismissal == BearingsModalDismissal.fixed),
           );
         }
       });
@@ -534,7 +536,7 @@ class _BeariscopeModalState extends State<BeariscopeModal> {
   }
 
   @override
-  void didUpdateWidget(BeariscopeModal oldWidget) {
+  void didUpdateWidget(BearingsModal oldWidget) {
     super.didUpdateWidget(oldWidget);
     _updatePolicy();
   }
@@ -553,9 +555,9 @@ class _BeariscopeModalState extends State<BeariscopeModal> {
         primary.onPressed != null;
     final media = MediaQuery.of(context);
     final maxWidth = switch (widget.size) {
-      BeariscopeModalSize.compact => 560.0,
-      BeariscopeModalSize.tall => 640.0,
-      BeariscopeModalSize.expansive => 960.0,
+      BearingsModalSize.compact => 560.0,
+      BearingsModalSize.tall => 640.0,
+      BearingsModalSize.expansive => 960.0,
     };
     final maxHeight = math.max(
       100.0,
@@ -568,7 +570,10 @@ class _BeariscopeModalState extends State<BeariscopeModal> {
             child: primary.loading
                 ? const SizedBox.square(
                     dimension: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: BearingsSpinner(
+                      strokeWidth: 2,
+                      useForegroundColor: true,
+                    ),
                   )
                 : Text(primary.label),
           );
@@ -594,7 +599,7 @@ class _BeariscopeModalState extends State<BeariscopeModal> {
         showGrabber: showGrabber,
       ),
     };
-    final body = widget.scrolling == BeariscopeModalScrolling.managed
+    final body = widget.scrolling == BearingsModalScrolling.managed
         ? SingleChildScrollView(child: widget.content)
         : widget.content;
     final column = Column(
@@ -631,7 +636,7 @@ class _BeariscopeModalState extends State<BeariscopeModal> {
       constraints: BoxConstraints(maxWidth: maxWidth, maxHeight: maxHeight),
       child: Padding(
         padding: _outerPadding,
-        child: widget.size == BeariscopeModalSize.expansive
+        child: widget.size == BearingsModalSize.expansive
             ? SizedBox(width: maxWidth, height: maxHeight, child: column)
             : column,
       ),
@@ -678,7 +683,7 @@ class _DesktopModalTransition extends StatelessWidget {
           secondaryAnimation?.value ?? 0,
         );
         return Transform.scale(
-          key: const ValueKey('beariscope-modal-scale'),
+          key: const ValueKey('bearings-modal-scale'),
           // Give a covered dialog a little depth without changing its layout.
           scale: (0.8 + 0.2 * progress) * (1 - 0.05 * coveredProgress),
           child: child,

@@ -1,10 +1,10 @@
-import 'package:beariscope/widgets/beariscope_alert_dialog.dart';
+import 'package:ui/widgets/bearings_alert_dialog.dart';
 import 'package:beariscope/pages/settings/image_crop_dialog.dart';
 
 import 'dart:typed_data';
 
 import 'package:beariscope/utils/image_processor.dart';
-import 'package:beariscope/widgets/settings_group.dart';
+import 'package:ui/widgets/bearings_setting_group.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,6 +14,7 @@ import 'package:services/providers/api_provider.dart';
 import 'package:services/providers/auth_provider.dart';
 import 'package:services/providers/user_profile_provider.dart';
 import 'package:services/widgets/profile_picture.dart';
+import 'package:ui/widgets/bearings_spinner.dart';
 
 class AccountSettingsPage extends ConsumerStatefulWidget {
   const AccountSettingsPage({super.key});
@@ -292,7 +293,7 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
   }
 
   Future<void> _deleteAccount(BuildContext context) async {
-    final confirmed = await BeariscopeAlertDialog.show<bool>(
+    final confirmed = await BearingsAlertDialog.show<bool>(
       context: context,
       title: 'Delete Account',
       message:
@@ -300,11 +301,11 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
           'This action cannot be undone.\n\n'
           'Are you sure you want to delete your account?',
       actions: const [
-        BeariscopeAlertAction(label: 'Cancel', result: false),
-        BeariscopeAlertAction(
+        BearingsAlertAction(label: 'Cancel', result: false),
+        BearingsAlertAction(
           label: 'Delete Account',
           result: true,
-          role: BeariscopeAlertActionRole.destructive,
+          role: BearingsAlertActionRole.destructive,
         ),
       ],
     );
@@ -331,16 +332,16 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
 
   Future<void> _signOut(BuildContext context) async {
     final confirmed =
-        await BeariscopeAlertDialog.show<bool>(
+        await BearingsAlertDialog.show<bool>(
           context: context,
           title: 'Sign Out',
           message: 'Are you sure you want to sign out?',
           actions: const [
-            BeariscopeAlertAction(label: 'Cancel', result: false),
-            BeariscopeAlertAction(
+            BearingsAlertAction(label: 'Cancel', result: false),
+            BearingsAlertAction(
               label: 'Sign Out',
               result: true,
-              role: BeariscopeAlertActionRole.primary,
+              role: BearingsAlertActionRole.primary,
             ),
           ],
         ) ??
@@ -353,16 +354,16 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
   }
 
   Future<void> _sendPasswordReset() async {
-    final confirm = await BeariscopeAlertDialog.show<bool>(
+    final confirm = await BearingsAlertDialog.show<bool>(
       context: context,
       title: 'Reset Password',
       message: 'Are you sure you want to send a password reset email?',
       actions: const [
-        BeariscopeAlertAction(label: 'Cancel', result: false),
-        BeariscopeAlertAction(
+        BearingsAlertAction(label: 'Cancel', result: false),
+        BearingsAlertAction(
           label: 'Send',
           result: true,
-          role: BeariscopeAlertActionRole.primary,
+          role: BearingsAlertActionRole.primary,
         ),
       ],
     );
@@ -410,7 +411,7 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         children: [
-          SettingsGroup(
+          BearingsSettingGroup(
             title: 'Profile',
             children: [
               Padding(
@@ -486,7 +487,7 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
             ],
           ),
           const SizedBox(height: 16),
-          SettingsGroup(
+          BearingsSettingGroup(
             title: 'Details',
             children: [
               Padding(
@@ -531,8 +532,9 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
                             ? const SizedBox(
                                 width: 16,
                                 height: 16,
-                                child: CircularProgressIndicator(
+                                child: BearingsSpinner(
                                   strokeWidth: 2,
+                                  useForegroundColor: true,
                                 ),
                               )
                             : const Icon(LucideIcons.save),
@@ -545,7 +547,7 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
             ],
           ),
           const SizedBox(height: 16),
-          SettingsGroup(
+          BearingsSettingGroup(
             title: 'Security',
             children: [
               ListTile(
@@ -556,7 +558,7 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
                     ? const SizedBox(
                         width: 16,
                         height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: BearingsSpinner(strokeWidth: 2),
                       )
                     : null,
                 onTap: _isSendingReset ? null : _sendPasswordReset,
@@ -584,7 +586,7 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
                     ? SizedBox(
                         width: 16,
                         height: 16,
-                        child: CircularProgressIndicator(
+                        child: BearingsSpinner(
                           strokeWidth: 2,
                           color: Theme.of(context).colorScheme.error,
                         ),

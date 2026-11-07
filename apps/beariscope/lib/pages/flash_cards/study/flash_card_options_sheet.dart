@@ -1,5 +1,5 @@
-import 'package:beariscope/widgets/beariscope_alert_dialog.dart';
-import 'package:beariscope/widgets/beariscope_modal.dart';
+import 'package:ui/widgets/bearings_alert_dialog.dart';
+import 'package:ui/widgets/bearings_modal.dart';
 import 'package:beariscope/pages/flash_cards/study/flash_card_options.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
@@ -29,18 +29,18 @@ class _FlashCardOptionsSheetState extends State<FlashCardOptionsSheet> {
   }
 
   Future<void> _confirmReset() async {
-    final confirmed = await BeariscopeAlertDialog.show<bool>(
+    final confirmed = await BearingsAlertDialog.show<bool>(
       context: context,
       title: 'Reset progress?',
       message:
           'All teams in this deck will move back to Still learning. '
           'This cannot be undone.',
       actions: const [
-        BeariscopeAlertAction(label: 'Cancel', result: false),
-        BeariscopeAlertAction(
+        BearingsAlertAction(label: 'Cancel', result: false),
+        BearingsAlertAction(
           label: 'Reset progress',
           result: true,
-          role: BeariscopeAlertActionRole.destructive,
+          role: BearingsAlertActionRole.destructive,
         ),
       ],
     );
@@ -52,7 +52,7 @@ class _FlashCardOptionsSheetState extends State<FlashCardOptionsSheet> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return BeariscopeModal(
+    return BearingsModal(
       title: 'Study Options',
       actions: const [],
       content: Column(

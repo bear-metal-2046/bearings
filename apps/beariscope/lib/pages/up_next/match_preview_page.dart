@@ -1,4 +1,3 @@
-import 'package:beariscope/widgets/beariscope_modal.dart';
 import 'package:beariscope/utils/match_video_opener.dart';
 import 'package:beariscope/models/drive_team_note.dart';
 import 'package:beariscope/pages/up_next/up_next_provider.dart';
@@ -7,7 +6,6 @@ import 'package:beariscope/providers/drive_team_notes_provider.dart';
 import 'package:beariscope/providers/match_preview_layout_provider.dart';
 import 'package:beariscope/providers/scouting_data_provider.dart';
 import 'package:beariscope/providers/tba_preferences_provider.dart';
-import 'package:beariscope/widgets/beariscope_status_view.dart';
 import 'package:beariscope/widgets/team_card.dart';
 import 'package:dots_indicator/dots_indicator.dart';
 import 'package:material_ui/material_ui.dart';
@@ -85,11 +83,11 @@ class _DriveTeamMatchPreviewPageState
     return matchAsync.when(
       loading: () => Scaffold(
         appBar: AppBar(title: Text('Match ${widget.matchKey}')),
-        body: const Center(child: CircularProgressIndicator()),
+        body: const Center(child: BearingsSpinner()),
       ),
       error: (err, stack) => Scaffold(
         appBar: AppBar(title: Text('Match ${widget.matchKey}')),
-        body: BeariscopeStatusView(
+        body: BearingsStatusView(
           icon: LucideIcons.circleAlert,
           iconColor: Theme.of(context).colorScheme.error,
           title: 'Match unavailable',
@@ -189,62 +187,49 @@ class _DriveTeamMatchPreviewPageState
           appBar: AppBar(
             title: Text(matchTitle),
             actions: [
-              PopupMenuButton<_TeamAction>(
-                icon: const Icon(LucideIcons.ellipsisVertical),
+              BearingsPopupMenu.overflow(
                 tooltip: 'More options',
-                onSelected: (action) => handleAction(context, action),
-                itemBuilder: (context) => [
+                menuChildren: [
                   if (MediaQuery.sizeOf(context).width <= 1100) ...[
-                    PopupMenuItem(
-                      value: _TeamAction.switchLayout,
-                      child: ListTile(
-                        leading: Icon(
-                          scrollVertical
-                              ? LucideIcons.galleryHorizontal
-                              : LucideIcons.galleryVertical,
-                        ),
-                        title: Text(
-                          scrollVertical
-                              ? 'Switch to horizontal layout'
-                              : 'Switch to vertical layout',
-                        ),
-                        contentPadding: EdgeInsets.zero,
+                    BearingsMenuItem(
+                      onPressed: () =>
+                          handleAction(context, _TeamAction.switchLayout),
+                      leadingIcon: Icon(
+                        scrollVertical
+                            ? LucideIcons.galleryHorizontal
+                            : LucideIcons.galleryVertical,
+                      ),
+                      child: Text(
+                        scrollVertical
+                            ? 'Switch to horizontal layout'
+                            : 'Switch to vertical layout',
                       ),
                     ),
-                    const PopupMenuDivider(),
+                    const Divider(height: 16),
                   ],
-                  const PopupMenuItem(
-                    value: _TeamAction.copyStrategyMessage,
-                    child: ListTile(
-                      leading: Icon(LucideIcons.copy),
-                      title: Text('Copy match strategy message'),
-                      contentPadding: EdgeInsets.zero,
-                    ),
+                  BearingsMenuItem(
+                    onPressed: () =>
+                        handleAction(context, _TeamAction.copyStrategyMessage),
+                    leadingIcon: const Icon(LucideIcons.copy),
+                    child: const Text('Copy match strategy message'),
                   ),
-                  const PopupMenuItem(
-                    value: _TeamAction.openYouTube,
-                    child: ListTile(
-                      leading: Icon(LucideIcons.squarePlay),
-                      title: Text('Watch match video'),
-                      contentPadding: EdgeInsets.zero,
-                    ),
+                  BearingsMenuItem(
+                    onPressed: () =>
+                        handleAction(context, _TeamAction.openYouTube),
+                    leadingIcon: const Icon(LucideIcons.squarePlay),
+                    child: const Text('Watch match video'),
                   ),
-                  const PopupMenuDivider(),
-                  const PopupMenuItem(
-                    value: _TeamAction.openTba,
-                    child: ListTile(
-                      leading: Icon(LucideIcons.externalLink),
-                      title: Text('Open in TBA'),
-                      contentPadding: EdgeInsets.zero,
-                    ),
+                  const Divider(height: 16),
+                  BearingsMenuItem(
+                    onPressed: () => handleAction(context, _TeamAction.openTba),
+                    leadingIcon: const Icon(LucideIcons.externalLink),
+                    child: const Text('Open in TBA'),
                   ),
-                  const PopupMenuItem(
-                    value: _TeamAction.openStatbotics,
-                    child: ListTile(
-                      leading: Icon(LucideIcons.externalLink),
-                      title: Text('Open in Statbotics'),
-                      contentPadding: EdgeInsets.zero,
-                    ),
+                  BearingsMenuItem(
+                    onPressed: () =>
+                        handleAction(context, _TeamAction.openStatbotics),
+                    leadingIcon: const Icon(LucideIcons.externalLink),
+                    child: const Text('Open in Statbotics'),
                   ),
                 ],
               ),
@@ -257,7 +242,7 @@ class _DriveTeamMatchPreviewPageState
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     if (cards.isEmpty) {
-                      return const BeariscopeStatusView(
+                      return const BearingsStatusView(
                         icon: LucideIcons.users,
                         title: 'No teams available',
                         subtitle: 'This match does not have any team data yet.',
@@ -441,7 +426,7 @@ class _DriveTeamMatchPreviewPageState
                                               '2046',
                                         )
                                         .toList();
-                                    BeariscopeModal.show<void>(
+                                    BearingsModal.show<void>(
                                       context,
 
                                       builder: (context) =>
@@ -616,7 +601,7 @@ class _DriveTeamMatchPreviewPageState
                                             '2046',
                                       )
                                       .toList();
-                                  BeariscopeModal.show<void>(
+                                  BearingsModal.show<void>(
                                     context,
 
                                     builder: (context) => _DriveTeamNotesSheet(
@@ -786,7 +771,7 @@ class _DriveTeamNotesSheetState extends ConsumerState<_DriveTeamNotesSheet> {
         await ref.read(scoutingDataProvider.notifier).refresh();
       }
 
-      if (mounted) BeariscopeModal.complete<void>(context);
+      if (mounted) BearingsModal.complete<void>(context);
     } catch (e) {
       if (mounted) {
         setState(() => _isSaving = false);
@@ -855,13 +840,13 @@ class _DriveTeamNotesSheetState extends ConsumerState<_DriveTeamNotesSheet> {
     final notesAsync = ref.watch(myDriveTeamNotesProvider(widget.matchKey));
     final theme = Theme.of(context);
 
-    return BeariscopeModal(
+    return BearingsModal(
       title: 'Drive team notes',
-      size: BeariscopeModalSize.tall,
-      scrolling: BeariscopeModalScrolling.content,
+      size: BearingsModalSize.tall,
+      scrolling: BearingsModalScrolling.content,
       actions: const [],
       canDismiss: !_isSaving,
-      primaryAction: BeariscopeModalPrimaryAction(
+      primaryAction: BearingsModalPrimaryAction(
         label: 'Save Notes',
         icon: LucideIcons.check,
         enabled:
@@ -874,7 +859,7 @@ class _DriveTeamNotesSheetState extends ConsumerState<_DriveTeamNotesSheet> {
       content: notesAsync.when(
         loading: () => const SizedBox(
           height: 200,
-          child: Center(child: CircularProgressIndicator()),
+          child: Center(child: BearingsSpinner()),
         ),
         error: (e, _) => SizedBox(
           height: 200,
