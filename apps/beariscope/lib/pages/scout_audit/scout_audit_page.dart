@@ -1,5 +1,5 @@
-import 'package:beariscope/widgets/beariscope_alert_dialog.dart';
-import 'package:beariscope/widgets/beariscope_modal.dart';
+import 'package:ui/widgets/bearings_alert_dialog.dart';
+import 'package:ui/widgets/bearings_modal.dart';
 
 import 'dart:convert';
 import 'dart:math' as math;
@@ -13,7 +13,7 @@ import 'package:beariscope/pages/scout_audit/scout_audit_preferences_provider.da
 import 'package:beariscope/pages/scout_audit/scout_audit_provider.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/scouting_data_provider.dart';
-import 'package:beariscope/widgets/beariscope_status_view.dart';
+import 'package:ui/widgets/bearings_status_view.dart';
 import 'package:core/core.dart' show ScoutPosition;
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,6 +21,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:services/providers/api_provider.dart';
 import 'package:syncfusion_flutter_sliders/sliders.dart';
 import 'package:beariscope/utils/match_video_opener.dart';
+import 'package:ui/widgets/bearings_spinner.dart';
 
 class ScoutAuditPage extends ConsumerStatefulWidget {
   const ScoutAuditPage({super.key});
@@ -59,8 +60,8 @@ class _ScoutAuditPageState extends ConsumerState<ScoutAuditPage> {
         ],
       ),
       body: snapshotAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) => BeariscopeStatusView(
+        loading: () => const Center(child: BearingsSpinner()),
+        error: (error, stack) => BearingsStatusView(
           icon: LucideIcons.circleAlert,
           iconColor: Theme.of(context).colorScheme.error,
           title: 'TBA data is unavailable',
@@ -76,7 +77,7 @@ class _ScoutAuditPageState extends ConsumerState<ScoutAuditPage> {
         ),
         data: (snapshot) {
           if (snapshot.isEmpty) {
-            return BeariscopeStatusView(
+            return BearingsStatusView(
               icon: LucideIcons.circleCheck,
               iconColor: Theme.of(context).colorScheme.primary,
               title: 'All scouted data looks clean!',
@@ -227,7 +228,7 @@ class _ScoutAuditPageState extends ConsumerState<ScoutAuditPage> {
   }
 
   Future<void> _showManualScoutDialog(BuildContext context) async {
-    final selection = await BeariscopeModal.show<_ManualScoutSelection>(
+    final selection = await BearingsModal.show<_ManualScoutSelection>(
       context,
       useRootNavigator: true,
       builder: (_) => const _ManualScoutDialog(),
@@ -422,15 +423,15 @@ class _ScoutAuditPageState extends ConsumerState<ScoutAuditPage> {
   ) async {
     var value = threshold;
 
-    final changed = await BeariscopeModal.show<bool>(
+    final changed = await BearingsModal.show<bool>(
       context,
       useRootNavigator: true,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) {
-          return BeariscopeModal(
+          return BearingsModal(
             title: 'Incorrect Data Threshold',
             actions: const [],
-            primaryAction: BeariscopeModalPrimaryAction(
+            primaryAction: BearingsModalPrimaryAction(
               label: 'Apply',
               icon: LucideIcons.check,
               onPressed: () => Navigator.of(context).pop(true),
@@ -523,7 +524,7 @@ class _IncompleteMatchDetailPageState
         ],
       ),
       body: snapshotAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(child: BearingsSpinner()),
         error: (error, stack) => Center(
           child: Text(
             'Unable to load issue state.',
@@ -545,7 +546,7 @@ class _IncompleteMatchDetailPageState
                 Navigator.of(context).pop();
               }
             });
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: BearingsSpinner());
           }
 
           return ListView(
@@ -789,7 +790,7 @@ class _NotInTbaDetailPageState extends ConsumerState<_NotInTbaDetailPage> {
           Navigator.of(context).pop();
         }
       });
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(body: Center(child: BearingsSpinner()));
     }
 
     final match =
@@ -938,7 +939,7 @@ class _DuplicateDetailPageState extends ConsumerState<_DuplicateDetailPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Duplicate Entries')),
       body: snapshotAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(child: BearingsSpinner()),
         error: (error, stack) => Center(
           child: Text(
             'Unable to load duplicate issue.',
@@ -961,7 +962,7 @@ class _DuplicateDetailPageState extends ConsumerState<_DuplicateDetailPage> {
                 Navigator.of(context).pop();
               }
             });
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: BearingsSpinner());
           }
 
           if (issue.identical) {
@@ -1153,7 +1154,7 @@ class _IncorrectDataDetailPageState
         ],
       ),
       body: snapshotAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(child: BearingsSpinner()),
         error: (error, stack) => Center(
           child: Text(
             'Unable to load incorrect-data issue.',
@@ -1528,7 +1529,7 @@ class _ManualScoutDialogState extends ConsumerState<_ManualScoutDialog> {
       }
 
       if (!mounted) return;
-      BeariscopeModal.complete(
+      BearingsModal.complete(
         context,
         _ManualScoutSelection(
           matchNumber: matchNumber,
@@ -1551,11 +1552,11 @@ class _ManualScoutDialogState extends ConsumerState<_ManualScoutDialog> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return BeariscopeModal(
+    return BearingsModal(
       title: 'Manual Scout',
       actions: const [],
       canDismiss: !_submitting,
-      primaryAction: BeariscopeModalPrimaryAction(
+      primaryAction: BearingsModalPrimaryAction(
         label: 'Scout',
         icon: LucideIcons.chevronRight,
         loading: _submitting,
@@ -1624,16 +1625,16 @@ Future<bool> _confirmDestructiveAction(
   required String message,
   required String confirmLabel,
 }) async {
-  final confirmed = await BeariscopeAlertDialog.show<bool>(
+  final confirmed = await BearingsAlertDialog.show<bool>(
     context: context,
     title: title,
     message: message,
     actions: [
-      BeariscopeAlertAction(label: 'Cancel', result: false),
-      BeariscopeAlertAction(
+      BearingsAlertAction(label: 'Cancel', result: false),
+      BearingsAlertAction(
         label: confirmLabel,
         result: true,
-        role: BeariscopeAlertActionRole.destructive,
+        role: BearingsAlertActionRole.destructive,
       ),
     ],
   );

@@ -3,9 +3,10 @@ import 'dart:async';
 import 'package:beariscope/pages/team_lookup/tabs/media_save_helper.dart';
 import 'package:beariscope/pages/team_lookup/team_providers.dart';
 import 'package:beariscope/providers/youtube_video_metadata_provider.dart';
-import 'package:beariscope/widgets/beariscope_card.dart';
-import 'package:beariscope/widgets/settings_group.dart';
-import 'package:beariscope/widgets/beariscope_status_view.dart';
+import 'package:ui/widgets/bearings_popup_menu.dart';
+import 'package:ui/widgets/bearings_card.dart';
+import 'package:ui/widgets/bearings_setting_group.dart';
+import 'package:ui/widgets/bearings_status_view.dart';
 import 'package:flutter/gestures.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
@@ -13,6 +14,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:ui/widgets/bearings_spinner.dart';
 
 class MediaTab extends ConsumerStatefulWidget {
   final int teamNumber;
@@ -48,8 +50,8 @@ class _MediaTabState extends ConsumerState<MediaTab> {
         : WebsiteMetadataProvider.metadataForUrl(websiteUri);
 
     return mediaAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => BeariscopeStatusView(
+      loading: () => const Center(child: BearingsSpinner()),
+      error: (e, _) => BearingsStatusView(
         icon: LucideIcons.circleAlert,
         iconColor: Theme.of(context).colorScheme.error,
         title: 'Media unavailable',
@@ -61,7 +63,7 @@ class _MediaTabState extends ConsumerState<MediaTab> {
         );
 
         if (sections.isEmpty && websiteMetadataFuture == null) {
-          return const BeariscopeStatusView(
+          return const BearingsStatusView(
             icon: LucideIcons.images,
             title: 'No media recorded',
             subtitle: 'No media has been recorded for this team.',
@@ -73,19 +75,19 @@ class _MediaTabState extends ConsumerState<MediaTab> {
             future: websiteMetadataFuture,
             builder: (context, snapshot) {
               if (snapshot.connectionState != ConnectionState.done) {
-                return const Center(child: CircularProgressIndicator());
+                return const Center(child: BearingsSpinner());
               }
 
               final metadata = snapshot.data;
               if (metadata == null) {
-                return const BeariscopeStatusView(
+                return const BearingsStatusView(
                   icon: LucideIcons.images,
                   title: 'No media recorded',
                   subtitle: 'No media has been recorded for this team.',
                 );
               }
 
-              return BeariscopeCardList(
+              return BearingsCardList(
                 children: [
                   _TeamWebsiteSection(uri: websiteUri!, metadata: metadata),
                 ],
@@ -94,10 +96,10 @@ class _MediaTabState extends ConsumerState<MediaTab> {
           );
         }
 
-        return BeariscopeCardList(
+        return BearingsCardList(
           children: [
             if (sections.photos.isNotEmpty) ...[
-              SettingsGroup(
+              BearingsSettingGroup(
                 title: 'Photos',
                 children: [
                   Padding(
@@ -111,7 +113,7 @@ class _MediaTabState extends ConsumerState<MediaTab> {
               ),
             ],
             if (sections.youtubeVideos.isNotEmpty) ...[
-              SettingsGroup(
+              BearingsSettingGroup(
                 title: 'Videos',
                 children: sections.youtubeVideos
                     .map((record) => _MediaLinkTile(record: record))
@@ -119,7 +121,7 @@ class _MediaTabState extends ConsumerState<MediaTab> {
               ),
             ],
             if (sections.chiefDelphiThreads.isNotEmpty) ...[
-              SettingsGroup(
+              BearingsSettingGroup(
                 title: 'Threads',
                 children: sections.chiefDelphiThreads
                     .map((record) => _MediaLinkTile(record: record))
@@ -127,7 +129,7 @@ class _MediaTabState extends ConsumerState<MediaTab> {
               ),
             ],
             if (sections.cadReleases.isNotEmpty) ...[
-              SettingsGroup(
+              BearingsSettingGroup(
                 title: 'CAD Files',
                 children: sections.cadReleases
                     .map((record) => _MediaLinkTile(record: record))
@@ -185,7 +187,7 @@ class _TeamWebsiteSection extends StatelessWidget {
         _cleanWebsiteTitle(metadata.title) ??
         (uri.host.isNotEmpty ? uri.host : uri.toString());
 
-    return SettingsGroup(
+    return BearingsSettingGroup(
       title: 'Team Website',
       children: [
         ListTile(
@@ -827,44 +829,30 @@ class _FullscreenImageViewerState extends State<_FullscreenImageViewer>
             ),
           ),
           actions: [
-            PopupMenuButton<String>(
-              icon: const Icon(LucideIcons.ellipsisVertical),
-              onSelected: (value) async {
-                if (value == 'share') {
-                  await _shareCurrentImage(widget.urls[_currentIndex]);
-                } else if (value == 'open') {
-                  final uri = Uri.parse(widget.urls[_currentIndex]);
-                  if (await canLaunchUrl(uri)) {
-                    await launchUrl(uri, mode: LaunchMode.externalApplication);
-                  } else {
-                    if (context.mounted) {
+            BearingsPopupMenu.overflow(
+              menuChildren: [
+                BearingsMenuItem(
+                  onPressed: () =>
+                      _shareCurrentImage(widget.urls[_currentIndex]),
+                  leadingIcon: const Icon(LucideIcons.share),
+                  child: const Text('Share'),
+                ),
+                BearingsMenuItem(
+                  onPressed: () async {
+                    final uri = Uri.parse(widget.urls[_currentIndex]);
+                    if (await canLaunchUrl(uri)) {
+                      await launchUrl(
+                        uri,
+                        mode: LaunchMode.externalApplication,
+                      );
+                    } else if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Could not open image')),
                       );
                     }
-                  }
-                }
-              },
-              itemBuilder: (context) => [
-                PopupMenuItem(
-                  value: 'share',
-                  child: Row(
-                    children: const [
-                      Icon(LucideIcons.share),
-                      SizedBox(width: 12),
-                      Text('Share'),
-                    ],
-                  ),
-                ),
-                PopupMenuItem(
-                  value: 'open',
-                  child: Row(
-                    children: const [
-                      Icon(LucideIcons.externalLink),
-                      SizedBox(width: 12),
-                      Text('Open in Browser'),
-                    ],
-                  ),
+                  },
+                  leadingIcon: const Icon(LucideIcons.externalLink),
+                  child: const Text('Open in Browser'),
                 ),
               ],
             ),

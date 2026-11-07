@@ -1,6 +1,6 @@
 import 'package:beariscope/models/tba_match_score.dart';
 import 'package:beariscope/providers/youtube_video_metadata_provider.dart';
-import 'package:beariscope/widgets/beariscope_modal.dart';
+import 'package:ui/widgets/bearings_modal.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
@@ -58,7 +58,7 @@ Future<void> openMatchVideo(
     return;
   }
   if (!context.mounted) return;
-  await BeariscopeModal.show<void>(
+  await BearingsModal.show<void>(
     context,
     builder: (_) =>
         _MatchVideoPicker(videos: videos, matchTitle: matchTitle, open: open),
@@ -93,7 +93,7 @@ class _MatchVideoPickerState extends State<_MatchVideoPicker> {
     final opened = await widget.open(video);
     if (!mounted) return;
     if (opened) {
-      BeariscopeModal.complete(context);
+      BearingsModal.complete(context);
     } else {
       setState(() {
         _opening = false;
@@ -103,7 +103,7 @@ class _MatchVideoPickerState extends State<_MatchVideoPicker> {
   }
 
   @override
-  Widget build(BuildContext context) => BeariscopeModal(
+  Widget build(BuildContext context) => BearingsModal(
     title: 'Watch match video',
     actions: const [],
     canDismiss: !_opening,

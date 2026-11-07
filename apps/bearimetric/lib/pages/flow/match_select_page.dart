@@ -9,6 +9,7 @@ import 'package:bearimetric/custom_widgets/upload_status_indicator.dart';
 import 'package:bearimetric/data/local_data.dart';
 import 'package:bearimetric/data/match_json_gen.dart';
 import 'package:bearimetric/providers/scouting_providers.dart';
+import 'package:ui/widgets/bearings_spinner.dart';
 
 class MatchSelectPage extends ConsumerStatefulWidget {
   const MatchSelectPage({super.key});
@@ -52,7 +53,7 @@ class _MatchSelectPageState extends ConsumerState<MatchSelectPage> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) context.go('/config');
       });
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(body: Center(child: BearingsSpinner()));
     }
 
     final position = session.position!;
@@ -147,7 +148,7 @@ class _MatchSelectPageState extends ConsumerState<MatchSelectPage> {
                         loading: () => const SizedBox(
                           height: 24,
                           width: 24,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: BearingsSpinner(strokeWidth: 2),
                         ),
                         error: (_, _) => Text(
                           'Team: —',

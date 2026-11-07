@@ -1,6 +1,6 @@
 import 'package:beariscope/providers/post_sign_in_flow_provider.dart';
-import 'package:beariscope/widgets/step_flow.dart';
-import 'package:beariscope/widgets/step_layout.dart';
+import 'package:ui/widgets/bearings_step_flow.dart';
+import 'package:ui/widgets/bearings_step_layout.dart';
 import 'package:flutter/gestures.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
@@ -42,7 +42,7 @@ class _SignUpFlowPageState extends ConsumerState<SignUpFlowPage> {
 
   @override
   Widget build(BuildContext context) {
-    return StepFlow(
+    return BearingsStepFlow(
       totalSteps: _totalSteps,
       currentStep: _currentStep,
       navigatorKey: _nestedNavKey,
@@ -71,7 +71,7 @@ class _SignUpFlowPageState extends ConsumerState<SignUpFlowPage> {
   }
 
   Widget _buildTeamNumberStep() {
-    return StepLayout(
+    return BearingsStepLayout(
       title: 'Enter your team number',
       buttonText: 'Continue',
       buttonIcon: LucideIcons.arrowRight,
@@ -143,7 +143,7 @@ class _SignUpFlowPageState extends ConsumerState<SignUpFlowPage> {
       'mailto:scouting-app@bearmet.al?subject=$subject&body=$body',
     );
 
-    return StepLayout(
+    return BearingsStepLayout(
       title: 'Join Team ${_signupData.teamNumber}\'s Workspace',
       buttonText: 'Verify Access',
       buttonIcon: LucideIcons.lockKeyhole,
@@ -262,7 +262,7 @@ class _SignUpFlowPageState extends ConsumerState<SignUpFlowPage> {
   }
 
   Widget _buildConfirmTeamStep() {
-    return StepLayout(
+    return BearingsStepLayout(
       title: 'Create Team ${_signupData.teamNumber}\'s Workspace?',
       buttonText: 'Create Workspace',
       buttonIcon: LucideIcons.squarePlus,
@@ -311,7 +311,7 @@ class _SignUpFlowPageState extends ConsumerState<SignUpFlowPage> {
 
   // --- STEP 3: Auth0 Secure Account Creation ---
   Widget _buildAuthGatewayStep() {
-    return StepLayout(
+    return BearingsStepLayout(
       title: 'Final Step',
       buttonText: 'Create Account',
       buttonIcon: LucideIcons.externalLink,

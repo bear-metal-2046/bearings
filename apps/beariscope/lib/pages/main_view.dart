@@ -1,4 +1,4 @@
-import 'package:beariscope/widgets/beariscope_alert_dialog.dart';
+import 'package:ui/widgets/bearings_alert_dialog.dart';
 import 'package:beariscope/pages/scout_audit/scout_audit_provider.dart';
 import 'package:beariscope/providers/appearance_provider.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
@@ -16,6 +16,8 @@ import 'package:services/providers/user_profile_provider.dart';
 import 'package:services/widgets/profile_picture.dart';
 import 'package:beariscope/pages/team_lookup/team_providers.dart';
 import 'package:beariscope/providers/pits_scouting_provider.dart';
+import 'package:ui/widgets/bearings_popup_menu.dart';
+import 'package:ui/widgets/bearings_spinner.dart';
 
 class _NavItem {
   final String route;
@@ -103,11 +105,21 @@ class _MainViewState extends ConsumerState<MainView> {
       group: 'General',
     ),
     const _NavItem(
+      route: '/pits_scouting',
+      icon: LucideIcons.wrench,
+      label: 'Pits',
+      group: 'General',
+      requiredPermissions: [PermissionKey.pitsUpload, PermissionKey.pitsRead],
+    ),
+    const _NavItem(
       route: '/picklists',
       icon: LucideIcons.notebookText,
       label: 'Picklists',
       group: 'General',
-      requiredPermissions: [PermissionKey.picklistsRead],
+      requiredPermissions: [
+        PermissionKey.picklistsManage,
+        PermissionKey.picklistsRead,
+      ],
     ),
     const _NavItem(
       route: '/scout_audit',
@@ -121,13 +133,6 @@ class _MainViewState extends ConsumerState<MainView> {
       icon: LucideIcons.sheet,
       label: 'Export Data',
       group: 'Data',
-    ),
-    const _NavItem(
-      route: '/pits_scouting',
-      icon: LucideIcons.wrench,
-      label: 'Pits Scouting',
-      group: 'Scouting',
-      requiredPermissions: [PermissionKey.pitsUpload, PermissionKey.pitsRead],
     ),
     const _NavItem(
       route: '/match_lookup',
@@ -235,17 +240,10 @@ class _MainViewState extends ConsumerState<MainView> {
             isAtTopLevel &&
             ModalRoute.of(context)?.isCurrent == true;
 
-        final drawerContent = NavigationDrawer(
-          selectedIndex: selectedIndex >= 0 ? selectedIndex : null,
-          onDestinationSelected: (index) =>
-              _onDestinationSelected(index, isDesktop, visibleNavItems),
-          footer: Column(
-            children: [
-              const Divider(height: 2),
-              _buildBottomComponents(isOnline: _isOnline()),
-            ],
-          ),
-          children: _buildNavChildren(visibleNavItems),
+        final drawerContent = _buildSidebar(
+          visibleNavItems: visibleNavItems,
+          selectedIndex: selectedIndex,
+          isDesktop: isDesktop,
         );
 
         final childContent = isDesktop
@@ -340,86 +338,176 @@ class _MainViewState extends ConsumerState<MainView> {
     }
   }
 
-  List<Widget> _buildNavChildren(List<_NavItem> visibleNavItems) {
-    final children = <Widget>[];
+  Widget _buildSidebar({
+    required List<_NavItem> visibleNavItems,
+    required int selectedIndex,
+    required bool isDesktop,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
 
-    children.add(
-      SizedBox(
-        height: kToolbarHeight,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 28),
-          child: Row(
+    return SizedBox(
+      width: 280,
+      child: Material(
+        color: colorScheme.surfaceContainerLow,
+        elevation: 0,
+        child: SafeArea(
+          bottom: false,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 14, 18, 14),
                 child: Row(
                   children: [
                     SvgPicture.asset(
                       'assets/beariscope_head.svg',
                       width: 24,
                       colorFilter: ColorFilter.mode(
-                        Theme.of(context).colorScheme.primary,
+                        colorScheme.primary,
                         BlendMode.srcATop,
                       ),
                     ),
+
                     const SizedBox(width: 12),
-                    Text(
-                      'Beariscope',
-                      style: Theme.of(context).textTheme.titleLarge,
+                    Expanded(
+                      child: Text(
+                        'Beariscope',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
                     ),
                   ],
                 ),
+              ),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(14, 6, 14, 16),
+                  children: _buildNavChildren(
+                    visibleNavItems,
+                    selectedIndex: selectedIndex,
+                    isDesktop: isDesktop,
+                  ),
+                ),
+              ),
+              Column(
+                children: [
+                  const Divider(height: 2),
+                  _buildBottomComponents(isOnline: _isOnline()),
+                ],
               ),
             ],
           ),
         ),
       ),
     );
+  }
 
-    children.add(
-      const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 28),
-        child: Divider(height: 2),
-      ),
-    );
-
+  List<Widget> _buildNavChildren(
+    List<_NavItem> visibleNavItems, {
+    required int selectedIndex,
+    required bool isDesktop,
+  }) {
+    final children = <Widget>[];
     String? currentGroup;
+
     for (final entry in visibleNavItems.indexed) {
+      final index = entry.$1;
       final item = entry.$2;
       if (item.group != currentGroup) {
-        if (currentGroup != null) {
-          children.add(
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 28),
-              child: Divider(),
-            ),
-          );
-        }
         currentGroup = item.group;
         children.add(
           Padding(
-            padding: const EdgeInsets.fromLTRB(28, 10, 16, 16),
+            padding: EdgeInsets.fromLTRB(12, children.isEmpty ? 12 : 20, 12, 6),
             child: Text(
               currentGroup,
-              style: Theme.of(context).textTheme.titleSmall,
+              style: Theme.of(context).textTheme.labelMedium,
             ),
           ),
         );
       }
+
       children.add(
-        NavigationDrawerDestination(
-          icon: Badge(
-            isLabelVisible: item.badgeCount != null && item.badgeCount! > 0,
-            label: item.badgeCount != null
-                ? Text(item.badgeCount.toString())
-                : null,
-            child: Icon(item.icon, weight: 600),
-          ),
-          label: Text(item.label),
+        _buildNavDestination(
+          item: item,
+          selected: index == selectedIndex,
+          onTap: () =>
+              _onDestinationSelected(index, isDesktop, visibleNavItems),
         ),
       );
     }
 
     return children;
+  }
+
+  Widget _buildNavDestination({
+    required _NavItem item,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final foregroundColor = selected
+        ? colorScheme.onSurface
+        : colorScheme.onSurfaceVariant;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Material(
+        color: selected
+            ? colorScheme.surfaceContainerHighest
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        clipBehavior: Clip.antiAlias,
+        elevation: 0,
+        child: InkWell(
+          onTap: onTap,
+          child: SizedBox(
+            height: 44,
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 14),
+              child: Row(
+                children: [
+                  Icon(
+                    item.icon,
+                    size: 18,
+                    weight: 600,
+                    color: selected ? colorScheme.primary : foregroundColor,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      item.label,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: selected ? colorScheme.primary : foregroundColor,
+                        fontWeight: selected
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  if (item.badgeCount case final badgeCount?)
+                    Container(
+                      constraints: const BoxConstraints(minWidth: 20),
+                      height: 20,
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: colorScheme.tertiaryContainer,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Text(
+                        badgeCount.toString(),
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: colorScheme.onTertiaryContainer,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildBottomComponents({required bool isOnline}) {
@@ -454,360 +542,234 @@ class _MainViewState extends ConsumerState<MainView> {
 
     return SafeArea(
       top: false,
-      child: MenuTheme(
-        data: MenuThemeData(
-          style: MenuStyle(
-            elevation: const WidgetStatePropertyAll(8.0),
-            backgroundColor: WidgetStatePropertyAll(
-              colorScheme.surfaceContainerHigh,
-            ),
-            shape: WidgetStatePropertyAll(
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            ),
-            padding: const WidgetStatePropertyAll(
-              EdgeInsets.symmetric(vertical: 12),
-            ),
-          ),
-        ),
-        child: MenuAnchor(
-          animated: true,
-          alignmentOffset: const Offset(12, 0),
-          builder: (context, controller, child) {
-            final isOpen = controller.isOpen;
+      child: BearingsPopupMenu(
+        alignmentOffset: const Offset(12, 0),
+        triggerBuilder: (context, controller, focusNode) {
+          final isOpen = controller.isOpen;
 
-            return Material(
-              color: isOpen
-                  ? colorScheme.surfaceContainerHighest
-                  : Colors.transparent,
-              child: InkWell(
-                onTap: () {
-                  if (isOpen) {
-                    controller.close();
-                  } else {
-                    controller.open();
-                  }
-                },
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      const ProfilePicture(size: 20),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              userName,
-                              style: textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w600,
+          return Material(
+            color: isOpen
+                ? colorScheme.surfaceContainerHighest
+                : Colors.transparent,
+            child: InkWell(
+              focusNode: focusNode,
+              onTap: () {
+                if (isOpen) {
+                  controller.close();
+                } else {
+                  controller.open();
+                }
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    const ProfilePicture(size: 20),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            userName,
+                            style: textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                          AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 200),
+                            layoutBuilder:
+                                (
+                                  Widget? currentChild,
+                                  List<Widget> previousChildren,
+                                ) {
+                                  return Stack(
+                                    alignment: Alignment.centerLeft,
+                                    children: <Widget>[
+                                      ...previousChildren,
+                                      ?currentChild,
+                                    ],
+                                  );
+                                },
+                            child: Text(
+                              _isRefreshing ? 'Syncing...' : subtitleText,
+                              key: ValueKey('$_isRefreshing-$subtitleText'),
+                              style: textTheme.bodySmall?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                                fontSize: 11,
                               ),
                               overflow: TextOverflow.ellipsis,
                               maxLines: 1,
                             ),
-                            AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 200),
-                              layoutBuilder:
-                                  (
-                                    Widget? currentChild,
-                                    List<Widget> previousChildren,
-                                  ) {
-                                    return Stack(
-                                      alignment: Alignment.centerLeft,
-                                      children: <Widget>[
-                                        ...previousChildren,
-                                        ?currentChild,
-                                      ],
-                                    );
-                                  },
-                              child: Text(
-                                _isRefreshing ? 'Syncing...' : subtitleText,
-                                key: ValueKey('$_isRefreshing-$subtitleText'),
-                                style: textTheme.bodySmall?.copyWith(
-                                  color: colorScheme.onSurfaceVariant,
-                                  fontSize: 11,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                                maxLines: 1,
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      Icon(
-                        isOpen
-                            ? LucideIcons.chevronsDownUp
-                            : LucideIcons.chevronsUpDown,
-                        color: colorScheme.onSurfaceVariant,
-                        size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Icon(
+                      isOpen
+                          ? LucideIcons.chevronsDownUp
+                          : LucideIcons.chevronsUpDown,
+                      color: colorScheme.onSurfaceVariant,
+                      size: 20,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+        menuChildren: [
+          if (canSelectEvent && eventsAsync != null)
+            eventsAsync.when(
+              data: (events) {
+                final pickerEvents = eventPickerOptions(
+                  events,
+                  currentEventKey,
+                );
+                final currentEvent = pickerEvents.firstWhere(
+                  (e) => e.key == currentEventKey,
+                  orElse: () => EventOption.current(currentEventKey),
+                );
+                return BearingsSubmenu(
+                  leadingIcon: const Icon(LucideIcons.calendarCog, size: 20),
+                  menuChildren: pickerEvents
+                      .map(
+                        (e) => BearingsMenuItem(
+                          leadingIcon: Icon(e.leadingIcon, size: 20),
+                          selected: e.key == currentEventKey,
+                          onPressed: () {
+                            ref
+                                .read(currentEventProvider.notifier)
+                                .setEventKey(e.key);
+                          },
+                          child: Text(e.shortName),
+                        ),
+                      )
+                      .toList(),
+                  child: Text('At ${currentEvent.shortName}'),
+                );
+              },
+              loading: () => const BearingsMenuItem(
+                onPressed: null,
+                leadingIcon: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: BearingsSpinner(strokeWidth: 2),
+                ),
+                child: Text('Loading events...'),
+              ),
+              error: (e, s) => BearingsMenuItem(
+                onPressed: () => ref.invalidate(teamEventsProvider),
+                leadingIcon: const Icon(LucideIcons.circleAlert, size: 20),
+                child: const Text('Failed to load events. Retry?'),
+              ),
+            ),
+
+          if (canSelectEvent && eventsAsync != null) const Divider(height: 16),
+
+          BearingsMenuItem(
+            closeOnActivate: false,
+            leadingIcon: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              child: _isRefreshing
+                  ? const SizedBox(
+                      key: ValueKey('loading'),
+                      width: 20,
+                      height: 20,
+                      child: BearingsSpinner(strokeWidth: 2),
+                    )
+                  : Icon(
+                      isOnline ? LucideIcons.cloud : LucideIcons.cloudOff,
+                      key: const ValueKey('icon'),
+                      size: 20,
+                    ),
+            ),
+            onPressed: isOnline && !_isRefreshing ? _doRefresh : null,
+            child: Text(
+              _isRefreshing
+                  ? 'Syncing...'
+                  : isOnline
+                  ? 'Sync Scouting Data'
+                  : 'Sync Unavailable (Offline)',
+            ),
+          ),
+
+          if (canProvision)
+            BearingsMenuItem(
+              leadingIcon: const Icon(LucideIcons.qrCode, size: 20),
+              onPressed: () => context.push('/device_provisioning'),
+              child: const Text('Provision Device'),
+            ),
+
+          const Divider(height: 16),
+
+          BearingsMenuItem(
+            leadingIcon: const Icon(LucideIcons.settings, size: 20),
+            onPressed: () => context.push('/settings'),
+            child: const Text('Settings'),
+          ),
+
+          BearingsSubmenu(
+            leadingIcon: const Icon(LucideIcons.sunMoon, size: 20),
+            menuChildren: [
+              for (final mode in ThemeMode.values)
+                BearingsMenuItem(
+                  selected: mode == themeMode,
+                  onPressed: () async {
+                    await ref
+                        .read(themeModeProvider.notifier)
+                        .setThemeMode(mode);
+                  },
+                  leadingIcon: Icon(switch (mode) {
+                    ThemeMode.light => LucideIcons.sun,
+                    ThemeMode.dark => LucideIcons.moon,
+                    ThemeMode.system => LucideIcons.eclipse,
+                  }, size: 20),
+                  child: Text(switch (mode) {
+                    ThemeMode.light => 'Light',
+                    ThemeMode.dark => 'Dark',
+                    ThemeMode.system => 'System',
+                  }),
+                ),
+            ],
+            child: const Text('Theme'),
+          ),
+
+          const Divider(height: 16),
+
+          BearingsMenuItem(
+            closeOnActivate: false,
+            destructive: true,
+            leadingIcon: const Icon(LucideIcons.logOut, size: 20),
+            onPressed: () async {
+              final confirmed =
+                  await BearingsAlertDialog.show<bool>(
+                    context: context,
+                    title: 'Sign Out',
+                    message: 'Are you sure you want to sign out?',
+                    actions: const [
+                      BearingsAlertAction(label: 'Cancel', result: false),
+                      BearingsAlertAction(
+                        label: 'Sign Out',
+                        result: true,
+                        role: BearingsAlertActionRole.primary,
                       ),
                     ],
-                  ),
-                ),
-              ),
-            );
-          },
-          menuChildren: [
-            if (canSelectEvent && eventsAsync != null)
-              eventsAsync.when(
-                data: (events) {
-                  final pickerEvents = eventPickerOptions(
-                    events,
-                    currentEventKey,
-                  );
-                  final currentEvent = pickerEvents.firstWhere(
-                    (e) => e.key == currentEventKey,
-                    orElse: () => EventOption.current(currentEventKey),
-                  );
-                  return SubmenuButton(
-                    animated: true,
-                    style: const ButtonStyle(
-                      padding: WidgetStatePropertyAll(
-                        EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                      ),
-                    ),
-                    menuStyle: MenuStyle(
-                      elevation: const WidgetStatePropertyAll(8.0),
-                      backgroundColor: WidgetStatePropertyAll(
-                        colorScheme.surfaceContainerHighest,
-                      ),
-                      shape: WidgetStatePropertyAll(
-                        RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      padding: const WidgetStatePropertyAll(
-                        EdgeInsets.symmetric(vertical: 12),
-                      ),
-                    ),
-                    submenuIcon: WidgetStatePropertyAll(
-                      const Icon(LucideIcons.chevronRight, size: 16),
-                    ),
-                    leadingIcon: const Icon(LucideIcons.calendarCog, size: 20),
-                    menuChildren: pickerEvents
-                        .map(
-                          (e) => MenuItemButton(
-                            style: const ButtonStyle(
-                              padding: WidgetStatePropertyAll(
-                                EdgeInsets.symmetric(
-                                  horizontal: 20,
-                                  vertical: 14,
-                                ),
-                              ),
-                            ),
-                            leadingIcon: Icon(e.leadingIcon, size: 20),
-                            trailingIcon: e.key == currentEventKey
-                                ? Icon(
-                                    LucideIcons.check,
-                                    size: 20,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .primary,
-                                  )
-                                : const SizedBox(width: 20),
-                            onPressed: () {
-                              ref
-                                  .read(currentEventProvider.notifier)
-                                  .setEventKey(e.key);
-                            },
-                            child: Text(e.shortName),
-                          ),
-                        )
-                        .toList(),
-                    child: Text('At ${currentEvent.shortName}'),
-                  );
-                },
-                loading: () => const MenuItemButton(
-                  onPressed: null,
-                  style: ButtonStyle(
-                    padding: WidgetStatePropertyAll(
-                      EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                    ),
-                  ),
-                  leadingIcon: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                  child: Text('Loading events...'),
-                ),
-                error: (e, s) => MenuItemButton(
-                  style: const ButtonStyle(
-                    padding: WidgetStatePropertyAll(
-                      EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                    ),
-                  ),
-                  onPressed: () => ref.invalidate(teamEventsProvider),
-                  leadingIcon: const Icon(LucideIcons.circleAlert, size: 20),
-                  child: const Text('Failed to load events. Retry?'),
-                ),
-              ),
+                  ) ??
+                  false;
 
-            if (canSelectEvent && eventsAsync != null)
-              const Divider(height: 16),
-
-            MenuItemButton(
-              closeOnActivate: false,
-              style: const ButtonStyle(
-                padding: WidgetStatePropertyAll(
-                  EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                ),
-              ),
-              leadingIcon: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 200),
-                child: _isRefreshing
-                    ? const SizedBox(
-                        key: ValueKey('loading'),
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Icon(
-                        isOnline ? LucideIcons.cloud : LucideIcons.cloudOff,
-                        key: const ValueKey('icon'),
-                        size: 20,
-                      ),
-              ),
-              onPressed: isOnline && !_isRefreshing ? _doRefresh : null,
-              child: Text(
-                _isRefreshing
-                    ? 'Syncing...'
-                    : isOnline
-                    ? 'Sync Scouting Data'
-                    : 'Sync Unavailable (Offline)',
-              ),
-            ),
-
-            if (canProvision)
-              MenuItemButton(
-                style: const ButtonStyle(
-                  padding: WidgetStatePropertyAll(
-                    EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                  ),
-                ),
-                leadingIcon: const Icon(LucideIcons.qrCode, size: 20),
-                onPressed: () => context.push('/device_provisioning'),
-                child: const Text('Provision Device'),
-              ),
-
-            const Divider(height: 16),
-
-            MenuItemButton(
-              style: const ButtonStyle(
-                padding: WidgetStatePropertyAll(
-                  EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                ),
-              ),
-              leadingIcon: const Icon(LucideIcons.settings, size: 20),
-              onPressed: () => context.push('/settings'),
-              child: const Text('Settings'),
-            ),
-
-            SubmenuButton(
-              animated: true,
-              style: const ButtonStyle(
-                padding: WidgetStatePropertyAll(
-                  EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                ),
-              ),
-              menuStyle: MenuStyle(
-                elevation: const WidgetStatePropertyAll(8.0),
-                backgroundColor: WidgetStatePropertyAll(
-                  colorScheme.surfaceContainerHighest,
-                ),
-                shape: WidgetStatePropertyAll(
-                  RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                padding: const WidgetStatePropertyAll(
-                  EdgeInsets.symmetric(vertical: 12),
-                ),
-              ),
-              submenuIcon: const WidgetStatePropertyAll(
-                Icon(LucideIcons.chevronRight, size: 16),
-              ),
-              leadingIcon: const Icon(LucideIcons.sunMoon, size: 20),
-              menuChildren: [
-                for (final mode in ThemeMode.values)
-                  MenuItemButton(
-                    style: const ButtonStyle(
-                      padding: WidgetStatePropertyAll(
-                        EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                      ),
-                    ),
-                    trailingIcon: mode == themeMode
-                        ? Icon(
-                            LucideIcons.check,
-                            size: 20,
-                            color: Theme.of(context).colorScheme.primary,
-                          )
-                        : const SizedBox(width: 20),
-                    onPressed: () async {
-                      await ref
-                          .read(themeModeProvider.notifier)
-                          .setThemeMode(mode);
-                    },
-                    leadingIcon: Icon(switch (mode) {
-                      ThemeMode.light => LucideIcons.sun,
-                      ThemeMode.dark => LucideIcons.moon,
-                      ThemeMode.system => LucideIcons.eclipse,
-                    }, size: 20),
-                    child: Text(switch (mode) {
-                      ThemeMode.light => 'Light',
-                      ThemeMode.dark => 'Dark',
-                      ThemeMode.system => 'System',
-                    }),
-                  ),
-              ],
-              child: const Text('Theme'),
-            ),
-
-            const Divider(height: 16),
-
-            MenuItemButton(
-              closeOnActivate: false,
-              style: ButtonStyle(
-                padding: const WidgetStatePropertyAll(
-                  EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                ),
-                foregroundColor: WidgetStatePropertyAll(
-                  Theme.of(context).colorScheme.error,
-                ),
-              ),
-              leadingIcon: Icon(
-                LucideIcons.logOut,
-                size: 20,
-                color: Theme.of(context).colorScheme.error,
-              ),
-              onPressed: () async {
-                final confirmed =
-                    await BeariscopeAlertDialog.show<bool>(
-                      context: context,
-                      title: 'Sign Out',
-                      message: 'Are you sure you want to sign out?',
-                      actions: const [
-                        BeariscopeAlertAction(label: 'Cancel', result: false),
-                        BeariscopeAlertAction(
-                          label: 'Sign Out',
-                          result: true,
-                          role: BeariscopeAlertActionRole.primary,
-                        ),
-                      ],
-                    ) ??
-                    false;
-
-                if (confirmed && context.mounted) {
-                  final auth = await ref.read(authProvider.future);
-                  await auth.logout(federated: true);
-                }
-              },
-              child: const Text('Sign Out'),
-            ),
-          ],
-        ),
+              if (confirmed && context.mounted) {
+                final auth = await ref.read(authProvider.future);
+                await auth.logout(federated: true);
+              }
+            },
+            child: const Text('Sign Out'),
+          ),
+        ],
       ),
     );
   }

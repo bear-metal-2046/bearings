@@ -1,11 +1,13 @@
 import 'package:material_ui/material_ui.dart';
 
+import 'bearings_spinner.dart';
+
 /// A consistent step layout used inside sign-up / onboarding flows.
 ///
 /// Renders a [title] at the top, a scrollable [body] area below it, and a
 /// sticky action button at the bottom. The entire layout is centred and
 /// constrained to a sensible max-width (600 px).
-class StepLayout extends StatelessWidget {
+class BearingsStepLayout extends StatelessWidget {
   /// The bold heading shown at the top of the step.
   final String title;
 
@@ -25,7 +27,7 @@ class StepLayout extends StatelessWidget {
   /// validation prevents submission.
   final VoidCallback? onButtonPressed;
 
-  /// When `true` the button is disabled and shows a [CircularProgressIndicator].
+  /// When `true` the button is disabled and shows a [BearingsSpinner].
   final bool isLoading;
 
   /// Optional label for a secondary text button rendered above the primary
@@ -35,7 +37,7 @@ class StepLayout extends StatelessWidget {
   /// Called when the secondary text button is tapped.
   final VoidCallback? onSecondaryButtonPressed;
 
-  const StepLayout({
+  const BearingsStepLayout({
     super.key,
     required this.title,
     required this.body,
@@ -103,7 +105,10 @@ class StepLayout extends StatelessWidget {
                     ? const SizedBox(
                         width: 20,
                         height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: BearingsSpinner(
+                          strokeWidth: 2,
+                          useForegroundColor: true,
+                        ),
                       )
                     : Icon(buttonIcon),
                 label: Text(isLoading ? 'Processing...' : buttonText),

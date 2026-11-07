@@ -3,7 +3,7 @@ import 'package:beariscope/models/team_scouting_bundle.dart';
 import 'package:beariscope/pages/picklists/picklist_model.dart';
 import 'package:beariscope/pages/picklists/picklist_provider.dart';
 import 'package:beariscope/widgets/library_identity_fields.dart';
-import 'package:beariscope/widgets/beariscope_modal.dart';
+import 'package:ui/widgets/bearings_modal.dart';
 import 'package:beariscope/pages/team_lookup/team_model.dart';
 import 'package:beariscope/pages/team_lookup/team_providers.dart';
 import 'package:beariscope/providers/rankings_provider.dart';
@@ -73,12 +73,12 @@ class _PicklistsCreatePageState extends ConsumerState<PicklistsCreatePage> {
             ?.hasPermission(PermissionKey.picklistsManage) ??
         false;
 
-    final modal = BeariscopeModal(
+    final modal = BearingsModal(
       title: 'New picklist',
       actions: const [],
-      size: BeariscopeModalSize.tall,
+      size: BearingsModalSize.tall,
       canDismiss: !_creating,
-      primaryAction: BeariscopeModalPrimaryAction(
+      primaryAction: BearingsModalPrimaryAction(
         label: 'Create picklist',
         icon: LucideIcons.check,
         loading: _creating,
@@ -218,7 +218,7 @@ class _PicklistsCreatePageState extends ConsumerState<PicklistsCreatePage> {
           );
       if (!mounted) return;
       if (widget.asSheet) {
-        BeariscopeModal.complete(context, picklist);
+        BearingsModal.complete(context, picklist);
       } else {
         context.go('/picklists/${picklist.id}');
       }

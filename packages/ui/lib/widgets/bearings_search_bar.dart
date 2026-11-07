@@ -2,10 +2,10 @@ import 'package:material_ui/material_ui.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// Centers a search field across the full app-bar toolbar.
-class BeariscopeCenteredAppBarSearch extends StatelessWidget {
+class BearingsCenteredAppBarSearch extends StatelessWidget {
   final Widget searchBar;
 
-  const BeariscopeCenteredAppBarSearch({super.key, required this.searchBar});
+  const BearingsCenteredAppBarSearch({super.key, required this.searchBar});
 
   @override
   Widget build(BuildContext context) {
@@ -32,14 +32,14 @@ class BeariscopeCenteredAppBarSearch extends StatelessWidget {
   }
 }
 
-/// The standard search field used by searchable Beariscope pages.
-class BeariscopeSearchBar extends StatelessWidget {
+/// A search field with a clear action and swipe-down keyboard dismissal.
+class BearingsSearchBar extends StatelessWidget {
   final TextEditingController controller;
   final FocusNode? focusNode;
   final String hintText;
   final double elevation;
 
-  const BeariscopeSearchBar({
+  const BearingsSearchBar({
     super.key,
     required this.controller,
     this.focusNode,

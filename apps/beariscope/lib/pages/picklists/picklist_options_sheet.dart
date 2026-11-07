@@ -1,5 +1,5 @@
-import 'package:beariscope/widgets/beariscope_modal.dart';
-import 'package:beariscope/widgets/beariscope_alert_dialog.dart';
+import 'package:ui/widgets/bearings_modal.dart';
+import 'package:ui/widgets/bearings_alert_dialog.dart';
 import 'package:beariscope/widgets/library_identity_fields.dart';
 import 'package:beariscope/pages/picklists/picklist_duplicate_dialog.dart';
 import 'package:beariscope/pages/picklists/picklist_model.dart';
@@ -16,7 +16,7 @@ Future<void> showPicklistOptions(
 ) async {
   final library = ref.read(picklistLibraryProvider.notifier);
   if (!library.canEdit(picklist)) return;
-  final copy = await BeariscopeModal.show<Picklist>(
+  final copy = await BearingsModal.show<Picklist>(
     context,
     builder: (_) => PicklistOptionsSheet(picklist: picklist),
   );
@@ -55,35 +55,35 @@ class _PicklistOptionsSheetState extends ConsumerState<PicklistOptionsSheet> {
               : _name.text.trim(),
           emoji: _emoji == widget.picklist.emoji ? null : _emoji,
         );
-    BeariscopeModal.complete(context);
+    BearingsModal.complete(context);
   }
 
   Future<void> _duplicate() async {
     FocusScope.of(context).unfocus();
     final copy = await duplicatePicklist(context, ref, widget.picklist);
-    if (copy != null && mounted) BeariscopeModal.complete(context, copy);
+    if (copy != null && mounted) BearingsModal.complete(context, copy);
   }
 
   Future<void> _delete() async {
     final picklist = widget.picklist;
-    final confirmed = await BeariscopeAlertDialog.show<bool>(
+    final confirmed = await BearingsAlertDialog.show<bool>(
       context: context,
       title: 'Delete picklist?',
       message: picklist.mode == PicklistMode.offline
           ? '“${picklist.title}” will be removed from this device.'
           : '“${picklist.title}” will be removed for everyone.',
       actions: const [
-        BeariscopeAlertAction(label: 'Cancel', result: false),
-        BeariscopeAlertAction(
+        BearingsAlertAction(label: 'Cancel', result: false),
+        BearingsAlertAction(
           label: 'Delete',
           result: true,
-          role: BeariscopeAlertActionRole.destructive,
+          role: BearingsAlertActionRole.destructive,
         ),
       ],
     );
     if (confirmed != true || !mounted) return;
     ref.read(picklistLibraryProvider.notifier).delete(picklist.id);
-    BeariscopeModal.complete(context);
+    BearingsModal.complete(context);
   }
 
   @override
@@ -95,23 +95,23 @@ class _PicklistOptionsSheetState extends ConsumerState<PicklistOptionsSheet> {
     final canEdit =
         picklist != null &&
         ref.read(picklistLibraryProvider.notifier).canEdit(picklist);
-    return BeariscopeModal(
+    return BearingsModal(
       title: 'Picklist options',
       actions: [
-        BeariscopeModalAction(
+        BearingsModalAction(
           label: 'Duplicate picklist',
           icon: LucideIcons.copyPlus,
           enabled: canEdit,
           onPressed: _duplicate,
         ),
-        BeariscopeModalAction(
+        BearingsModalAction(
           label: 'Delete picklist',
           icon: LucideIcons.trash2,
           enabled: canEdit,
           onPressed: _delete,
         ),
       ],
-      primaryAction: BeariscopeModalPrimaryAction(
+      primaryAction: BearingsModalPrimaryAction(
         label: 'Save changes',
         icon: LucideIcons.check,
         onPressed: _save,

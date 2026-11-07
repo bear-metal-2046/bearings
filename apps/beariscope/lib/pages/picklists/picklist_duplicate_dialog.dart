@@ -1,4 +1,4 @@
-import 'package:beariscope/widgets/beariscope_modal.dart';
+import 'package:ui/widgets/bearings_modal.dart';
 import 'package:beariscope/pages/picklists/picklist_model.dart';
 import 'package:beariscope/pages/picklists/picklist_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,9 +19,9 @@ Future<Picklist?> duplicatePicklist(
               .read(permissionCheckerProvider)
               ?.hasPermission(PermissionKey.picklistsManage) ??
           false);
-  final mode = await BeariscopeModal.show<PicklistMode>(
+  final mode = await BearingsModal.show<PicklistMode>(
     context,
-    builder: (context) => BeariscopeModal(
+    builder: (context) => BearingsModal(
       title: 'Duplicate picklist',
       actions: const [],
       content: Column(

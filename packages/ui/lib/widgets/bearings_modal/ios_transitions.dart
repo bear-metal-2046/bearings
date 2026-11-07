@@ -3,7 +3,7 @@
 // Copyright 2014 The Flutter Authors. All rights reserved.
 // Copyright (c) 2025 Tim Lehmann for whynotmake.it.
 // See LICENSE.ios-transitions for the BSD and MIT license notices.
-part of '../beariscope_modal.dart';
+part of '../bearings_modal.dart';
 
 // Smoothing factor applied to the device's top padding (which approximates the corner radius)
 // to achieve a smoother end to the corner radius animation.  A value of 1.0 would use

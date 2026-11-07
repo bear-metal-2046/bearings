@@ -1,4 +1,4 @@
-part of '../beariscope_modal.dart';
+part of '../bearings_modal.dart';
 
 class _DesktopModalHeader extends StatelessWidget {
   const _DesktopModalHeader({
@@ -12,7 +12,7 @@ class _DesktopModalHeader extends StatelessWidget {
   static const _titleGap = 12.0;
 
   final String title;
-  final List<BeariscopeModalAction> actions;
+  final List<BearingsModalAction> actions;
   final VoidCallback? onClose;
 
   @override

@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/tba_preferences_provider.dart';
-import 'package:beariscope/widgets/settings_group.dart';
+import 'package:ui/widgets/bearings_setting_group.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -75,7 +75,7 @@ class _AdvancedSettingsPageState extends ConsumerState<AdvancedSettingsPage> {
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         children: [
-          SettingsGroup(
+          BearingsSettingGroup(
             title: 'External Links',
             children: [
               SwitchListTile(
@@ -92,7 +92,7 @@ class _AdvancedSettingsPageState extends ConsumerState<AdvancedSettingsPage> {
             ],
           ),
           const SizedBox(height: 16),
-          SettingsGroup(
+          BearingsSettingGroup(
             title: 'Custom Event',
             children: [
               Padding(
@@ -120,7 +120,7 @@ class _AdvancedSettingsPageState extends ConsumerState<AdvancedSettingsPage> {
             ],
           ),
           const SizedBox(height: 16),
-          SettingsGroup(
+          BearingsSettingGroup(
             title: 'Server Connection',
             children: [
               RadioListTile<HoneycombEndpointMode>(

@@ -6,14 +6,16 @@ import 'package:beariscope/pages/up_next/up_next_widget.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/nexus_event_key_provider.dart';
 import 'package:beariscope/providers/tba_preferences_provider.dart';
-import 'package:beariscope/widgets/beariscope_card.dart';
-import 'package:beariscope/widgets/beariscope_status_view.dart';
+import 'package:ui/widgets/bearings_card.dart';
+import 'package:ui/widgets/bearings_popup_menu.dart';
+import 'package:ui/widgets/bearings_status_view.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show ProviderException;
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:services/services.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:ui/widgets/bearings_spinner.dart';
 
 enum _MatchFilter { all, bearMetal }
 
@@ -59,7 +61,7 @@ class _UpNextPageState extends ConsumerState<UpNextPage> {
                 onPressed: controller.openDrawer,
               ),
         actions: [
-          PopupMenuButton<_MatchFilter>(
+          BearingsPopupMenu.icon(
             icon: Icon(
               _filter == _MatchFilter.bearMetal
                   ? LucideIcons.funnel
@@ -69,56 +71,52 @@ class _UpNextPageState extends ConsumerState<UpNextPage> {
                   : null,
             ),
             tooltip: 'Filter matches',
-            onSelected: (value) => setState(() => _filter = value),
-            itemBuilder: (context) => [
-              _filterMenuItem(
-                value: _MatchFilter.all,
-                label: 'All Matches',
-                current: _filter,
+            menuChildren: [
+              BearingsMenuItem(
+                selected: _filter == _MatchFilter.all,
+                onPressed: () => setState(() => _filter = _MatchFilter.all),
+                child: const Text('All Matches'),
               ),
-              _filterMenuItem(
-                value: _MatchFilter.bearMetal,
-                label: 'Just 2046',
-                current: _filter,
+              BearingsMenuItem(
+                selected: _filter == _MatchFilter.bearMetal,
+                onPressed: () =>
+                    setState(() => _filter = _MatchFilter.bearMetal),
+                child: const Text('Just 2046'),
               ),
             ],
           ),
-          PopupMenuButton<_EventAction>(
-            icon: const Icon(LucideIcons.ellipsisVertical),
+          BearingsPopupMenu.overflow(
             tooltip: 'More options',
-            onSelected: (action) => _handleAction(action, currentEventKey, ref),
-            itemBuilder: (context) => const [
-              PopupMenuItem(
-                value: _EventAction.openTba,
-                child: ListTile(
-                  leading: Icon(LucideIcons.externalLink),
-                  title: Text('View Event in TBA'),
-                  contentPadding: EdgeInsets.zero,
-                ),
+            menuChildren: [
+              BearingsMenuItem(
+                leadingIcon: const Icon(LucideIcons.externalLink),
+                onPressed: () =>
+                    _handleAction(_EventAction.openTba, currentEventKey, ref),
+                child: const Text('View Event in TBA'),
               ),
-              PopupMenuItem(
-                value: _EventAction.openStatbotics,
-                child: ListTile(
-                  leading: Icon(LucideIcons.externalLink),
-                  title: Text('View Event in Statbotics'),
-                  contentPadding: EdgeInsets.zero,
+              BearingsMenuItem(
+                leadingIcon: const Icon(LucideIcons.externalLink),
+                onPressed: () => _handleAction(
+                  _EventAction.openStatbotics,
+                  currentEventKey,
+                  ref,
                 ),
+                child: const Text('View Event in Statbotics'),
               ),
-              PopupMenuItem(
-                value: _EventAction.openFrcEvents,
-                child: ListTile(
-                  leading: Icon(LucideIcons.externalLink),
-                  title: Text('View Event in FIRST Events'),
-                  contentPadding: EdgeInsets.zero,
+              BearingsMenuItem(
+                leadingIcon: const Icon(LucideIcons.externalLink),
+                onPressed: () => _handleAction(
+                  _EventAction.openFrcEvents,
+                  currentEventKey,
+                  ref,
                 ),
+                child: const Text('View Event in FIRST Events'),
               ),
-              PopupMenuItem(
-                value: _EventAction.openNexus,
-                child: ListTile(
-                  leading: Icon(LucideIcons.externalLink),
-                  title: Text('Open Schedule in Nexus'),
-                  contentPadding: EdgeInsets.zero,
-                ),
+              BearingsMenuItem(
+                leadingIcon: const Icon(LucideIcons.externalLink),
+                onPressed: () =>
+                    _handleAction(_EventAction.openNexus, currentEventKey, ref),
+                child: const Text('Open Schedule in Nexus'),
               ),
             ],
           ),
@@ -126,8 +124,8 @@ class _UpNextPageState extends ConsumerState<UpNextPage> {
       ),
       body: schedule.when(
         skipLoadingOnReload: true,
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => BeariscopeStatusView(
+        loading: () => const Center(child: BearingsSpinner()),
+        error: (err, stack) => BearingsStatusView(
           icon: LucideIcons.triangleAlert,
           title: 'Error fetching schedule',
           subtitle: '${_rootError(err)}',
@@ -196,27 +194,6 @@ class _UpNextPageState extends ConsumerState<UpNextPage> {
   }
 }
 
-PopupMenuItem<_MatchFilter> _filterMenuItem({
-  required _MatchFilter value,
-  required String label,
-  required _MatchFilter current,
-}) {
-  return PopupMenuItem<_MatchFilter>(
-    value: value,
-    child: Row(
-      children: [
-        SizedBox(
-          width: 32,
-          child: current == value
-              ? const Icon(LucideIcons.check, size: 20)
-              : null,
-        ),
-        Text(label),
-      ],
-    ),
-  );
-}
-
 class _MatchList extends StatelessWidget {
   const _MatchList({
     required this.matches,
@@ -280,7 +257,7 @@ class _MatchList extends StatelessWidget {
       if (items.isEmpty)
         const SizedBox(
           height: 320,
-          child: BeariscopeStatusView(
+          child: BearingsStatusView(
             icon: LucideIcons.calendar,
             title: 'No matches found',
             subtitle: 'Is the schedule released?',
@@ -292,7 +269,7 @@ class _MatchList extends StatelessWidget {
 
     return RefreshIndicator(
       onRefresh: onRefresh,
-      child: BeariscopeCardList(
+      child: BearingsCardList(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         spacing: 8,
         physics: const AlwaysScrollableScrollPhysics(),
@@ -312,7 +289,7 @@ class _ScheduleList extends StatelessWidget {
   Widget build(BuildContext context) {
     return RefreshIndicator(
       onRefresh: onRefresh,
-      child: BeariscopeCardList(
+      child: BearingsCardList(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         spacing: 8,
         physics: const AlwaysScrollableScrollPhysics(),
@@ -320,7 +297,7 @@ class _ScheduleList extends StatelessWidget {
           if (matches.isEmpty)
             const SizedBox(
               height: 320,
-              child: BeariscopeStatusView(
+              child: BearingsStatusView(
                 icon: LucideIcons.calendar,
                 title: 'No matches found',
                 subtitle: 'Is the schedule released?',
@@ -396,7 +373,7 @@ class _EventContextHeader extends StatelessWidget {
       spacing: 8,
       children: [
         if (eventContext.nowQueuing != null)
-          BeariscopeCard(
+          BearingsCard(
             title: 'Now queuing: ${eventContext.nowQueuing}',
             color: colorScheme.primaryContainer,
             leading: Icon(
@@ -409,7 +386,7 @@ class _EventContextHeader extends StatelessWidget {
             ),
           ),
         if (eventContext.announcements.isNotEmpty)
-          BeariscopeCard(
+          BearingsCard(
             title: 'Announcements',
             subtitle: eventContext.announcements.join('\n'),
             leading: const Icon(LucideIcons.megaphone, size: 18),

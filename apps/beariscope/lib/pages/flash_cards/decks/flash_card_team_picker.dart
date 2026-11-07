@@ -1,12 +1,13 @@
 import 'package:beariscope/pages/flash_cards/decks/flash_card_deck_provider.dart';
 import 'package:beariscope/pages/team_lookup/team_model.dart';
-import 'package:beariscope/widgets/beariscope_modal.dart';
-import 'package:beariscope/widgets/beariscope_search_bar.dart';
-import 'package:beariscope/widgets/beariscope_status_view.dart';
+import 'package:ui/widgets/bearings_modal.dart';
+import 'package:ui/widgets/bearings_search_bar.dart';
+import 'package:ui/widgets/bearings_status_view.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:ui/widgets/bearings_spinner.dart';
 
 class FlashCardTeamPicker extends ConsumerStatefulWidget {
   const FlashCardTeamPicker({
@@ -103,7 +104,7 @@ class _FlashCardTeamPickerState extends ConsumerState<FlashCardTeamPicker> {
           };
     }).toList();
     final Widget? status = failed
-        ? BeariscopeStatusView(
+        ? BearingsStatusView(
             icon: LucideIcons.users,
             title: 'Could not load all teams.',
             subtitle: 'Try again to edit the full roster.',
@@ -121,10 +122,10 @@ class _FlashCardTeamPickerState extends ConsumerState<FlashCardTeamPicker> {
         : !ready
         ? const Padding(
             padding: EdgeInsets.all(32),
-            child: Center(child: CircularProgressIndicator()),
+            child: Center(child: BearingsSpinner()),
           )
         : filtered.isEmpty
-        ? BeariscopeStatusView(
+        ? BearingsStatusView(
             icon: _filter == _TeamFilter.removed
                 ? LucideIcons.circleCheck
                 : LucideIcons.search,
@@ -138,12 +139,12 @@ class _FlashCardTeamPickerState extends ConsumerState<FlashCardTeamPicker> {
           )
         : null;
 
-    return BeariscopeModal(
-      size: BeariscopeModalSize.tall,
+    return BearingsModal(
+      size: BearingsModalSize.tall,
       title: 'Teams',
-      scrolling: BeariscopeModalScrolling.content,
+      scrolling: BearingsModalScrolling.content,
       actions: [
-        BeariscopeModalAction(
+        BearingsModalAction(
           label: 'Copy team numbers',
           icon: LucideIcons.copy,
           onPressed: ready && included > 0
@@ -151,7 +152,7 @@ class _FlashCardTeamPickerState extends ConsumerState<FlashCardTeamPicker> {
               : null,
         ),
       ],
-      primaryAction: BeariscopeModalPrimaryAction(
+      primaryAction: BearingsModalPrimaryAction(
         label: 'Use $included ${included == 1 ? 'team' : 'teams'}',
         icon: LucideIcons.check,
         onPressed: ready ? () => Navigator.pop(context, _excluded) : null,
@@ -166,7 +167,7 @@ class _FlashCardTeamPickerState extends ConsumerState<FlashCardTeamPicker> {
                   colors.surfaceContainerHighest,
                 ),
               ),
-              child: BeariscopeSearchBar(
+              child: BearingsSearchBar(
                 controller: _search,
                 hintText: 'Find a team',
                 elevation: 0,

@@ -1,4 +1,5 @@
-import 'package:beariscope/widgets/beariscope_alert_dialog.dart';
+import 'package:ui/widgets/bearings_popup_menu.dart';
+import 'package:ui/widgets/bearings_alert_dialog.dart';
 import 'package:beariscope/pages/picklists/picklist_emoji.dart';
 // dart format width=120
 
@@ -19,9 +20,9 @@ import 'package:beariscope/pages/team_lookup/team_model.dart';
 import 'package:beariscope/pages/team_lookup/team_providers.dart';
 import 'package:beariscope/providers/rankings_provider.dart';
 import 'package:beariscope/providers/team_scouting_provider.dart';
-import 'package:beariscope/widgets/beariscope_modal.dart';
-import 'package:beariscope/widgets/beariscope_search_bar.dart';
-import 'package:beariscope/widgets/beariscope_status_view.dart';
+import 'package:ui/widgets/bearings_modal.dart';
+import 'package:ui/widgets/bearings_search_bar.dart';
+import 'package:ui/widgets/bearings_status_view.dart';
 import 'package:beariscope/widgets/screenshot_guard.dart';
 import 'package:beariscope/widgets/team_card.dart';
 import 'package:flutter/services.dart';
@@ -29,6 +30,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:ui/widgets/bearings_spinner.dart';
 
 class PicklistEditorPage extends ConsumerStatefulWidget {
   final String picklistId;
@@ -193,32 +195,22 @@ class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage>
                       ),
                     ),
                   if (canEdit)
-                    PopupMenuButton<String>(
-                      onSelected: (value) {
-                        if (value == 'clear') _confirmClear(picklist);
-                        if (value == 'copy') _copyTeams(picklist.teamKeys);
-                      },
+                    BearingsPopupMenu.overflow(
                       tooltip: 'Picklist options',
-                      itemBuilder: (context) => [
+                      menuChildren: [
                         if (!desktop)
-                          PopupMenuItem(
-                            value: 'copy',
-                            enabled: picklist.teamKeys.isNotEmpty,
-                            child: ListTile(
-                              leading: Icon(LucideIcons.copy),
-                              title: Text('Copy team numbers'),
-                            ),
+                          BearingsMenuItem(
+                            leadingIcon: const Icon(LucideIcons.copy),
+                            onPressed: picklist.teamKeys.isEmpty
+                                ? null
+                                : () => _copyTeams(picklist.teamKeys),
+                            child: const Text('Copy team numbers'),
                           ),
-                        PopupMenuItem(
-                          enabled: canEdit,
-                          value: 'clear',
-                          child: Row(
-                            children: [
-                              Icon(LucideIcons.trash2),
-                              SizedBox(width: 12),
-                              Text('Clear picklist'),
-                            ],
-                          ),
+                        BearingsMenuItem(
+                          destructive: true,
+                          leadingIcon: const Icon(LucideIcons.trash2),
+                          onPressed: () => _confirmClear(picklist),
+                          child: const Text('Clear picklist'),
                         ),
                       ],
                     ),
@@ -496,7 +488,7 @@ class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const BeariscopeStatusView(
+            const BearingsStatusView(
               icon: LucideIcons.listX,
               title: 'Picklist unavailable',
               subtitle: 'This picklist is not available for the current event.',
@@ -525,16 +517,16 @@ class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage>
   }
 
   Future<void> _confirmClear(Picklist picklist) async {
-    final clear = await BeariscopeAlertDialog.show<bool>(
+    final clear = await BearingsAlertDialog.show<bool>(
       context: context,
       title: 'Clear this picklist?',
       message: 'All teams will be removed. The empty picklist will remain in your library.',
       actions: const [
-        BeariscopeAlertAction(label: 'Cancel', result: false),
-        BeariscopeAlertAction(
+        BearingsAlertAction(label: 'Cancel', result: false),
+        BearingsAlertAction(
           label: 'Clear',
           result: true,
-          role: BeariscopeAlertActionRole.destructive,
+          role: BearingsAlertActionRole.destructive,
         ),
       ],
     );
@@ -701,38 +693,36 @@ class _TeamLibraryState extends ConsumerState<_TeamLibrary> {
             child: Row(
               children: [
                 Expanded(
-                  child: BeariscopeSearchBar(
+                  child: BearingsSearchBar(
                     focusNode: _searchFocusNode,
                     controller: _searchController,
                     hintText: 'Team name or number',
                     elevation: 0,
                   ),
                 ),
-                PopupMenuButton<TeamSortOptions>(
+                BearingsPopupMenu.icon(
                   tooltip: 'Sort teams',
                   icon: Icon(
                     selectedSort.isAscending
                         ? LucideIcons.arrowUpNarrowWide
                         : LucideIcons.arrowDownWideNarrow,
                   ),
-                  itemBuilder: (context) => TeamSortOptions.values
-                      .map(
-                        (sort) => CheckedPopupMenuItem<TeamSortOptions>(
-                          value: sort,
-                          checked: selectedSort.sort == sort,
-                          child: Text(sort.label),
-                        ),
-                      )
-                      .toList(),
-                  onSelected: (sort) {
-                    final ascending = selectedSort.sort == sort
-                        ? !selectedSort.isAscending
-                        : sort == TeamSortOptions.teamNumber ||
-                              sort == TeamSortOptions.rank;
-                    ref
-                        .read(teamSortProvider.notifier)
-                        .setSort(sort, ascending);
-                  },
+                  menuChildren: [
+                    for (final sort in TeamSortOptions.values)
+                      BearingsMenuItem(
+                        selected: selectedSort.sort == sort,
+                        onPressed: () {
+                          final ascending = selectedSort.sort == sort
+                              ? !selectedSort.isAscending
+                              : sort == TeamSortOptions.teamNumber ||
+                                    sort == TeamSortOptions.rank;
+                          ref
+                              .read(teamSortProvider.notifier)
+                              .setSort(sort, ascending);
+                        },
+                        child: Text(sort.label),
+                      ),
+                  ],
                 ),
               ],
             ),
@@ -742,8 +732,7 @@ class _TeamLibraryState extends ConsumerState<_TeamLibrary> {
             child: ref
                 .watch(teamsProvider)
                 .when(
-                  loading: () =>
-                      const Center(child: CircularProgressIndicator()),
+                  loading: () => const Center(child: BearingsSpinner()),
                   error: (error, _) =>
                       Center(child: Text('Could not load teams: $error')),
                   data: (rawTeams) {
@@ -758,7 +747,7 @@ class _TeamLibraryState extends ConsumerState<_TeamLibrary> {
                     if (teams.isEmpty) {
                       return const Center(
                         child: SingleChildScrollView(
-                          child: BeariscopeStatusView(
+                          child: BearingsStatusView(
                             icon: LucideIcons.users,
                             title: 'No teams found',
                             subtitle: 'Try adjusting your search or selecting another event.',
@@ -1496,77 +1485,69 @@ class _PicklistSurfaceState extends ConsumerState<_PicklistSurface> {
                           onDraggingChanged: widget.onDraggingChanged,
                           onDragUpdate: (position) =>
                               widget.dragPosition.value = position,
-                          action: PopupMenuButton<String>(
+                          action: BearingsPopupMenu.icon(
                             icon: const Icon(
                               LucideIcons.gripVertical,
                               size: 20,
                             ),
-                            onSelected: (value) async {
-                              if (value == 'details') {
-                                final team = resolvedTeams[teams[index]];
-                                if (team == null) return;
-                                final diveDeeper =
-                                    await BeariscopeModal.show<bool>(
+                            tooltip: 'Team actions',
+                            menuChildren: [
+                              if (resolvedTeams[teams[index]] case final team?)
+                                BearingsMenuItem(
+                                  leadingIcon: const Icon(LucideIcons.info),
+                                  onPressed: () async {
+                                    final diveDeeper =
+                                        await BearingsModal.show<bool>(
+                                          context,
+                                          builder: (_) =>
+                                              PicklistTeamQuickViewSheet(
+                                                team: team,
+                                              ),
+                                        );
+                                    if (!context.mounted || diveDeeper != true) {
+                                      return;
+                                    }
+                                    Navigator.of(
                                       context,
-                                      builder: (_) =>
-                                          PicklistTeamQuickViewSheet(
-                                            team: team,
-                                          ),
+                                      rootNavigator: true,
+                                    ).push(
+                                      MaterialPageRoute(
+                                        builder: (context) => TeamDetailsPage(
+                                          teamName: team.name,
+                                          teamNumber: team.number,
+                                          teamWebsite: team.website,
+                                        ),
+                                      ),
                                     );
-                                if (!context.mounted || diveDeeper != true) {
-                                  return;
-                                }
-                                Navigator.of(context, rootNavigator: true).push(
-                                  MaterialPageRoute(
-                                    builder: (context) => TeamDetailsPage(
-                                      teamName: team.name,
-                                      teamNumber: team.number,
-                                      teamWebsite: team.website,
-                                    ),
-                                  ),
-                                );
-                              }
-                              if (value == 'remove') {
-                                widget.onRemoveTeam(teams[index]);
-                              }
-                              if (value == 'up') {
-                                widget.onInsertTeam(teams[index], index - 1);
-                              }
-                              if (value == 'down') {
-                                widget.onInsertTeam(teams[index], index + 2);
-                              }
-                            },
-                            itemBuilder: (context) => [
-                              if (resolvedTeams[teams[index]] != null)
-                                const PopupMenuItem(
-                                  value: 'details',
-                                  child: ListTile(
-                                    leading: Icon(LucideIcons.info),
-                                    title: Text('View team details'),
-                                  ),
+                                  },
+                                  child: const Text('View team details'),
                                 ),
                               if (index > 0)
-                                const PopupMenuItem(
-                                  value: 'up',
-                                  child: ListTile(
-                                    leading: Icon(LucideIcons.moveUp),
-                                    title: Text('Move up'),
+                                BearingsMenuItem(
+                                  leadingIcon: const Icon(LucideIcons.moveUp),
+                                  onPressed: () => widget.onInsertTeam(
+                                    teams[index],
+                                    index - 1,
                                   ),
+                                  child: const Text('Move up'),
                                 ),
                               if (index < teams.length - 1)
-                                const PopupMenuItem(
-                                  value: 'down',
-                                  child: ListTile(
-                                    leading: Icon(LucideIcons.moveDown),
-                                    title: Text('Move down'),
+                                BearingsMenuItem(
+                                  leadingIcon: const Icon(LucideIcons.moveDown),
+                                  onPressed: () => widget.onInsertTeam(
+                                    teams[index],
+                                    index + 2,
                                   ),
+                                  child: const Text('Move down'),
                                 ),
-                              const PopupMenuItem(
-                                value: 'remove',
-                                child: ListTile(
-                                  leading: Icon(LucideIcons.squareMinus),
-                                  title: Text('Remove from list'),
+                              BearingsMenuItem(
+                                leadingIcon: const Icon(
+                                  LucideIcons.squareMinus,
                                 ),
+                                destructive: true,
+                                onPressed: () =>
+                                    widget.onRemoveTeam(teams[index]),
+                                child: const Text('Remove from list'),
                               ),
                             ],
                           ),
@@ -1746,7 +1727,7 @@ class _InsertionDropZone extends StatelessWidget {
           ),
           alignment: Alignment.center,
           child: SingleChildScrollView(
-            child: BeariscopeStatusView(
+            child: BearingsStatusView(
               icon: LucideIcons.listPlus,
               iconColor: colors.primary,
               title: hovering ? 'Drop to add first' : 'Picklist is empty',

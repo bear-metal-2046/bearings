@@ -41,7 +41,6 @@ import 'package:beariscope/utils/platform_utils_stub.dart'
 import 'package:beariscope/utils/hive_storage.dart';
 import 'package:beariscope/utils/window_size_stub.dart'
     if (dart.library.io) 'package:window_size/window_size.dart';
-import 'package:beariscope/widgets/beariscope_modal.dart';
 import 'package:core/providers/device_info_provider.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
@@ -415,7 +414,7 @@ class _FlashCardDeckImportLinkState extends State<_FlashCardDeckImportLink> {
 
   Future<void> _showImport() async {
     if (!mounted) return;
-    final deck = await BeariscopeModal.show<FlashCardDeckDefinition>(
+    final deck = await BearingsModal.show<FlashCardDeckDefinition>(
       context,
       builder: (_) => FlashCardDeckImportPage(
         asSheet: true,
@@ -521,7 +520,6 @@ ThemeData _createTheme(ColorScheme colorScheme) {
     iconButtonTheme: IconButtonThemeData(
       style: IconButton.styleFrom(iconSize: 20),
     ),
-    popupMenuTheme: const PopupMenuThemeData(iconSize: 22),
     iconTheme: IconThemeData(
       weight: 600,
       size: 22,

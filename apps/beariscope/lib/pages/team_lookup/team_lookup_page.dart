@@ -8,16 +8,16 @@ import 'package:beariscope/pages/team_lookup/team_providers.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/rankings_provider.dart';
 import 'package:beariscope/providers/team_scouting_provider.dart';
-import 'package:beariscope/utils/platform_utils_stub.dart'
-    if (dart.library.io) 'package:beariscope/utils/platform_utils.dart';
-import 'package:beariscope/widgets/beariscope_card.dart';
-import 'package:beariscope/widgets/beariscope_search_bar.dart';
-import 'package:beariscope/widgets/beariscope_status_view.dart';
+import 'package:ui/widgets/bearings_popup_menu.dart';
+import 'package:ui/widgets/bearings_card.dart';
+import 'package:ui/widgets/bearings_scaffold.dart';
+import 'package:ui/widgets/bearings_status_view.dart';
 import 'package:beariscope/widgets/team_card.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:services/providers/api_provider.dart';
+import 'package:ui/widgets/bearings_spinner.dart';
 
 class TeamLookupPage extends ConsumerStatefulWidget {
   const TeamLookupPage({super.key});
@@ -27,10 +27,13 @@ class TeamLookupPage extends ConsumerStatefulWidget {
 }
 
 class _TeamLookupPageState extends ConsumerState<TeamLookupPage> {
+  late final TextEditingController _searchController;
+
   @override
   void initState() {
     super.initState();
-    ref.read(searchControllerProvider).addListener(_handleSearchChanged);
+    _searchController = ref.read(searchControllerProvider);
+    _searchController.addListener(_handleSearchChanged);
   }
 
   void _handleSearchChanged() {
@@ -39,7 +42,7 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage> {
 
   @override
   void dispose() {
-    ref.read(searchControllerProvider).removeListener(_handleSearchChanged);
+    _searchController.removeListener(_handleSearchChanged);
     super.dispose();
   }
 
@@ -52,130 +55,83 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage> {
     final teamsAsync = ref.watch(teamsProvider);
     final rankings = ref.watch(eventRankingsProvider).value ?? const <int, TeamRanking>{};
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isMobile = PlatformUtils.isMobile();
-        final searchInAppBar = !isMobile && constraints.maxWidth > 900;
-        final searchAtTop = !isMobile && !searchInAppBar;
-        final safeAreaBottom = MediaQuery.paddingOf(context).bottom;
-        final listPadding = searchInAppBar
-            ? const EdgeInsets.all(16)
-            : searchAtTop
-            ? const EdgeInsets.fromLTRB(16, 72, 16, 16)
-            : EdgeInsets.fromLTRB(16, 16, 16, 120 + safeAreaBottom);
-
-        return Scaffold(
-          appBar: AppBar(
-            title: const Text('Teams'),
-            flexibleSpace: searchInAppBar
-                ? BeariscopeCenteredAppBarSearch(searchBar: _searchBar(searchFocusNode, searchController))
-                : null,
-            leading: controller.isDesktop
-                ? null
-                : IconButton(icon: const Icon(LucideIcons.menu), onPressed: controller.openDrawer),
-            actions: [_sortButton(selectedSort)],
+    return BearingsScaffold(
+      title: const Text('Teams'),
+      leading: controller.isDesktop
+          ? null
+          : IconButton(icon: const Icon(LucideIcons.menu), onPressed: controller.openDrawer),
+      actions: [_sortButton(selectedSort)],
+      content: BearingsPage(
+        search: BearingsSearch(
+          focusNode: searchFocusNode,
+          controller: searchController,
+          hintText: 'Team name or number',
+        ),
+        bodyBuilder: (context, layout) => teamsAsync.when(
+          loading: () => const Center(child: BearingsSpinner()),
+          error: (error, _) => BearingsStatusView(
+            icon: LucideIcons.circleAlert,
+            iconColor: Theme.of(context).colorScheme.error,
+            title: 'Teams unavailable',
+            subtitle: 'Error loading teams: $error',
           ),
-          body: Stack(
-            children: [
-              teamsAsync.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (error, _) => BeariscopeStatusView(
-                  icon: LucideIcons.circleAlert,
-                  iconColor: Theme.of(context).colorScheme.error,
-                  title: 'Teams unavailable',
-                  subtitle: 'Error loading teams: $error',
-                ),
-                data: (rawTeams) {
-                  final teams = rawTeams
-                      .map(Team.fromJson)
-                      .where((team) => teamMatchesSearch(team, searchController.text))
-                      .toList();
-                  _sortTeams(teams, selectedSort, rankings);
-                  if (teams.isEmpty) {
-                    return const BeariscopeStatusView(
-                      icon: LucideIcons.users,
-                      title: 'No teams found',
-                      subtitle: 'Try adjusting your search or selecting another event.',
-                    );
-                  }
+          data: (rawTeams) {
+            final teams = rawTeams
+                .map(Team.fromJson)
+                .where((team) => teamMatchesSearch(team, searchController.text))
+                .toList();
+            _sortTeams(teams, selectedSort, rankings);
+            if (teams.isEmpty) {
+              return const BearingsStatusView(
+                icon: LucideIcons.users,
+                title: 'No teams found',
+                subtitle: 'Try adjusting your search or selecting another event.',
+              );
+            }
 
-                  final scoutingBundles = <TeamScoutingBundle>[];
-                  for (final team in teams) {
-                    final bundle = ref.watch(teamScoutingProvider(team.number)).asData?.value;
-                    if (bundle != null) scoutingBundles.add(bundle);
-                  }
-                  final sharedMaxY = teamCardSharedYAxisMax(scoutingBundles);
+            final scoutingBundles = <TeamScoutingBundle>[];
+            for (final team in teams) {
+              final bundle = ref.watch(teamScoutingProvider(team.number)).asData?.value;
+              if (bundle != null) scoutingBundles.add(bundle);
+            }
+            final sharedMaxY = teamCardSharedYAxisMax(scoutingBundles);
 
-                  return RefreshIndicator(
-                    onRefresh: _refresh,
-                    child: BeariscopeCardList(
-                      padding: listPadding,
-                      children: teams.map((team) => TeamCard(teamKey: team.key, minY: 0, maxY: sharedMaxY)).toList(),
-                    ),
-                  );
-                },
+            return RefreshIndicator(
+              onRefresh: _refresh,
+              child: BearingsCardList(
+                padding: layout.scrollPadding,
+                children: teams.map((team) => TeamCard(teamKey: team.key, minY: 0, maxY: sharedMaxY)).toList(),
               ),
-              if (!searchInAppBar && searchAtTop)
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  child: SafeArea(
-                    bottom: false,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
-                      child: Center(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 720),
-                          child: _searchBar(searchFocusNode, searchController),
-                        ),
-                      ),
-                    ),
-                  ),
-                )
-              else if (!searchInAppBar)
-                Positioned(
-                  left: 8,
-                  right: 8,
-                  bottom: 8,
-                  child: SafeArea(child: _searchBar(searchFocusNode, searchController)),
-                ),
-            ],
-          ),
-        );
-      },
+            );
+          },
+        ),
+      ),
     );
   }
 
-  Widget _searchBar(FocusNode focusNode, TextEditingController controller) {
-    return BeariscopeSearchBar(focusNode: focusNode, controller: controller, hintText: 'Team name or number');
-  }
-
   Widget _sortButton(TeamSort selectedSort) {
-    return PopupMenuButton<TeamSortOptions>(
+    return BearingsPopupMenu.icon(
       icon: Icon(selectedSort.isAscending ? LucideIcons.arrowUpNarrowWide : LucideIcons.arrowDownWideNarrow),
       tooltip: 'Sort',
-      itemBuilder: (context) => TeamSortOptions.values
-          .map(
-            (sort) => CheckedPopupMenuItem<TeamSortOptions>(
-              value: sort,
-              checked: selectedSort.sort == sort,
-              child: Row(
-                children: [
-                  Text(sort.label),
-                  if (selectedSort.sort == sort)
-                    Icon(selectedSort.isAscending ? LucideIcons.chevronUp : LucideIcons.chevronDown),
-                ],
-              ),
+      menuChildren: [
+        for (final sort in TeamSortOptions.values)
+          BearingsMenuItem(
+            selected: selectedSort.sort == sort,
+            onPressed: () {
+              final ascending = selectedSort.sort == sort
+                  ? !selectedSort.isAscending
+                  : sort == TeamSortOptions.teamNumber || sort == TeamSortOptions.rank;
+              ref.read(teamSortProvider.notifier).setSort(sort, ascending);
+            },
+            child: Row(
+              children: [
+                Text(sort.label),
+                if (selectedSort.sort == sort)
+                  Icon(selectedSort.isAscending ? LucideIcons.chevronUp : LucideIcons.chevronDown),
+              ],
             ),
-          )
-          .toList(),
-      onSelected: (sort) {
-        final ascending = selectedSort.sort == sort
-            ? !selectedSort.isAscending
-            : sort == TeamSortOptions.teamNumber || sort == TeamSortOptions.rank;
-        ref.read(teamSortProvider.notifier).setSort(sort, ascending);
-      },
+          ),
+      ],
     );
   }
 

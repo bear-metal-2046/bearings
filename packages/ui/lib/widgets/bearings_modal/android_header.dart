@@ -1,4 +1,4 @@
-part of '../beariscope_modal.dart';
+part of '../bearings_modal.dart';
 
 class _AndroidModalHeader extends StatelessWidget {
   const _AndroidModalHeader({
@@ -16,7 +16,7 @@ class _AndroidModalHeader extends StatelessWidget {
   static const _grabberPadding = EdgeInsets.only(top: 8, bottom: 4);
 
   final String title;
-  final List<BeariscopeModalAction> actions;
+  final List<BearingsModalAction> actions;
   final VoidCallback? onClose;
   final bool showGrabber;
 
@@ -28,7 +28,7 @@ class _AndroidModalHeader extends StatelessWidget {
         Padding(
           padding: _grabberPadding,
           child: Container(
-            key: const ValueKey('beariscope-modal-grabber'),
+            key: const ValueKey('bearings-modal-grabber'),
             width: _grabberWidth,
             height: _grabberHeight,
             decoration: BoxDecoration(

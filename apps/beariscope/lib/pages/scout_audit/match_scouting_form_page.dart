@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:beariscope/models/scouting_document.dart';
 import 'package:beariscope/providers/scouting_data_provider.dart';
-import 'package:beariscope/widgets/beariscope_status_view.dart';
+import 'package:ui/widgets/bearings_status_view.dart';
 import 'package:core/core.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:services/providers/api_provider.dart';
 import 'package:services/providers/user_profile_provider.dart';
+import 'package:ui/widgets/bearings_spinner.dart';
 import 'package:ui/widgets/forms/match_form_renderer.dart';
 
 class MatchScoutingFormPage extends ConsumerStatefulWidget {
@@ -142,7 +143,7 @@ class _MatchScoutingFormPageState extends ConsumerState<MatchScoutingFormPage> {
                 ? const SizedBox(
                     width: 16,
                     height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: BearingsSpinner(strokeWidth: 2),
                   )
                 : const Icon(LucideIcons.save),
             tooltip: 'Save',
@@ -150,14 +151,14 @@ class _MatchScoutingFormPageState extends ConsumerState<MatchScoutingFormPage> {
         ],
       ),
       body: _configError != null
-          ? BeariscopeStatusView(
+          ? BearingsStatusView(
               icon: LucideIcons.circleAlert,
               iconColor: Theme.of(context).colorScheme.error,
               title: 'Match form unavailable',
               subtitle: 'Failed to load match form: $_configError',
             )
           : (config == null || data == null)
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: BearingsSpinner())
           : Padding(
               padding: const EdgeInsets.all(12),
               child: MatchFormRenderer(

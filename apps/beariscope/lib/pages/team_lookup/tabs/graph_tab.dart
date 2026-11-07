@@ -3,10 +3,11 @@ import 'package:beariscope/models/processed_scouting_doc.dart';
 import 'package:beariscope/models/team_scouting_bundle.dart';
 import 'package:beariscope/providers/team_scouting_provider.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:beariscope/widgets/beariscope_status_view.dart';
+import 'package:ui/widgets/bearings_status_view.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
+import 'package:ui/widgets/bearings_spinner.dart';
 
 class GraphTab extends ConsumerWidget {
   final int teamNumber;
@@ -18,8 +19,8 @@ class GraphTab extends ConsumerWidget {
     final async = ref.watch(teamScoutingProvider(teamNumber));
 
     return async.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => BeariscopeStatusView(
+      loading: () => const Center(child: BearingsSpinner()),
+      error: (e, _) => BearingsStatusView(
         icon: LucideIcons.circleAlert,
         iconColor: Theme.of(context).colorScheme.error,
         title: 'Scouting data unavailable',
@@ -43,7 +44,7 @@ class _GraphTabBodyState extends State<_GraphTabBody> {
   @override
   Widget build(BuildContext context) {
     if (!widget.bundle.hasMatchData) {
-      return const BeariscopeStatusView(
+      return const BearingsStatusView(
         icon: LucideIcons.fileText,
         title: 'No match data recorded',
         subtitle: 'No match data has been recorded for this team.',

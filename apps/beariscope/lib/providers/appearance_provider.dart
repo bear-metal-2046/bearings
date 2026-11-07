@@ -1,5 +1,6 @@
 import 'package:core/providers/device_info_provider.dart';
 import 'package:dynamic_color/dynamic_color.dart';
+import 'package:flex_seed_scheme/flex_seed_scheme.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
@@ -41,15 +42,11 @@ final systemColorSchemesProvider = FutureProvider<AppColorSchemes?>((
     return null;
   }
 
-  // Android supplies a complete palette. Preserve its roles instead of seeding
-  // another scheme from just the primary color.
+  // Android supplies a tonal palette. Use its light primary as the accent seed.
   try {
     final palette = await DynamicColorPlugin.getCorePalette();
     if (palette != null) {
-      return (
-        light: palette.toColorScheme(),
-        dark: palette.toColorScheme(brightness: Brightness.dark),
-      );
+      return _colorSchemesFromAccent(Color(palette.primary.get(40)));
     }
   } on PlatformException catch (error) {
     debugPrint('Unable to read the system color palette: $error');
@@ -59,13 +56,7 @@ final systemColorSchemesProvider = FutureProvider<AppColorSchemes?>((
   try {
     final accent = await DynamicColorPlugin.getAccentColor();
     if (accent != null) {
-      return (
-        light: ColorScheme.fromSeed(seedColor: accent),
-        dark: ColorScheme.fromSeed(
-          seedColor: accent,
-          brightness: Brightness.dark,
-        ),
-      );
+      return _colorSchemesFromAccent(accent);
     }
   } on PlatformException catch (error) {
     debugPrint('Unable to read the system accent color: $error');
@@ -81,12 +72,20 @@ final appColorSchemesProvider = Provider<AppColorSchemes>((ref) {
     if (systemSchemes != null) return systemSchemes;
   }
 
-  final accent = ref.watch(accentColorProvider);
-  return (
-    light: ColorScheme.fromSeed(seedColor: accent),
-    dark: ColorScheme.fromSeed(seedColor: accent, brightness: Brightness.dark),
-  );
+  return _colorSchemesFromAccent(ref.watch(accentColorProvider));
 });
+
+AppColorSchemes _colorSchemesFromAccent(Color accent) {
+  ColorScheme scheme(Brightness brightness) => SeedColorScheme.fromSeeds(
+    primaryKey: accent,
+    brightness: brightness,
+    tones: FlexTones.oneHue(brightness).monochromeSurfaces(),
+    respectMonochromeSeed: true,
+    surfaceTint: Colors.transparent,
+  );
+
+  return (light: scheme(Brightness.light), dark: scheme(Brightness.dark));
+}
 
 class ThemeColorSourceNotifier extends Notifier<ThemeColorSource> {
   @override

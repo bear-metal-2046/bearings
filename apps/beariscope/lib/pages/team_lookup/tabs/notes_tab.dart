@@ -3,12 +3,13 @@ import 'package:beariscope/models/scouting_document.dart';
 import 'package:beariscope/models/team_scouting_bundle.dart';
 import 'package:beariscope/pages/team_lookup/tabs/scouting_tab_widgets.dart';
 import 'package:beariscope/providers/team_scouting_provider.dart';
-import 'package:beariscope/widgets/beariscope_card.dart';
-import 'package:beariscope/widgets/beariscope_status_view.dart';
-import 'package:beariscope/widgets/settings_group.dart';
+import 'package:ui/widgets/bearings_card.dart';
+import 'package:ui/widgets/bearings_status_view.dart';
+import 'package:ui/widgets/bearings_setting_group.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:ui/widgets/bearings_spinner.dart';
 
 class NotesTab extends ConsumerWidget {
   final int teamNumber;
@@ -20,8 +21,8 @@ class NotesTab extends ConsumerWidget {
     final async = ref.watch(teamScoutingProvider(teamNumber));
 
     return async.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => BeariscopeStatusView(
+      loading: () => const Center(child: BearingsSpinner()),
+      error: (e, _) => BearingsStatusView(
         icon: LucideIcons.circleAlert,
         iconColor: Theme.of(context).colorScheme.error,
         title: 'Scouting data unavailable',
@@ -156,9 +157,9 @@ class _NotesBody extends StatelessWidget {
       (f) => f.notes.isNotEmpty || f.incidents.isNotEmpty,
     );
 
-    return BeariscopeCardList(
+    return BearingsCardList(
       children: [
-        SettingsGroup(
+        BearingsSettingGroup(
           title: 'Incident Summary',
           children: [
             Padding(
@@ -199,7 +200,7 @@ class _NotesBody extends StatelessWidget {
           ],
         ),
         if (hasAnyContent)
-          SettingsGroup(
+          BearingsSettingGroup(
             title: 'Notes & Observations',
             children: feedItems
                 .where((f) => f.notes.isNotEmpty || f.incidents.isNotEmpty)

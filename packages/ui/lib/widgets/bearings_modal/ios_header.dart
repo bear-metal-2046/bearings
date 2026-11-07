@@ -1,4 +1,4 @@
-part of '../beariscope_modal.dart';
+part of '../bearings_modal.dart';
 
 class _IosModalHeader extends StatelessWidget {
   const _IosModalHeader({
@@ -17,8 +17,8 @@ class _IosModalHeader extends StatelessWidget {
   static const _grabberPadding = EdgeInsets.only(top: 8, bottom: 4);
 
   final String title;
-  final List<BeariscopeModalAction> actions;
-  final BeariscopeModalPrimaryAction? primaryAction;
+  final List<BearingsModalAction> actions;
+  final BearingsModalPrimaryAction? primaryAction;
   final VoidCallback? onClose;
   final bool showGrabber;
 
@@ -33,7 +33,7 @@ class _IosModalHeader extends StatelessWidget {
           Padding(
             padding: _grabberPadding,
             child: Container(
-              key: const ValueKey('beariscope-modal-grabber'),
+              key: const ValueKey('bearings-modal-grabber'),
               width: _grabberWidth,
               height: _grabberHeight,
               decoration: BoxDecoration(
@@ -94,7 +94,10 @@ class _IosModalHeader extends StatelessWidget {
                           child: Center(
                             child: SizedBox.square(
                               dimension: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
+                              child: BearingsSpinner(
+                                strokeWidth: 2,
+                                useForegroundColor: true,
+                              ),
                             ),
                           ),
                         ),
