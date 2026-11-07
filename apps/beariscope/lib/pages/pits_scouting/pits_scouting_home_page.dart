@@ -155,12 +155,54 @@ class PitsScoutingHomePageState extends ConsumerState<PitsScoutingHomePage>
                     },
                   )
                 : null,
-            bottom: TabBar(
-              controller: _tabController,
-              tabs: const [
-                Tab(text: 'Map'),
-                Tab(text: 'List'),
-              ],
+            bottom: PreferredSize(
+              preferredSize: Size.fromHeight(80),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                // Prevents the Column from taking up the whole screen
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // The original TabBar
+                  TabBar(
+                    controller: _tabController,
+                    tabs: const [
+                      Tab(text: 'Map'),
+                      Tab(text: 'List'),
+                    ],
+                  ),
+                  // Loads all the team data outside of _buildListTab()
+                  teamsAsync.when(
+                    // Padding prevents "Failed to update ui" error
+                    loading: () => const Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 16.0,
+                        vertical: 12.0,
+                      ),
+                      child: Center(child: LinearProgressIndicator()),
+                    ),
+                    error: (err, stack) => BeariscopeStatusView(
+                      icon: LucideIcons.circleAlert,
+                      iconColor: Theme.of(context).colorScheme.error,
+                      title: 'Teams unavailable',
+                      subtitle: 'Error loading teams: $err',
+                      action: FilledButton.icon(
+                        onPressed: () => ref.invalidate(pitsTeamsProvider),
+                        icon: const Icon(LucideIcons.rotateCw),
+                        label: const Text('Retry'),
+                      ),
+                    ),
+                    data: (teams) {
+                      // Progress bar at the top of the Pits Scouting Page
+                      return PitsProgressBar(
+                        numberOfTeams: teams.length,
+                        currentScoutedTeams: teams
+                            .where((t) => scoutedNums.contains(t.number))
+                            .length,
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
             leading: main.isDesktop
                 ? null
@@ -417,20 +459,18 @@ class PitsScoutingHomePageState extends ConsumerState<PitsScoutingHomePage>
 
     return BeariscopeCardList(
       padding: padding,
-      children: filteredTeams
-          .map(
-            (team) => PitsScoutingTeamCard(
-              teamName: team.name,
-              teamNumber: team.number,
-              scouted: scoutedNums.contains(team.number),
-              onScoutedChanged: (value) {
-                if (!value) return;
-                // The provider updates automatically; just refresh it.
-                ref.read(scoutingDataProvider.notifier).refresh();
-              },
-            ),
-          )
-          .toList(),
+      children: filteredTeams.map((team) {
+        return PitsScoutingTeamCard(
+          teamName: team.name,
+          teamNumber: team.number,
+          scouted: scoutedNums.contains(team.number),
+          onScoutedChanged: (value) {
+            if (!value) return;
+            // The provider updates automatically; just refresh it.
+            ref.read(scoutingDataProvider.notifier).refresh();
+          },
+        );
+      }).toList(),
     );
   }
 }
