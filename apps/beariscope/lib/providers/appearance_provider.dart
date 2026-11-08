@@ -19,6 +19,11 @@ final accentColorProvider = NotifierProvider<AccentColorNotifier, Color>(
   AccentColorNotifier.new,
 );
 
+final useMaterialColorsProvider =
+    NotifierProvider<UseMaterialColorsNotifier, bool>(
+      UseMaterialColorsNotifier.new,
+    );
+
 final themeColorSourceProvider =
     NotifierProvider<ThemeColorSourceNotifier, ThemeColorSource>(
       ThemeColorSourceNotifier.new,
@@ -41,12 +46,16 @@ final systemColorSchemesProvider = FutureProvider<AppColorSchemes?>((
       ref.watch(themeColorSourceProvider) != ThemeColorSource.system) {
     return null;
   }
+  final useMaterialColors = ref.watch(useMaterialColorsProvider);
 
   // Android supplies a tonal palette. Use its light primary as the accent seed.
   try {
     final palette = await DynamicColorPlugin.getCorePalette();
     if (palette != null) {
-      return _colorSchemesFromAccent(Color(palette.primary.get(40)));
+      return _colorSchemesFromAccent(
+        Color(palette.primary.get(40)),
+        useMaterialColors: useMaterialColors,
+      );
     }
   } on PlatformException catch (error) {
     debugPrint('Unable to read the system color palette: $error');
@@ -56,7 +65,10 @@ final systemColorSchemesProvider = FutureProvider<AppColorSchemes?>((
   try {
     final accent = await DynamicColorPlugin.getAccentColor();
     if (accent != null) {
-      return _colorSchemesFromAccent(accent);
+      return _colorSchemesFromAccent(
+        accent,
+        useMaterialColors: useMaterialColors,
+      );
     }
   } on PlatformException catch (error) {
     debugPrint('Unable to read the system accent color: $error');
@@ -66,25 +78,47 @@ final systemColorSchemesProvider = FutureProvider<AppColorSchemes?>((
 });
 
 final appColorSchemesProvider = Provider<AppColorSchemes>((ref) {
+  final useMaterialColors = ref.watch(useMaterialColorsProvider);
   if (ref.watch(supportsSystemColorsProvider) &&
       ref.watch(themeColorSourceProvider) == ThemeColorSource.system) {
     final systemSchemes = ref.watch(systemColorSchemesProvider).value;
     if (systemSchemes != null) return systemSchemes;
   }
 
-  return _colorSchemesFromAccent(ref.watch(accentColorProvider));
+  return _colorSchemesFromAccent(
+    ref.watch(accentColorProvider),
+    useMaterialColors: useMaterialColors,
+  );
 });
 
-AppColorSchemes _colorSchemesFromAccent(Color accent) {
-  ColorScheme scheme(Brightness brightness) => SeedColorScheme.fromSeeds(
-    primaryKey: accent,
-    brightness: brightness,
-    tones: FlexTones.oneHue(brightness).monochromeSurfaces(),
-    respectMonochromeSeed: true,
-    surfaceTint: Colors.transparent,
-  );
+AppColorSchemes _colorSchemesFromAccent(
+  Color accent, {
+  required bool useMaterialColors,
+}) {
+  ColorScheme scheme(Brightness brightness) => useMaterialColors
+      ? ColorScheme.fromSeed(seedColor: accent, brightness: brightness)
+      : SeedColorScheme.fromSeeds(
+          primaryKey: accent,
+          brightness: brightness,
+          tones: FlexTones.oneHue(brightness).monochromeSurfaces(),
+          respectMonochromeSeed: true,
+          surfaceTint: Colors.transparent,
+        );
 
   return (light: scheme(Brightness.light), dark: scheme(Brightness.dark));
+}
+
+class UseMaterialColorsNotifier extends Notifier<bool> {
+  @override
+  bool build() =>
+      ref.read(sharedPreferencesProvider).getBool('useMaterialColors') ?? false;
+
+  Future<void> setEnabled(bool enabled) async {
+    state = enabled;
+    await ref
+        .read(sharedPreferencesProvider)
+        .setBool('useMaterialColors', enabled);
+  }
 }
 
 class ThemeColorSourceNotifier extends Notifier<ThemeColorSource> {

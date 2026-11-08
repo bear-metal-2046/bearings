@@ -356,7 +356,7 @@ class _MainViewState extends ConsumerState<MainView> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(24, 14, 18, 14),
+                padding: const EdgeInsets.fromLTRB(24, 14, 18, 0),
                 child: Row(
                   children: [
                     SvgPicture.asset(
@@ -413,10 +413,13 @@ class _MainViewState extends ConsumerState<MainView> {
       final index = entry.$1;
       final item = entry.$2;
       if (item.group != currentGroup) {
+        if (currentGroup != null) {
+          children.add(const Divider(height: 20, indent: 12, endIndent: 12));
+        }
         currentGroup = item.group;
         children.add(
           Padding(
-            padding: EdgeInsets.fromLTRB(12, children.isEmpty ? 12 : 20, 12, 6),
+            padding: EdgeInsets.fromLTRB(12, children.isEmpty ? 12 : 0, 12, 6),
             child: Text(
               currentGroup,
               style: Theme.of(context).textTheme.labelMedium,
