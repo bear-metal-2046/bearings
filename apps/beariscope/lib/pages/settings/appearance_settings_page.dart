@@ -106,6 +106,7 @@ class AppearanceSettingsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
     final selectedColor = ref.watch(accentColorProvider);
+    final useMaterialColors = ref.watch(useMaterialColorsProvider);
     final supportsSystemColors = ref.watch(supportsSystemColorsProvider);
     final useSystemColors =
         supportsSystemColors &&
@@ -183,6 +184,16 @@ class AppearanceSettingsPage extends ConsumerWidget {
           BearingsSettingGroup(
             title: 'Colors',
             children: [
+              SwitchListTile(
+                title: const Text('Tint surfaces'),
+                subtitle: const Text(
+                  'Add subtle shades of your accent color to backgrounds.',
+                ),
+                value: useMaterialColors,
+                onChanged: (enabled) => ref
+                    .read(useMaterialColorsProvider.notifier)
+                    .setEnabled(enabled),
+              ),
               if (supportsSystemColors)
                 SwitchListTile(
                   title: const Text('Use system colors'),
