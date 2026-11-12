@@ -1,3 +1,5 @@
+import 'dart:ui' show ViewFocusEvent, ViewFocusState;
+
 import 'package:beariscope/pages/auth/post_sign_in_onboarding_page.dart';
 import 'package:beariscope/pages/auth/sign_up_flow_page.dart';
 import 'package:beariscope/pages/auth/splash_screen.dart';
@@ -23,14 +25,23 @@ import 'package:beariscope/pages/team_lookup/team_lookup_page.dart';
 import 'package:beariscope/pages/up_next/match_preview_page.dart';
 import 'package:beariscope/pages/up_next/up_next_page.dart';
 import 'package:beariscope/pages/utilities/utilities_page.dart';
+import 'package:beariscope/pages/flash_cards/flash_cards_page.dart';
+import 'package:beariscope/pages/flash_cards/sharing/flash_card_deep_link.dart';
+import 'package:beariscope/pages/flash_cards/study/flash_card_study_page.dart';
+import 'package:beariscope/pages/flash_cards/decks/flash_card_deck_editor_page.dart';
+import 'package:beariscope/pages/flash_cards/sharing/flash_card_deck_import_page.dart';
+import 'package:beariscope/pages/flash_cards/decks/flash_card_deck_model.dart';
+import 'package:beariscope/pages/flash_cards/sharing/flash_card_deck_share_page.dart';
 import 'package:beariscope/providers/app_boot_provider.dart';
 import 'package:beariscope/providers/app_phase_provider.dart';
+import 'package:beariscope/providers/appearance_provider.dart';
 import 'package:beariscope/providers/shared_preferences_provider.dart';
 import 'package:beariscope/utils/platform_utils_stub.dart'
     if (dart.library.io) 'package:beariscope/utils/platform_utils.dart';
 import 'package:beariscope/utils/hive_storage.dart';
 import 'package:beariscope/utils/window_size_stub.dart'
     if (dart.library.io) 'package:window_size/window_size.dart';
+import 'package:beariscope/widgets/beariscope_modal.dart';
 import 'package:core/providers/device_info_provider.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
@@ -104,6 +115,7 @@ class RouterRefreshNotifier extends ChangeNotifier {
 
 final routerProvider = Provider<GoRouter>((ref) {
   final refreshNotifier = RouterRefreshNotifier(ref);
+  final deckLink = FlashCardDeepLink();
 
   return GoRouter(
     initialLocation: '/splash',
@@ -186,6 +198,50 @@ final routerProvider = Provider<GoRouter>((ref) {
             pageBuilder: (_, _) =>
                 const NoTransitionPage(child: UtilitiesPage()),
           ),
+          GoRoute(
+            path: '/flash_cards',
+            pageBuilder: (_, _) =>
+                const NoTransitionPage(child: FlashCardsPage()),
+            routes: [
+              GoRoute(
+                path: 'current',
+                builder: (_, _) => const FlashCardStudyPage(),
+              ),
+              GoRoute(
+                path: 'create',
+                builder: (_, _) => const FlashCardDeckEditorPage(),
+              ),
+              GoRoute(
+                path: 'import',
+                pageBuilder: (context, state) => CustomTransitionPage<void>(
+                  key: state.pageKey,
+                  opaque: false,
+                  child: _FlashCardDeckImportLink(
+                    key: ValueKey(state.uri.queryParameters['code']),
+                    initialCode: state.uri.queryParameters['code'],
+                  ),
+                  transitionsBuilder: (_, _, _, child) => child,
+                ),
+              ),
+              GoRoute(
+                path: 'edit/:deckId',
+                builder: (_, state) => FlashCardDeckEditorPage(
+                  deckId: state.pathParameters['deckId'],
+                ),
+              ),
+              GoRoute(
+                path: 'share/:deckId',
+                builder: (_, state) => FlashCardDeckSharePage(
+                  deckId: state.pathParameters['deckId']!,
+                ),
+              ),
+              GoRoute(
+                path: ':deckId',
+                builder: (_, state) =>
+                    FlashCardStudyPage(deckId: state.pathParameters['deckId']),
+              ),
+            ],
+          ),
         ],
       ),
       GoRoute(
@@ -256,6 +312,10 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (_, state) {
       final location = state.matchedLocation;
       final phase = ref.read(appPhaseProvider);
+      final deckRedirect = deckLink.redirect(
+        state.uri,
+        ready: phase == AppPhase.ready,
+      );
 
       // 1. Route based on app phase
       final phaseRedirect = switch (phase) {
@@ -272,6 +332,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       };
 
       if (phaseRedirect != null) return phaseRedirect;
+      if (deckRedirect != null) return deckRedirect;
 
       // 2. AppPhase.ready — permission guards for protected routes
       final isRoleManagementRoute = location == '/settings/roles';
@@ -335,6 +396,40 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
 });
 
+class _FlashCardDeckImportLink extends StatefulWidget {
+  const _FlashCardDeckImportLink({super.key, this.initialCode});
+
+  final String? initialCode;
+
+  @override
+  State<_FlashCardDeckImportLink> createState() =>
+      _FlashCardDeckImportLinkState();
+}
+
+class _FlashCardDeckImportLinkState extends State<_FlashCardDeckImportLink> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _showImport());
+  }
+
+  Future<void> _showImport() async {
+    if (!mounted) return;
+    final deck = await BeariscopeModal.show<FlashCardDeckDefinition>(
+      context,
+      builder: (_) => FlashCardDeckImportPage(
+        asSheet: true,
+        initialCode: widget.initialCode,
+      ),
+    );
+    if (!mounted) return;
+    context.go(deck == null ? '/flash_cards' : '/flash_cards/${deck.id}');
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
+}
+
 class Beariscope extends ConsumerStatefulWidget {
   const Beariscope({super.key});
 
@@ -342,10 +437,12 @@ class Beariscope extends ConsumerStatefulWidget {
   ConsumerState<Beariscope> createState() => _BeariscopeState();
 }
 
-class _BeariscopeState extends ConsumerState<Beariscope> {
+class _BeariscopeState extends ConsumerState<Beariscope>
+    with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Initialize endpoint preference from SharedPreferences
@@ -356,25 +453,43 @@ class _BeariscopeState extends ConsumerState<Beariscope> {
   }
 
   @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _refreshSystemColors();
+  }
+
+  @override
+  void didChangeViewFocus(ViewFocusEvent event) {
+    if (event.state == ViewFocusState.focused) _refreshSystemColors();
+  }
+
+  void _refreshSystemColors() {
+    if (ref.read(supportsSystemColorsProvider) &&
+        ref.read(themeColorSourceProvider) == ThemeColorSource.system) {
+      ref.invalidate(systemColorSchemesProvider);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
     final themeMode = ref.watch(themeModeProvider);
-    final accentColor = ref.watch(accentColorProvider);
+    final colorSchemes = ref.watch(appColorSchemesProvider);
     final deviceInfo = ref.read(deviceInfoProvider);
 
-    // Wrap with builder to ensure HeroineController is available everywhere
-    final app = Builder(
-      builder: (context) {
-        return MaterialApp.router(
-          routerConfig: router,
-          theme: _createTheme(Brightness.light, accentColor),
-          darkTheme: _createTheme(Brightness.dark, accentColor),
-          themeMode: themeMode,
-          debugShowCheckedModeBanner: false,
-          builder: (context, child) =>
-              FlutterMaterialScope(child: child ?? const SizedBox.shrink()),
-        );
-      },
+    final app = MaterialApp.router(
+      routerConfig: router,
+      theme: _createTheme(colorSchemes.light),
+      darkTheme: _createTheme(colorSchemes.dark),
+      themeMode: themeMode,
+      debugShowCheckedModeBanner: false,
+      builder: (context, child) =>
+          FlutterMaterialScope(child: child ?? const SizedBox.shrink()),
     );
 
     if (deviceInfo.deviceOS == DeviceOS.macos) {
@@ -385,11 +500,8 @@ class _BeariscopeState extends ConsumerState<Beariscope> {
   }
 }
 
-ThemeData _createTheme(Brightness brightness, Color accentColor) {
-  final colorScheme = ColorScheme.fromSeed(
-    seedColor: accentColor,
-    brightness: brightness,
-  );
+ThemeData _createTheme(ColorScheme colorScheme) {
+  final brightness = colorScheme.brightness;
 
   final baseTheme = ThemeData(
     brightness: brightness,

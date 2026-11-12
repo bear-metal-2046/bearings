@@ -527,7 +527,7 @@ class PitsProgressBar extends StatefulWidget {
   final int _numberOfTeams;
   final int _currentScoutedTeams;
 
-  PitsProgressBar({
+  const PitsProgressBar({
     super.key,
     required this._numberOfTeams,
     required this._currentScoutedTeams,
