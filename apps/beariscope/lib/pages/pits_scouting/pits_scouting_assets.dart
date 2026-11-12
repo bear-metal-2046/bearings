@@ -544,7 +544,7 @@ class PitsProgressBarState extends State<PitsProgressBar> {
       padding: EdgeInsetsGeometry.all(4),
       child: TitledProgressBar(
         progressColor: Theme.of(context).colorScheme.primary,
-        backgroundColor: Theme.of(context).colorScheme.secondary,
+        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
         maxSteps: widget._numberOfTeams,
         currentStep: widget._currentScoutedTeams,
         labelType: LabelType.percentage,
