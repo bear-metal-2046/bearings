@@ -14,6 +14,7 @@ class NumberButton extends StatefulWidget {
     required this.width,
     required this.height,
     this.textAlignment = Alignment.bottomRight,
+    this.scale = 0,
   });
 
   final Color? backgroundColor;
@@ -23,6 +24,7 @@ class NumberButton extends StatefulWidget {
   final double width;
   final double height;
   final int? initialValue;
+  final double scale;
 
   @override
   State<NumberButton> createState() => _NumberButtonState();
@@ -68,8 +70,7 @@ class _NumberButtonState extends State<NumberButton> {
                 style: theme.textTheme.labelLarge?.copyWith(
                   fontWeight: FontWeight.w800,
                 ),
-                maxLines: 2,
-                minFontSize: 10,
+                minFontSize: 1,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -78,10 +79,10 @@ class _NumberButtonState extends State<NumberButton> {
               _currentVariable.toString(),
               textAlign: TextAlign.center,
               maxLines: 1,
-              minFontSize: 12,
+              minFontSize: 1,
               style: theme.textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.w900,
-                height: 1.0,
+                height: 1,
               ),
             ),
             const SizedBox(height: FormWidgetStyle.controlGap),
@@ -96,6 +97,7 @@ class _NumberButtonState extends State<NumberButton> {
                   });
                   widget.onChanged?.call(_currentVariable);
                 },
+                scale: widget.scale,
               ),
             ),
           ],
@@ -106,16 +108,17 @@ class _NumberButtonState extends State<NumberButton> {
 }
 
 class _DecrementButton extends StatelessWidget {
-  const _DecrementButton({required this.onPressed});
+  const _DecrementButton({required this.onPressed, this._scale = 1});
 
   final VoidCallback onPressed;
+  final double _scale;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return SizedBox(
-      width: 48,
-      height: 48,
+      width: 48 * _scale,
+      height: 48 * _scale,
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
@@ -134,7 +137,7 @@ class _DecrementButton extends StatelessWidget {
           ),
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(),
-          icon: Icon(LucideIcons.minus, color: theme.colorScheme.onSurface),
+          icon: Icon(LucideIcons.minus, color: theme.colorScheme.onSurface, size: kDefaultFontSize * _scale,),
           onPressed: onPressed,
         ),
       ),

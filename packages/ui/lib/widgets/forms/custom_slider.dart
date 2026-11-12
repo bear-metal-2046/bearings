@@ -11,6 +11,7 @@ class CustomSlider extends StatefulWidget {
     required this.title,
     required this.width,
     required this.height,
+    this.scale = 1,
     this.segmentLength,
     required this.minValue,
     required this.maxValue,
@@ -21,6 +22,7 @@ class CustomSlider extends StatefulWidget {
   final String title;
   final double width;
   final double height;
+  final double scale;
   final int? segmentLength;
   final int minValue;
   final int maxValue;
@@ -82,7 +84,7 @@ class _CustomSliderState extends State<CustomSlider> {
 
     return SizedBox(
       width: widget.width,
-      height: widget.height,
+      height: widget.height * widget.scale,
       child: LayoutBuilder(
         builder: (context, constraints) {
           void handleSliderChange(dynamic value) {
@@ -142,8 +144,9 @@ class _CustomSliderState extends State<CustomSlider> {
                       AutoSizeText(
                         widget.title,
                         maxLines: 3,
-                        minFontSize: 9,
+                        minFontSize: 1,
                         overflow: TextOverflow.ellipsis,
+
                         style: theme.textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w700,
                           color: theme.colorScheme.onSurface,
