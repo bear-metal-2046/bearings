@@ -217,6 +217,7 @@ class _MatchFormRendererState extends State<MatchFormRenderer> {
           dataName: label,
           width: width,
           height: height,
+          scale: widget.scale,
           initialValue: storedValue is bool ? storedValue : null,
           onChanged: (v) => _onFieldChanged(sectionId, component.fieldId, v),
         );
