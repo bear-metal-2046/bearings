@@ -20,12 +20,14 @@ class MatchFormRenderer extends StatefulWidget {
     required this.initialData,
     required this.onChanged,
     this.onNextPressed,
+    this.scale = 1,
   });
 
   final PageConfig page;
   final MatchFormData initialData;
   final ValueChanged<MatchFormData> onChanged;
   final VoidCallback? onNextPressed;
+  final double scale;
 
   @override
   State<MatchFormRenderer> createState() => _MatchFormRendererState();
@@ -87,9 +89,9 @@ class _MatchFormRendererState extends State<MatchFormRenderer> {
     return normalized
         .split(' ')
         .map((word) {
-          if (word.length <= 2) return word.toUpperCase();
-          return '${word[0].toUpperCase()}${word.substring(1)}';
-        })
+      if (word.length <= 2) return word.toUpperCase();
+      return '${word[0].toUpperCase()}${word.substring(1)}';
+    })
         .join(' ');
   }
 
@@ -120,39 +122,55 @@ class _MatchFormRendererState extends State<MatchFormRenderer> {
   @override
   Widget build(BuildContext context) {
     final page = widget.page;
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final hStep = constraints.maxWidth / page.width;
-        final vStep = constraints.maxHeight / page.height;
-        final positioned = <Widget>[];
+    final double _scale = widget.scale;
 
-        for (final component in page.components) {
-          final storedValue = _current.getField(
-            page.sectionId,
-            component.fieldId,
-          );
-          final w = component.layout.w * hStep;
-          final h = component.layout.h * vStep;
+    return MediaQuery(
+      data: MediaQuery.of(context)
+          .copyWith(textScaler: TextScaler.linear(_scale)),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final hStep = constraints.maxWidth / page.width;
+          final vStep = constraints.maxHeight / page.height;
+          final positioned = <Widget>[];
 
-          final widget = _buildComponentWidget(
-            context: context,
-            component: component,
-            storedValue: storedValue,
-            width: w.toDouble(),
-            height: h.toDouble(),
-          );
-          if (widget == null) continue;
+          for (final component in page.components) {
+            final storedValue = _current.getField(
+              page.sectionId,
+              component.fieldId,
+            );
+            final w = component.layout.w * hStep;
+            final h = component.layout.h * vStep;
 
-          positioned.add(
-            Positioned(
-              top: (component.layout.y * vStep).toDouble(),
-              left: (component.layout.x * hStep).toDouble(),
-              child: widget,
+            final widget = _buildComponentWidget(
+              context: context,
+              component: component,
+              storedValue: storedValue,
+              width: w.toDouble(),
+              height: h.toDouble(),
+            );
+            if (widget == null) continue;
+
+            positioned.add(
+              Positioned(
+                top: (component.layout.y * vStep).toDouble(),
+                left: (component.layout.x * hStep).toDouble(),
+                child: widget,
+              ),
+            );
+          }
+          return SingleChildScrollView(
+            scrollDirection: Axis.vertical,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SizedBox(
+                width: constraints.maxWidth,
+                height: constraints.maxHeight,
+                child: Stack(children: positioned),
+              ),
             ),
           );
-        }
-        return Stack(children: positioned);
-      },
+        },
+      ),
     );
   }
 
@@ -181,6 +199,7 @@ class _MatchFormRendererState extends State<MatchFormRenderer> {
           dataName: label,
           width: width,
           height: height,
+          scale: widget.scale,
           initialValue: storedValue is int ? storedValue : null,
           onChanged: (v) => _onFieldChanged(sectionId, component.fieldId, v),
         );
@@ -198,6 +217,7 @@ class _MatchFormRendererState extends State<MatchFormRenderer> {
           dataName: label,
           width: width,
           height: height,
+          scale: widget.scale,
           initialValue: storedValue is bool ? storedValue : null,
           onChanged: (v) => _onFieldChanged(sectionId, component.fieldId, v),
         );
@@ -246,6 +266,7 @@ class _MatchFormRendererState extends State<MatchFormRenderer> {
           height: height,
           minValue: 0,
           maxValue: 100,
+          scale: widget.scale,
           initialValue: storedValue is num ? storedValue.toDouble() : null,
         );
       case 'segmented_button':
@@ -276,11 +297,11 @@ class _MatchFormRendererState extends State<MatchFormRenderer> {
   }
 
   Widget? _buildNextButton(
-    BuildContext context,
-    ComponentConfig component,
-    double width,
-    double height,
-  ) {
+      BuildContext context,
+      ComponentConfig component,
+      double width,
+      double height,
+      ) {
     final onNextPressed = widget.onNextPressed;
     if (onNextPressed == null) return null;
 
@@ -288,8 +309,8 @@ class _MatchFormRendererState extends State<MatchFormRenderer> {
     final text = component.alias.trim().isNotEmpty
         ? component.alias
         : ((rawLabel == null || rawLabel.trim().isEmpty)
-              ? 'Next Match'
-              : rawLabel);
+        ? 'Next Match'
+        : rawLabel);
 
     return SizedBox(
       width: width,

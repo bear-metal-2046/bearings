@@ -1,5 +1,6 @@
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:syncfusion_flutter_core/theme.dart';
 import 'package:syncfusion_flutter_sliders/sliders.dart';
 
 import 'form_style.dart';
@@ -11,6 +12,7 @@ class CustomSlider extends StatefulWidget {
     required this.title,
     required this.width,
     required this.height,
+    this.scale = 1,
     this.segmentLength,
     required this.minValue,
     required this.maxValue,
@@ -21,6 +23,7 @@ class CustomSlider extends StatefulWidget {
   final String title;
   final double width;
   final double height;
+  final double scale;
   final int? segmentLength;
   final int minValue;
   final int maxValue;
@@ -111,20 +114,30 @@ class _CustomSliderState extends State<CustomSlider> {
               );
             }
 
-            return SfSlider(
-              min: min,
-              max: max,
-              value: _sliderValue,
-              onChanged: handleSliderChange,
-              interval: interval,
-              showTicks: true,
-              showLabels: true,
-              enableTooltip: true,
-              tooltipTextFormatterCallback: (actualValue, _) =>
-                  _formatDynamicValue(actualValue),
-              stepSize: 1.0,
-              activeColor: theme.colorScheme.primary,
-              inactiveColor: theme.colorScheme.surfaceContainerHighest,
+            return SfSliderTheme(
+                data: SfSliderThemeData(
+                  activeTrackHeight: 8 * widget.scale,
+                  inactiveTrackHeight: 7.5 * widget.scale,
+                  thumbRadius: 10 * widget.scale,
+                  overlayRadius: 24 * widget.scale,
+                  tickSize: Size(2.5, 12 * widget.scale),
+                  labelOffset: Offset(0, 10 * widget.scale),
+                ),
+                child: SfSlider(
+                  min: min,
+                  max: max,
+                  value: _sliderValue,
+                  onChanged: handleSliderChange,
+                  interval: interval,
+                  showTicks: true,
+                  showLabels: true,
+                  enableTooltip: true,
+                  tooltipTextFormatterCallback: (actualValue, _) =>
+                      _formatDynamicValue(actualValue),
+                  stepSize: 1.0,
+                  activeColor: theme.colorScheme.primary,
+                  inactiveColor: theme.colorScheme.surfaceContainerHighest,
+                ),
             );
           }
 
@@ -141,15 +154,15 @@ class _CustomSliderState extends State<CustomSlider> {
                     children: [
                       AutoSizeText(
                         widget.title,
-                        maxLines: 3,
-                        minFontSize: 9,
+                        minFontSize: 1,
                         overflow: TextOverflow.ellipsis,
+
                         style: theme.textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w700,
                           color: theme.colorScheme.onSurface,
                         ),
                       ),
-                      const SizedBox(height: 6),
+                      SizedBox(height: 4.5 * widget.scale),
                       Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
@@ -161,10 +174,10 @@ class _CustomSliderState extends State<CustomSlider> {
                       ),
                     ],
                   ),
-                  const SizedBox(width: FormWidgetStyle.controlGap),
+                  SizedBox(width: FormWidgetStyle.controlGap * widget.scale),
                   Expanded(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      padding: EdgeInsets.symmetric(vertical: 2 * widget.scale),
                       child: buildSlider(vertical: widget.isVertical),
                     ),
                   ),

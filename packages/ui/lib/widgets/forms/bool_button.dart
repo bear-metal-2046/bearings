@@ -11,12 +11,14 @@ class BoolButton extends StatefulWidget {
     required this.dataName,
     required this.width,
     required this.height,
+    this.scale = 1,
     required this.onChanged,
   });
 
   final String dataName;
   final double width;
   final double height;
+  final double scale;
   final ValueChanged<bool> onChanged;
   final bool? initialValue;
 
@@ -86,7 +88,7 @@ class _BoolButtonState extends State<BoolButton> {
               child: Icon(
                 isEnabled ? LucideIcons.check : LucideIcons.x,
                 key: ValueKey(isEnabled),
-                size: 18,
+                size: 18 * widget.scale,
                 color: foregroundColor,
                 semanticLabel: isEnabled ? 'Checked' : 'Not checked',
               ),
