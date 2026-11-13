@@ -1,5 +1,6 @@
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:syncfusion_flutter_core/theme.dart';
 import 'package:syncfusion_flutter_sliders/sliders.dart';
 
 import 'form_style.dart';
@@ -84,7 +85,7 @@ class _CustomSliderState extends State<CustomSlider> {
 
     return SizedBox(
       width: widget.width,
-      height: widget.height * widget.scale,
+      height: widget.height,
       child: LayoutBuilder(
         builder: (context, constraints) {
           void handleSliderChange(dynamic value) {
@@ -113,20 +114,26 @@ class _CustomSliderState extends State<CustomSlider> {
               );
             }
 
-            return SfSlider(
-              min: min,
-              max: max,
-              value: _sliderValue,
-              onChanged: handleSliderChange,
-              interval: interval,
-              showTicks: true,
-              showLabels: true,
-              enableTooltip: true,
-              tooltipTextFormatterCallback: (actualValue, _) =>
-                  _formatDynamicValue(actualValue),
-              stepSize: 1.0,
-              activeColor: theme.colorScheme.primary,
-              inactiveColor: theme.colorScheme.surfaceContainerHighest,
+            return SfSliderTheme(
+                data: SfSliderThemeData(
+                  thumbRadius: 10 * widget.scale,
+                  overlayRadius: 24 * widget.scale,
+                ),
+                child: SfSlider(
+                  min: min,
+                  max: max,
+                  value: _sliderValue,
+                  onChanged: handleSliderChange,
+                  interval: interval,
+                  showTicks: true,
+                  showLabels: true,
+                  enableTooltip: true,
+                  tooltipTextFormatterCallback: (actualValue, _) =>
+                      _formatDynamicValue(actualValue),
+                  stepSize: 1.0,
+                  activeColor: theme.colorScheme.primary,
+                  inactiveColor: theme.colorScheme.surfaceContainerHighest,
+                ),
             );
           }
 
@@ -143,7 +150,6 @@ class _CustomSliderState extends State<CustomSlider> {
                     children: [
                       AutoSizeText(
                         widget.title,
-                        maxLines: 3,
                         minFontSize: 1,
                         overflow: TextOverflow.ellipsis,
 
@@ -152,7 +158,7 @@ class _CustomSliderState extends State<CustomSlider> {
                           color: theme.colorScheme.onSurface,
                         ),
                       ),
-                      const SizedBox(height: 6),
+                      SizedBox(height: 6 * widget.scale),
                       Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
@@ -167,7 +173,7 @@ class _CustomSliderState extends State<CustomSlider> {
                   const SizedBox(width: FormWidgetStyle.controlGap),
                   Expanded(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      padding: EdgeInsets.symmetric(vertical: 2 * widget.scale),
                       child: buildSlider(vertical: widget.isVertical),
                     ),
                   ),

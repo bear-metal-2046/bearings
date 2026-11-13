@@ -265,6 +265,7 @@ class _MatchFormRendererState extends State<MatchFormRenderer> {
           height: height,
           minValue: 0,
           maxValue: 100,
+          scale: widget.scale,
           initialValue: storedValue is num ? storedValue.toDouble() : null,
         );
       case 'segmented_button':
