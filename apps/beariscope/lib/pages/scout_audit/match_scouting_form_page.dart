@@ -154,7 +154,7 @@ class _MatchScoutingFormPageState extends ConsumerState<MatchScoutingFormPage> {
               icon: Icon(LucideIcons.zoomIn)
           ),
           IconButton(onPressed: () => setState(() {
-            if (_scale >= 0.5) {_scale -= 0.1;}
+            if (_scale >= 0.3) {_scale -= 0.1;}
           }),
               icon: Icon(LucideIcons.zoomOut)
           )

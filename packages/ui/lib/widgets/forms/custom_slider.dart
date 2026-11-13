@@ -116,8 +116,12 @@ class _CustomSliderState extends State<CustomSlider> {
 
             return SfSliderTheme(
                 data: SfSliderThemeData(
+                  activeTrackHeight: 8 * widget.scale,
+                  inactiveTrackHeight: 7.5 * widget.scale,
                   thumbRadius: 10 * widget.scale,
                   overlayRadius: 24 * widget.scale,
+                  tickSize: Size(2.5, 12 * widget.scale),
+                  labelOffset: Offset(0, 10 * widget.scale),
                 ),
                 child: SfSlider(
                   min: min,
@@ -158,7 +162,7 @@ class _CustomSliderState extends State<CustomSlider> {
                           color: theme.colorScheme.onSurface,
                         ),
                       ),
-                      SizedBox(height: 6 * widget.scale),
+                      SizedBox(height: 4.5 * widget.scale),
                       Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
@@ -170,7 +174,7 @@ class _CustomSliderState extends State<CustomSlider> {
                       ),
                     ],
                   ),
-                  const SizedBox(width: FormWidgetStyle.controlGap),
+                  SizedBox(width: FormWidgetStyle.controlGap * widget.scale),
                   Expanded(
                     child: Padding(
                       padding: EdgeInsets.symmetric(vertical: 2 * widget.scale),
