@@ -8,22 +8,20 @@ part of 'user_profile_provider.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// Reads the current user's profile from [Auth.user] and optionally
-/// downloads the profile photo bytes.
+/// Reads the current user's profile from Auth0's live `/userinfo` endpoint
+/// and optionally downloads the profile photo bytes.
 ///
-/// This provider is a thin layer over the user info already populated
-/// by the active [AuthBackend] — it does **not** call Auth0's `/userinfo`
-/// endpoint directly.  Photo bytes are loaded lazily from [UserProfile.pictureUrl].
+/// The profile can be changed by the Honeycomb API while the Auth0 session
+/// remains active, so the login-time ID-token profile is not authoritative.
 
 @ProviderFor(userInfo)
 final userInfoProvider = UserInfoProvider._();
 
-/// Reads the current user's profile from [Auth.user] and optionally
-/// downloads the profile photo bytes.
+/// Reads the current user's profile from Auth0's live `/userinfo` endpoint
+/// and optionally downloads the profile photo bytes.
 ///
-/// This provider is a thin layer over the user info already populated
-/// by the active [AuthBackend] — it does **not** call Auth0's `/userinfo`
-/// endpoint directly.  Photo bytes are loaded lazily from [UserProfile.pictureUrl].
+/// The profile can be changed by the Honeycomb API while the Auth0 session
+/// remains active, so the login-time ID-token profile is not authoritative.
 
 final class UserInfoProvider
     extends
@@ -33,12 +31,11 @@ final class UserInfoProvider
           FutureOr<UserInfo?>
         >
     with $FutureModifier<UserInfo?>, $FutureProvider<UserInfo?> {
-  /// Reads the current user's profile from [Auth.user] and optionally
-  /// downloads the profile photo bytes.
+  /// Reads the current user's profile from Auth0's live `/userinfo` endpoint
+  /// and optionally downloads the profile photo bytes.
   ///
-  /// This provider is a thin layer over the user info already populated
-  /// by the active [AuthBackend] — it does **not** call Auth0's `/userinfo`
-  /// endpoint directly.  Photo bytes are loaded lazily from [UserProfile.pictureUrl].
+  /// The profile can be changed by the Honeycomb API while the Auth0 session
+  /// remains active, so the login-time ID-token profile is not authoritative.
   UserInfoProvider._()
     : super(
         from: null,
@@ -64,7 +61,7 @@ final class UserInfoProvider
   }
 }
 
-String _$userInfoHash() => r'5c5d99c6ebe779ad1477ce215d84a1934ea02163';
+String _$userInfoHash() => r'253e706f2fcda090c07905f3cf94202132ad85e7';
 
 @ProviderFor(userProfileService)
 final userProfileServiceProvider = UserProfileServiceProvider._();

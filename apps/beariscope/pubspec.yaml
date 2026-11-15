@@ -5,8 +5,8 @@ resolution: workspace
 publish_to: none
 
 environment:
-  sdk: ^3.13.0
-  flutter: ^3.0.0
+  sdk: ^3.14.0
+  flutter: ^3.50.0
 
 dependencies:
   archive: ^3.6.1
@@ -14,14 +14,14 @@ dependencies:
   core:
     path: ../../packages/core
   crop_your_image: ^2.0.0
-  cupertino_icons: ^1.0.9
-  file_picker: ^12.1.2
-  syncfusion_flutter_charts: ^34.2.5
-  syncfusion_flutter_core: ^34.2.5
-  syncfusion_flutter_sliders: ^34.2.5
+  cupertino_icons: ^2.0.0
+  file_picker: ^13.3.3
+  syncfusion_flutter_charts: ^35.1.46
+  syncfusion_flutter_core: ^35.1.46
+  syncfusion_flutter_sliders: ^35.1.46
   flutter:
     sdk: flutter
-  flutter_riverpod: 3.4.3
+  flutter_riverpod: ^3.5.0
   flutter_speed_dial: ^7.0.0
   flutter_svg: ^2.3.0
   flutter_web_plugins:
@@ -32,10 +32,10 @@ dependencies:
   mobile_scanner: ^7.4.0
   zxing2: ^0.2.4
   logger: ^2.7.0
-  lucide_icons_flutter: ^3.1.17
+  lucide_icons_flutter: ^4.0.3
   package_info_plus: ^10.2.1
   provider: ^6.1.5+1
-  riverpod_annotation: 4.0.3
+  riverpod_annotation: ^4.0.8
   services:
     path: ../../packages/services
   shared_preferences: ^2.5.5
@@ -47,10 +47,10 @@ dependencies:
   url_launcher: ^6.3.2
   window_size: ^0.2.0
   hive_ce_flutter: ^2.3.4
-  image: 4.3.0
-  google_fonts: ^8.2.1
+  image: ^4.3.0
+  google_fonts: ^9.0.0
   animations: ^3.0.0
-  dots_indicator: ^4.0.1
+  dots_indicator: ^5.0.0
   intl: ^0.20.3
   mime: ^2.1.0
   internet_connection_checker_plus: ^3.1.1
@@ -58,26 +58,21 @@ dependencies:
   flutter_animate: ^4.5.2
   flex_color_picker: ^4.0.0
   material_ui: ^1.1.0
-  cupertino_ui: ^1.0.1
-  crdt_lf: 4.2.0
-  crdt_socket_sync: ^0.6.0
+  cupertino_ui: ^1.1.6
+  crdt_lf: ^5.4.0
+  crdt_socket_sync: ^0.10.2+1
   web_socket_channel: ^3.0.0
   stupid_simple_sheet: ^0.9.1+1
   dynamic_color: ^2.1.0
   screen_protector: ^1.5.3
 
-dependency_overrides:
-  # crdt_socket_sync 0.6.0 still declares ^3.0.0, but its public relay API
-  # is compatible with the 4.2 document implementation that adds movable lists.
-  crdt_lf: 4.2.0
-
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
-  riverpod_generator: 4.0.4
-  build_runner: 2.15.1
-  riverpod_lint: 3.1.4
+  riverpod_generator: ^4.0.10
+  build_runner: ^2.17.1
+  riverpod_lint: ^3.2.0
 
 flutter:
   config:

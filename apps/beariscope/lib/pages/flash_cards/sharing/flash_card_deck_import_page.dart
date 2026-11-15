@@ -110,7 +110,11 @@ class _FlashCardDeckImportPageState
         dialogTitle: 'Import deck QR image',
       );
       if (file == null) return;
-      if (await file.length() > 12 * 1024 * 1024) {
+
+      final length = await file.length();
+      if (length == null) return;
+
+      if (length > 12 * 1024 * 1024) {
         throw const FormatException('Choose a QR image smaller than 12 MB.');
       }
       final bytes = await file.readAsBytes();

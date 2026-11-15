@@ -6,8 +6,8 @@ list(APPEND FLUTTER_PLUGIN_LIST
   dynamic_color
   flutter_secure_storage_windows
   oidc_windows
-  share_plus
   url_launcher_windows
+  share_plus
   window_size
   window_to_front
 )
