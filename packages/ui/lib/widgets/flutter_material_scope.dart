@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart' as material;
+import 'package:material_ui/material_ui.dart' as material;
 import 'package:flutter/widgets.dart';
 
 /// Inserts a [material.Material] ancestor for widgets that still import
