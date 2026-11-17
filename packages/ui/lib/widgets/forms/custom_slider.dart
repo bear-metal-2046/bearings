@@ -116,12 +116,12 @@ class _CustomSliderState extends State<CustomSlider> {
 
             return SfSliderTheme(
                 data: SfSliderThemeData(
-                  activeTrackHeight: 8 * widget.scale,
-                  inactiveTrackHeight: 7.5 * widget.scale,
+                  activeTrackHeight: 7.5 * widget.scale,
+                  inactiveTrackHeight: 6.5 * widget.scale,
                   thumbRadius: 10 * widget.scale,
                   overlayRadius: 24 * widget.scale,
-                  tickSize: Size(2.5, 12 * widget.scale),
-                  labelOffset: Offset(0, 10 * widget.scale),
+                  tickSize: Size(2, 10 * widget.scale),
+                  labelOffset: Offset(0, 1),
                 ),
                 child: SfSlider(
                   min: min,
