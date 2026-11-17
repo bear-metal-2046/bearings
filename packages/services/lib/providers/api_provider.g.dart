@@ -89,7 +89,7 @@ final class HoneycombClientProvider
   }
 }
 
-String _$honeycombClientHash() => r'c81fae1dfd17d1050164265d7ddf997b31e772e6';
+String _$honeycombClientHash() => r'8666194ab0351785972cf96a004c9e734ee3d507';
 
 @ProviderFor(getData)
 @Deprecated('Use get<Map<String, dynamic>>() in honeycombClientProvider.')
