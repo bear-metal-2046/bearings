@@ -137,7 +137,11 @@ class _DecrementButton extends StatelessWidget {
           ),
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(),
-          icon: Icon(LucideIcons.minus, color: theme.colorScheme.onSurface, size: kDefaultFontSize * _scale,),
+          icon: Icon(
+            LucideIcons.minus,
+            color: theme.colorScheme.onSurface,
+            size: kDefaultFontSize * _scale,
+          ),
           onPressed: onPressed,
         ),
       ),

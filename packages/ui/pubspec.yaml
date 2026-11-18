@@ -21,6 +21,7 @@ dependencies:
   material_ui: ^1.11.0
   cupertino_ui: ^1.1.6
 
+  syncfusion_flutter_core: any
 dev_dependencies:
   flutter_test:
     sdk: flutter

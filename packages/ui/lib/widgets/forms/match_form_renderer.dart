@@ -89,9 +89,9 @@ class _MatchFormRendererState extends State<MatchFormRenderer> {
     return normalized
         .split(' ')
         .map((word) {
-      if (word.length <= 2) return word.toUpperCase();
-      return '${word[0].toUpperCase()}${word.substring(1)}';
-    })
+          if (word.length <= 2) return word.toUpperCase();
+          return '${word[0].toUpperCase()}${word.substring(1)}';
+        })
         .join(' ');
   }
 
@@ -122,11 +122,11 @@ class _MatchFormRendererState extends State<MatchFormRenderer> {
   @override
   Widget build(BuildContext context) {
     final page = widget.page;
-    final double _scale = widget.scale;
+    final double scale = widget.scale;
 
     return MediaQuery(
       data: MediaQuery.of(context)
-          .copyWith(textScaler: TextScaler.linear(_scale)),
+          .copyWith(textScaler: TextScaler.linear(scale)),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final hStep = constraints.maxWidth / page.width;
@@ -297,11 +297,11 @@ class _MatchFormRendererState extends State<MatchFormRenderer> {
   }
 
   Widget? _buildNextButton(
-      BuildContext context,
-      ComponentConfig component,
-      double width,
-      double height,
-      ) {
+    BuildContext context,
+    ComponentConfig component,
+    double width,
+    double height,
+  ) {
     final onNextPressed = widget.onNextPressed;
     if (onNextPressed == null) return null;
 
@@ -309,8 +309,8 @@ class _MatchFormRendererState extends State<MatchFormRenderer> {
     final text = component.alias.trim().isNotEmpty
         ? component.alias
         : ((rawLabel == null || rawLabel.trim().isEmpty)
-        ? 'Next Match'
-        : rawLabel);
+              ? 'Next Match'
+              : rawLabel);
 
     return SizedBox(
       width: width,

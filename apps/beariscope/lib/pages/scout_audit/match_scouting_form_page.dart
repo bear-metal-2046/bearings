@@ -108,11 +108,11 @@ class _MatchScoutingFormPageState extends ConsumerState<MatchScoutingFormPage> {
       await ref
           .read(honeycombClientProvider)
           .post(
-        '/scout/ingest',
-        data: {
-          'entries': [updated.toJson()],
-        },
-      );
+            '/scout/ingest',
+            data: {
+              'entries': [updated.toJson()],
+            },
+          );
 
       await ref.read(scoutingDataProvider.notifier).refresh();
 
@@ -141,65 +141,71 @@ class _MatchScoutingFormPageState extends ConsumerState<MatchScoutingFormPage> {
             onPressed: _saving ? null : _save,
             icon: _saving
                 ? const SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
                 : const Icon(LucideIcons.save),
             tooltip: 'Save',
           ),
-          IconButton(onPressed: () => setState(() {
-            if (_scale <= 2) {_scale += 0.1;}
-          }),
-              icon: Icon(LucideIcons.zoomIn)
+          IconButton(
+            onPressed: () => setState(() {
+              if (_scale <= 2) {
+                _scale += 0.1;
+              }
+            }),
+            icon: Icon(LucideIcons.zoomIn),
           ),
-          IconButton(onPressed: () => setState(() {
-            if (_scale >= 0.3) {_scale -= 0.1;}
-          }),
-              icon: Icon(LucideIcons.zoomOut)
-          )
+          IconButton(
+            onPressed: () => setState(() {
+              if (_scale >= 0.3) {
+                _scale -= 0.1;
+              }
+            }),
+            icon: Icon(LucideIcons.zoomOut),
+          ),
         ],
       ),
       body: _configError != null
           ? BeariscopeStatusView(
-        icon: LucideIcons.circleAlert,
-        iconColor: Theme.of(context).colorScheme.error,
-        title: 'Match form unavailable',
-        subtitle: 'Failed to load match form: $_configError',
-      )
+              icon: LucideIcons.circleAlert,
+              iconColor: Theme.of(context).colorScheme.error,
+              title: 'Match form unavailable',
+              subtitle: 'Failed to load match form: $_configError',
+            )
           : (config == null || data == null)
           ? const Center(child: CircularProgressIndicator())
           : Padding(
-        padding: const EdgeInsets.all(12),
-        child: MatchFormRenderer(
-          key: ValueKey(
-            '${widget.eventKey}:${widget.matchNumber}:${widget.pos}:$_pageIndex',
-          ),
-          page: config.pages[_pageIndex],
-          initialData: data,
-          onChanged: (next) => setState(() => _data = next),
-          onNextPressed: _pageIndex < config.pages.length - 1
-              ? () => setState(() => _pageIndex++)
-              : null,
-          scale: _scale,
-        ),
-      ),
+              padding: const EdgeInsets.all(12),
+              child: MatchFormRenderer(
+                key: ValueKey(
+                  '${widget.eventKey}:${widget.matchNumber}:${widget.pos}:$_pageIndex',
+                ),
+                page: config.pages[_pageIndex],
+                initialData: data,
+                onChanged: (next) => setState(() => _data = next),
+                onNextPressed: _pageIndex < config.pages.length - 1
+                    ? () => setState(() => _pageIndex++)
+                    : null,
+                scale: _scale,
+              ),
+            ),
       bottomNavigationBar: config == null
           ? null
           : NavigationBar(
-        selectedIndex: _pageIndex,
-        onDestinationSelected: (index) =>
-            setState(() => _pageIndex = index),
-        destinations: [
-          for (var i = 0; i < config.pages.length; i++)
-            NavigationDestination(
-              icon: Icon(_iconForPageIndex(i, config.pages.length)),
-              label: config.pages[i].title.isNotEmpty
-                  ? config.pages[i].title
-                  : 'Page ${i + 1}',
+              selectedIndex: _pageIndex,
+              onDestinationSelected: (index) =>
+                  setState(() => _pageIndex = index),
+              destinations: [
+                for (var i = 0; i < config.pages.length; i++)
+                  NavigationDestination(
+                    icon: Icon(_iconForPageIndex(i, config.pages.length)),
+                    label: config.pages[i].title.isNotEmpty
+                        ? config.pages[i].title
+                        : 'Page ${i + 1}',
+                  ),
+              ],
             ),
-        ],
-      ),
     );
   }
 
