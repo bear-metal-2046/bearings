@@ -107,7 +107,7 @@ final class MatchesProvider
   }
 }
 
-String _$matchesHash() => r'd09fac8b8dd6c49251c5b502e0a0d40e7c04a4c9';
+String _$matchesHash() => r'668c9b8527a504cbcc955ca5525f77aeb661380c';
 
 final class MatchesFamily extends $Family
     with $FunctionalFamilyOverride<FutureOr<List<ScoutingMatch>>, String> {

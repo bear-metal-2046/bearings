@@ -1,7 +1,7 @@
 {
   "fill-specializations" : [
     {
-      "value" : "automatic"
+      "value" : "system-light"
     },
     {
       "appearance" : "dark",
@@ -16,7 +16,7 @@
           "fill" : {
             "solid" : "extended-srgb:1.00000,0.80000,0.00000,1.00000"
           },
-          "image-name" : "2 – Layer.svg",
+          "image-name" : "badge.svg",
           "name" : "2 – Layer"
         }
       ],
@@ -79,7 +79,7 @@
               }
             }
           ],
-          "image-name" : "1 – Layer.svg",
+          "image-name" : "base.svg",
           "name" : "1 – Layer"
         }
       ],

@@ -87,4 +87,4 @@ final class PitsMapProvider
   }
 }
 
-String _$pitsMapHash() => r'4affe6424bfa2acd46d0792c8c910515db4fd50f';
+String _$pitsMapHash() => r'0935ba8caff972c6d26758fdf2af48ada76c724e';
