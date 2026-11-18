@@ -39,6 +39,7 @@ class _MatchScoutingFormPageState extends ConsumerState<MatchScoutingFormPage> {
   MatchFormData? _data;
   int _pageIndex = 0;
   bool _saving = false;
+  double _scale = 1;
 
   @override
   void initState() {
@@ -147,6 +148,22 @@ class _MatchScoutingFormPageState extends ConsumerState<MatchScoutingFormPage> {
                 : const Icon(LucideIcons.save),
             tooltip: 'Save',
           ),
+          IconButton(
+            onPressed: () => setState(() {
+              if (_scale <= 2) {
+                _scale += 0.1;
+              }
+            }),
+            icon: Icon(LucideIcons.zoomIn),
+          ),
+          IconButton(
+            onPressed: () => setState(() {
+              if (_scale >= 0.3) {
+                _scale -= 0.1;
+              }
+            }),
+            icon: Icon(LucideIcons.zoomOut),
+          ),
         ],
       ),
       body: _configError != null
@@ -170,6 +187,7 @@ class _MatchScoutingFormPageState extends ConsumerState<MatchScoutingFormPage> {
                 onNextPressed: _pageIndex < config.pages.length - 1
                     ? () => setState(() => _pageIndex++)
                     : null,
+                scale: _scale,
               ),
             ),
       bottomNavigationBar: config == null
