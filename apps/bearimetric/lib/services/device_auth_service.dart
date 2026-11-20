@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:grove/grove.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -15,6 +16,13 @@ const _keyClientId = 'bearimetric_device_client_id';
 const _keyClientSecret = 'bearimetric_device_client_secret';
 const _keyDomain = 'bearimetric_device_domain';
 const _keyAudience = 'bearimetric_device_audience';
+
+typedef _DeviceCredentials = ({
+  String clientId,
+  String clientSecret,
+  String domain,
+  String audience,
+});
 
 class _CachedToken {
   final String token;
@@ -36,6 +44,8 @@ class DeviceAuthService {
   final Ref _ref;
   final TokenStorage _storage;
   _CachedToken? _cachedToken;
+  Future<String>? _tokenRequest;
+  int _credentialsRevision = 0;
 
   DeviceAuthService(this._ref, this._storage);
 
@@ -55,14 +65,13 @@ class DeviceAuthService {
       final file = File(p.join(dir.path, _pendingCredentialsFile));
       if (await file.exists()) {
         final raw = decodeProvisioningPayload(await file.readAsString());
-        await provision(
+        await _saveCredentials((
           clientId: raw['clientId'] as String,
           clientSecret: raw['clientSecret'] as String,
           domain: raw['domain'] as String,
           audience: raw['audience'] as String,
-        );
+        ));
         await file.delete();
-        return; // provision() already set AuthStatus.authenticated
       }
     } catch (_) {
       // Malformed or unreadable file — ignore and fall through to normal init.
@@ -73,102 +82,151 @@ class DeviceAuthService {
       } catch (_) {}
     }
 
-    final clientId = await _storage.read(key: _keyClientId);
-    if (clientId == null) {
-      notifier.setStatus(AuthStatus.unauthenticated);
-      return;
-    }
-
-    try {
-      await getAccessToken();
-      notifier.setStatus(AuthStatus.authenticated);
-    } catch (_) {
-      // Credentials stored but token fetch failed (no network or revoked).
-      // Still mark authenticated so the app loads; API calls will fail loudly.
-      notifier.setStatus(AuthStatus.authenticated);
-    }
+    final credentials = await _readCredentials();
+    notifier.setStatus(
+      credentials == null
+          ? AuthStatus.unauthenticated
+          : AuthStatus.authenticated,
+    );
   }
 
-  /// Returns a valid access token, fetching a fresh one from Auth0 when needed.
-  Future<String> getAccessToken() async {
-    if (_cachedToken != null && _cachedToken!.isValid) {
-      return _cachedToken!.token;
-    }
+  Future<String?> groveSubject() async {
+    final clientId = await _storage.read(key: _keyClientId);
+    return clientId == null ? null : '$clientId@clients';
+  }
 
+  /// Shares the token exchange across startup, requests and reconnects.
+  Future<String> getAccessToken({bool forceRefresh = false}) {
+    if (_tokenRequest case final pending?) return pending;
+    if (_cachedToken case final token? when !forceRefresh && token.isValid) {
+      return Future.value(token.token);
+    }
+    final revision = _credentialsRevision;
+    return _tokenRequest = _loadToken(revision).whenComplete(() {
+      if (revision == _credentialsRevision) _tokenRequest = null;
+    });
+  }
+
+  Future<String> _loadToken(int revision) async {
+    final credentials = await _readCredentials();
+    if (credentials == null) {
+      throw const GroveException('unauthenticated', 'Provision this device');
+    }
+    final token = await _exchangeToken(credentials);
+    if (revision != _credentialsRevision) throw const GroveOffline();
+    _cachedToken = token;
+    return token.token;
+  }
+
+  Future<_DeviceCredentials?> _readCredentials() async {
     final clientId = await _storage.read(key: _keyClientId);
     final clientSecret = await _storage.read(key: _keyClientSecret);
     final domain = await _storage.read(key: _keyDomain);
     final audience = await _storage.read(key: _keyAudience);
-
     if (clientId == null ||
         clientSecret == null ||
         domain == null ||
         audience == null) {
-      throw StateError('Device credentials not provisioned');
+      return null;
     }
-
-    final response = await http.post(
-      Uri.https(domain, '/oauth/token'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'client_id': clientId,
-        'client_secret': clientSecret,
-        'audience': audience,
-        'grant_type': 'client_credentials',
-      }),
+    return (
+      clientId: clientId,
+      clientSecret: clientSecret,
+      domain: domain,
+      audience: audience,
     );
-
-    if (response.statusCode != 200) {
-      throw Exception(
-        'Token request failed: ${response.statusCode} ${response.body}',
-      );
-    }
-
-    final body = jsonDecode(response.body) as Map<String, dynamic>;
-    final accessToken = body['access_token'] as String;
-    final expiresIn = (body['expires_in'] as num).toInt();
-
-    _cachedToken = _CachedToken(
-      accessToken,
-      DateTime.now().add(Duration(seconds: expiresIn)),
-    );
-
-    return accessToken;
   }
 
-  /// Saves credentials, validates them by fetching a token, then marks the
-  /// device as authenticated.
+  Future<_CachedToken> _exchangeToken(_DeviceCredentials credentials) async {
+    final response = await http
+        .post(
+          Uri.https(credentials.domain, '/oauth/token'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'client_id': credentials.clientId,
+            'client_secret': credentials.clientSecret,
+            'audience': credentials.audience,
+            'grant_type': 'client_credentials',
+          }),
+        )
+        .timeout(const Duration(seconds: 10));
+
+    final Object? payload;
+    try {
+      payload = jsonDecode(response.body);
+    } on FormatException {
+      throw const GroveOffline('Could not reach the device token service');
+    }
+    if (payload is! Map<String, dynamic>) {
+      throw const GroveOffline('Could not reach the device token service');
+    }
+    if (response.statusCode != 200) {
+      if (const {
+        'access_denied',
+        'invalid_client',
+        'invalid_grant',
+        'unauthorized_client',
+      }.contains(payload['error'])) {
+        throw const GroveException(
+          'unauthenticated',
+          'Device credentials were rejected',
+        );
+      }
+      throw const GroveOffline('Could not renew the device token');
+    }
+
+    return _CachedToken(
+      payload['access_token'] as String,
+      DateTime.now().add(Duration(seconds: payload['expires_in'] as int)),
+    );
+  }
+
+  Future<void> _saveCredentials(_DeviceCredentials credentials) async {
+    _clearToken();
+    await Future.wait([
+      _storage.write(key: _keyClientId, value: credentials.clientId),
+      _storage.write(key: _keyClientSecret, value: credentials.clientSecret),
+      _storage.write(key: _keyDomain, value: credentials.domain),
+      _storage.write(key: _keyAudience, value: credentials.audience),
+    ]);
+  }
+
+  void _clearToken() {
+    _credentialsRevision++;
+    _cachedToken = null;
+    _tokenRequest = null;
+  }
+
+  /// Validate new credentials before replacing the device enrollment.
   Future<void> provision({
     required String clientId,
     required String clientSecret,
     required String domain,
     required String audience,
   }) async {
-    await Future.wait([
-      _storage.write(key: _keyClientId, value: clientId),
-      _storage.write(key: _keyClientSecret, value: clientSecret),
-      _storage.write(key: _keyDomain, value: domain),
-      _storage.write(key: _keyAudience, value: audience),
-    ]);
-    _cachedToken = null;
-
-    // Validate credentials now — throws if the token endpoint rejects them.
-    await getAccessToken();
-
+    final credentials = (
+      clientId: clientId,
+      clientSecret: clientSecret,
+      domain: domain,
+      audience: audience,
+    );
+    final token = await _exchangeToken(credentials);
+    await _saveCredentials(credentials);
+    _cachedToken = token;
     _ref.read(authStatusProvider.notifier).setStatus(AuthStatus.authenticated);
   }
 
   /// Clears all stored credentials and marks the device as unauthenticated.
   Future<void> deprovision() async {
+    _ref
+        .read(authStatusProvider.notifier)
+        .setStatus(AuthStatus.unauthenticated);
+    _clearToken();
     await Future.wait([
       _storage.delete(key: _keyClientId),
       _storage.delete(key: _keyClientSecret),
       _storage.delete(key: _keyDomain),
       _storage.delete(key: _keyAudience),
     ]);
-    _cachedToken = null;
-    _ref
-        .read(authStatusProvider.notifier)
-        .setStatus(AuthStatus.unauthenticated);
   }
 }

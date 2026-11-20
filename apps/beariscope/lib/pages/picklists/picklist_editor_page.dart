@@ -1,3 +1,5 @@
+import 'package:beariscope/providers/current_event_provider.dart';
+import 'package:services/providers/competition_provider.dart';
 import 'package:ui/widgets/bearings_popup_menu.dart';
 import 'package:ui/widgets/bearings_alert_dialog.dart';
 import 'package:beariscope/pages/picklists/picklist_emoji.dart';
@@ -25,12 +27,30 @@ import 'package:ui/widgets/bearings_search_bar.dart';
 import 'package:ui/widgets/bearings_status_view.dart';
 import 'package:beariscope/widgets/screenshot_guard.dart';
 import 'package:beariscope/widgets/team_card.dart';
+import 'package:beariscope/utils/competition_media_display.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:ui/widgets/bearings_spinner.dart';
+
+final _eventTeamAvatarsProvider = Provider.autoDispose((ref) {
+  final media = ref.watch(eventTeamMediaProvider).value ?? const [];
+  final avatars = <String, Uint8List>{};
+  for (final record in media) {
+    if (!record.isAvatar) continue;
+    final bytes = record.avatarBytes;
+    if (bytes == null) continue;
+    for (final team in record.teams) {
+      if (record.preferred || !avatars.containsKey(team.id)) {
+        avatars[team.id] = bytes;
+      }
+    }
+  }
+  return avatars;
+});
 
 class PicklistEditorPage extends ConsumerStatefulWidget {
   final String picklistId;
@@ -104,12 +124,21 @@ class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage>
         .where((item) => item.id == widget.picklistId)
         .firstOrNull;
     if (picklist == null) {
+      final shared = ref.watch(sharedPicklistsProvider);
+      if (shared?.isLoading ?? false) {
+        return const ScreenshotGuard(
+          child: Scaffold(body: Center(child: CircularProgressIndicator())),
+        );
+      }
       return ScreenshotGuard(child: _missingPicklist());
     }
 
     _library = ref.read(picklistLibraryProvider.notifier);
-    final session = _library!.open(picklist.id);
+    final presence = _library!.open(picklist.id);
     final canEdit = _library!.canEdit(picklist);
+    final sharedOffline =
+        picklist.mode == PicklistMode.multiplayer &&
+        ref.watch(sharedPicklistsOfflineProvider);
 
     return ScreenshotGuard(
       child: LayoutBuilder(
@@ -178,8 +207,8 @@ class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage>
                   ),
                 ),
                 actions: [
-                  if (session != null)
-                    PicklistPresenceStack(presence: session.presence),
+                  if (presence != null)
+                    PicklistPresenceStack(presence: presence),
                   if (desktop)
                     IconButton(
                       tooltip: 'Copy team numbers',
@@ -194,7 +223,7 @@ class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage>
                         ),
                       ),
                     ),
-                  if (canEdit)
+                  if (canEdit || !desktop)
                     BearingsPopupMenu.overflow(
                       tooltip: 'Picklist options',
                       menuChildren: [
@@ -206,18 +235,42 @@ class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage>
                                 : () => _copyTeams(picklist.teamKeys),
                             child: const Text('Copy team numbers'),
                           ),
-                        BearingsMenuItem(
-                          destructive: true,
-                          leadingIcon: const Icon(LucideIcons.trash2),
-                          onPressed: () => _confirmClear(picklist),
-                          child: const Text('Clear picklist'),
-                        ),
+                        if (canEdit)
+                          BearingsMenuItem(
+                            destructive: true,
+                            leadingIcon: const Icon(LucideIcons.trash2),
+                            onPressed: () => _confirmClear(picklist),
+                            child: const Text('Clear picklist'),
+                          ),
                       ],
                     ),
                 ],
               ),
               body: LayoutBuilder(
                 builder: (context, bodyConstraints) {
+                  if (sharedOffline) {
+                    return Column(
+                      children: [
+                        Semantics(
+                          liveRegion: true,
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            color: Theme.of(context)
+                                .colorScheme
+                                .surfaceContainerHigh,
+                            child: const Text(
+                              'Offline. Reconnect to edit this shared picklist.',
+                            ),
+                          ),
+                        ),
+                        Expanded(child: editor),
+                      ],
+                    );
+                  }
                   _mobileMaxHeight = math.max(
                     _collapsedSheetExtent,
                     math.min(700, bodyConstraints.maxHeight * .8),
@@ -425,7 +478,7 @@ class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage>
     final index = picklist.teamKeys.indexOf(teamKey);
     if (index < 0) return;
     HapticFeedback.mediumImpact();
-    ref.read(picklistLibraryProvider.notifier).removeTeam(picklist.id, teamKey);
+    unawaited(_setTeams(picklist, [...picklist.teamKeys]..removeAt(index)));
   }
 
   void _insertTeam(Picklist picklist, String teamKey, int index) {
@@ -440,7 +493,20 @@ class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage>
       if (previous < index) index--;
     }
     teams.insert(index.clamp(0, teams.length), teamKey);
-    ref.read(picklistLibraryProvider.notifier).setTeams(picklist.id, teams);
+    unawaited(_setTeams(picklist, teams));
+  }
+
+  Future<void> _setTeams(Picklist picklist, List<String> teams) async {
+    try {
+      await ref
+          .read(picklistLibraryProvider.notifier)
+          .setTeams(picklist.id, teams, basedOn: picklist);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not update the picklist: $error')),
+      );
+    }
   }
 
   void _toggleMobileLibrary() {
@@ -520,7 +586,7 @@ class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage>
     final clear = await BearingsAlertDialog.show<bool>(
       context: context,
       title: 'Clear this picklist?',
-      message: 'All teams will be removed. The empty picklist will remain in your library.',
+      message: 'This removes the teams that were on the list when you opened this dialog. The picklist stays in your library.',
       actions: const [
         BearingsAlertAction(label: 'Cancel', result: false),
         BearingsAlertAction(
@@ -530,9 +596,7 @@ class _PicklistEditorPageState extends ConsumerState<PicklistEditorPage>
         ),
       ],
     );
-    if (clear == true) {
-      ref.read(picklistLibraryProvider.notifier).setTeams(picklist.id, []);
-    }
+    if (clear == true && mounted) await _setTeams(picklist, []);
   }
 }
 
@@ -668,17 +732,7 @@ class _TeamLibraryState extends ConsumerState<_TeamLibrary> {
     final selectedSort = ref.watch(teamSortProvider);
     final rankings =
         ref.watch(eventRankingsProvider).value ?? const <int, TeamRanking>{};
-    final mediaRecords =
-        ref.watch(eventTeamMediaProvider).value ?? const <TeamMediaRecord>[];
-    final avatarByTeam = <String, Uint8List>{};
-    for (final record in mediaRecords) {
-      if (!record.isAvatar || record.base64Image == null) continue;
-      for (final key in record.teamKeys) {
-        if (record.preferred || !avatarByTeam.containsKey(key)) {
-          avatarByTeam[key] = record.base64Image!;
-        }
-      }
-    }
+    final avatarByTeam = ref.watch(_eventTeamAvatarsProvider);
     return ColoredBox(
       color: Theme.of(context).colorScheme.surfaceContainerLow,
       child: Column(
@@ -730,14 +784,17 @@ class _TeamLibraryState extends ConsumerState<_TeamLibrary> {
           const Divider(height: 1),
           Expanded(
             child: ref
-                .watch(teamsProvider)
+                .watch(
+                  competitionTeamsProvider(ref.watch(currentEventProvider)),
+                )
+                .whenData((result) => result.requireAvailable().items)
                 .when(
                   loading: () => const Center(child: BearingsSpinner()),
                   error: (error, _) =>
                       Center(child: Text('Could not load teams: $error')),
                   data: (rawTeams) {
                     final teams = rawTeams
-                        .map(Team.fromJson)
+                        .map(Team.fromCompetition)
                         .where(
                           (team) =>
                               teamMatchesSearch(team, _searchController.text),
@@ -1058,7 +1115,12 @@ class _EditorTeamTile extends StatelessWidget {
     );
   }
 
-  Widget _card(BuildContext context, {int? landingRank, Widget? dragContent}) {
+  Widget _card(
+    BuildContext context, {
+    int? landingRank,
+    bool placeholder = false,
+  }) {
+    final content = _teamContent(context, landingRank: landingRank);
     return Material(
       color: Theme.of(context).colorScheme.surfaceContainer,
       borderRadius: BorderRadius.circular(12),
@@ -1066,8 +1128,7 @@ class _EditorTeamTile extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child:
-                dragContent ?? _teamContent(context, landingRank: landingRank),
+            child: placeholder ? Opacity(opacity: .2, child: content) : content,
           ),
           if (landingRank == null)
             action
@@ -1098,9 +1159,9 @@ class _EditorTeamTile extends StatelessWidget {
         ),
       );
 
-      final content = _teamContent(context);
+      final card = _card(context);
       if (selected || !draggable) {
-        return present(_card(context, dragContent: content));
+        return present(card);
       }
 
       final feedback = SizedBox(
@@ -1119,7 +1180,7 @@ class _EditorTeamTile extends StatelessWidget {
               child: child,
             ),
           ),
-          child: _card(context),
+          child: card,
         ),
       );
       void start() {
@@ -1128,103 +1189,76 @@ class _EditorTeamTile extends StatelessWidget {
         onDraggingChanged(teamKey);
       }
 
-      final dragContent = _AdaptiveTeamDrag(
-        teamKey: teamKey,
-        feedback: feedback,
-        placeholder: AnimatedOpacity(
-          opacity: .2,
-          duration: _motionDuration(context),
-          child: content,
-        ),
-        onStart: start,
-        onUpdate: onDragUpdate,
-        onEnd: () => onDraggingChanged(null),
-        child: content,
-      );
-      return present(_card(context, dragContent: dragContent));
-    },
-  );
-}
+      void finish() {
+        presentation.cardBuilder = null;
+        onDraggingChanged(null);
+      }
 
-/// Choose by pointer, not screen width: tablets can have mice and laptops touch.
-class _AdaptiveTeamDrag extends StatefulWidget {
-  final String teamKey;
-  final Widget feedback;
-  final Widget placeholder;
-  final Widget child;
-  final ValueChanged<Offset> onUpdate;
-  final VoidCallback onStart;
-  final VoidCallback onEnd;
-
-  const _AdaptiveTeamDrag({
-    required this.teamKey,
-    required this.feedback,
-    required this.placeholder,
-    required this.child,
-    required this.onStart,
-    required this.onUpdate,
-    required this.onEnd,
-  });
-
-  @override
-  State<_AdaptiveTeamDrag> createState() => _AdaptiveTeamDragState();
-}
-
-class _AdaptiveTeamDragState extends State<_AdaptiveTeamDrag> {
-  bool _mouse = false;
-  bool _active = false;
-
-  void _start() {
-    _active = true;
-    widget.onStart();
-  }
-
-  void _end(DraggableDetails details) {
-    _finish();
-  }
-
-  void _finish() {
-    if (!_active) return;
-    _active = false;
-    widget.onEnd();
-  }
-
-  @override
-  Widget build(BuildContext context) => MouseRegion(
-    cursor: SystemMouseCursors.grab,
-    onEnter: (_) {
-      if (!_active) setState(() => _mouse = true);
-    },
-    onExit: (_) {
-      if (!_active) setState(() => _mouse = false);
-    },
-    child: _mouse
-        ? Draggable<String>(
-            data: widget.teamKey,
-            maxSimultaneousDrags: 1,
-            feedback: widget.feedback,
-            onDragStarted: _start,
-            onDragUpdate: (details) => widget.onUpdate(details.globalPosition),
-            onDragEnd: _end,
-            onDragCompleted: _finish,
-            onDraggableCanceled: (_, _) => _finish(),
-            childWhenDragging: widget.placeholder,
-            child: widget.child,
-          )
-        : LongPressDraggable<String>(
-            data: widget.teamKey,
-            maxSimultaneousDrags: 1,
-            delay: const Duration(milliseconds: 250),
-            feedback: widget.feedback,
-            onDragStarted: _start,
-            onDragUpdate: (details) => widget.onUpdate(details.globalPosition),
-            onDragEnd: _end,
-            onDragCompleted: _finish,
-            onDraggableCanceled: (_, _) => _finish(),
-            childWhenDragging: widget.placeholder,
-            child: widget.child,
+      return present(
+        MouseRegion(
+          cursor: SystemMouseCursors.grab,
+          child: _TeamDraggable(
+            data: teamKey,
+            canStart: () => presentation.cardBuilder == null,
+            feedback: feedback,
+            childWhenDragging: _card(context, placeholder: true),
+            onDragStarted: start,
+            onDragUpdate: (details) => onDragUpdate(details.globalPosition),
+            onDragCompleted: finish,
+            onDraggableCanceled: (_, _) => finish(),
+            child: card,
           ),
+        ),
+      );
+    },
   );
+}
+
+class _TeamDraggable extends Draggable<String> {
+  const _TeamDraggable({
+    required super.data,
+    required this.canStart,
+    required super.feedback,
+    required super.childWhenDragging,
+    required super.onDragStarted,
+    required super.onDragUpdate,
+    required super.onDragCompleted,
+    required super.onDraggableCanceled,
+    required super.child,
+  }) : super(maxSimultaneousDrags: 1, hitTestBehavior: HitTestBehavior.opaque);
+
+  final bool Function() canStart;
+
+  @override
+  MultiDragGestureRecognizer createRecognizer(
+    GestureMultiDragStartCallback onStart,
+  ) => _TeamDragRecognizer((position) => canStart() ? onStart(position) : null);
+}
+
+class _TeamDragRecognizer extends DelayedMultiDragGestureRecognizer {
+  _TeamDragRecognizer(GestureMultiDragStartCallback start)
+    : super(delay: const Duration(milliseconds: 250)) {
+    onStart = start;
+    _mouse.onStart = start;
+  }
+
+  final _mouse = ImmediateMultiDragGestureRecognizer();
+
+  @override
+  void addAllowedPointer(PointerDownEvent event) {
+    if (event.kind == PointerDeviceKind.mouse) {
+      _mouse.gestureSettings = gestureSettings;
+      _mouse.addPointer(event);
+    } else {
+      super.addAllowedPointer(event);
+    }
+  }
+
+  @override
+  void dispose() {
+    _mouse.dispose();
+    super.dispose();
+  }
 }
 
 class _PicklistSurface extends ConsumerStatefulWidget {
@@ -1384,21 +1418,17 @@ class _PicklistSurfaceState extends ConsumerState<_PicklistSurface> {
   Widget build(BuildContext context) {
     final teams = widget.picklist.teamKeys;
     final resolvedTeams = {
-      for (final raw
-          in ref.watch(teamsProvider).value ?? const <Map<String, dynamic>>[])
-        Team.fromJson(raw).key: Team.fromJson(raw),
+      for (final team
+          in ref
+                  .watch(
+                    competitionTeamsProvider(ref.watch(currentEventProvider)),
+                  )
+                  .value
+                  ?.items ??
+              const [])
+        team.id: Team.fromCompetition(team),
     };
-    final mediaRecords =
-        ref.watch(eventTeamMediaProvider).value ?? const <TeamMediaRecord>[];
-    final avatarByTeam = <String, Uint8List>{};
-    for (final record in mediaRecords) {
-      if (!record.isAvatar || record.base64Image == null) continue;
-      for (final key in record.teamKeys) {
-        if (record.preferred || !avatarByTeam.containsKey(key)) {
-          avatarByTeam[key] = record.base64Image!;
-        }
-      }
-    }
+    final avatarByTeam = ref.watch(_eventTeamAvatarsProvider);
     if (!widget.canEdit) {
       if (teams.isEmpty) return const SizedBox.expand();
       return _AnimatedRanking(
@@ -1504,7 +1534,8 @@ class _PicklistSurfaceState extends ConsumerState<_PicklistSurface> {
                                                 team: team,
                                               ),
                                         );
-                                    if (!context.mounted || diveDeeper != true) {
+                                    if (!context.mounted ||
+                                        diveDeeper != true) {
                                       return;
                                     }
                                     Navigator.of(

@@ -1,0 +1,14 @@
+name: grove
+description: Typed shared entities, reactive queries and synchronization for Bearings.
+version: 26.6.3+24
+publish_to: none
+resolution: workspace
+environment:
+  sdk: ^3.14.0
+dependencies:
+  riverpod: ^3.5.0
+  uuid: ^4.6.0
+  web_socket_channel: ^3.0.3
+dev_dependencies:
+  lints: ^6.1.0
+  test: ^1.32.0

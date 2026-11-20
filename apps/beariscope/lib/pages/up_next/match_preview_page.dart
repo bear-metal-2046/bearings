@@ -1,10 +1,11 @@
+import 'package:grove/grove.dart';
 import 'package:beariscope/utils/match_video_opener.dart';
 import 'package:beariscope/models/drive_team_note.dart';
-import 'package:beariscope/pages/up_next/up_next_provider.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/drive_team_notes_provider.dart';
 import 'package:beariscope/providers/match_preview_layout_provider.dart';
-import 'package:beariscope/providers/scouting_data_provider.dart';
+import 'package:services/providers/grove_provider.dart';
+import 'package:core/core.dart' show ScoutingReport, CompetitionMatch;
 import 'package:beariscope/providers/tba_preferences_provider.dart';
 import 'package:beariscope/widgets/team_card.dart';
 import 'package:dots_indicator/dots_indicator.dart';
@@ -12,7 +13,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:services/providers/api_provider.dart';
+import 'package:services/providers/competition_provider.dart';
 import 'package:services/providers/permissions_provider.dart';
 import 'package:services/providers/user_profile_provider.dart';
 import 'package:ui/ui.dart';
@@ -26,17 +27,15 @@ enum _TeamAction {
   openYouTube,
 }
 
-final matchProvider = FutureProvider.family<Map<String, dynamic>, String>((
-  ref,
-  matchKey,
-) {
-  return ref
-      .watch(honeycombClientProvider)
-      .get<Map<String, dynamic>>(
-        '/matches?match=$matchKey',
-        cachePolicy: CachePolicy.networkFirst,
-      );
-});
+final matchProvider = Provider.autoDispose
+    .family<AsyncValue<CompetitionMatch>, String>(
+      (ref, matchKey) => ref
+          .watch(competitionMatchProvider(matchKey))
+          .whenData(
+            (match) =>
+                match ?? (throw StateError('Match $matchKey was not found')),
+          ),
+    );
 
 class DriveTeamMatchPreviewPage extends ConsumerStatefulWidget {
   final String matchKey;
@@ -93,40 +92,33 @@ class _DriveTeamMatchPreviewPageState
           title: 'Match unavailable',
           subtitle: 'Error loading match data: $err',
           action: FilledButton.icon(
-            onPressed: () => ref.invalidate(requestProvider),
+            onPressed: () => retryCompetitionMatch(
+              ProviderScope.containerOf(context, listen: false),
+              widget.matchKey,
+            ),
             icon: const Icon(LucideIcons.rotateCw),
             label: const Text('Retry'),
           ),
         ),
       ),
-      data: (data) {
+      data: (match) {
         String teamNumberFromKey(String teamKey) {
           return teamKey.replaceFirst(RegExp('^frc'), '');
         }
 
-        final match = Map<String, dynamic>.from(data);
-        final alliances = match['alliances'];
-        final redTeams = alliances is Map && alliances['red'] is Map
-            ? (alliances['red']['team_keys'] as List?)
-                      ?.map((e) => e.toString())
-                      .toList() ??
-                  const <String>[]
-            : const <String>[];
-        final blueTeams = alliances is Map && alliances['blue'] is Map
-            ? (alliances['blue']['team_keys'] as List?)
-                      ?.map((e) => e.toString())
-                      .toList() ??
-                  const <String>[]
-            : const <String>[];
+        final redTeams = <String>[
+          for (final team in match.red?.teams ?? []) team.id,
+        ];
+        final blueTeams = <String>[
+          for (final team in match.blue?.teams ?? []) team.id,
+        ];
         final cards = <({String teamKey, Color color})>[
           ...redTeams.map((teamKey) => (teamKey: teamKey, color: Colors.red)),
           ...blueTeams.map((teamKey) => (teamKey: teamKey, color: Colors.blue)),
         ];
-        final compLevel = compLevelForMatch(match);
-        final number = compLevel == 'sf'
-            ? setNumberForMatch(match) ?? matchNumberForMatch(match)
-            : matchNumberForMatch(match);
-        final matchTitle = compLevel.isEmpty || number == null
+        final compLevel = match.level;
+        final number = compLevel == 'sf' ? match.setNumber : match.matchNumber;
+        final matchTitle = compLevel.isEmpty || number <= 0
             ? 'Match ${widget.matchKey}'
             : '${switch (compLevel) {
                 'qm' => 'Qualification Match',
@@ -148,7 +140,7 @@ class _DriveTeamMatchPreviewPageState
                   .setLayout(nextLayout);
             case _TeamAction.copyStrategyMessage:
               final message = matchStrategyMessage(
-                matchLabel: compLevel == 'qm' && number != null
+                matchLabel: compLevel == 'qm' && number > 0
                     ? 'Match $number'
                     : matchTitle,
                 redTeams: redTeams,
@@ -692,7 +684,10 @@ class _DriveTeamNotesSheetState extends ConsumerState<_DriveTeamNotesSheet> {
   bool _isSaving = false;
 
   Future<String> _resolveScoutedBy() async {
-    final userInfo = await ref.read(userInfoProvider.future);
+    final userInfo = await waitForValue(
+      ProviderScope.containerOf(context, listen: false),
+      userInfoProvider,
+    );
     final name = userInfo?.name?.trim();
     if (name != null && name.isNotEmpty) {
       return name;
@@ -740,13 +735,13 @@ class _DriveTeamNotesSheetState extends ConsumerState<_DriveTeamNotesSheet> {
     setState(() => _isSaving = true);
 
     try {
-      final authMe = await ref.read(authMeProvider.future);
+      final subject = await ref.read(groveSubjectProvider.future);
       final eventKey = ref.read(currentEventProvider);
 
       final scoutedBy = await _resolveScoutedBy();
-      final userId = authMe?.user.id ?? '';
+      final userId = subject ?? '';
 
-      final entries = <Map<String, Object?>>[];
+      final grove = ref.read(bearingsGroveProvider);
       for (final entry in _controllers.entries) {
         final text = entry.value.text.trim();
         if (text.isEmpty) continue;
@@ -761,14 +756,19 @@ class _DriveTeamNotesSheetState extends ConsumerState<_DriveTeamNotesSheet> {
           eventKey: eventKey,
           season: 2026,
         );
-        entries.add(note.toIngestEntry());
-      }
-
-      if (entries.isNotEmpty) {
-        final client = ref.read(honeycombClientProvider);
-        await client.post('/scout/ingest', data: {'entries': entries});
-        // sync the local Hive cache so notes survive a page-exit and re-entry.
-        await ref.read(scoutingDataProvider.notifier).refresh();
+        final report = ScoutingReport.fromPayload(
+          note.toPayload(),
+          id: note.id,
+        );
+        if (note.id case final id?) {
+          await grove.update<ScoutingReport>(
+            id,
+            (_) => report,
+            allowOffline: false,
+          );
+        } else {
+          await grove.create(report, allowOffline: false);
+        }
       }
 
       if (mounted) BearingsModal.complete<void>(context);

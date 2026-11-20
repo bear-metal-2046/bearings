@@ -201,8 +201,8 @@ class _StratPageState extends ConsumerState<StratPage> {
             const SizedBox(height: 16),
 
             ElevatedButton(
-              onPressed: () {
-                ref.read(scoutingFlowControllerProvider).nextMatch();
+              onPressed: () async {
+                await ref.read(scoutingFlowControllerProvider).nextMatch();
               },
               child: const Text('Next Match'),
             ),

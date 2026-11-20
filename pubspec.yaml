@@ -5,6 +5,8 @@ environment:
 
 hooks:
   user_defines:
+    sqlite3:
+      source: system
     win32:
       local_build: true
 
@@ -12,6 +14,8 @@ workspace:
   - apps/beariscope
   - apps/bearimetric
   - packages/core
+  - packages/grove
+  - packages/grove_generator
   - packages/services
   - packages/ui
   - backend/honeycomb
@@ -30,6 +34,8 @@ melos:
     - apps/beariscope
     - apps/bearimetric
     - packages/core
+    - packages/grove
+    - packages/grove_generator
     - packages/services
     - packages/ui
     - backend/honeycomb
@@ -53,7 +59,7 @@ melos:
 
     test:dart:
       description: Run tests for pure Dart packages.
-      run: melos exec --scope=core --scope=honeycomb --dir-exists=test --fail-fast -- "dart test"
+      run: melos exec --scope=core --scope=grove --scope=honeycomb --dir-exists=test --fail-fast -- "dart test"
 
     test:flutter:
       description: Run tests for Flutter packages and apps.

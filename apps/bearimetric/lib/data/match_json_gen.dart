@@ -8,7 +8,7 @@ import 'package:bearimetric/data/ui_json_serialization.dart';
 import 'package:bearimetric/models/scouting_session.dart';
 
 typedef MatchIdentity = ({
-  ScoutingEvent event,
+  ScoutingEventSelection event,
   int matchNumber,
   ScoutPosition position,
   Scout scout,

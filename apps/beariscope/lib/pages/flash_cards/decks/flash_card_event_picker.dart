@@ -1,4 +1,5 @@
 import 'package:beariscope/pages/flash_cards/decks/flash_card_deck_model.dart';
+import 'package:services/providers/competition_provider.dart';
 import 'package:beariscope/pages/flash_cards/decks/flash_card_deck_provider.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:ui/widgets/bearings_modal.dart';
@@ -64,7 +65,7 @@ class _FlashCardEventPickerState extends ConsumerState<FlashCardEventPicker> {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     final catalog = ref.watch(flashCardEventCatalogProvider(_year));
-    final events = catalog.asData?.value ?? <EventOption>[];
+    final events = catalog.value ?? <EventOption>[];
     _knownEvents.addEntries(events.map((event) => MapEntry(event.key, event)));
     final query = _search.text.trim().toLowerCase();
     final filtered = events
@@ -74,7 +75,7 @@ class _FlashCardEventPickerState extends ConsumerState<FlashCardEventPicker> {
               .contains(query),
         )
         .toList();
-    final Widget? status = catalog.isLoading
+    final Widget? status = catalog.isLoading && !catalog.hasValue
         ? const Padding(
             padding: EdgeInsets.all(32),
             child: Center(child: BearingsSpinner()),
@@ -85,8 +86,10 @@ class _FlashCardEventPickerState extends ConsumerState<FlashCardEventPicker> {
             title: 'Events unavailable',
             subtitle: 'Could not load the $_year season.',
             action: TextButton(
-              onPressed: () =>
-                  ref.invalidate(flashCardEventCatalogProvider(_year)),
+              onPressed: () => retryCompetitionEvents(
+                ProviderScope.containerOf(context, listen: false),
+                (year: _year, team: null),
+              ),
               child: const Text('Retry'),
             ),
           )

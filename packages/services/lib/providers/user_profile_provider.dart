@@ -1,99 +1,60 @@
-import 'package:dio/dio.dart';
+import 'dart:convert';
+
+import 'package:core/core.dart';
 import 'package:flutter/foundation.dart';
+import 'package:grove/grove.dart';
+import 'package:http/http.dart' as http;
+import 'package:riverpod/riverpod.dart'
+    show AsyncData, AsyncValue, FutureProvider, Provider;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:services/providers/api_provider.dart';
-import 'package:services/providers/auth_provider.dart';
+import 'package:services/providers/grove_provider.dart';
 
 part 'user_profile_provider.g.dart';
 
-/// Reads the current user's profile from Auth0's live `/userinfo` endpoint
-/// and optionally downloads the profile photo bytes.
-///
-/// The profile can be changed by the Honeycomb API while the Auth0 session
-/// remains active, so the login-time ID-token profile is not authoritative.
-@Riverpod(keepAlive: true)
-Future<UserInfo?> userInfo(Ref ref) async {
-  final auth = await ref.watch(authProvider.future);
-  final authStatus = ref.watch(authStatusProvider);
-  final dio = ref.watch(dioProvider);
-
-  if (authStatus != AuthStatus.authenticated) return null;
-
-  String? accessToken;
-  var isOffline = false;
-
+final _photoProvider = FutureProvider.autoDispose.family<Uint8List?, String>((
+  ref,
+  picture,
+) async {
   try {
-    accessToken = await auth.getAccessToken(['openid', 'profile', 'email']);
-  } on OfflineAuthException {
-    isOffline = true;
-  }
-
-  Map<String, dynamic> data;
-  try {
-    final response = await dio.get<Map<String, dynamic>>(
-      'https://${auth.config.domain}/userinfo',
-      options: Options(
-        headers: {
-          if (accessToken != null) 'Authorization': 'Bearer $accessToken',
-        },
-        extra: {
-          'cachePolicy': CachePolicy.networkFirst,
-          'isOffline': isOffline,
-        },
-      ),
-    );
-    data = response.data!;
+    final url = Uri.parse(picture);
+    if (url.scheme != 'https' || url.host.isEmpty) return null;
+    final response = await http.get(url).timeout(const Duration(seconds: 8));
+    if (response.statusCode == 200) return response.bodyBytes;
   } catch (_) {
-    // Keep the session usable when the profile endpoint is unavailable.
-    final user = auth.user;
-    if (user == null) return null;
-    return UserInfo(
-      name: user.name,
-      email: user.email,
-      emailVerified: user.emailVerified,
-      pictureUrl: user.pictureUrl?.toString(),
-    );
+    // A missing photo does not prevent displaying the profile.
   }
+  return null;
+});
 
-  // Download photo bytes from the live profile URL if present.
-  Uint8List? photoBytes;
-  final pictureUrl = data['picture'] as String?;
-  if (pictureUrl != null && pictureUrl.isNotEmpty) {
-    try {
-      final photoResponse = await dio.get(
-        pictureUrl,
-        options: Options(
-          responseType: ResponseType.bytes,
-          extra: {'cachePolicy': CachePolicy.networkFirst},
-        ),
-      );
-
-      if (photoResponse.statusCode == 200 && photoResponse.data != null) {
-        photoBytes = Uint8List.fromList(
-          (photoResponse.data as List).cast<int>(),
-        );
-      }
-    } catch (_) {
-      // Proceed without photo on failure.
-    }
-  }
-
-  return UserInfo(
-    name: data['name'] as String?,
-    email: data['email'] as String?,
-    emailVerified: data['email_verified'] as bool?,
-    photo: photoBytes,
-    pictureUrl: pictureUrl,
-  );
-}
+final userInfoProvider = Provider<AsyncValue<UserInfo?>>((ref) {
+  final subject = ref.watch(groveSubjectProvider);
+  return subject.flatMap((id) {
+    if (id == null) return const AsyncData(null);
+    final grove = ref.watch(bearingsGroveProvider);
+    return ref
+        .watch(groveQueryProvider(grove.query<GroveUser>().byId(id)))
+        .whenData((result) {
+          final profile = result.items.singleOrNull;
+          if (profile == null) return null;
+          final picture = profile.avatarUrl;
+          return UserInfo(
+            name: profile.name,
+            email: profile.email,
+            emailVerified: profile.emailVerified,
+            pictureUrl: picture,
+            photo: picture == null
+                ? null
+                : ref.watch(_photoProvider(picture)).value,
+          );
+        });
+  });
+});
 
 class UserInfo {
   final String? name;
   final String? email;
   final bool? emailVerified;
   final Uint8List? photo;
-
-  /// Live profile URL, also used when sharing presence with other devices.
   final String? pictureUrl;
 
   const UserInfo({
@@ -106,91 +67,61 @@ class UserInfo {
 }
 
 @Riverpod(keepAlive: true)
-UserProfileService userProfileService(Ref ref) {
-  return UserProfileService(ref);
-}
+UserProfileService userProfileService(Ref ref) => UserProfileService(ref);
 
-/// CRUD service for the user's profile via the Honeycomb backend.
 class UserProfileService {
-  final Ref _ref;
-
   UserProfileService(this._ref);
+
+  final Ref _ref;
 
   Future<void> updateProfile({
     String? name,
     String? email,
     String? pictureUrl,
   }) async {
-    final client = _ref.read(honeycombClientProvider);
-    final payload = <String, dynamic>{};
-    if (name != null && name.trim().isNotEmpty) {
-      payload['name'] = name.trim();
+    final subject = await _ref.read(groveSubjectProvider.future);
+    if (!_ref.mounted || subject == null) {
+      throw const GroveException(
+        'unauthenticated',
+        'Sign in to edit your profile',
+      );
     }
-    if (email != null && email.trim().isNotEmpty) {
-      payload['email'] = email.trim();
+    final normalizedName = name?.trim();
+    if (normalizedName != null || pictureUrl != null) {
+      final grove = _ref.read(bearingsGroveProvider);
+      await grove.update<GroveUser>(
+        subject,
+        (current) =>
+            current.copyWith(name: normalizedName, avatarUrl: pictureUrl),
+      );
     }
-    if (pictureUrl != null && pictureUrl.trim().isNotEmpty) {
-      payload['picture'] = pictureUrl.trim();
-    }
-
-    if (payload.isEmpty) return;
-
-    debugPrint('Profile update payload: $payload');
-    await client.patch('/profile', data: payload);
-
-    if (_ref.mounted) {
-      final config = _ref.read(auth0ConfigProvider);
-      client.invalidateCache('https://${config.domain}/userinfo');
-      _ref.invalidate(userInfoProvider);
+    if (email != null && _ref.mounted) {
+      await _ref.read(honeycombActionsProvider).account('changeEmail', {
+        'email': email.trim(),
+      });
     }
   }
 
   Future<void> requestPasswordReset() async {
-    final client = _ref.read(honeycombClientProvider);
-    await client.post('/profile/password-reset', data: <String, dynamic>{});
+    await _ref.read(honeycombActionsProvider).account('resetPassword');
   }
 
-  Future<String> uploadProfilePhoto(
-    Uint8List bytes, {
-    String? contentType,
-    String? fileExtension,
-  }) async {
-    final client = _ref.read(honeycombClientProvider);
-    final dio = _ref.read(dioProvider);
+  Future<void> refreshProfile() async {
+    await _ref.read(honeycombActionsProvider).account('refreshProfile');
+  }
 
-    debugPrint('Requesting photo upload URL');
-    final response = await client.post<Map<String, dynamic>>(
-      '/profile/photo-upload',
-      data: {
-        'contentType': contentType,
-        'fileExtension': fileExtension,
-        'fileSizeBytes': bytes.length,
-      },
-    );
-
-    final uploadUrl = response['uploadUrl'] as String?;
-    final publicUrl = response['publicUrl'] as String?;
-
-    if (uploadUrl == null || publicUrl == null) {
-      throw Exception('Photo upload data missing');
+  Future<String> uploadProfilePhoto(Uint8List bytes) async {
+    if (bytes.length > 2 * 1024 * 1024) {
+      throw ArgumentError('Choose a JPEG photo under 2 MiB');
     }
-
-    debugPrint('Uploading photo to blob');
-    await dio.put(
-      uploadUrl,
-      data: bytes,
-      options: Options(
-        headers: {'x-ms-blob-type': 'BlockBlob', 'Content-Type': contentType},
-      ),
+    final response = await _ref.read(honeycombActionsProvider).account(
+      'uploadPhoto',
+      {'jpeg': base64Encode(bytes)},
     );
-
-    debugPrint('Updating profile picture to $publicUrl');
-    await updateProfile(pictureUrl: publicUrl);
-    return publicUrl;
+    return response['url'] as String;
   }
 
   Future<void> deleteAccount() async {
-    final client = _ref.read(honeycombClientProvider);
-    await client.delete('/profile');
+    await _ref.read(honeycombActionsProvider).account('deleteAccount');
   }
 }

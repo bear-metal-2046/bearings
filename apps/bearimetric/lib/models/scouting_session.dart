@@ -1,13 +1,43 @@
-import 'package:core/core.dart' show Scout, ScoutPosition, ScoutingEvent;
+import 'package:core/core.dart' show CompetitionEvent, Scout, ScoutPosition;
 
-export 'package:core/core.dart'
-    show MatchAlliance, Scout, ScoutPosition, ScoutingEvent, ScoutingMatch;
+export 'package:core/core.dart' show Scout, ScoutPosition;
 
 /// Local-only event key used to isolate practice records from real events.
 const trainingEventKey = 'training';
 
+/// The selected event is kept in preferences for offline startup.
+class ScoutingEventSelection {
+  const ScoutingEventSelection({
+    required this.key,
+    required this.name,
+    required this.year,
+  });
+
+  factory ScoutingEventSelection.fromCompetition(CompetitionEvent event) =>
+      ScoutingEventSelection(
+        key: event.id,
+        name: event.name,
+        year: event.season,
+      );
+
+  factory ScoutingEventSelection.fromJson(Map<String, dynamic> json) {
+    final year = json['year'];
+    return ScoutingEventSelection(
+      key: json['key']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      year: year is num ? year.toInt() : int.tryParse('$year') ?? 0,
+    );
+  }
+
+  final String key;
+  final String name;
+  final int year;
+
+  Map<String, dynamic> toJson() => {'key': key, 'name': name, 'year': year};
+}
+
 class ScoutingSession {
-  final ScoutingEvent? event;
+  final ScoutingEventSelection? event;
   final ScoutPosition? position;
   final Scout? scout;
   final int? matchNumber;
@@ -23,7 +53,7 @@ class ScoutingSession {
       event != null && position != null && scout != null && matchNumber != null;
 
   ScoutingSession copyWith({
-    ScoutingEvent? event,
+    ScoutingEventSelection? event,
     ScoutPosition? position,
     Scout? scout,
     int? matchNumber,

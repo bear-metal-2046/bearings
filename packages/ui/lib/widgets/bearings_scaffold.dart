@@ -30,10 +30,7 @@ class BearingsScaffold extends StatelessWidget {
   /// Persistent toolbar actions, shared by every page in this scaffold.
   final List<Widget> actions;
   final double? titleSpacing;
-
-  // Mobile preview is enabled for the current Beariscope trial.
-  bool get _mobilePreviewEnabled => true;
-
+  
   @override
   Widget build(BuildContext context) => switch (content) {
     BearingsPage page => _buildLayout(
@@ -71,10 +68,9 @@ class BearingsScaffold extends StatelessWidget {
       return true;
     }());
     final isMobile =
-        _mobilePreviewEnabled ||
-        (!kIsWeb &&
+        !kIsWeb &&
             (defaultTargetPlatform == TargetPlatform.android ||
-                defaultTargetPlatform == TargetPlatform.iOS));
+                defaultTargetPlatform == TargetPlatform.iOS);
     final direction = Directionality.of(context);
     final safeArea = MediaQuery.paddingOf(context);
     final appBarTheme = AppBarTheme.of(context);

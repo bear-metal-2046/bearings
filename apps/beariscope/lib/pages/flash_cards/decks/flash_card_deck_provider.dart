@@ -1,13 +1,16 @@
+import 'package:core/core.dart';
+
 import 'dart:convert';
 
 import 'package:beariscope/pages/flash_cards/decks/flash_card_deck_model.dart';
 import 'package:beariscope/pages/flash_cards/study/flash_card_progress.dart';
 import 'package:beariscope/pages/team_lookup/team_model.dart';
-import 'package:beariscope/pages/team_lookup/team_providers.dart';
+import 'package:beariscope/utils/competition_media_display.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/shared_preferences_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:services/providers/api_provider.dart';
+import 'package:grove/grove.dart';
+import 'package:services/providers/competition_provider.dart';
 
 class FlashCardLibrary extends Notifier<List<FlashCardDeckDefinition>> {
   static const storageKey = 'flash_cards.library.v1';
@@ -97,52 +100,34 @@ List<Team> normalizeFlashCardRoster(Iterable<Team> teams) {
 }
 
 AsyncValue<List<Team>> normalizeCurrentFlashCardRoster(
-  AsyncValue<List<Map<String, dynamic>>> rows,
+  AsyncValue<QueryResult<CompetitionTeam>> rows,
 ) => rows.whenData(
-  (items) => normalizeFlashCardRoster(items.map(Team.fromJson)),
+  (items) => normalizeFlashCardRoster(
+    items.requireAvailable().items.map(Team.fromCompetition),
+  ),
 );
 
-final flashCardEventCatalogProvider =
-    FutureProvider.family<List<EventOption>, int>((ref, year) async {
-      final response = await ref
-          .watch(honeycombClientProvider)
-          .get<List<dynamic>>(
-            '/events',
-            queryParams: {'year': year, 'enrich': false},
-            cachePolicy: CachePolicy.networkFirst,
+final flashCardEventCatalogProvider = Provider.autoDispose
+    .family<AsyncValue<List<EventOption>>, int>((ref, year) {
+      return ref
+          .watch(competitionEventsProvider((year: year, team: null)))
+          .whenData(
+            (events) =>
+                events
+                    .map(EventOption.fromCompetition)
+                    .where((event) => event.key.isNotEmpty)
+                    .toList()
+                  ..sort((a, b) => a.name.compareTo(b.name)),
           );
-      return response
-          .whereType<Map>()
-          .map((raw) => EventOption.fromJson(Map<String, dynamic>.from(raw)))
-          .where((event) => event.key.isNotEmpty)
-          .toList()
-        ..sort((a, b) => a.name.compareTo(b.name));
     });
 
 /// These providers take explicit event keys and never read currentEventProvider.
-final flashCardEventRosterProvider = FutureProvider.family<List<Team>, String>((
-  ref,
-  event,
-) async {
-  final rows = await ref.watch(eventTeamsProvider(event).future);
-  return normalizeFlashCardRoster(rows.map(Team.fromJson));
-});
-
-final flashCardEventMediaProvider =
-    FutureProvider.family<List<TeamMediaRecord>, String>((ref, event) async {
-      final response = await ref
-          .watch(honeycombClientProvider)
-          .get<List<dynamic>>(
-            '/event/$event/team_media',
-            cachePolicy: CachePolicy.networkFirst,
-          );
-      return response
-          .whereType<Map>()
-          .map(
-            (raw) => TeamMediaRecord.fromJson(Map<String, dynamic>.from(raw)),
-          )
-          .toList();
-    });
+final flashCardEventRosterProvider = Provider.autoDispose
+    .family<AsyncValue<List<Team>>, String>(
+      (ref, event) => normalizeCurrentFlashCardRoster(
+        ref.watch(competitionTeamsProvider(event)),
+      ),
+    );
 
 List<Team> combineFlashCardRosters(Map<String, List<Team>> rosters) {
   final combined = <int, Team>{};
@@ -225,82 +210,64 @@ List<Team> flashCardTeamsForDeck(
       .toList();
 }
 
-List<TeamMediaRecord> combineFlashCardMedia(
-  Map<String, List<TeamMediaRecord>> sources,
+/// Pick usable media per team and type, preferring later event keys.
+Map<String, List<CompetitionMedia>> combineFlashCardMedia(
+  Map<String, List<CompetitionMedia>> sources,
 ) {
-  final chosen = <String, String>{};
-  final result = <TeamMediaRecord>[];
+  final chosen = <(String, String), String>{};
+  final result = <String, List<CompetitionMedia>>{};
   for (final event in sources.keys.toList()..sort((a, b) => b.compareTo(a))) {
     for (final record in sources[event]!) {
       if (!record.isAvatar && !record.isPhoto) continue;
-      if (record.isPhoto && record.previewImageUrl?.isNotEmpty != true) {
+      final hasPreview = record.previewImageUrl != null;
+      if (!hasPreview &&
+          (!record.isAvatar || record.avatarBytes?.isNotEmpty != true)) {
         continue;
       }
-      if (record.isAvatar &&
-          record.base64Image?.isNotEmpty != true &&
-          record.previewImageUrl?.isNotEmpty != true) {
-        continue;
+      for (final teamKey in {for (final team in record.teams) team.id}) {
+        final source = chosen.putIfAbsent((teamKey, record.type), () => event);
+        if (source == event) {
+          result.putIfAbsent(teamKey, () => []).add(record);
+        }
       }
-      final teams = <String>[];
-      for (final team in record.teamKeys) {
-        final category = '$team/${record.isAvatar ? 'logo' : 'photo'}';
-        chosen.putIfAbsent(category, () => event);
-        if (chosen[category] == event) teams.add(team);
-      }
-      if (teams.isEmpty) continue;
-      result.add(
-        TeamMediaRecord(
-          foreignKey: record.foreignKey,
-          type: record.type,
-          preferred: record.preferred,
-          teamKeys: teams,
-          details: record.details,
-          directUrl: record.directUrl,
-          viewUrl: record.viewUrl,
-          base64Image: record.base64Image,
-        ),
-      );
     }
   }
   return result;
 }
 
-final flashCardCustomTeamsProvider = FutureProvider.family<List<Team>, String>((
-  ref,
-  id,
-) async {
-  final deck = findFlashCardDeck(ref.watch(flashCardLibraryProvider), id);
-  if (deck == null) throw StateError('Deck not found.');
-  final rosters = await Future.wait(
-    deck.eventKeys.map((event) async {
-      try {
-        return MapEntry(
-          event,
-          await ref.watch(flashCardEventRosterProvider(event).future),
-        );
-      } catch (_) {
-        throw StateError('Could not load teams for $event.');
-      }
-    }),
-  );
-  return flashCardTeamsForDeck(deck, Map.fromEntries(rosters));
-});
-
-final flashCardCustomMediaProvider =
-    FutureProvider.family<List<TeamMediaRecord>, String>((ref, id) async {
+final flashCardCustomTeamsProvider = Provider.autoDispose
+    .family<AsyncValue<List<Team>>, String>((ref, id) {
       final deck = findFlashCardDeck(ref.watch(flashCardLibraryProvider), id);
-      if (deck == null) return [];
-      final media = await Future.wait(
-        deck.eventKeys.map((event) async {
-          try {
-            return MapEntry(
-              event,
-              await ref.watch(flashCardEventMediaProvider(event).future),
-            );
-          } catch (_) {
-            return MapEntry(event, <TeamMediaRecord>[]);
-          }
+      if (deck == null) {
+        return AsyncError(StateError('Deck not found.'), StackTrace.current);
+      }
+      final rosters = {
+        for (final event in deck.eventKeys)
+          event: ref.watch(flashCardEventRosterProvider(event)),
+      };
+      final ready = <String, List<Team>>{};
+      for (final entry in rosters.entries) {
+        final roster = entry.value;
+        if (roster.hasError) {
+          return AsyncError(
+            StateError('Could not load teams for ${entry.key}.'),
+            roster.stackTrace ?? StackTrace.current,
+          );
+        }
+        if (roster.value case final teams?) ready[entry.key] = teams;
+      }
+      if (ready.length != rosters.length) return const AsyncLoading();
+      return AsyncData(flashCardTeamsForDeck(deck, ready));
+    });
+
+final flashCardCustomMediaProvider = Provider.autoDispose
+    .family<AsyncValue<Map<String, List<CompetitionMedia>>>, String>((ref, id) {
+      final deck = findFlashCardDeck(ref.watch(flashCardLibraryProvider), id);
+      if (deck == null) return const AsyncData({});
+      return AsyncData(
+        combineFlashCardMedia({
+          for (final event in deck.eventKeys)
+            event: ref.watch(competitionMediaProvider(event)).value ?? const [],
         }),
       );
-      return combineFlashCardMedia(Map.fromEntries(media));
     });

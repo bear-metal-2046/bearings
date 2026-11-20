@@ -1,20 +1,22 @@
 import 'dart:math' as math;
 
-import 'package:beariscope/models/pits_map_data.dart';
+import 'package:core/core.dart';
 import 'package:material_ui/material_ui.dart';
 
 class PitsMapView extends StatefulWidget {
-  final PitsMapData mapData;
+  final PitMapBackground mapData;
+  final Map<String, Pit> pits;
 
-  final Set<int> scoutedTeams;
+  final Set<int>? scoutedTeams;
 
   final Map<int, String> teamNames;
 
-  final void Function(int teamNumber, String teamName) onTeamTap;
+  final void Function(int teamNumber, String teamName)? onTeamTap;
 
   const PitsMapView({
     super.key,
     required this.mapData,
+    required this.pits,
     required this.scoutedTeams,
     required this.teamNames,
     required this.onTeamTap,
@@ -27,9 +29,7 @@ class PitsMapView extends StatefulWidget {
 class _PitsMapViewState extends State<PitsMapView> {
   final TransformationController _controller = TransformationController();
 
-  /// The mapData we last fitted to, used to detect when to re-fit.
-  PitsMapData? _lastFittedData;
-  BoxConstraints? _lastConstraints;
+  (double, double, Size)? _lastFit;
 
   @override
   void dispose() {
@@ -38,8 +38,8 @@ class _PitsMapViewState extends State<PitsMapView> {
   }
 
   void _fitToScreen(BoxConstraints constraints) {
-    final mapW = widget.mapData.mapSize.x;
-    final mapH = widget.mapData.mapSize.y;
+    final mapW = widget.mapData.size.x;
+    final mapH = widget.mapData.size.y;
     if (mapW <= 0 || mapH <= 0) return;
 
     final fitScale =
@@ -60,15 +60,15 @@ class _PitsMapViewState extends State<PitsMapView> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final needsFit =
-            _lastFittedData != widget.mapData ||
-            _lastConstraints != constraints;
-
-        if (needsFit) {
-          _lastFittedData = widget.mapData;
-          _lastConstraints = constraints;
+        final fit = (
+          widget.mapData.size.x,
+          widget.mapData.size.y,
+          constraints.biggest,
+        );
+        if (_lastFit != fit) {
+          _lastFit = fit;
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) _fitToScreen(constraints);
+            if (mounted && _lastFit == fit) _fitToScreen(constraints);
           });
         }
 
@@ -82,6 +82,7 @@ class _PitsMapViewState extends State<PitsMapView> {
             trackpadScrollCausesScale: true,
             child: _MapCanvas(
               mapData: widget.mapData,
+              pits: widget.pits,
               scoutedTeams: widget.scoutedTeams,
               teamNames: widget.teamNames,
               onTeamTap: widget.onTeamTap,
@@ -95,14 +96,16 @@ class _PitsMapViewState extends State<PitsMapView> {
 }
 
 class _MapCanvas extends StatelessWidget {
-  final PitsMapData mapData;
-  final Set<int> scoutedTeams;
+  final PitMapBackground mapData;
+  final Map<String, Pit> pits;
+  final Set<int>? scoutedTeams;
   final Map<int, String> teamNames;
-  final void Function(int teamNumber, String teamName) onTeamTap;
+  final void Function(int teamNumber, String teamName)? onTeamTap;
   final ThemeData theme;
 
   const _MapCanvas({
     required this.mapData,
+    required this.pits,
     required this.scoutedTeams,
     required this.teamNames,
     required this.onTeamTap,
@@ -112,8 +115,8 @@ class _MapCanvas extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: mapData.mapSize.x,
-      height: mapData.mapSize.y,
+      width: mapData.size.x,
+      height: mapData.size.y,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
@@ -132,43 +135,46 @@ class _MapCanvas extends StatelessWidget {
     );
   }
 
-  List<Widget> _buildPitWidgets() {
-    return mapData.pits.entries.map((entry) {
-      final pit = entry.value;
-      final teamNum = pit.teamNumber;
+  Iterable<Widget> _buildPitWidgets() sync* {
+    for (final MapEntry(key: address, value: pit) in pits.entries) {
+      final geometry = pit.geometry;
+      if (geometry == null) continue;
+      final teamNum = int.tryParse(pit.team?.id.replaceFirst('frc', '') ?? '');
 
       final box = _PitBox(
-        width: pit.size.x,
-        height: pit.size.y,
+        width: geometry.size.x,
+        height: geometry.size.y,
         teamNumber: teamNum,
-        scouted: teamNum != null && scoutedTeams.contains(teamNum),
-        onTap: teamNum != null
-            ? () => onTeamTap(teamNum, teamNames[teamNum] ?? '')
+        scouted: teamNum != null && (scoutedTeams?.contains(teamNum) ?? true),
+        onTap: teamNum != null && onTeamTap != null
+            ? () => onTeamTap!(teamNum, teamNames[teamNum] ?? '')
             : null,
         theme: theme,
       );
 
       // the pos is the center of the box, so offset by half to get the top-left
       Widget child = box;
-      if (pit.angle != null && pit.angle != 0) {
+      final angle = geometry.angle ?? 0;
+      if (angle != 0) {
         child = Transform.rotate(
-          angle: pit.angleRadians,
+          angle: angle * math.pi / 180,
           alignment: Alignment.center,
           child: child,
         );
       }
 
-      return Positioned(
-        left: pit.position.x - pit.size.x / 2,
-        top: pit.position.y - pit.size.y / 2,
+      yield Positioned(
+        key: ValueKey(address),
+        left: geometry.position.x - geometry.size.x / 2,
+        top: geometry.position.y - geometry.size.y / 2,
         child: child,
       );
-    }).toList();
+    }
   }
 }
 
 class _MapBackgroundPainter extends CustomPainter {
-  final PitsMapData mapData;
+  final PitMapBackground mapData;
   final ThemeData theme;
 
   const _MapBackgroundPainter({required this.mapData, required this.theme});
@@ -233,7 +239,7 @@ class _MapBackgroundPainter extends CustomPainter {
 
         _paintCenteredText(
           canvas,
-          a.label,
+          a.label ?? '',
           rect,
           color: cs.onSurface,
           fontSize: (math.min(
@@ -279,9 +285,9 @@ class _MapBackgroundPainter extends CustomPainter {
 
       canvas.save();
       canvas.translate(a.position.x, a.position.y);
-      if (a.angle != null && a.angle != 0) canvas.rotate(a.angleRadians);
+      if (a.angle != null && a.angle != 0) canvas.rotate(_angleRadians(a));
 
-      final path = a.type == 'double'
+      final path = a.arrowType == 'double'
           ? (Path()
               ..moveTo(0, -r) // top tip
               ..lineTo(r * 0.65, -r * 0.35) // top-right of top arrowhead base
@@ -321,7 +327,7 @@ class _MapBackgroundPainter extends CustomPainter {
       _withTransform(canvas, l, () {
         _paintCenteredText(
           canvas,
-          l.label,
+          l.label ?? '',
           Rect.fromCenter(
             center: Offset.zero,
             width: l.size.x,
@@ -337,13 +343,13 @@ class _MapBackgroundPainter extends CustomPainter {
 
   void _withTransform(
     Canvas canvas,
-    MapComponentBase component,
+    PitMapElement component,
     void Function() draw,
   ) {
     canvas.save();
     canvas.translate(component.position.x, component.position.y);
     if (component.angle != null && component.angle != 0) {
-      canvas.rotate(component.angleRadians);
+      canvas.rotate(_angleRadians(component));
     }
     draw();
     canvas.restore();
@@ -466,3 +472,5 @@ class _PitBox extends StatelessWidget {
     return SizedBox(width: width, height: height, child: inner);
   }
 }
+
+double _angleRadians(PitMapElement item) => (item.angle ?? 0) * math.pi / 180;

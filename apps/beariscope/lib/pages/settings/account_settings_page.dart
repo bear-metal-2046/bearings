@@ -10,7 +10,6 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:mime/mime.dart';
-import 'package:services/providers/api_provider.dart';
 import 'package:services/providers/auth_provider.dart';
 import 'package:services/providers/user_profile_provider.dart';
 import 'package:services/widgets/profile_picture.dart';
@@ -271,11 +270,7 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
     try {
       await ref
           .read(userProfileServiceProvider)
-          .uploadProfilePhoto(
-            processedBytes,
-            contentType: 'image/jpeg',
-            fileExtension: 'jpg',
-          );
+          .uploadProfilePhoto(processedBytes);
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -297,7 +292,7 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
       context: context,
       title: 'Delete Account',
       message:
-          'This will permanently delete your account and all associated data. '
+          'This will permanently delete your account and profile. '
           'This action cannot be undone.\n\n'
           'Are you sure you want to delete your account?',
       actions: const [
@@ -314,7 +309,7 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
 
     setState(() => _isDeletingAccount = true);
     try {
-      await ref.read(honeycombClientProvider).delete('/profile');
+      await ref.read(userProfileServiceProvider).deleteAccount();
       if (context.mounted) {
         final auth = await ref.read(authProvider.future);
         await auth.logout();

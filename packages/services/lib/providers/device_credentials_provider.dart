@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:services/providers/api_provider.dart';
+import 'package:services/providers/grove_provider.dart';
 
 part 'device_credentials_provider.g.dart';
 
@@ -64,10 +64,6 @@ Map<String, dynamic> decodeProvisioningPayload(String raw) {
 
 @Riverpod(keepAlive: false)
 Future<DeviceCredentials> deviceCredentials(Ref ref) async {
-  final client = ref.watch(honeycombClientProvider);
-  final payload = await client.get<Map<String, dynamic>>(
-    '/device/credentials',
-    cachePolicy: CachePolicy.networkFirst,
-  );
-  return DeviceCredentials.fromJson(payload);
+  final client = ref.watch(honeycombActionsProvider);
+  return DeviceCredentials.fromJson(await client.account('deviceCredentials'));
 }

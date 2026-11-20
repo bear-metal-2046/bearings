@@ -123,8 +123,16 @@ class _PostSignInOnboardingPageState
       title: 'Verify your email',
       buttonText: 'Refresh verification status',
       buttonIcon: LucideIcons.refreshCcw,
-      onButtonPressed: () {
-        ref.invalidate(userInfoProvider);
+      onButtonPressed: () async {
+        try {
+          await ref.read(userProfileServiceProvider).refreshProfile();
+        } catch (_) {
+          if (!mounted) return;
+          ref.invalidate(userInfoProvider);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not refresh the profile')),
+          );
+        }
       },
       secondaryButtonText: 'Skip for now',
       onSecondaryButtonPressed: _finishFlow,

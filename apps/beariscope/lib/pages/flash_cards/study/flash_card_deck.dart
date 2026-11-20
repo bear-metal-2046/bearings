@@ -7,7 +7,7 @@ import 'package:beariscope/pages/flash_cards/study/flash_card_options.dart';
 import 'package:beariscope/pages/flash_cards/study/flash_card_progress.dart';
 import 'package:beariscope/pages/flash_cards/study/flash_card_session.dart';
 import 'package:beariscope/pages/team_lookup/team_model.dart';
-import 'package:beariscope/pages/team_lookup/team_providers.dart';
+import 'package:core/core.dart' show CompetitionMedia;
 import 'package:beariscope/widgets/logo_badge.dart';
 import 'package:beariscope/widgets/team_avatar.dart';
 import 'package:flutter/physics.dart';
@@ -28,7 +28,7 @@ class FlashCardDeck extends StatefulWidget {
   });
 
   final List<Team> teams;
-  final List<TeamMediaRecord> media;
+  final Map<String, List<CompetitionMedia>> media;
   final FlashCardOptions options;
   final FocusNode focusNode;
   final String eventKey;
@@ -158,14 +158,18 @@ class _FlashCardDeckState extends State<FlashCardDeck>
       ) {
         final team = _team(_progress.order[index]);
         final url = widget.options.showPhotos
-            ? flashCardPhoto(widget.media, team.key)
+            ? flashCardPhoto(widget.media[team.key] ?? const [])
             : null;
         if (url != null) {
           unawaited(
             precacheImage(NetworkImage(url), context, onError: (_, _) {}),
           );
         }
-        final logos = teamAvatarImages(widget.media, 'frc${team.number}');
+        final logoTeam = 'frc${team.number}';
+        final logos = teamAvatarImages(
+          widget.media[logoTeam] ?? const [],
+          logoTeam,
+        );
         if (logos.isNotEmpty) {
           unawaited(
             loadLogoBadgeBackground(
@@ -292,18 +296,22 @@ class _FlashCardDeckState extends State<FlashCardDeck>
 
   Widget _card(String key, {required bool active}) {
     final team = _team(key);
+    final logoTeam = 'frc${team.number}';
     return FlashCard(
       key: ValueKey('flash-card-$key'),
       team: team,
       nameFirst: widget.options.nameFirst,
-      logoImages: teamAvatarImages(widget.media, 'frc${team.number}'),
+      logoImages: teamAvatarImages(
+        widget.media[logoTeam] ?? const [],
+        logoTeam,
+      ),
       flipped: active && _progress.flipped,
       active: active,
       onFlip: _flip,
       onLearning: active && !_sorting ? () => _rate(false) : null,
       onKnown: active && !_sorting ? () => _rate(true) : null,
       photoUrl: widget.options.showPhotos
-          ? flashCardPhoto(widget.media, team.key)
+          ? flashCardPhoto(widget.media[team.key] ?? const [])
           : null,
     );
   }

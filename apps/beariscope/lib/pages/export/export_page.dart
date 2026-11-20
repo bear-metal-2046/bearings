@@ -1,6 +1,6 @@
 // dart format width=120
 
-import 'package:beariscope/models/scouting_document.dart';
+import 'package:beariscope/models/alliance_fuel_score.dart';
 import 'package:beariscope/models/pits_form_schema.dart';
 import 'package:beariscope/models/team_scouting_bundle.dart';
 import 'package:beariscope/pages/export/export_options.dart';
@@ -13,6 +13,8 @@ import 'package:beariscope/pages/scout_audit/scout_audit_preferences_provider.da
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/processed_scouting_provider.dart';
 import 'package:beariscope/providers/pits_form_schema_provider.dart';
+import 'package:core/core.dart' show CompetitionMatch, CompetitionAlliance, ScoutingReport;
+import 'package:beariscope/widgets/grove_load_message.dart';
 import 'package:ui/widgets/bearings_status_view.dart';
 import 'package:ui/widgets/bearings_setting_group.dart';
 import 'package:material_ui/material_ui.dart';
@@ -20,7 +22,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:services/providers/api_provider.dart';
+import 'package:services/providers/competition_provider.dart';
 import 'package:services/providers/permissions_provider.dart';
 import 'package:syncfusion_flutter_core/theme.dart';
 import 'package:syncfusion_flutter_sliders/sliders.dart';
@@ -110,7 +112,7 @@ class _ExportPageState extends ConsumerState<ExportPage> {
     );
   }
 
-  List<int> _allTeams(List<ScoutingDocument> docs, String currentEvent) {
+  List<int> _allTeams(List<ScoutingReport> docs, String currentEvent) {
     final teams = <int>{};
 
     for (final doc in docs) {
@@ -163,6 +165,18 @@ class _ExportPageState extends ConsumerState<ExportPage> {
     }
 
     final processedBundle = ref.read(processedScoutingProvider).value;
+    if (_sheets.correctionTodoList && processedBundle?.complete == false) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Connect to the server before exporting the Correction To-Do List.',
+          ),
+        ),
+      );
+      return;
+    }
     final rawDocs = processedBundle?.rawDocs ?? [];
     final processedDocs = processedBundle?.processedDocs ?? [];
 
@@ -180,17 +194,25 @@ class _ExportPageState extends ConsumerState<ExportPage> {
       final stamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
 
       Map<int, Map<String, ({int auto, int tele, List<int> teams})>>? tbaMatchData;
-      List<Map<String, dynamic>>? rawTbaMatches;
+      List<CompetitionMatch>? competitionMatches;
       if ((_sheets.hasMatchData && _colorCodeAccuracy) || _sheets.correctionTodoList) {
         try {
-          final client = ref.read(honeycombClientProvider);
-          final raw = await client.get<List<dynamic>>('/matches', queryParams: {'event': eventKey});
-          rawTbaMatches = raw.whereType<Map>().map((entry) => Map<String, dynamic>.from(entry)).toList(growable: false);
-          tbaMatchData = _parseTbaMatches(raw);
+          final result = await ref.read(competitionProvider).matchResults(eventKey);
+          final matches = _sheets.correctionTodoList ? result.requireComplete().items : result.requireAvailable().items;
+          if (_sheets.correctionTodoList && matches.isEmpty) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('The event schedule is required for the Correction To-Do List.')),
+              );
+            }
+            return;
+          }
+          competitionMatches = matches;
+          tbaMatchData = _matchScoresForExport(matches);
         } catch (error) {
           if (_sheets.correctionTodoList && mounted) {
             ScaffoldMessenger.of(context)
-                .showSnackBar(SnackBar(content: Text('Correction To-Do List requires TBA match data: $error')));
+                .showSnackBar(SnackBar(content: Text('Correction To-Do List: ${groveLoadMessage(error)}')));
             return;
           }
           tbaMatchData = null;
@@ -198,10 +220,10 @@ class _ExportPageState extends ConsumerState<ExportPage> {
       }
 
       ScoutAuditSnapshot? auditSnapshot;
-      if (_sheets.correctionTodoList && rawTbaMatches != null) {
+      if (_sheets.correctionTodoList && competitionMatches != null) {
         auditSnapshot = buildScoutAuditSnapshot(
           docs: rawDocs,
-          tbaMatches: rawTbaMatches,
+          tbaMatches: competitionMatches,
           eventKey: eventKey,
           incorrectThreshold: options.incorrectDataThreshold,
         );
@@ -220,7 +242,8 @@ class _ExportPageState extends ConsumerState<ExportPage> {
         ),
       );
 
-      final filename = 'export_${eventKey}_$stamp.xlsx';
+      final cacheSuffix = processedBundle?.complete == false ? '_cached' : '';
+      final filename = 'export_${eventKey}_$stamp$cacheSuffix.xlsx';
 
       if (mounted) {
         await saveOrShareExcel(context, bytes, filename);
@@ -1062,54 +1085,25 @@ class _ExportPageState extends ConsumerState<ExportPage> {
     );
   }
 
-  static Map<int, Map<String, ({int auto, int tele, List<int> teams})>> _parseTbaMatches(List<dynamic> raw) {
+  static Map<int, Map<String, ({int auto, int tele, List<int> teams})>> _matchScoresForExport(
+    List<CompetitionMatch> matches,
+  ) {
     final result = <int, Map<String, ({int auto, int tele, List<int> teams})>>{};
-    for (final item in raw) {
-      if (item is! Map) continue;
-      if (item['comp_level']?.toString() != 'qm') continue;
-      final matchNumber = item['match_number'];
-      if (matchNumber is! int) continue;
-      final breakdown = item['score_breakdown'];
-      final alliances = item['alliances'];
+    for (final match in matches.where((match) => match.level == 'qm')) {
       final allianceData = <String, ({int auto, int tele, List<int> teams})>{};
-      for (final alliance in ['red', 'blue']) {
-        final allianceSide = alliances is Map ? alliances[alliance] : null;
-        final teamKeys = allianceSide is Map ? allianceSide['team_keys'] : null;
-        final teams = <int>[];
-        if (teamKeys is List) {
-          for (final key in teamKeys) {
-            final s = key?.toString() ?? '';
-            final parsed = int.tryParse(s.startsWith('frc') ? s.substring(3) : s);
-            if (parsed != null) teams.add(parsed);
-          }
-        }
-        int auto = 0;
-        int tele = 0;
-        if (breakdown is Map) {
-          final side = breakdown[alliance];
-          if (side is Map) {
-            final hubScore = side['hubScore'];
-            if (hubScore is Map) {
-              auto = _intFromMap(hubScore, 'autoCount');
-              tele = _intFromMap(hubScore, 'teleopCount');
-            }
-          }
-        }
-        if (teams.isNotEmpty) {
-          allianceData[alliance] = (auto: auto, tele: tele, teams: teams);
-        }
+      for (final (color, alliance) in <(String, CompetitionAlliance?)>[('red', match.red), ('blue', match.blue)]) {
+        if (alliance == null) continue;
+        final teams = alliance.teams
+            .map((team) => int.tryParse(team.id.replaceFirst(RegExp(r'^frc'), '')))
+            .whereType<int>()
+            .toList();
+        if (teams.isEmpty) continue;
+        final score = readAllianceFuelScore(alliance.gameBreakdown);
+        allianceData[color] = (auto: score.auto, tele: score.tele, teams: teams);
       }
-      if (allianceData.isNotEmpty) result[matchNumber] = allianceData;
+      if (allianceData.isNotEmpty) result[match.matchNumber] = allianceData;
     }
     return result;
-  }
-
-  static int _intFromMap(Map map, String key) {
-    final value = map[key];
-    if (value is int) return value;
-    if (value is double) return value.toInt();
-    if (value is num) return value.toInt();
-    return 0;
   }
 }
 

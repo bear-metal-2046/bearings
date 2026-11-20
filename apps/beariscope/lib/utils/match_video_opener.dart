@@ -1,4 +1,4 @@
-import 'package:beariscope/models/tba_match_score.dart';
+import 'package:core/core.dart';
 import 'package:beariscope/providers/youtube_video_metadata_provider.dart';
 import 'package:ui/widgets/bearings_modal.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,16 +12,14 @@ final matchVideoLauncherProvider = Provider<Future<bool> Function(Uri)>(
 );
 
 /// Playable videos in source order, without duplicate or malformed links.
-List<TbaMatchVideo> matchVideosForMatch(Map<String, dynamic>? match) {
-  final entries = match?['videos'];
-  if (entries is! List) return const [];
+List<MatchVideo> matchVideosForMatch(CompetitionMatch? match) {
   final ids = <String>{};
   return [
-    for (final entry in entries)
-      if (entry is Map && entry['type'] == 'youtube')
-        if (entry['key'] case final String key)
-          if (isYoutubeVideoId(key.trim()) && ids.add(key.trim()))
-            TbaMatchVideo(key: key.trim(), type: 'youtube'),
+    for (final video in match?.videos ?? const <MatchVideo>[])
+      if (video.type == 'youtube' &&
+          isYoutubeVideoId(video.key.trim()) &&
+          ids.add(video.key.trim()))
+        MatchVideo(key: video.key.trim(), type: video.type),
   ];
 }
 
@@ -29,7 +27,7 @@ List<TbaMatchVideo> matchVideosForMatch(Map<String, dynamic>? match) {
 /// videos. Matches without playable videos do not open anything.
 Future<void> openMatchVideo(
   BuildContext context, {
-  required Map<String, dynamic>? match,
+  required CompetitionMatch? match,
   String? matchTitle,
 }) async {
   final videos = matchVideosForMatch(match);
@@ -39,7 +37,7 @@ Future<void> openMatchVideo(
     listen: false,
   ).read(matchVideoLauncherProvider);
 
-  Future<bool> open(TbaMatchVideo video) async {
+  Future<bool> open(MatchVideo video) async {
     try {
       return await launchVideo(youtubeVideoUri(video.key));
     } catch (_) {
@@ -72,9 +70,9 @@ class _MatchVideoPicker extends StatefulWidget {
     required this.open,
   });
 
-  final List<TbaMatchVideo> videos;
+  final List<MatchVideo> videos;
   final String? matchTitle;
-  final Future<bool> Function(TbaMatchVideo) open;
+  final Future<bool> Function(MatchVideo) open;
 
   @override
   State<_MatchVideoPicker> createState() => _MatchVideoPickerState();
@@ -84,7 +82,7 @@ class _MatchVideoPickerState extends State<_MatchVideoPicker> {
   bool _opening = false;
   bool _failed = false;
 
-  Future<void> _select(TbaMatchVideo video) async {
+  Future<void> _select(MatchVideo video) async {
     if (_opening) return;
     setState(() {
       _opening = true;
@@ -137,7 +135,7 @@ class _MatchVideoPickerState extends State<_MatchVideoPicker> {
 class _MatchVideoTile extends ConsumerWidget {
   const _MatchVideoTile({required this.video, required this.onTap});
 
-  final TbaMatchVideo video;
+  final MatchVideo video;
   final VoidCallback? onTap;
 
   @override

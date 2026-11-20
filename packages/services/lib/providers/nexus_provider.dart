@@ -1,11 +1,12 @@
 import 'dart:async';
 
 import 'package:core/core.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:services/providers/api_provider.dart';
+import 'package:grove/grove.dart';
+import 'package:services/providers/competition_provider.dart';
+import 'package:services/providers/grove_provider.dart';
 
-const nexusPollInterval = Duration(seconds: 15);
+const _nexusFreshness = Duration(minutes: 2);
 
 /// The outcome of asking Honeycomb for an event's Nexus data.
 sealed class NexusFetchResult {
@@ -18,7 +19,7 @@ sealed class NexusFetchResult {
 final class NexusAvailable extends NexusFetchResult {
   const NexusAvailable(this.status);
 
-  final NexusEventStatus status;
+  final EventStatusSnapshot status;
 
   @override
   String? get problem => null;
@@ -27,96 +28,68 @@ final class NexusAvailable extends NexusFetchResult {
 final class NexusEmpty extends NexusFetchResult {
   const NexusEmpty([this.status]);
 
-  final NexusEventStatus? status;
+  final EventStatusSnapshot? status;
 
   @override
-  String get problem => 'Honeycomb returned no Nexus data for this event';
+  String get problem => 'The server returned no Nexus data for this event';
 }
 
 final class NexusFailed extends NexusFetchResult {
-  const NexusFailed(this.message, {this.statusCode});
+  const NexusFailed(this.message);
 
   final String message;
-  final int? statusCode;
 
   @override
   String get problem => message;
 }
 
-/// Nexus data for a TBA event key, refetched [nexusPollInterval] after each
-/// response while something is listening.
-final nexusEventStatusProvider = FutureProvider.autoDispose
-    .family<NexusFetchResult, String>((ref, eventKey) async {
-      final result = await loadNexusEventStatus(
-        ref.watch(honeycombClientProvider),
-        eventKey,
+/// Observe the direct Nexus feed for a TBA event. Re-evaluate locally when the
+/// snapshot ages out so Up Next falls back even if Grove has gone quiet.
+final nexusEventStatusProvider = Provider.autoDispose
+    .family<AsyncValue<NexusFetchResult>, String>((ref, eventKey) {
+      final event = ref.watch(competitionEventProvider(eventKey));
+      // Offseason and demo events can be addressed by their Nexus key.
+      final metadata = event.when(
+        data: AsyncData<CompetitionEvent?>.new,
+        error: (error, stack) => error is GroveException
+            ? const AsyncData<CompetitionEvent?>(null)
+            : AsyncError<CompetitionEvent?>(error, stack),
+        loading: AsyncLoading<CompetitionEvent?>.new,
       );
-
-      // Starting the timer before the request would restart any request slower
-      // than the poll interval, so it would never finish.
-      if (ref.mounted) {
-        final timer = Timer(nexusPollInterval, ref.invalidateSelf);
-        ref.onDispose(timer.cancel);
-      }
-      return result;
+      final status = metadata.flatMap((event) {
+        final key = nexusEventKey(eventKey, event?.firstEventCode);
+        final grove = ref.watch(bearingsGroveProvider);
+        final query = grove.query<EventStatusSnapshot>().byId(key);
+        return ref.watch(groveQueryProvider(query)).whenData((result) {
+          final snapshot = result.requireAvailable().items.singleOrNull;
+          if (snapshot == null) return const NexusEmpty();
+          final remaining = snapshot.dataAsOfTime
+              .add(_nexusFreshness)
+              .difference(DateTime.now());
+          if (remaining <= Duration.zero) {
+            return const NexusFailed('Nexus event status is stale');
+          }
+          final timer = Timer(remaining, ref.invalidateSelf);
+          ref.onDispose(timer.cancel);
+          return snapshot.hasData
+              ? NexusAvailable(snapshot)
+              : NexusEmpty(snapshot);
+        });
+      });
+      return status.when(
+        data: AsyncData<NexusFetchResult>.new,
+        error: (error, _) =>
+            AsyncData(NexusFailed('Could not load Nexus data: $error')),
+        loading: AsyncLoading<NexusFetchResult>.new,
+      );
     });
 
-Future<NexusFetchResult> loadNexusEventStatus(
-  HoneycombClient client,
+Future<void> refreshNexusStatus(
+  ProviderContainer container,
   String eventKey,
 ) async {
-  final Object? response;
-  try {
-    response = await client.get<dynamic>(
-      '/events',
-      queryParams: {'event': eventKey, 'enrich': 'true'},
-      cachePolicy: CachePolicy.networkFirst,
-    );
-  } on HoneycombApiException catch (error) {
-    final code = error.statusCode;
-    final message = code == 401 || code == 403
-        ? 'Not allowed to read event data (needs external.read, HTTP $code)'
-        : 'Honeycomb /events failed (HTTP $code)';
-    debugPrint('Nexus: $message for $eventKey: $error');
-    return NexusFailed(message, statusCode: code);
-  } catch (error) {
-    debugPrint('Nexus: request for $eventKey failed: $error');
-    return NexusFailed('Could not load Nexus data: $error');
-  }
-
-  return parseNexusEventResponse(eventKey, response);
-}
-
-NexusFetchResult parseNexusEventResponse(String eventKey, Object? response) {
-  final event = switch (response) {
-    Map() => Map<String, dynamic>.from(response),
-    List() =>
-      response
-          .whereType<Map>()
-          .map((event) => Map<String, dynamic>.from(event))
-          .where((event) => event['key']?.toString() == eventKey)
-          .firstOrNull,
-    _ => null,
-  };
-  if (event == null) {
-    debugPrint(
-      'Nexus: /events response for $eventKey had no matching event '
-      '(${response.runtimeType})',
-    );
-    return NexusFailed('Honeycomb returned no event for $eventKey');
-  }
-
-  final status = NexusEventStatus.fromHoneycombEvent(event);
-  for (final warning in status.parseWarnings) {
-    debugPrint('Nexus: $eventKey $warning');
-  }
-
-  if (!status.hasData) {
-    debugPrint(
-      'Nexus: no Nexus data for $eventKey. The event may not use Nexus, or '
-      'Honeycomb dropped the Nexus response.',
-    );
-    return NexusEmpty(status);
-  }
-  return NexusAvailable(status);
+  final event = container.read(competitionEventProvider(eventKey)).value;
+  final key = nexusEventKey(eventKey, event?.firstEventCode);
+  final grove = container.read(bearingsGroveProvider);
+  await grove.query<EventStatusSnapshot>().byId(key).result();
 }

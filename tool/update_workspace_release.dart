@@ -4,6 +4,8 @@ const _pubspecPaths = <String>[
   'apps/beariscope/pubspec.yaml',
   'apps/bearimetric/pubspec.yaml',
   'packages/core/pubspec.yaml',
+  'packages/grove/pubspec.yaml',
+  'packages/grove_generator/pubspec.yaml',
   'packages/services/pubspec.yaml',
   'packages/ui/pubspec.yaml',
   'backend/honeycomb/pubspec.yaml',

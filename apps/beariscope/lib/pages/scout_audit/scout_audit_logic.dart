@@ -1,7 +1,8 @@
+import 'package:core/core.dart';
+
 import 'dart:convert';
 
 import 'package:beariscope/models/match_field_ids.dart';
-import 'package:beariscope/models/scouting_document.dart';
 import 'package:beariscope/models/team_scouting_bundle.dart';
 import 'package:core/core.dart' show ScoutPosition;
 
@@ -74,7 +75,7 @@ class DuplicateIssue {
   final int? pos;
   final String? alliance;
   final int? teamNumber;
-  final List<ScoutingDocument> entries;
+  final List<ScoutingReport> entries;
   final bool identical;
   final Map<String, List<dynamic>> diffByField;
 }
@@ -133,42 +134,22 @@ class ScoutAuditSnapshot {
   }
 }
 
-Map<String, dynamic>? findTbaMatchForNumber(
-  List<Map<String, dynamic>> matches,
+CompetitionMatch? findTbaMatchForNumber(
+  List<CompetitionMatch> matches,
   String eventKey,
   int matchNumber,
-) {
-  for (final match in matches) {
-    if (!_isQualificationMatch(match)) {
-      continue;
-    }
+) => matches
+    .where(
+      (match) =>
+          match.level == 'qm' &&
+          match.event.id == eventKey &&
+          match.matchNumber == matchNumber,
+    )
+    .firstOrNull;
 
-    final matchEvent =
-        match['event_key']?.toString() ?? match['eventKey']?.toString();
-    if (matchEvent != null && matchEvent.isNotEmpty && matchEvent != eventKey) {
-      continue;
-    }
-
-    final parsedMatchNumber = _toInt(
-      match['match_number'] ?? match['matchNumber'],
-    );
-    if (parsedMatchNumber == matchNumber) {
-      return match;
-    }
-  }
-
-  return null;
-}
-
-AuditSlot? findAuditSlotForTeamInMatch(
-  Map<String, dynamic> match,
-  int teamNumber,
-) {
-  final alliances = _map(match['alliances']);
-  if (alliances == null) return null;
-
-  final redTeams = _parseTeamKeys(_map(alliances['red'])?['team_keys']);
-  final blueTeams = _parseTeamKeys(_map(alliances['blue'])?['team_keys']);
+AuditSlot? findAuditSlotForTeamInMatch(CompetitionMatch match, int teamNumber) {
+  final redTeams = _teamNumbers(match.red);
+  final blueTeams = _teamNumbers(match.blue);
 
   for (var pos = 0; pos < redTeams.length && pos < 3; pos++) {
     if (redTeams[pos] != teamNumber) continue;
@@ -213,8 +194,8 @@ class _TbaMatchGroundTruth {
 }
 
 ScoutAuditSnapshot buildScoutAuditSnapshot({
-  required List<ScoutingDocument> docs,
-  required List<Map<String, dynamic>> tbaMatches,
+  required List<ScoutingReport> docs,
+  required List<CompetitionMatch> tbaMatches,
   required String eventKey,
   required double incorrectThreshold,
 }) {
@@ -231,9 +212,9 @@ ScoutAuditSnapshot buildScoutAuditSnapshot({
 
   final schedule = _buildGroundTruthByMatch(tbaMatches, eventKey);
 
-  final byMatch = <int, List<ScoutingDocument>>{};
-  final byMatchAndPos = <String, List<ScoutingDocument>>{};
-  final byStratMatchAndAlliance = <String, List<ScoutingDocument>>{};
+  final byMatch = <int, List<ScoutingReport>>{};
+  final byMatchAndPos = <String, List<ScoutingReport>>{};
+  final byStratMatchAndAlliance = <String, List<ScoutingReport>>{};
   final stratAlliancesByMatch = <int, Set<String>>{};
 
   for (final doc in matchDocs) {
@@ -487,8 +468,7 @@ ScoutAuditSnapshot buildScoutAuditSnapshot({
 
   final allMetrics = <AllianceMetric>[];
   for (final truth in schedule.values) {
-    final matchEntries =
-        byMatch[truth.matchNumber] ?? const <ScoutingDocument>[];
+    final matchEntries = byMatch[truth.matchNumber] ?? const <ScoutingReport>[];
 
     final red = _buildAllianceMetric(
       matchNumber: truth.matchNumber,
@@ -531,40 +511,24 @@ ScoutAuditSnapshot buildScoutAuditSnapshot({
 }
 
 Map<int, _TbaMatchGroundTruth> _buildGroundTruthByMatch(
-  List<Map<String, dynamic>> matches,
+  List<CompetitionMatch> matches,
   String eventKey,
 ) {
   final result = <int, _TbaMatchGroundTruth>{};
 
   for (final match in matches) {
-    if (!_isQualificationMatch(match)) {
+    if (match.level != 'qm' ||
+        match.event.id != eventKey ||
+        match.matchNumber <= 0)
       continue;
-    }
+    final matchNumber = match.matchNumber;
+    final redTeams = _teamNumbers(match.red);
+    final blueTeams = _teamNumbers(match.blue);
 
-    final matchEvent =
-        match['event_key']?.toString() ?? match['eventKey']?.toString();
-    if (matchEvent != null && matchEvent.isNotEmpty && matchEvent != eventKey) {
-      continue;
-    }
+    if (redTeams.length < 3 || blueTeams.length < 3) continue;
 
-    final matchNumber = _toInt(match['match_number'] ?? match['matchNumber']);
-    if (matchNumber == null || matchNumber <= 0) continue;
-
-    final alliances = _map(match['alliances']);
-    if (alliances == null) continue;
-
-    final redMap = _map(alliances['red']) ?? const <String, dynamic>{};
-    final blueMap = _map(alliances['blue']) ?? const <String, dynamic>{};
-
-    final redTeams = _parseTeamKeys(redMap['team_keys']);
-    final blueTeams = _parseTeamKeys(blueMap['team_keys']);
-
-    if (redTeams.length < 3 || blueTeams.length < 3) {
-      continue;
-    }
-
-    final redScore = _toInt(redMap['score']) ?? 0;
-    final blueScore = _toInt(blueMap['score']) ?? 0;
+    final redScore = match.red?.score ?? 0;
+    final blueScore = match.blue?.score ?? 0;
 
     final teamsByPos = <int, int>{
       0: redTeams[0],
@@ -588,19 +552,13 @@ Map<int, _TbaMatchGroundTruth> _buildGroundTruthByMatch(
   return result;
 }
 
-bool _isQualificationMatch(Map<String, dynamic> match) {
-  final compLevel =
-      match['comp_level']?.toString() ?? match['compLevel']?.toString() ?? '';
-  return compLevel == 'qm';
-}
-
 AllianceMetric? _buildAllianceMetric({
   required int matchNumber,
   required String alliance,
   required int tbaScore,
   required List<int> teamNumbers,
   required Map<int, int> slotsByPos,
-  required List<ScoutingDocument> docs,
+  required List<ScoutingReport> docs,
   required double threshold,
 }) {
   final isRed = alliance == 'red';
@@ -661,7 +619,7 @@ AllianceMetric? _buildAllianceMetric({
   );
 }
 
-Map<String, List<dynamic>> _buildDiffByField(List<ScoutingDocument> docs) {
+Map<String, List<dynamic>> _buildDiffByField(List<ScoutingReport> docs) {
   final flattened = <String, Map<String, dynamic>>{
     for (final doc in docs)
       doc.id: _flattenComparableData(_canonicalComparableData(doc)),
@@ -717,7 +675,7 @@ Map<String, dynamic> _flattenComparableData(Map<String, dynamic> source) {
   return out;
 }
 
-Map<String, dynamic> _canonicalComparableData(ScoutingDocument doc) {
+Map<String, dynamic> _canonicalComparableData(ScoutingReport doc) {
   final raw = doc.data;
   final map = _sortAndNormalizeMap(_map(raw) ?? const <String, dynamic>{});
   final meta = _map(map['meta']);
@@ -767,18 +725,12 @@ Map<String, dynamic>? _map(dynamic value) {
   return null;
 }
 
-List<int> _parseTeamKeys(dynamic value) {
-  if (value is! List) return const [];
-  final teams = <int>[];
-  for (final key in value) {
-    final raw = key?.toString() ?? '';
-    if (raw.isEmpty) continue;
-    final normalized = raw.startsWith('frc') ? raw.substring(3) : raw;
-    final team = int.tryParse(normalized);
-    if (team != null) teams.add(team);
-  }
-  return teams;
-}
+List<int> _teamNumbers(CompetitionAlliance? alliance) => [
+  for (final team in alliance?.teams ?? const [])
+    if (int.tryParse(team.id.replaceFirst(RegExp(r'^frc'), ''))
+        case final int number)
+      number,
+];
 
 int? _toInt(dynamic value) {
   if (value == null) return null;
@@ -787,14 +739,14 @@ int? _toInt(dynamic value) {
   return int.tryParse(value.toString());
 }
 
-ScoutAuditEntryType _entryTypeFromDoc(ScoutingDocument doc) {
-  if (doc.meta?['type']?.toString() == 'strat') {
+ScoutAuditEntryType _entryTypeFromDoc(ScoutingReport doc) {
+  if (doc.kind == 'strat') {
     return ScoutAuditEntryType.strat;
   }
   return ScoutAuditEntryType.match;
 }
 
-int? _auditMatchNumber(ScoutingDocument doc) {
+int? _auditMatchNumber(ScoutingReport doc) {
   final entryType = _entryTypeFromDoc(doc);
   if (entryType == ScoutAuditEntryType.strat) {
     return _matchNumberFromMeta(doc);
@@ -802,14 +754,14 @@ int? _auditMatchNumber(ScoutingDocument doc) {
   return TeamScoutingBundle.matchNumber(doc);
 }
 
-int? _matchNumberFromMeta(ScoutingDocument doc) {
+int? _matchNumberFromMeta(ScoutingReport doc) {
   final value = doc.meta?['matchNumber'];
   if (value is int) return value;
   if (value is num) return value.toInt();
   return int.tryParse(value?.toString() ?? '');
 }
 
-String? _allianceFromDoc(ScoutingDocument doc) {
+String? _allianceFromDoc(ScoutingReport doc) {
   final raw = doc.meta?['alliance']?.toString().trim().toLowerCase();
   if (raw == 'red' || raw == 'blue') return raw;
   return null;
@@ -823,7 +775,7 @@ String _allianceLabel(String? alliance) {
   };
 }
 
-int? _posOf(ScoutingDocument doc) {
+int? _posOf(ScoutingReport doc) {
   final value = doc.data['pos'];
   if (value is int) return value;
   if (value is num) return value.toInt();

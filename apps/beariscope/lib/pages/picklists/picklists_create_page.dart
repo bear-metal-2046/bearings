@@ -1,3 +1,5 @@
+import 'package:beariscope/providers/current_event_provider.dart';
+import 'package:services/providers/competition_provider.dart';
 import 'package:beariscope/models/match_field_ids.dart';
 import 'package:beariscope/models/team_scouting_bundle.dart';
 import 'package:beariscope/pages/picklists/picklist_model.dart';
@@ -5,10 +7,10 @@ import 'package:beariscope/pages/picklists/picklist_provider.dart';
 import 'package:beariscope/widgets/library_identity_fields.dart';
 import 'package:ui/widgets/bearings_modal.dart';
 import 'package:beariscope/pages/team_lookup/team_model.dart';
-import 'package:beariscope/pages/team_lookup/team_providers.dart';
 import 'package:beariscope/providers/rankings_provider.dart';
 import 'package:beariscope/providers/team_scouting_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:grove/grove.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
@@ -68,10 +70,17 @@ class _PicklistsCreatePageState extends ConsumerState<PicklistsCreatePage> {
   @override
   Widget build(BuildContext context) {
     final canCreateMultiplayer =
-        ref
-            .watch(permissionCheckerProvider)
-            ?.hasPermission(PermissionKey.picklistsManage) ??
+        ref.watch(permissionCheckerProvider)?.hasAllPermissions([
+          PermissionKey.picklistsRead,
+          PermissionKey.picklistsManage,
+        ]) ??
         false;
+    final sharedOffline = ref.watch(sharedPicklistsOfflineProvider);
+    final multiplayerDisabledReason = !canCreateMultiplayer
+        ? 'Requires multiplayer editing access.'
+        : sharedOffline
+        ? 'Reconnect to create a multiplayer picklist.'
+        : null;
 
     final modal = BearingsModal(
       title: 'New picklist',
@@ -82,6 +91,8 @@ class _PicklistsCreatePageState extends ConsumerState<PicklistsCreatePage> {
         label: 'Create picklist',
         icon: LucideIcons.check,
         loading: _creating,
+        enabled:
+            _mode == PicklistMode.offline || multiplayerDisabledReason == null,
         onPressed: _create,
       ),
       content: Form(
@@ -109,21 +120,15 @@ class _PicklistsCreatePageState extends ConsumerState<PicklistsCreatePage> {
                 child: _ModeCard(
                   mode: mode,
                   selected: mode == _mode,
-                  enabled: mode == PicklistMode.offline || canCreateMultiplayer,
+                  disabledReason: mode == PicklistMode.multiplayer
+                      ? multiplayerDisabledReason
+                      : null,
                   onTap: () {
                     if (!_creating) setState(() => _mode = mode);
                   },
                 ),
               ),
             ),
-            if (!canCreateMultiplayer)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 18),
-                child: Text(
-                  'Multiplayer picklists require editing access.',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ),
             const SizedBox(height: 26),
             Text(
               'Choose a starting point',
@@ -201,20 +206,13 @@ class _PicklistsCreatePageState extends ConsumerState<PicklistsCreatePage> {
     });
     try {
       final teams = await _prepopulatedTeams();
-      final canCreateMultiplayer =
-          ref
-              .read(permissionCheckerProvider)
-              ?.hasPermission(PermissionKey.picklistsManage) ??
-          false;
-      final picklist = ref
+      final picklist = await ref
           .read(picklistLibraryProvider.notifier)
           .create(
             title: _titleController.text,
             emoji: _emoji,
             teamKeys: teams,
-            mode: _mode == PicklistMode.multiplayer && canCreateMultiplayer
-                ? PicklistMode.multiplayer
-                : PicklistMode.offline,
+            mode: _mode,
           );
       if (!mounted) return;
       if (widget.asSheet) {
@@ -232,16 +230,31 @@ class _PicklistsCreatePageState extends ConsumerState<PicklistsCreatePage> {
   }
 
   Future<List<String>> _prepopulatedTeams() async {
-    if (_order == _StartingOrder.blank) return [];
-    final rawTeams = await ref.read(teamsProvider.future);
-    final teams = rawTeams.map(Team.fromJson).toList();
-    final limit = int.parse(_teamCountController.text).clamp(1, teams.length);
+    final order = _order;
+    if (order == _StartingOrder.blank) return [];
+    final container = ProviderScope.containerOf(context, listen: false);
+    final event = container.read(currentEventProvider);
+    final teamCount = int.parse(_teamCountController.text);
+    final roster = await container.read(competitionProvider).teamResults(event);
+    if (container.read(currentEventProvider) != event) {
+      throw StateError('The current event changed while loading teams.');
+    }
+    final teams = roster
+        .requireAvailable()
+        .items
+        .map(Team.fromCompetition)
+        .toList();
+    if (teams.isEmpty) return [];
+    final limit = teamCount.clamp(1, teams.length);
 
-    switch (_order) {
+    switch (order) {
       case _StartingOrder.blank:
         break;
       case _StartingOrder.eventRank:
-        final rankings = await ref.read(eventRankingsProvider.future);
+        final rankings = await waitForValue(
+          container,
+          eventRankingsProvider,
+        ).onError((_, _) => <int, TeamRanking>{});
         teams.sort(
           (a, b) => (rankings[a.number]?.rank ?? 999999).compareTo(
             rankings[b.number]?.rank ?? 999999,
@@ -250,7 +263,8 @@ class _PicklistsCreatePageState extends ConsumerState<PicklistsCreatePage> {
       case _StartingOrder.totalAverage:
         final bundles = await Future.wait(
           teams.map(
-            (team) => ref.read(teamScoutingProvider(team.number).future),
+            (team) =>
+                waitForValue(container, teamScoutingProvider(team.number)),
           ),
         );
         final scores = <int, double>{
@@ -262,6 +276,9 @@ class _PicklistsCreatePageState extends ConsumerState<PicklistsCreatePage> {
         );
     }
 
+    if (container.read(currentEventProvider) != event) {
+      throw StateError('The current event changed while loading teams.');
+    }
     return teams.take(limit).map((team) => team.key).toList(growable: false);
   }
 }
@@ -344,19 +361,20 @@ class _OrderCard extends StatelessWidget {
 class _ModeCard extends StatelessWidget {
   final PicklistMode mode;
   final bool selected;
-  final bool enabled;
+  final String? disabledReason;
   final VoidCallback onTap;
 
   const _ModeCard({
     required this.mode,
     required this.selected,
-    required this.enabled,
+    this.disabledReason,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final enabled = disabledReason == null;
     final foreground = enabled
         ? (selected ? colors.onPrimaryContainer : colors.onSurface)
         : colors.onSurface.withValues(alpha: .45);
@@ -392,9 +410,7 @@ class _ModeCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      enabled
-                          ? mode.description
-                          : 'Requires multiplayer access.',
+                      disabledReason ?? mode.description,
                       style: Theme.of(context).textTheme.bodySmall
                           ?.copyWith(color: foreground),
                     ),

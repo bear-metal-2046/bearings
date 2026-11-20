@@ -1,4 +1,4 @@
-import 'package:beariscope/models/scouting_document.dart';
+import 'package:core/core.dart' show ScoutingReport;
 
 /// A drive team scouting note for a single opponent team in a specific match.
 class DriveTeamNote {
@@ -39,11 +39,8 @@ class DriveTeamNote {
     required this.season,
   });
 
-  /// Converts this note into an ingest entry payload for `POST /scout/ingest`.
-  ///
-  /// If [id] is non-null, sets `meta.existingId` so the backend performs an
-  /// upsert (replaceOne) instead of inserting a new document.
-  Map<String, Object?> toIngestEntry() {
+  /// Game-specific data carried by a Grove scouting report.
+  Map<String, dynamic> toPayload() {
     return {
       'meta': {
         'type': 'drive_team',
@@ -53,15 +50,14 @@ class DriveTeamNote {
         'scoutedBy': scoutedBy,
         'userId': userId,
         'matchKey': matchKey,
-        if (id != null && id!.isNotEmpty) 'existingId': id,
       },
       'teamNumber': teamNumber,
       'note': note,
     };
   }
 
-  /// Reconstructs a [DriveTeamNote] from a raw [ScoutingDocument].
-  factory DriveTeamNote.fromScoutingDocument(ScoutingDocument doc) {
+  /// Reconstructs a [DriveTeamNote] from a raw [ScoutingReport].
+  factory DriveTeamNote.fromScoutingDocument(ScoutingReport doc) {
     final meta = doc.meta ?? {};
     final tn = doc.data['teamNumber'];
     final teamNumber = tn is int

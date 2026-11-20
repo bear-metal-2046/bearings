@@ -1,14 +1,14 @@
+import 'package:grove/grove.dart';
+
 import 'dart:convert';
 
-import 'package:beariscope/models/scouting_document.dart';
-import 'package:beariscope/providers/scouting_data_provider.dart';
 import 'package:ui/widgets/bearings_status_view.dart';
 import 'package:core/core.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:services/providers/api_provider.dart';
+import 'package:services/providers/grove_provider.dart';
 import 'package:services/providers/user_profile_provider.dart';
 import 'package:ui/widgets/bearings_spinner.dart';
 import 'package:ui/widgets/forms/match_form_renderer.dart';
@@ -27,7 +27,7 @@ class MatchScoutingFormPage extends ConsumerStatefulWidget {
   final int matchNumber;
   final int pos;
   final int teamNumber;
-  final ScoutingDocument? existing;
+  final ScoutingReport? existing;
 
   @override
   ConsumerState<MatchScoutingFormPage> createState() =>
@@ -100,21 +100,17 @@ class _MatchScoutingFormPageState extends ConsumerState<MatchScoutingFormPage> {
     setState(() => _saving = true);
 
     try {
-      final user = await ref.read(userInfoProvider.future);
+      final user = await waitForValue(
+        ProviderScope.containerOf(context, listen: false),
+        userInfoProvider,
+      );
       final updated = data.copyWith(
         scoutedBy: user?.name?.trim() ?? 'Unknown User',
       );
 
       await ref
-          .read(honeycombClientProvider)
-          .post(
-            '/scout/ingest',
-            data: {
-              'entries': [updated.toJson()],
-            },
-          );
-
-      await ref.read(scoutingDataProvider.notifier).refresh();
+          .read(bearingsGroveProvider)
+          .create(ScoutingReport.fromMatch(updated), allowOffline: false);
 
       if (mounted) Navigator.of(context).pop(true);
     } catch (error) {

@@ -1,5 +1,7 @@
 import 'dart:math';
 
+import 'package:core/core.dart';
+
 enum PicklistMode { offline, multiplayer }
 
 extension PicklistModeLabel on PicklistMode {
@@ -79,6 +81,7 @@ class Picklist {
   final DateTime createdAt;
   final DateTime updatedAt;
   final PicklistMode mode;
+  final GrovePicklist? shared;
 
   const Picklist({
     required this.id,
@@ -89,7 +92,20 @@ class Picklist {
     required this.updatedAt,
     this.mode = PicklistMode.offline,
     required this.emoji,
+    this.shared,
   });
+
+  factory Picklist.fromGrove(GrovePicklist record) => Picklist(
+    id: record.id,
+    eventKey: record.eventKey,
+    title: record.title,
+    emoji: record.emoji,
+    teamKeys: record.teamKeys,
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt,
+    mode: PicklistMode.multiplayer,
+    shared: record,
+  );
 
   Picklist copyWith({
     String? title,
@@ -107,6 +123,7 @@ class Picklist {
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       mode: mode ?? this.mode,
+      shared: shared,
     );
   }
 

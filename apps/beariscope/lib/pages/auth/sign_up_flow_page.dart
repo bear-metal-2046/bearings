@@ -311,31 +311,30 @@ class _SignUpFlowPageState extends ConsumerState<SignUpFlowPage> {
 
   // --- STEP 3: Auth0 Secure Account Creation ---
   Widget _buildAuthGatewayStep() {
+    final signingIn =
+        ref.watch(authStatusProvider) == AuthStatus.authenticating;
     return BearingsStepLayout(
       title: 'Final Step',
-      buttonText: 'Create Account',
+      buttonText: signingIn ? 'Signing in…' : 'Create Account',
       buttonIcon: LucideIcons.externalLink,
       onButtonPressed: () async {
-        ref.read(postSignInFlowPendingProvider.notifier).setPending();
+        if (signingIn) return;
+        final pending = ref.read(postSignInFlowPendingProvider.notifier);
+        pending.setPending();
 
         try {
           final auth = await ref.read(authProvider.future);
-          await auth.login([
+          final signedIn = await auth.login([
             'openid',
             'profile',
             'email',
             'offline_access',
             'ORLhqJbHiTfgdF3Q8hqIbmdwT1wTkkP7',
           ], isSignup: true);
-        } on OfflineAuthException {
-          ref.read(postSignInFlowPendingProvider.notifier).clearPending();
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No internet connection')),
-          );
+          if (!signedIn && mounted) pending.clearPending();
         } catch (e) {
-          ref.read(postSignInFlowPendingProvider.notifier).clearPending();
           if (!mounted) return;
+          pending.clearPending();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Sign in failed: $e'),

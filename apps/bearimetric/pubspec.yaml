@@ -38,6 +38,8 @@ dependencies:
     path: ../../packages/ui
   core:
     path: ../../packages/core
+  grove:
+    path: ../../packages/grove
   animate_do: ^5.1.0
   package_info_plus: ^10.2.1
   material_ui: ^1.1.0
@@ -52,6 +54,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/
   fonts:
     - family: Papyrus
       fonts:

@@ -1,126 +1,159 @@
-import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:services/providers/api_provider.dart';
-import 'package:services/providers/auth_provider.dart';
-
-part 'permissions_provider.g.dart';
+import 'package:core/core.dart';
+import 'package:grove/grove.dart';
+import 'package:riverpod/riverpod.dart';
+import 'package:services/providers/grove_provider.dart';
 
 class PermissionKey {
-  static const externalRead = 'external.read';
-  static const matchRead = 'match.read';
-  static const matchUpload = 'match.upload';
-  static const matchCorrect = 'match.correct';
-  static const pitsRead = 'pits.read';
-  static const pitsUpload = 'pits.upload';
-  static const notesRead = 'notes.read';
-  static const driveTeamUpload = 'drive_team.upload';
-  static const scoutsRead = 'scouts.read';
-  static const scoutsManage = 'scouts.manage';
-  static const usersRolesManage = 'rbac.manage';
-  static const picklistsRead = 'picklists.read';
-  static const picklistsManage = 'picklists.manage';
-  static const deviceProvision = 'device.provision';
-}
-
-class AuthUserAccess {
-  final String id;
-  final Set<String> permissions;
-
-  const AuthUserAccess({required this.id, required this.permissions});
-
-  factory AuthUserAccess.fromJson(Map<String, dynamic> json) {
-    final rawPermissions = (json['permissions'] as List<dynamic>? ?? const []);
-
-    return AuthUserAccess(
-      id: json['id'] as String? ?? '',
-      permissions: rawPermissions.whereType<String>().toSet(),
-    );
-  }
-}
-
-class AuthMePayload {
-  final AuthUserAccess user;
-  final List<PermissionMetadata> permissionMetadata;
-
-  const AuthMePayload({required this.user, required this.permissionMetadata});
-
-  factory AuthMePayload.fromJson(Map<String, dynamic> json) {
-    final rawGlobal =
-        json['global_config'] as Map<String, dynamic>? ?? const {};
-    final rawPermissionMetadata =
-        (rawGlobal['permission_metadata'] as List<dynamic>? ?? const []);
-
-    return AuthMePayload(
-      user: AuthUserAccess.fromJson(
-        json['user'] as Map<String, dynamic>? ?? const {},
-      ),
-      permissionMetadata: rawPermissionMetadata
-          .whereType<Map<String, dynamic>>()
-          .map(PermissionMetadata.fromJson)
-          .toList(),
-    );
-  }
+  static const externalRead = competitionReadPermission;
+  static const matchRead = 'scouting.report.read';
+  static const matchUpload = 'scouting.report.mutate';
+  static const matchCorrect = 'scouting.report.mutate';
+  static const pitsRead = 'scouting.report.read';
+  static const pitsUpload = 'scouting.report.mutate';
+  static const notesRead = 'scouting.report.read';
+  static const driveTeamUpload = 'scouting.report.mutate';
+  static const scoutsRead = 'scouting.scout.read';
+  static const scoutsManage = 'scouting.scout.mutate';
+  static const usersRead = 'identity.user.read';
+  static const usersManage = 'identity.user.mutate';
+  static const rolesRead = 'authorization.role.read';
+  static const rolesManage = 'authorization.role.mutate';
+  static const picklistsRead = 'strategy.picklist.read';
+  static const picklistsManage = 'strategy.picklist.mutate';
+  static const deviceProvision = deviceProvisionPermission;
 }
 
 class PermissionMetadata {
-  final String key;
-  final String name;
-  final String description;
-
   const PermissionMetadata({
     required this.key,
     required this.name,
     required this.description,
+    required this.group,
   });
 
-  factory PermissionMetadata.fromJson(Map<String, dynamic> json) {
-    return PermissionMetadata(
-      key: json['key'] as String? ?? '',
-      name: json['name'] as String? ?? json['key'] as String? ?? '',
-      description: json['description'] as String? ?? '',
-    );
-  }
+  final String key;
+  final String name;
+  final String description;
+  final String group;
+}
+
+const _permissionLabels = <String, (String, String, String)>{
+  competitionReadPermission: (
+    'Competition',
+    'View competition data',
+    'View event schedules, teams, rankings, match status, and pit maps.',
+  ),
+  'scouting.report.read': (
+    'Scouting',
+    'View scouting reports',
+    'Read match, pit, strategy, and scouting notes.',
+  ),
+  'scouting.report.mutate': (
+    'Scouting',
+    'Edit scouting reports',
+    'Submit, correct, and delete scouting reports and notes.',
+  ),
+  'scouting.scout.read': (
+    'Scouting',
+    'View the scout roster',
+    'See the scouts available for reports and assignments.',
+  ),
+  'scouting.scout.mutate': (
+    'Scouting',
+    'Manage the scout roster',
+    'Add, update, or remove scouts from the roster.',
+  ),
+  'strategy.picklist.read': (
+    'Picklists',
+    'View shared picklists',
+    'Browse event picklists shared with the team.',
+  ),
+  'strategy.picklist.mutate': (
+    'Picklists',
+    'Edit shared picklists',
+    'Create, edit, or delete shared picklists.',
+  ),
+  PermissionKey.usersRead: (
+    'Users & Roles',
+    'View users',
+    'View user profiles and their assigned roles.',
+  ),
+  PermissionKey.usersManage: (
+    'Users & Roles',
+    'Manage users',
+    'Edit shared profiles and assign roles you can delegate.',
+  ),
+  PermissionKey.rolesRead: (
+    'Users & Roles',
+    'View roles',
+    'See role names and their permissions.',
+  ),
+  PermissionKey.rolesManage: (
+    'Users & Roles',
+    'Manage roles',
+    'Create, edit, and remove roles you can delegate.',
+  ),
+  deviceProvisionPermission: (
+    'Device Setup',
+    'Set up scouting devices',
+    'Generate a provisioning QR code for Bearimetric.',
+  ),
+};
+
+List<PermissionMetadata> permissionMetadataFor(EntityRegistry registry) {
+  final keys = bearingsPermissions(registry).toSet();
+  return [
+    for (final MapEntry(key: key, value: (group, name, description))
+        in _permissionLabels.entries)
+      if (keys.remove(key))
+        PermissionMetadata(
+          key: key,
+          name: name,
+          description: description,
+          group: group,
+        ),
+    for (final key in keys)
+      PermissionMetadata(
+        key: key,
+        name: key,
+        description: 'Permission details are unavailable.',
+        group: 'Other',
+      ),
+  ];
 }
 
 class PermissionChecker {
+  const PermissionChecker({required this.permissions});
   final Set<String> permissions;
 
-  const PermissionChecker({required this.permissions});
-
-  bool hasPermission(String permission) {
-    return permissions.contains(permission);
-  }
-
-  bool hasAnyPermission(Iterable<String> permissionValues) {
-    for (final permission in permissionValues) {
-      if (hasPermission(permission)) {
-        return true;
-      }
-    }
-    return false;
-  }
+  bool hasPermission(String permission) => permissions.contains(permission);
+  bool hasAnyPermission(Iterable<String> values) => values.any(hasPermission);
+  bool hasAllPermissions(Iterable<String> values) =>
+      values.every(hasPermission);
+  bool get canOpenUsersAndRoles => hasAnyPermission([
+    PermissionKey.usersRead,
+    PermissionKey.rolesRead,
+    PermissionKey.rolesManage,
+  ]);
 }
 
-@Riverpod(keepAlive: true)
-Future<AuthMePayload?> authMe(Ref ref) async {
-  final authStatus = ref.watch(authStatusProvider);
-  if (authStatus != AuthStatus.authenticated) {
+final groveAccessProvider = Provider<AsyncValue<QueryResult<GroveAccess>?>>((
+  ref,
+) {
+  final subject = ref.watch(groveSubjectProvider);
+  return subject.flatMap((id) {
+    if (id == null) return const AsyncData(null);
+    final grove = ref.watch(bearingsGroveProvider);
+    return ref.watch(groveQueryProvider(grove.query<GroveAccess>().byId(id)));
+  });
+});
+
+final permissionCheckerProvider = Provider<PermissionChecker?>((ref) {
+  final result = ref.watch(groveAccessProvider).asData?.value;
+  if (result == null || result.updateRequired || !result.hasSnapshot)
     return null;
-  }
-
-  final client = ref.watch(honeycombClientProvider);
-  final payload = await client.get<Map<String, dynamic>>(
-    '/auth/me',
-    cachePolicy: CachePolicy.networkFirst,
-  );
-  return AuthMePayload.fromJson(payload);
-}
-
-@Riverpod(keepAlive: true)
-PermissionChecker? permissionChecker(Ref ref) {
-  final authMe = ref.watch(authMeProvider).asData?.value;
-  if (authMe == null) {
-    return null;
-  }
-
-  return PermissionChecker(permissions: authMe.user.permissions);
-}
+  final access = result.items.singleOrNull;
+  return access == null
+      ? null
+      : PermissionChecker(permissions: access.permissions);
+});

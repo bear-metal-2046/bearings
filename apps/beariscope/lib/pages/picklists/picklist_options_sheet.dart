@@ -36,6 +36,7 @@ class _PicklistOptionsSheetState extends ConsumerState<PicklistOptionsSheet> {
   late final _name = TextEditingController(text: widget.picklist.title);
   late String _emoji = widget.picklist.emoji;
   final _form = GlobalKey<FormState>();
+  bool _saving = false;
 
   @override
   void dispose() {
@@ -43,19 +44,33 @@ class _PicklistOptionsSheetState extends ConsumerState<PicklistOptionsSheet> {
     super.dispose();
   }
 
-  void _save() {
-    if (!_form.currentState!.validate()) return;
-    // Leave untouched fields alone if a teammate changed them while this was open.
-    ref
-        .read(picklistLibraryProvider.notifier)
-        .customize(
-          widget.picklist.id,
-          title: _name.text.trim() == widget.picklist.title
-              ? null
-              : _name.text.trim(),
-          emoji: _emoji == widget.picklist.emoji ? null : _emoji,
-        );
-    BearingsModal.complete(context);
+  Future<void> _save() async {
+    if (_saving || !_form.currentState!.validate()) return;
+    await _commit(
+      () => ref
+          .read(picklistLibraryProvider.notifier)
+          .customize(
+            widget.picklist.id,
+            title: _name.text.trim() == widget.picklist.title
+                ? null
+                : _name.text.trim(),
+            emoji: _emoji == widget.picklist.emoji ? null : _emoji,
+          ),
+    );
+  }
+
+  Future<void> _commit(Future<void> Function() edit) async {
+    setState(() => _saving = true);
+    try {
+      await edit();
+      if (mounted) BearingsModal.complete(context);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not update the picklist: $error')),
+      );
+    }
   }
 
   Future<void> _duplicate() async {
@@ -81,9 +96,10 @@ class _PicklistOptionsSheetState extends ConsumerState<PicklistOptionsSheet> {
         ),
       ],
     );
-    if (confirmed != true || !mounted) return;
-    ref.read(picklistLibraryProvider.notifier).delete(picklist.id);
-    BearingsModal.complete(context);
+    if (confirmed != true || !mounted || _saving) return;
+    await _commit(
+      () => ref.read(picklistLibraryProvider.notifier).delete(picklist.id),
+    );
   }
 
   @override
@@ -101,13 +117,13 @@ class _PicklistOptionsSheetState extends ConsumerState<PicklistOptionsSheet> {
         BearingsModalAction(
           label: 'Duplicate picklist',
           icon: LucideIcons.copyPlus,
-          enabled: canEdit,
+          enabled: canEdit && !_saving,
           onPressed: _duplicate,
         ),
         BearingsModalAction(
           label: 'Delete picklist',
           icon: LucideIcons.trash2,
-          enabled: canEdit,
+          enabled: canEdit && !_saving,
           onPressed: _delete,
         ),
       ],
@@ -115,7 +131,7 @@ class _PicklistOptionsSheetState extends ConsumerState<PicklistOptionsSheet> {
         label: 'Save changes',
         icon: LucideIcons.check,
         onPressed: _save,
-        enabled: canEdit,
+        enabled: canEdit && !_saving,
       ),
       content: Form(
         key: _form,
@@ -124,7 +140,7 @@ class _PicklistOptionsSheetState extends ConsumerState<PicklistOptionsSheet> {
           nameLabel: 'Picklist name',
           emoji: _emoji,
           maxLength: 200,
-          enabled: canEdit,
+          enabled: canEdit && !_saving,
           onSubmitted: _save,
           onEmojiChanged: (emoji) => setState(() => _emoji = emoji),
         ),

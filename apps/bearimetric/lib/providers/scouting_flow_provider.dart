@@ -1,9 +1,7 @@
-import 'dart:async';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:bearimetric/data/upload_queue.dart';
 import 'package:bearimetric/models/scouting_session.dart';
-import 'package:bearimetric/services/scout_upload_service.dart';
+import 'package:core/core.dart';
+import 'package:services/providers/grove_provider.dart';
 import 'package:bearimetric/store/strat_state.dart';
 
 import 'scouting_providers.dart';
@@ -23,62 +21,71 @@ class ScoutingFlowController {
     return _nextMatchTapTimes.length >= 3;
   }
 
-  bool markCurrentMatchForUpload() {
+  bool _staging = false;
+
+  /// Persist the current form before leaving it. Training stays device-local.
+  Future<bool> submitCurrent() async {
+    if (_staging) return false;
     final session = _ref.read(scoutingSessionProvider);
-    if (session.event?.key == trainingEventKey) return false;
     final eventKey = session.event?.key;
-    final matchNumber = session.matchNumber;
-    final pos = session.position?.posIndex;
-    if (eventKey == null || matchNumber == null || pos == null) return false;
-
-    final data = _ref
-        .read(matchFormStoreProvider)
-        .load(eventKey, matchNumber, pos);
-    if (data == null) return false;
-
-    _ref.read(uploadQueueProvider.notifier).enqueue(data.id);
-    return true;
-  }
-
-  bool markCurrentStratForUpload() {
-    if (_ref.read(scoutingSessionProvider).event?.key == trainingEventKey) {
+    final number = session.matchNumber;
+    final position = session.position;
+    if (eventKey == null ||
+        number == null ||
+        position == null ||
+        eventKey == trainingEventKey)
+      return true;
+    _staging = true;
+    try {
+      final grove = _ref.read(bearingsGroveProvider);
+      if (position.isStrategy) {
+        final identity = _ref
+            .read(scoutingSessionProvider.notifier)
+            .createMatchIdentity();
+        final draft = identity == null
+            ? null
+            : loadStratFormDataForIdentity(identity);
+        if (draft != null)
+          await grove.stage(
+            ScoutingReport.fromPayload(
+              draft.toJson()..remove('id'),
+              id: draft.id,
+              timestamp: draft.lastModified,
+            ),
+          );
+      } else {
+        final draft = _ref
+            .read(matchFormStoreProvider)
+            .load(eventKey, number, position.posIndex);
+        if (draft != null) await grove.stage(ScoutingReport.fromMatch(draft));
+      }
+      if (_ref.mounted)
+        _ref.read(scoutingSubmissionErrorProvider.notifier).set(null);
+      return true;
+    } catch (error) {
+      if (_ref.mounted)
+        _ref
+            .read(scoutingSubmissionErrorProvider.notifier)
+            .set('Could not save this submission: $error');
       return false;
+    } finally {
+      _staging = false;
     }
-    final identity = _ref
-        .read(scoutingSessionProvider.notifier)
-        .createMatchIdentity();
-    if (identity == null) return false;
-
-    final stratDoc = loadStratFormDataForIdentity(identity);
-    if (stratDoc == null) return false;
-
-    _ref.read(uploadQueueProvider.notifier).enqueue(stratDoc.id);
-    return true;
   }
 
-  bool nextMatch() {
-    final isTrainingMode =
-        _ref.read(scoutingSessionProvider).event?.key == trainingEventKey;
-    markCurrentMatchForUpload();
-    markCurrentStratForUpload();
-    if (!isTrainingMode) {
-      unawaited(_ref.read(scoutUploadServiceProvider).drainIfOnline());
-    }
+  Future<bool> nextMatch() async {
+    if (!await submitCurrent() || !_ref.mounted) return false;
     _ref.read(scoutingSessionProvider.notifier).nextMatch();
     return true;
   }
 
-  bool previousMatch() {
+  Future<bool> previousMatch() async {
     final current = _ref.read(scoutingSessionProvider).matchNumber;
-    if (current == null || current <= 1) return false;
-
-    final isTrainingMode =
-        _ref.read(scoutingSessionProvider).event?.key == trainingEventKey;
-    markCurrentMatchForUpload();
-    markCurrentStratForUpload();
-    if (!isTrainingMode) {
-      unawaited(_ref.read(scoutUploadServiceProvider).drainIfOnline());
-    }
+    if (current == null ||
+        current <= 1 ||
+        !await submitCurrent() ||
+        !_ref.mounted)
+      return false;
     _ref.read(scoutingSessionProvider.notifier).previousMatch();
     return true;
   }
@@ -87,3 +94,14 @@ class ScoutingFlowController {
 final scoutingFlowControllerProvider = Provider<ScoutingFlowController>(
   (ref) => ScoutingFlowController(ref),
 );
+
+class ScoutingSubmissionError extends Notifier<String?> {
+  @override
+  String? build() => null;
+  void set(String? message) => state = message;
+}
+
+final scoutingSubmissionErrorProvider =
+    NotifierProvider<ScoutingSubmissionError, String?>(
+      ScoutingSubmissionError.new,
+    );

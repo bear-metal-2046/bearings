@@ -1,8 +1,8 @@
+import 'package:core/core.dart' show ScoutingReport;
 import 'package:beariscope/models/match_field_ids.dart';
-import 'package:beariscope/models/scouting_document.dart';
 
 class ProcessedScoutingDoc {
-  final ScoutingDocument raw;
+  final ScoutingReport raw;
   final double autoFuelScalar;
   final double teleFuelScalar;
   final double? autoFuelAccuracy;

@@ -1,14 +1,15 @@
-import 'package:beariscope/pages/team_lookup/team_providers.dart';
+import 'package:beariscope/utils/competition_media_display.dart';
+import 'package:core/core.dart' show CompetitionMedia;
 import 'package:flutter/widgets.dart';
 
 /// Embedded avatars match the team card's source and avoid a network request.
 /// Within each source type, preferred avatars come first; URLs are fallbacks.
 List<ImageProvider> teamAvatarImages(
-  List<TeamMediaRecord> records,
+  List<CompetitionMedia> records,
   String teamKey,
 ) {
   final avatars = records.where(
-    (record) => record.isAvatar && record.teamKeys.contains(teamKey),
+    (record) => record.isAvatar && record.includesTeam(teamKey),
   );
   final ordered = [
     ...avatars.where((record) => record.preferred),
@@ -16,8 +17,8 @@ List<ImageProvider> teamAvatarImages(
   ];
   return [
     for (final avatar in ordered)
-      if (avatar.base64Image?.isNotEmpty == true)
-        MemoryImage(avatar.base64Image!),
+      if (avatar.avatarBytes case final bytes? when bytes.isNotEmpty)
+        MemoryImage(bytes),
     for (final avatar in ordered)
       if (avatar.previewImageUrl?.isNotEmpty == true)
         NetworkImage(avatar.previewImageUrl!),

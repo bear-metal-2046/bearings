@@ -194,37 +194,6 @@ StratFormData? loadStratFormDataForIdentity(MatchIdentity identity) {
   return decoded?.data;
 }
 
-StratFormData? loadStratFormDataById(String id) {
-  if (id.isEmpty) return null;
-  final box = Hive.box(boxKey);
-
-  for (final dynamic rawKey in box.keys) {
-    if (rawKey is! String) continue;
-    if (!rawKey.startsWith('STRAT_') || rawKey.endsWith('_scoutedBy')) {
-      continue;
-    }
-
-    final parsedKey = _parseStratStorageKey(rawKey);
-    if (parsedKey == null) continue;
-
-    final raw = box.get(rawKey);
-    if (raw is! String) continue;
-
-    final decoded = _decodeStratRaw(
-      raw,
-      eventKey: parsedKey.eventKey,
-      matchNumber: parsedKey.matchNumber,
-      alliance: parsedKey.alliance,
-      season: _seasonFromEventKey(parsedKey.eventKey),
-      fallbackScout: _storedScoutName(box, rawKey),
-    );
-    if (decoded == null) continue;
-    if (decoded.data.id == id) return decoded.data;
-  }
-
-  return null;
-}
-
 _DecodedStratRecord? _decodeStratRaw(
   String raw, {
   required String eventKey,
@@ -259,32 +228,9 @@ _DecodedStratRecord? _decodeStratRaw(
   return null;
 }
 
-({String eventKey, int matchNumber, String alliance})? _parseStratStorageKey(
-  String key,
-) {
-  if (!key.startsWith('STRAT_')) return null;
-  final body = key.substring('STRAT_'.length);
-  final last = body.lastIndexOf('_');
-  if (last <= 0) return null;
-  final secondLast = body.lastIndexOf('_', last - 1);
-  if (secondLast <= 0) return null;
-
-  final eventKey = body.substring(0, secondLast);
-  final matchNumber = int.tryParse(body.substring(secondLast + 1, last));
-  final alliance = _normalizeAlliance(body.substring(last + 1));
-
-  if (eventKey.isEmpty || matchNumber == null) return null;
-  return (eventKey: eventKey, matchNumber: matchNumber, alliance: alliance);
-}
-
 String? _storedScoutName(Box<dynamic> box, String key, {String? fallback}) {
   final stored = box.get('${key}_scoutedBy')?.toString();
   return _sanitizeScoutName(stored ?? fallback);
-}
-
-int _seasonFromEventKey(String eventKey) {
-  if (eventKey.length < 4) return DateTime.now().year;
-  return int.tryParse(eventKey.substring(0, 4)) ?? DateTime.now().year;
 }
 
 int? _asInt(dynamic value) {

@@ -1,10 +1,10 @@
+import 'package:grove/grove.dart';
 import 'package:ui/widgets/bearings_alert_dialog.dart';
 import 'package:ui/widgets/bearings_modal.dart';
 
 import 'dart:convert';
 import 'dart:math' as math;
 
-import 'package:beariscope/models/scouting_document.dart';
 import 'package:beariscope/models/team_scouting_bundle.dart';
 import 'package:beariscope/pages/main_view.dart';
 import 'package:beariscope/pages/scout_audit/match_scouting_form_page.dart';
@@ -14,11 +14,14 @@ import 'package:beariscope/pages/scout_audit/scout_audit_provider.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/scouting_data_provider.dart';
 import 'package:ui/widgets/bearings_status_view.dart';
-import 'package:core/core.dart' show ScoutPosition;
+import 'package:core/core.dart'
+    show ScoutPosition, CompetitionMatch, ScoutingReport;
+import 'package:services/providers/competition_provider.dart';
+import 'package:beariscope/widgets/grove_load_message.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:services/providers/api_provider.dart';
+import 'package:services/providers/grove_provider.dart';
 import 'package:syncfusion_flutter_sliders/sliders.dart';
 import 'package:beariscope/utils/match_video_opener.dart';
 import 'package:ui/widgets/bearings_spinner.dart';
@@ -64,12 +67,20 @@ class _ScoutAuditPageState extends ConsumerState<ScoutAuditPage> {
         error: (error, stack) => BearingsStatusView(
           icon: LucideIcons.circleAlert,
           iconColor: Theme.of(context).colorScheme.error,
-          title: 'TBA data is unavailable',
-          subtitle: 'Scout Audit needs TBA match schedule and scores. Check your connection and try again.',
+          title: 'Scout Audit unavailable',
+          subtitle:
+              error is GroveException && error.code == 'schedule_unavailable'
+              ? error.message
+              : groveLoadMessage(error),
           action: FilledButton.icon(
             onPressed: () {
-              ref.invalidate(cachedTbaMatchesProvider);
-              ref.invalidate(scoutAuditSnapshotProvider);
+              retryCompetitionMatches(
+                ProviderScope.containerOf(context, listen: false),
+                ref.read(currentEventProvider),
+              );
+              ref.invalidate(
+                groveQueryProvider(ref.read(scoutingQueryProvider)),
+              );
             },
             icon: const Icon(LucideIcons.rotateCw),
             label: const Text('Retry'),
@@ -247,9 +258,7 @@ class _ScoutAuditPageState extends ConsumerState<ScoutAuditPage> {
       ),
     );
 
-    if (saved == true) {
-      ref.invalidate(scoutAuditSnapshotProvider);
-    }
+    if (saved == true) {}
   }
 
   Widget _buildSummaryCard(
@@ -464,7 +473,6 @@ class _ScoutAuditPageState extends ConsumerState<ScoutAuditPage> {
       await ref
           .read(scoutAuditIncorrectThresholdProvider.notifier)
           .setThreshold(value);
-      ref.invalidate(scoutAuditSnapshotProvider);
     }
   }
 }
@@ -492,8 +500,14 @@ class _IncompleteMatchDetailPageState
     final eventKey = ref.watch(currentEventProvider);
     final snapshotAsync = ref.watch(scoutAuditSnapshotProvider);
     final docs =
-        ref.watch(scoutingDataProvider).value ?? const <ScoutingDocument>[];
-    final tbaMatchesAsync = ref.watch(cachedTbaMatchesProvider);
+        ref
+            .watch(groveQueryProvider(ref.watch(scoutingQueryProvider)))
+            .value
+            ?.items ??
+        const <ScoutingReport>[];
+    final tbaMatchesAsync = ref.watch(
+      competitionMatchesProvider(ref.watch(currentEventProvider)),
+    );
     final colorScheme = Theme.of(context).colorScheme;
     final isStrat = widget.entryType == ScoutAuditEntryType.strat;
 
@@ -508,7 +522,7 @@ class _IncompleteMatchDetailPageState
           IconButton(
             onPressed: () => _openMatchVideo(
               context,
-              tbaMatchesAsync.asData?.value ?? const <Map<String, dynamic>>[],
+              tbaMatchesAsync.value?.items ?? const <CompetitionMatch>[],
               widget.matchNumber,
             ),
             icon: const Icon(LucideIcons.squarePlay),
@@ -681,7 +695,7 @@ class _IncompleteMatchDetailPageState
     required String eventKey,
     required int matchNumber,
     required AuditSlot slot,
-    required List<ScoutingDocument> docs,
+    required List<ScoutingReport> docs,
   }) async {
     final existing = _latestDocFor(docs, matchNumber, slot.pos);
     final saved = await Navigator.of(context).push<bool>(
@@ -696,14 +710,12 @@ class _IncompleteMatchDetailPageState
       ),
     );
 
-    if (saved == true) {
-      ref.invalidate(scoutAuditSnapshotProvider);
-    }
+    if (saved == true) {}
   }
 
   Future<void> _openMatchVideo(
     BuildContext context,
-    List<Map<String, dynamic>> matches,
+    List<CompetitionMatch> matches,
     int matchNumber,
   ) async {
     await _launchMatchVideo(
@@ -717,7 +729,7 @@ class _IncompleteMatchDetailPageState
   Future<void> _confirmDeleteAllEntries(
     BuildContext context,
     String eventKey,
-    List<ScoutingDocument> docs,
+    List<ScoutingReport> docs,
   ) async {
     final noun = widget.entryType == ScoutAuditEntryType.strat
         ? 'strat entries'
@@ -732,7 +744,7 @@ class _IncompleteMatchDetailPageState
 
     setState(() => _working = true);
     try {
-      final client = ref.read(honeycombClientProvider);
+      final grove = ref.read(bearingsGroveProvider);
       if (widget.entryType == ScoutAuditEntryType.strat) {
         final stratDocs = _stratDocsForMatch(
           docs,
@@ -740,16 +752,14 @@ class _IncompleteMatchDetailPageState
           widget.matchNumber,
         );
         for (final doc in stratDocs) {
-          await client.delete('/scouting/${doc.id}?type=strat');
+          await grove.delete<ScoutingReport>(doc.id, allowOffline: false);
         }
       } else {
         final matchDocs = matchDocsForMatch(docs, eventKey, widget.matchNumber);
         for (final doc in matchDocs) {
-          await client.delete('/scouting/${doc.id}?type=match');
+          await grove.delete<ScoutingReport>(doc.id, allowOffline: false);
         }
       }
-      await ref.read(scoutingDataProvider.notifier).refresh();
-      ref.invalidate(scoutAuditSnapshotProvider);
       if (context.mounted && Navigator.of(context).canPop()) {
         Navigator.of(context).pop();
       }
@@ -780,7 +790,11 @@ class _NotInTbaDetailPageState extends ConsumerState<_NotInTbaDetailPage> {
   @override
   Widget build(BuildContext context) {
     final docs =
-        ref.watch(scoutingDataProvider).value ?? const <ScoutingDocument>[];
+        ref
+            .watch(groveQueryProvider(ref.watch(scoutingQueryProvider)))
+            .value
+            ?.items ??
+        const <ScoutingReport>[];
     final doc = docs.where((d) => d.id == widget.docId).firstOrNull;
     final colorScheme = Theme.of(context).colorScheme;
 
@@ -891,12 +905,8 @@ class _NotInTbaDetailPageState extends ConsumerState<_NotInTbaDetailPage> {
     setState(() => _working = true);
     try {
       await ref
-          .read(honeycombClientProvider)
-          .delete(
-            '/scouting/$docId?type=${widget.entryType == ScoutAuditEntryType.strat ? 'strat' : 'match'}',
-          );
-      await ref.read(scoutingDataProvider.notifier).refresh();
-      ref.invalidate(scoutAuditSnapshotProvider);
+          .read(bearingsGroveProvider)
+          .delete<ScoutingReport>(docId, allowOffline: false);
       if (context.mounted && Navigator.of(context).canPop()) {
         Navigator.of(context).pop();
       }
@@ -1066,8 +1076,8 @@ class _DuplicateDetailPageState extends ConsumerState<_DuplicateDetailPage> {
   }
 
   Future<void> _confirmKeep(
-    ScoutingDocument selected,
-    List<ScoutingDocument> all,
+    ScoutingReport selected,
+    List<ScoutingReport> all,
   ) async {
     final confirmed = await _confirmDestructiveAction(
       context,
@@ -1080,21 +1090,16 @@ class _DuplicateDetailPageState extends ConsumerState<_DuplicateDetailPage> {
   }
 
   Future<void> _keepEntry(
-    ScoutingDocument selected,
-    List<ScoutingDocument> all,
+    ScoutingReport selected,
+    List<ScoutingReport> all,
   ) async {
     setState(() => _working = true);
     try {
-      final client = ref.read(honeycombClientProvider);
-      final deleteType = widget.entryType == ScoutAuditEntryType.strat
-          ? 'strat'
-          : 'match';
+      final grove = ref.read(bearingsGroveProvider);
       for (final doc in all) {
         if (doc.id == selected.id) continue;
-        await client.delete('/scouting/${doc.id}?type=$deleteType');
+        await grove.delete<ScoutingReport>(doc.id, allowOffline: false);
       }
-      await ref.read(scoutingDataProvider.notifier).refresh();
-      ref.invalidate(scoutAuditSnapshotProvider);
       if (mounted && Navigator.of(context).canPop()) {
         Navigator.of(context).pop();
       }
@@ -1132,8 +1137,14 @@ class _IncorrectDataDetailPageState
     final threshold = ref.watch(scoutAuditIncorrectThresholdProvider);
     final snapshotAsync = ref.watch(scoutAuditSnapshotProvider);
     final docs =
-        ref.watch(scoutingDataProvider).value ?? const <ScoutingDocument>[];
-    final tbaMatchesAsync = ref.watch(cachedTbaMatchesProvider);
+        ref
+            .watch(groveQueryProvider(ref.watch(scoutingQueryProvider)))
+            .value
+            ?.items ??
+        const <ScoutingReport>[];
+    final tbaMatchesAsync = ref.watch(
+      competitionMatchesProvider(ref.watch(currentEventProvider)),
+    );
     final colorScheme = Theme.of(context).colorScheme;
     final isRed = widget.alliance == 'red';
 
@@ -1145,7 +1156,7 @@ class _IncorrectDataDetailPageState
             onPressed: () => _launchMatchVideo(
               context,
               eventKey,
-              tbaMatchesAsync.asData?.value ?? const <Map<String, dynamic>>[],
+              tbaMatchesAsync.value?.items ?? const <CompetitionMatch>[],
               widget.matchNumber,
             ),
             icon: const Icon(LucideIcons.squarePlay),
@@ -1405,7 +1416,7 @@ class _IncorrectDataDetailPageState
     required String eventKey,
     required AllianceMetric metric,
     required AuditSlot slot,
-    required List<ScoutingDocument> docs,
+    required List<ScoutingReport> docs,
   }) async {
     final existing = _latestDocFor(docs, metric.matchNumber, slot.pos);
     final saved = await Navigator.of(context).push<bool>(
@@ -1422,7 +1433,6 @@ class _IncorrectDataDetailPageState
 
     if (saved == true) {
       setState(() => _rescannedTeams.add(slot.teamNumber));
-      ref.invalidate(scoutAuditSnapshotProvider);
     }
   }
 }
@@ -1482,8 +1492,13 @@ class _ManualScoutDialogState extends ConsumerState<_ManualScoutDialog> {
 
     try {
       final eventKey = ref.read(currentEventProvider);
-      final matches = await ref.read(cachedTbaMatchesProvider.future);
-      final docs = await ref.read(scoutingDataProvider.future);
+      final matches =
+          (await ref.read(competitionProvider).matchResults(eventKey))
+              .requireComplete()
+              .items;
+      final docs = (await ref.read(scoutingQueryProvider).result())
+          .requireComplete()
+          .items;
 
       final match = findTbaMatchForNumber(matches, eventKey, matchNumber);
       if (match == null) {
@@ -1645,7 +1660,7 @@ Future<bool> _confirmDestructiveAction(
 Future<void> _launchMatchVideo(
   BuildContext context,
   String eventKey,
-  List<Map<String, dynamic>> matches,
+  List<CompetitionMatch> matches,
   int matchNumber,
 ) async {
   await openMatchVideo(
@@ -1655,8 +1670,8 @@ Future<void> _launchMatchVideo(
   );
 }
 
-ScoutingDocument? _latestDocFor(
-  List<ScoutingDocument> docs,
+ScoutingReport? _latestDocFor(
+  List<ScoutingReport> docs,
   int matchNumber,
   int pos,
 ) {
@@ -1677,8 +1692,8 @@ ScoutingDocument? _latestDocFor(
   return candidates.firstOrNull;
 }
 
-List<ScoutingDocument> _stratDocsForMatch(
-  List<ScoutingDocument> docs,
+List<ScoutingReport> _stratDocsForMatch(
+  List<ScoutingReport> docs,
   String eventKey,
   int matchNumber,
 ) {
@@ -1692,7 +1707,7 @@ List<ScoutingDocument> _stratDocsForMatch(
       .toList(growable: false);
 }
 
-int? _posOf(ScoutingDocument doc) {
+int? _posOf(ScoutingReport doc) {
   final raw = doc.data['pos'];
   if (raw is int) return raw;
   if (raw is num) return raw.toInt();
@@ -1735,7 +1750,7 @@ class _MergeConflictView extends StatefulWidget {
 
   final DuplicateIssue issue;
   final bool working;
-  final Function(ScoutingDocument, List<ScoutingDocument>) onConfirmKeep;
+  final Function(ScoutingReport, List<ScoutingReport>) onConfirmKeep;
 
   @override
   State<_MergeConflictView> createState() => _MergeConflictViewState();

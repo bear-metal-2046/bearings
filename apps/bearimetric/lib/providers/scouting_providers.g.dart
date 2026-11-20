@@ -15,13 +15,11 @@ final eventsProvider = EventsProvider._();
 final class EventsProvider
     extends
         $FunctionalProvider<
-          AsyncValue<List<ScoutingEvent>>,
-          List<ScoutingEvent>,
-          FutureOr<List<ScoutingEvent>>
+          AsyncValue<List<CompetitionEvent>>,
+          AsyncValue<List<CompetitionEvent>>,
+          AsyncValue<List<CompetitionEvent>>
         >
-    with
-        $FutureModifier<List<ScoutingEvent>>,
-        $FutureProvider<List<ScoutingEvent>> {
+    with $Provider<AsyncValue<List<CompetitionEvent>>> {
   EventsProvider._()
     : super(
         from: null,
@@ -38,17 +36,27 @@ final class EventsProvider
 
   @$internal
   @override
-  $FutureProviderElement<List<ScoutingEvent>> $createElement(
+  $ProviderElement<AsyncValue<List<CompetitionEvent>>> $createElement(
     $ProviderPointer pointer,
-  ) => $FutureProviderElement(pointer);
+  ) => $ProviderElement(pointer);
 
   @override
-  FutureOr<List<ScoutingEvent>> create(Ref ref) {
+  AsyncValue<List<CompetitionEvent>> create(Ref ref) {
     return events(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(AsyncValue<List<CompetitionEvent>> value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<AsyncValue<List<CompetitionEvent>>>(
+        value,
+      ),
+    );
   }
 }
 
-String _$eventsHash() => r'cb93aaff34eda6618033533b9ce5b9155cf2d761';
+String _$eventsHash() => r'aca659613964871efdccf70f9d15380c97bdb808';
 
 @ProviderFor(matches)
 final matchesProvider = MatchesFamily._();
@@ -56,13 +64,11 @@ final matchesProvider = MatchesFamily._();
 final class MatchesProvider
     extends
         $FunctionalProvider<
-          AsyncValue<List<ScoutingMatch>>,
-          List<ScoutingMatch>,
-          FutureOr<List<ScoutingMatch>>
+          AsyncValue<List<CompetitionMatch>>,
+          AsyncValue<List<CompetitionMatch>>,
+          AsyncValue<List<CompetitionMatch>>
         >
-    with
-        $FutureModifier<List<ScoutingMatch>>,
-        $FutureProvider<List<ScoutingMatch>> {
+    with $Provider<AsyncValue<List<CompetitionMatch>>> {
   MatchesProvider._({
     required MatchesFamily super.from,
     required String super.argument,
@@ -86,14 +92,24 @@ final class MatchesProvider
 
   @$internal
   @override
-  $FutureProviderElement<List<ScoutingMatch>> $createElement(
+  $ProviderElement<AsyncValue<List<CompetitionMatch>>> $createElement(
     $ProviderPointer pointer,
-  ) => $FutureProviderElement(pointer);
+  ) => $ProviderElement(pointer);
 
   @override
-  FutureOr<List<ScoutingMatch>> create(Ref ref) {
+  AsyncValue<List<CompetitionMatch>> create(Ref ref) {
     final argument = this.argument as String;
     return matches(ref, argument);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(AsyncValue<List<CompetitionMatch>> value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<AsyncValue<List<CompetitionMatch>>>(
+        value,
+      ),
+    );
   }
 
   @override
@@ -107,10 +123,10 @@ final class MatchesProvider
   }
 }
 
-String _$matchesHash() => r'668c9b8527a504cbcc955ca5525f77aeb661380c';
+String _$matchesHash() => r'78fb65e62728986489f27240266ecbb5675409c9';
 
 final class MatchesFamily extends $Family
-    with $FunctionalFamilyOverride<FutureOr<List<ScoutingMatch>>, String> {
+    with $FunctionalFamilyOverride<AsyncValue<List<CompetitionMatch>>, String> {
   MatchesFamily._()
     : super(
         retry: null,
@@ -131,8 +147,13 @@ final class MatchesFamily extends $Family
 final teamForMatchPositionProvider = TeamForMatchPositionFamily._();
 
 final class TeamForMatchPositionProvider
-    extends $FunctionalProvider<AsyncValue<String?>, String?, FutureOr<String?>>
-    with $FutureModifier<String?>, $FutureProvider<String?> {
+    extends
+        $FunctionalProvider<
+          AsyncValue<String?>,
+          AsyncValue<String?>,
+          AsyncValue<String?>
+        >
+    with $Provider<AsyncValue<String?>> {
   TeamForMatchPositionProvider._({
     required TeamForMatchPositionFamily super.from,
     required (String, int, ScoutPosition) super.argument,
@@ -156,13 +177,22 @@ final class TeamForMatchPositionProvider
 
   @$internal
   @override
-  $FutureProviderElement<String?> $createElement($ProviderPointer pointer) =>
-      $FutureProviderElement(pointer);
+  $ProviderElement<AsyncValue<String?>> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
 
   @override
-  FutureOr<String?> create(Ref ref) {
+  AsyncValue<String?> create(Ref ref) {
     final argument = this.argument as (String, int, ScoutPosition);
     return teamForMatchPosition(ref, argument.$1, argument.$2, argument.$3);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(AsyncValue<String?> value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<AsyncValue<String?>>(value),
+    );
   }
 
   @override
@@ -177,12 +207,12 @@ final class TeamForMatchPositionProvider
 }
 
 String _$teamForMatchPositionHash() =>
-    r'49c90634e58a41d28ec2e4cd52880db19cd5d497';
+    r'7460aa956d5dfe0e45fcfc91f95880cd7f026c45';
 
 final class TeamForMatchPositionFamily extends $Family
     with
         $FunctionalFamilyOverride<
-          FutureOr<String?>,
+          AsyncValue<String?>,
           (String, int, ScoutPosition)
         > {
   TeamForMatchPositionFamily._()
@@ -214,12 +244,10 @@ final class AllTeamsForMatchProvider
     extends
         $FunctionalProvider<
           AsyncValue<Map<ScoutPosition, String>>,
-          Map<ScoutPosition, String>,
-          FutureOr<Map<ScoutPosition, String>>
+          AsyncValue<Map<ScoutPosition, String>>,
+          AsyncValue<Map<ScoutPosition, String>>
         >
-    with
-        $FutureModifier<Map<ScoutPosition, String>>,
-        $FutureProvider<Map<ScoutPosition, String>> {
+    with $Provider<AsyncValue<Map<ScoutPosition, String>>> {
   AllTeamsForMatchProvider._({
     required AllTeamsForMatchFamily super.from,
     required (String, int) super.argument,
@@ -243,14 +271,23 @@ final class AllTeamsForMatchProvider
 
   @$internal
   @override
-  $FutureProviderElement<Map<ScoutPosition, String>> $createElement(
+  $ProviderElement<AsyncValue<Map<ScoutPosition, String>>> $createElement(
     $ProviderPointer pointer,
-  ) => $FutureProviderElement(pointer);
+  ) => $ProviderElement(pointer);
 
   @override
-  FutureOr<Map<ScoutPosition, String>> create(Ref ref) {
+  AsyncValue<Map<ScoutPosition, String>> create(Ref ref) {
     final argument = this.argument as (String, int);
     return allTeamsForMatch(ref, argument.$1, argument.$2);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(AsyncValue<Map<ScoutPosition, String>> value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride:
+          $SyncValueProvider<AsyncValue<Map<ScoutPosition, String>>>(value),
+    );
   }
 
   @override
@@ -264,12 +301,12 @@ final class AllTeamsForMatchProvider
   }
 }
 
-String _$allTeamsForMatchHash() => r'36de2ef0628cb20738e3582e01b7c4500aaf76ec';
+String _$allTeamsForMatchHash() => r'affc216e6e7237eeb673e5ad6426fcb4f046ec50';
 
 final class AllTeamsForMatchFamily extends $Family
     with
         $FunctionalFamilyOverride<
-          FutureOr<Map<ScoutPosition, String>>,
+          AsyncValue<Map<ScoutPosition, String>>,
           (String, int)
         > {
   AllTeamsForMatchFamily._()
@@ -287,45 +324,6 @@ final class AllTeamsForMatchFamily extends $Family
   @override
   String toString() => r'allTeamsForMatchProvider';
 }
-
-@ProviderFor(scouts)
-final scoutsProvider = ScoutsProvider._();
-
-final class ScoutsProvider
-    extends
-        $FunctionalProvider<
-          AsyncValue<List<Scout>>,
-          List<Scout>,
-          FutureOr<List<Scout>>
-        >
-    with $FutureModifier<List<Scout>>, $FutureProvider<List<Scout>> {
-  ScoutsProvider._()
-    : super(
-        from: null,
-        argument: null,
-        retry: null,
-        name: r'scoutsProvider',
-        isAutoDispose: true,
-        dependencies: null,
-        $allTransitiveDependencies: null,
-      );
-
-  @override
-  String debugGetCreateSourceHash() => _$scoutsHash();
-
-  @$internal
-  @override
-  $FutureProviderElement<List<Scout>> $createElement(
-    $ProviderPointer pointer,
-  ) => $FutureProviderElement(pointer);
-
-  @override
-  FutureOr<List<Scout>> create(Ref ref) {
-    return scouts(ref);
-  }
-}
-
-String _$scoutsHash() => r'b69d30cd5b385fdc5ea3426a920bfd684e57bf75';
 
 @ProviderFor(ScoutingSessionNotifier)
 final scoutingSessionProvider = ScoutingSessionNotifierProvider._();
@@ -360,7 +358,7 @@ final class ScoutingSessionNotifierProvider
 }
 
 String _$scoutingSessionNotifierHash() =>
-    r'f03175de972d1cb09c4008f5ad7558d949d385fa';
+    r'252e30b104a8109f8eec81d0955a61aab4be9b84';
 
 abstract class _$ScoutingSessionNotifier extends $Notifier<ScoutingSession> {
   ScoutingSession build();
@@ -384,8 +382,13 @@ abstract class _$ScoutingSessionNotifier extends $Notifier<ScoutingSession> {
 final teamNumberForSessionProvider = TeamNumberForSessionProvider._();
 
 final class TeamNumberForSessionProvider
-    extends $FunctionalProvider<AsyncValue<int?>, int?, FutureOr<int?>>
-    with $FutureModifier<int?>, $FutureProvider<int?> {
+    extends
+        $FunctionalProvider<
+          AsyncValue<int?>,
+          AsyncValue<int?>,
+          AsyncValue<int?>
+        >
+    with $Provider<AsyncValue<int?>> {
   TeamNumberForSessionProvider._()
     : super(
         from: null,
@@ -402,17 +405,25 @@ final class TeamNumberForSessionProvider
 
   @$internal
   @override
-  $FutureProviderElement<int?> $createElement($ProviderPointer pointer) =>
-      $FutureProviderElement(pointer);
+  $ProviderElement<AsyncValue<int?>> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
 
   @override
-  FutureOr<int?> create(Ref ref) {
+  AsyncValue<int?> create(Ref ref) {
     return teamNumberForSession(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(AsyncValue<int?> value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<AsyncValue<int?>>(value),
+    );
   }
 }
 
 String _$teamNumberForSessionHash() =>
-    r'2ef5e5f3a0be1f951b30dd19250179e2e951e328';
+    r'59196c0061b3912db6c99a2b0084b540cb2bce44';
 
 @ProviderFor(allianceTeamsForSession)
 final allianceTeamsForSessionProvider = AllianceTeamsForSessionProvider._();
@@ -421,10 +432,10 @@ final class AllianceTeamsForSessionProvider
     extends
         $FunctionalProvider<
           AsyncValue<List<String>>,
-          List<String>,
-          FutureOr<List<String>>
+          AsyncValue<List<String>>,
+          AsyncValue<List<String>>
         >
-    with $FutureModifier<List<String>>, $FutureProvider<List<String>> {
+    with $Provider<AsyncValue<List<String>>> {
   AllianceTeamsForSessionProvider._()
     : super(
         from: null,
@@ -441,15 +452,23 @@ final class AllianceTeamsForSessionProvider
 
   @$internal
   @override
-  $FutureProviderElement<List<String>> $createElement(
+  $ProviderElement<AsyncValue<List<String>>> $createElement(
     $ProviderPointer pointer,
-  ) => $FutureProviderElement(pointer);
+  ) => $ProviderElement(pointer);
 
   @override
-  FutureOr<List<String>> create(Ref ref) {
+  AsyncValue<List<String>> create(Ref ref) {
     return allianceTeamsForSession(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(AsyncValue<List<String>> value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<AsyncValue<List<String>>>(value),
+    );
   }
 }
 
 String _$allianceTeamsForSessionHash() =>
-    r'546d2f251e6ae58a8e93fc963ec7a755981b9d94';
+    r'1882df75a8ce9cfd1234e631fbeca9e56e0f69ac';

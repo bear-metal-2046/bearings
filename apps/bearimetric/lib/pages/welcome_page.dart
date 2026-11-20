@@ -46,14 +46,13 @@ class WelcomePage extends ConsumerWidget {
                                 'offline_access',
                                 'ORLhqJbHiTfgdF3Q8hqIbmdwT1wTkkP7',
                               ]);
-                            } on OfflineAuthException {
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('No internet connection'),
-                                  ),
-                                );
-                              }
+                            } catch (error) {
+                              if (!context.mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Sign in failed: $error'),
+                                ),
+                              );
                             }
                           },
                           label: const Text('Sign In'),

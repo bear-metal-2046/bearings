@@ -1,3 +1,4 @@
+import 'package:services/providers/competition_provider.dart';
 import 'package:ui/widgets/bearings_modal.dart';
 
 import 'dart:async';
@@ -10,7 +11,6 @@ import 'package:beariscope/pages/flash_cards/study/flash_card_options_sheet.dart
 import 'package:beariscope/pages/flash_cards/study/flash_card_progress.dart';
 import 'package:beariscope/pages/main_view.dart';
 import 'package:beariscope/pages/picklists/picklist_emoji.dart';
-import 'package:beariscope/pages/team_lookup/team_providers.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/shared_preferences_provider.dart';
 import 'package:ui/widgets/bearings_status_view.dart';
@@ -32,29 +32,12 @@ class _FlashCardStudyPageState extends ConsumerState<FlashCardStudyPage> {
   late final FlashCardStore _store;
   late FlashCardOptions _options;
   int _resetGeneration = 0;
-  bool _refreshingCustom = false;
 
   @override
   void initState() {
     super.initState();
     _store = FlashCardStore(ref.read(sharedPreferencesProvider));
     _options = _store.readOptions();
-    final id = widget.deckId;
-    if (id != null) {
-      _refreshingCustom = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        final deck = findFlashCardDeck(ref.read(flashCardLibraryProvider), id);
-        for (final event in deck?.eventKeys ?? <String>[]) {
-          ref.invalidate(eventTeamsProvider(event));
-          ref.invalidate(flashCardEventRosterProvider(event));
-          ref.invalidate(flashCardEventMediaProvider(event));
-        }
-        ref.invalidate(flashCardCustomTeamsProvider(id));
-        ref.invalidate(flashCardCustomMediaProvider(id));
-        setState(() => _refreshingCustom = false);
-      });
-    }
   }
 
   final _studyFocus = FocusNode(debugLabel: 'Flash cards');
@@ -96,7 +79,11 @@ class _FlashCardStudyPageState extends ConsumerState<FlashCardStudyPage> {
         ? ref.watch(currentEventProvider)
         : flashCardDeckProgressScope(id);
     final teamsAsync = id == null
-        ? normalizeCurrentFlashCardRoster(ref.watch(teamsProvider))
+        ? normalizeCurrentFlashCardRoster(
+            ref.watch(
+              competitionTeamsProvider(ref.watch(currentEventProvider)),
+            ),
+          )
         : ref.watch(flashCardCustomTeamsProvider(id));
     final controller = MainViewController.of(context);
 
@@ -135,17 +122,13 @@ class _FlashCardStudyPageState extends ConsumerState<FlashCardStudyPage> {
                 onPressed: controller.openDrawer,
               ),
       ),
-      body: _refreshingCustom
-          ? const Center(child: BearingsSpinner())
-          : id != null && deck == null
+      body: id != null && deck == null
           ? const BearingsStatusView(
               icon: LucideIcons.layers,
               title: 'Deck not found',
               subtitle: 'This deck may have been deleted.',
             )
           : teamsAsync.when(
-              skipLoadingOnRefresh: false,
-              skipLoadingOnReload: false,
               loading: () => const Center(child: BearingsSpinner()),
               error: (error, _) => BearingsStatusView(
                 icon: LucideIcons.circleAlert,
@@ -158,14 +141,17 @@ class _FlashCardStudyPageState extends ConsumerState<FlashCardStudyPage> {
                 action: FilledButton(
                   onPressed: () {
                     if (id == null) {
-                      ref.invalidate(eventTeamsProvider(eventKey));
-                      ref.invalidate(teamsProvider);
+                      retryCompetitionTeams(
+                        ProviderScope.containerOf(context, listen: false),
+                        eventKey,
+                      );
                     } else {
                       for (final event in deck?.eventKeys ?? <String>[]) {
-                        ref.invalidate(eventTeamsProvider(event));
-                        ref.invalidate(flashCardEventRosterProvider(event));
+                        retryCompetitionTeams(
+                          ProviderScope.containerOf(context, listen: false),
+                          event,
+                        );
                       }
-                      ref.invalidate(flashCardCustomTeamsProvider(id));
                     }
                   },
                   child: const Text('Retry'),
@@ -185,13 +171,20 @@ class _FlashCardStudyPageState extends ConsumerState<FlashCardStudyPage> {
                 }
 
                 // Media is optional: slow or unavailable photos never block studying.
-                final media =
-                    (id == null
-                            ? ref.watch(eventTeamMediaProvider)
-                            : ref.watch(flashCardCustomMediaProvider(id)))
-                        .asData
-                        ?.value ??
-                    const <TeamMediaRecord>[];
+                final media = id == null
+                    ? combineFlashCardMedia({
+                        eventKey:
+                            ref
+                                .watch(competitionMediaProvider(eventKey))
+                                .asData
+                                ?.value ??
+                            const [],
+                      })
+                    : ref
+                              .watch(flashCardCustomMediaProvider(id))
+                              .asData
+                              ?.value ??
+                          const {};
                 return FlashCardDeck(
                   key: ValueKey(eventKey),
                   eventKey: eventKey,

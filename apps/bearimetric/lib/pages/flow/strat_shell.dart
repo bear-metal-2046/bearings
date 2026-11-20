@@ -96,7 +96,7 @@ class StratShell extends ConsumerWidget {
                     );
                     if (!(shouldContinue ?? false)) return;
                   }
-                  flow.nextMatch();
+                  await flow.nextMatch();
                 },
               ),
             ],

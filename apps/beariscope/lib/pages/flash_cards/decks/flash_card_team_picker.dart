@@ -1,4 +1,5 @@
 import 'package:beariscope/pages/flash_cards/decks/flash_card_deck_provider.dart';
+import 'package:services/providers/competition_provider.dart';
 import 'package:beariscope/pages/team_lookup/team_model.dart';
 import 'package:ui/widgets/bearings_modal.dart';
 import 'package:ui/widgets/bearings_search_bar.dart';
@@ -112,7 +113,10 @@ class _FlashCardTeamPickerState extends ConsumerState<FlashCardTeamPicker> {
               onPressed: () {
                 for (final entry in rosters.entries) {
                   if (entry.value.hasError) {
-                    ref.invalidate(flashCardEventRosterProvider(entry.key));
+                    retryCompetitionTeams(
+                      ProviderScope.containerOf(context, listen: false),
+                      entry.key,
+                    );
                   }
                 }
               },

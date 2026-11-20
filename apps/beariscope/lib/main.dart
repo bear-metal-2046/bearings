@@ -1,5 +1,6 @@
 import 'dart:ui' show ViewFocusEvent, ViewFocusState;
 
+import 'package:services/providers/grove_provider.dart';
 import 'package:beariscope/pages/auth/post_sign_in_onboarding_page.dart';
 import 'package:beariscope/pages/auth/sign_up_flow_page.dart';
 import 'package:beariscope/pages/auth/splash_screen.dart';
@@ -48,7 +49,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:hive_ce_flutter/adapters.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:services/providers/auth_provider.dart';
@@ -64,8 +64,7 @@ Future<void> main() async {
   setUrlStrategy(PathUrlStrategy());
 
   await initializeHiveStorage();
-  await Hive.openBox('api_cache');
-  await Hive.openBox<String>('scouting_data');
+  await initializeGroveStorage();
 
   if (PlatformUtils.isDesktop()) {
     setWindowMinSize(const Size(400, 600));
@@ -107,6 +106,7 @@ Future<void> main() async {
 class RouterRefreshNotifier extends ChangeNotifier {
   RouterRefreshNotifier(this.ref) {
     ref.listen(appPhaseProvider, (_, _) => notifyListeners());
+    ref.listen(permissionCheckerProvider, (_, _) => notifyListeners());
   }
 
   final Ref ref;
@@ -337,26 +337,22 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isRoleManagementRoute = location == '/settings/roles';
       final isScoutManagementRoute = location == '/settings/user_selection';
       final isDeviceProvisioningRoute = location == '/device_provisioning';
-      final isPicklistRoute = location.startsWith('/picklists');
       final needsPermissions =
           isRoleManagementRoute ||
           isScoutManagementRoute ||
-          isDeviceProvisioningRoute ||
-          isPicklistRoute;
+          isDeviceProvisioningRoute;
 
       if (needsPermissions) {
-        final authMe = ref.read(authMeProvider);
+        final access = ref.read(groveAccessProvider);
 
-        if (authMe.isLoading) {
+        if (access.asData?.value?.complete != true) {
           return null;
         }
 
         final checker = ref.read(permissionCheckerProvider);
 
         if (isRoleManagementRoute) {
-          final canManageRoles =
-              checker?.hasPermission(PermissionKey.usersRolesManage) ?? false;
-          if (!canManageRoles) return '/settings';
+          if (checker?.canOpenUsersAndRoles != true) return '/settings';
         }
 
         if (isScoutManagementRoute) {
@@ -373,12 +369,6 @@ final routerProvider = Provider<GoRouter>((ref) {
           final canProvision =
               checker?.hasPermission(PermissionKey.deviceProvision) ?? false;
           if (!canProvision) return '/up_next';
-        }
-
-        if (isPicklistRoute) {
-          final canReadPicklists =
-              checker?.hasPermission(PermissionKey.picklistsRead) ?? false;
-          if (!canReadPicklists) return '/up_next';
         }
       }
 
@@ -443,11 +433,10 @@ class _BeariscopeState extends ConsumerState<Beariscope>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Initialize endpoint preference from SharedPreferences
-      ref.read(honeycombEndpointPreferenceProvider.notifier).initialize();
-      // Boot the app explicitly from splash before any route transitions.
-      ref.read(appBootProvider.notifier).start();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await ref.read(honeycombEndpointPreferenceProvider.notifier).initialize();
+      if (!mounted) return;
+      await ref.read(appBootProvider.notifier).start();
     });
   }
 
@@ -476,6 +465,7 @@ class _BeariscopeState extends ConsumerState<Beariscope>
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(honeycombSessionProvider);
     final router = ref.watch(routerProvider);
     final themeMode = ref.watch(themeModeProvider);
     final colorSchemes = ref.watch(appColorSchemesProvider);

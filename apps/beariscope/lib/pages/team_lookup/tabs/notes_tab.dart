@@ -1,5 +1,5 @@
+import 'package:core/core.dart' show ScoutingReport;
 import 'package:beariscope/models/match_field_ids.dart';
-import 'package:beariscope/models/scouting_document.dart';
 import 'package:beariscope/models/team_scouting_bundle.dart';
 import 'package:beariscope/pages/team_lookup/tabs/scouting_tab_widgets.dart';
 import 'package:beariscope/providers/team_scouting_provider.dart';
@@ -211,7 +211,7 @@ class _NotesBody extends StatelessWidget {
     );
   }
 
-  static dynamic _field(ScoutingDocument doc, String section, String fieldId) =>
+  static dynamic _field(ScoutingReport doc, String section, String fieldId) =>
       TeamScoutingBundle.getMatchField(doc, section, fieldId);
 
   static String _formatMatchKey(String matchKey) {

@@ -2,6 +2,8 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:grove/grove.dart';
+import 'package:services/providers/grove_provider.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:bearimetric/custom_widgets/upload_status_indicator.dart';
 import 'package:bearimetric/models/scouting_session.dart';
@@ -41,7 +43,7 @@ class _ScoutPageState extends ConsumerState<ScoutPage> {
 
   @override
   Widget build(BuildContext context) {
-    final scoutsAsync = ref.watch(scoutsProvider);
+    final scoutsAsync = ref.watch(scoutRosterProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -223,7 +225,11 @@ class _ScoutPageState extends ConsumerState<ScoutPage> {
           TextButton.icon(
             onPressed: () {
               setState(() => _showTimeout = false);
-              ref.invalidate(scoutsProvider);
+              ref.invalidate(
+                groveQueryProvider(
+                  scoutRosterQuery(ref.read(bearingsGroveProvider)),
+                ),
+              );
             },
             icon: const Icon(LucideIcons.refreshCw),
             label: const Text('Retry'),
@@ -231,7 +237,7 @@ class _ScoutPageState extends ConsumerState<ScoutPage> {
           const SizedBox(height: 8),
           OutlinedButton.icon(
             onPressed: () {
-              const guestScout = Scout(name: 'Guest', uuid: 'guest');
+              final guestScout = Scout(name: 'Guest', uuid: 'guest');
               setState(() => _selectedScout = guestScout);
               ref.read(scoutingSessionProvider.notifier).setScout(guestScout);
             },

@@ -1,3 +1,4 @@
+import 'package:services/providers/competition_provider.dart';
 import 'package:beariscope/pages/flash_cards/decks/flash_card_deck_editor_page.dart';
 import 'package:beariscope/pages/flash_cards/sharing/flash_card_deck_import_page.dart';
 import 'package:beariscope/pages/flash_cards/decks/flash_card_deck_model.dart';
@@ -6,7 +7,6 @@ import 'package:beariscope/pages/flash_cards/study/flash_card_progress.dart';
 import 'package:ui/widgets/bearings_modal.dart';
 import 'package:beariscope/widgets/library_tile.dart';
 import 'package:beariscope/pages/main_view.dart';
-import 'package:beariscope/pages/team_lookup/team_providers.dart';
 import 'package:beariscope/pages/picklists/picklist_emoji.dart';
 import 'package:beariscope/pages/picklists/picklist_emoji_colors.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
@@ -192,7 +192,11 @@ class _DeckTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final roster = deckId == null
-        ? normalizeCurrentFlashCardRoster(ref.watch(teamsProvider))
+        ? normalizeCurrentFlashCardRoster(
+            ref.watch(
+              competitionTeamsProvider(ref.watch(currentEventProvider)),
+            ),
+          )
         : ref.watch(flashCardCustomTeamsProvider(deckId!));
     final teams = roster.asData?.value
         .where((team) => team.number > 0)

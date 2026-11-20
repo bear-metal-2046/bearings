@@ -1,12 +1,14 @@
 import 'dart:convert';
 
+import 'package:core/core.dart' show CompetitionEvent, CompetitionMatch;
 import 'package:flutter_riverpod/flutter_riverpod.dart' show Provider;
+import 'package:grove/grove.dart';
 import 'package:bearimetric/data/local_data.dart';
 import 'package:bearimetric/data/match_form_store.dart';
 import 'package:bearimetric/data/match_json_gen.dart';
 import 'package:bearimetric/models/scouting_session.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:services/providers/api_provider.dart';
+import 'package:services/providers/competition_provider.dart';
 
 part 'scouting_providers.g.dart';
 
@@ -14,19 +16,22 @@ final matchFormStoreProvider = Provider<MatchFormStore>((ref) {
   return MatchFormStore();
 });
 
-List<ScoutingMatch> _parseAndSortMatches(List<dynamic> rawData) {
-  final matches = rawData
-      .whereType<Map>()
-      .map(
-        (e) =>
-            ScoutingMatch.fromJson(e.map((k, v) => MapEntry(k.toString(), v))),
-      )
-      .toList();
+extension ScoutingStations on CompetitionMatch {
+  String? teamNumberAt(ScoutPosition position) {
+    final teams = (position.isRed ? red : blue)?.teams;
+    final index = position.allianceIndex;
+    if (teams == null || index < 0 || index >= teams.length) return null;
+    return teams[index].id.replaceFirst('frc', '');
+  }
+}
+
+List<CompetitionMatch> _sortMatches(List<CompetitionMatch> rawData) {
+  final matches = rawData.toList();
 
   matches.sort((a, b) {
     const levelOrder = {'qm': 0, 'sf': 1, 'f': 2};
-    final levelA = levelOrder[a.compLevel] ?? 3;
-    final levelB = levelOrder[b.compLevel] ?? 3;
+    final levelA = levelOrder[a.level] ?? 3;
+    final levelB = levelOrder[b.level] ?? 3;
     if (levelA != levelB) return levelA.compareTo(levelB);
     if (a.setNumber != b.setNumber) return a.setNumber.compareTo(b.setNumber);
     return a.matchNumber.compareTo(b.matchNumber);
@@ -36,105 +41,75 @@ List<ScoutingMatch> _parseAndSortMatches(List<dynamic> rawData) {
 }
 
 @riverpod
-Future<List<ScoutingEvent>> events(Ref ref) async {
-  final client = ref.read(honeycombClientProvider);
-  final year = DateTime.now().year.toString();
-
-  final data = await client.get<List<dynamic>>(
-    '/events',
-    queryParams: {'team': 'frc2046', 'year': year},
-  );
-
-  final events = data
-      .map((e) => ScoutingEvent.fromJson(Map<String, dynamic>.from(e)))
-      .toList();
-
-  events.sort((a, b) {
-    if (a.startDate == null && b.startDate == null) return 0;
-    if (a.startDate == null) return 1;
-    if (b.startDate == null) return -1;
-    return a.startDate!.compareTo(b.startDate!);
-  });
-
-  return events;
+AsyncValue<List<CompetitionEvent>> events(Ref ref) {
+  final year = DateTime.now().year;
+  return ref
+      .watch(competitionEventsProvider((year: year, team: 'frc2046')))
+      .whenData((data) {
+        final events = data.toList();
+        events.sort((a, b) {
+          if (a.startDate == null && b.startDate == null) return 0;
+          if (a.startDate == null) return -1;
+          if (b.startDate == null) return 1;
+          return a.startDate!.compareTo(b.startDate!);
+        });
+        return events;
+      });
 }
 
-// fetches schedule from honeycomb — caching is handled by the honeycomb client
 @Riverpod(keepAlive: true)
-Future<List<ScoutingMatch>> matches(Ref ref, String eventKey) async {
-  final client = ref.read(honeycombClientProvider);
-  var sourceEventKey = eventKey;
+AsyncValue<List<CompetitionMatch>> matches(Ref ref, String eventKey) {
   if (eventKey == trainingEventKey) {
-    final events = await ref.watch(eventsProvider.future);
-    if (events.isEmpty) {
-      throw StateError('No event is available for training schedules');
-    }
-    sourceEventKey = events.first.key;
+    return ref.watch(eventsProvider).flatMap((events) {
+      if (events.isEmpty) {
+        throw StateError('No event is available for training schedules');
+      }
+      return ref.watch(matchesProvider(events.first.id));
+    });
   }
-
-  final rawData = await client.get<List<dynamic>>(
-    '/matches',
-    queryParams: {'event': sourceEventKey},
-    cachePolicy: CachePolicy.networkFirst,
-  );
-
-  return _parseAndSortMatches(rawData);
+  return ref
+      .watch(competitionMatchesProvider(eventKey))
+      .whenData((result) => _sortMatches(result.requireAvailable().items));
 }
 
 @riverpod
-Future<String?> teamForMatchPosition(
+AsyncValue<String?> teamForMatchPosition(
   Ref ref,
   String eventKey,
   int matchNumber,
   ScoutPosition position,
-) async {
-  if (position.isStrategy) return null;
-  try {
-    final allMatches = await ref.watch(matchesProvider(eventKey).future);
-    final match = _findMatch(allMatches, matchNumber);
-    if (match == null) return null;
-    final num = match.teamNumberAt(position);
-    return num == '???' ? null : num;
-  } catch (_) {
-    return null;
-  }
+) {
+  if (position.isStrategy) return const AsyncData(null);
+  return ref
+      .watch(matchesProvider(eventKey))
+      .when(
+        data: (matches) =>
+            AsyncData(_findMatch(matches, matchNumber)?.teamNumberAt(position)),
+        error: (_, _) => const AsyncData(null),
+        loading: AsyncLoading<String?>.new,
+      );
 }
 
 @riverpod
-Future<Map<ScoutPosition, String>> allTeamsForMatch(
+AsyncValue<Map<ScoutPosition, String>> allTeamsForMatch(
   Ref ref,
   String eventKey,
   int matchNumber,
-) async {
-  try {
-    final allMatches = await ref.watch(matchesProvider(eventKey).future);
-    final match = _findMatch(allMatches, matchNumber);
-    if (match == null) return {};
-    return {
-      for (final pos in ScoutPosition.values)
-        if (!pos.isStrategy) pos: match.teamNumberAt(pos),
-    };
-  } catch (_) {
-    return {};
-  }
-}
-
-@riverpod
-Future<List<Scout>> scouts(Ref ref) async {
-  final client = ref.read(honeycombClientProvider);
-
-  final data = await client.get<List<dynamic>>(
-    '/scouts',
-    cachePolicy: CachePolicy.networkFirst,
-  );
-
-  final scouts = data
-      .map((e) => Scout.fromJson(Map<String, dynamic>.from(e)))
-      .toList();
-
-  scouts.sort((a, b) => a.name.compareTo(b.name));
-
-  return scouts;
+) {
+  return ref
+      .watch(matchesProvider(eventKey))
+      .when(
+        data: (matches) {
+          final match = _findMatch(matches, matchNumber);
+          return AsyncData({
+            if (match != null)
+              for (final pos in ScoutPosition.values)
+                if (!pos.isStrategy) pos: match.teamNumberAt(pos) ?? '???',
+          });
+        },
+        error: (_, _) => const AsyncData({}),
+        loading: AsyncLoading<Map<ScoutPosition, String>>.new,
+      );
 }
 
 @Riverpod(keepAlive: true)
@@ -144,13 +119,15 @@ class ScoutingSessionNotifier extends _$ScoutingSessionNotifier {
 
   @override
   ScoutingSession build() {
-    ScoutingEvent? savedEvent;
+    ScoutingEventSelection? savedEvent;
     ScoutPosition? savedPosition;
 
     final savedEventJson = prefs.getString(_eventKey);
     if (savedEventJson != null) {
       try {
-        savedEvent = ScoutingEvent.fromJson(jsonDecode(savedEventJson));
+        savedEvent = ScoutingEventSelection.fromJson(
+          jsonDecode(savedEventJson),
+        );
       } catch (_) {}
     }
 
@@ -182,7 +159,7 @@ class ScoutingSessionNotifier extends _$ScoutingSessionNotifier {
     }
   }
 
-  void setEvent(ScoutingEvent event) {
+  void setEvent(ScoutingEventSelection event) {
     state = state.copyWith(event: event);
     prefs.setString(_eventKey, jsonEncode(event.toJson()));
   }
@@ -225,21 +202,14 @@ class ScoutingSessionNotifier extends _$ScoutingSessionNotifier {
   }
 }
 
-ScoutingMatch? _findMatch(List<ScoutingMatch> matches, int matchNumber) {
-  // prefer qual matches
-  try {
-    return matches.firstWhere(
-      (m) => m.compLevel == 'qm' && m.matchNumber == matchNumber,
-    );
-  } catch (_) {}
-  try {
-    return matches.firstWhere((m) => m.matchNumber == matchNumber);
-  } catch (_) {}
-  return null;
+CompetitionMatch? _findMatch(List<CompetitionMatch> matches, int matchNumber) {
+  final sameNumber = matches.where((match) => match.matchNumber == matchNumber);
+  return sameNumber.where((match) => match.level == 'qm').firstOrNull ??
+      sameNumber.firstOrNull;
 }
 
 @riverpod
-Future<int?> teamNumberForSession(Ref ref) async {
+AsyncValue<int?> teamNumberForSession(Ref ref) {
   final session = ref.watch(scoutingSessionProvider);
   final event = session.event;
   final position = session.position;
@@ -249,31 +219,28 @@ Future<int?> teamNumberForSession(Ref ref) async {
       position == null ||
       matchNumber == null ||
       position.isStrategy) {
-    return null;
+    return const AsyncData(null);
   }
-
-  final numStr = await ref.watch(
-    teamForMatchPositionProvider(event.key, matchNumber, position).future,
-  );
-  return int.tryParse(numStr ?? '');
+  return ref
+      .watch(teamForMatchPositionProvider(event.key, matchNumber, position))
+      .whenData((number) => int.tryParse(number ?? ''));
 }
 
 @riverpod
-Future<List<String>> allianceTeamsForSession(Ref ref) async {
+AsyncValue<List<String>> allianceTeamsForSession(Ref ref) {
   final session = ref.watch(scoutingSessionProvider);
   final event = session.event;
   final position = session.position;
   final matchNumber = session.matchNumber;
 
-  if (event == null || position == null || matchNumber == null) return [];
-
-  final allTeams = await ref.watch(
-    allTeamsForMatchProvider(event.key, matchNumber).future,
-  );
-
-  final isRed = position.isRed;
-  return [
-    for (final entry in allTeams.entries)
-      if (entry.key.isRed == isRed) entry.value,
-  ];
+  if (event == null || position == null || matchNumber == null)
+    return const AsyncData([]);
+  return ref
+      .watch(allTeamsForMatchProvider(event.key, matchNumber))
+      .whenData(
+        (teams) => [
+          for (final entry in teams.entries)
+            if (entry.key.isRed == position.isRed) entry.value,
+        ],
+      );
 }

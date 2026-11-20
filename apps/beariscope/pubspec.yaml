@@ -13,6 +13,9 @@ dependencies:
   characters: ^1.4.1
   core:
     path: ../../packages/core
+  uuid: ^4.6.0
+  grove:
+    path: ../../packages/grove
   crop_your_image: ^2.0.0
   cupertino_icons: ^2.0.0
   file_picker: ^13.3.3
@@ -53,20 +56,20 @@ dependencies:
   dots_indicator: ^5.0.0
   intl: ^0.20.3
   mime: ^2.1.0
-  internet_connection_checker_plus: ^3.1.1
   path_provider: ^2.1.6
   flutter_animate: ^4.5.2
   flex_color_picker: ^4.0.0
   flex_seed_scheme: ^5.0.1
   material_ui: ^1.1.0
   cupertino_ui: ^1.1.6
-  crdt_lf: ^5.4.0
-  crdt_socket_sync: ^0.10.2+1
-  web_socket_channel: ^3.0.0
   dynamic_color: ^2.1.0
   screen_protector: ^1.5.3
 
 dev_dependencies:
+  dart_frog: ^1.2.6
+  honeycomb:
+    path: ../../backend/honeycomb
+  sqlite3: ^3.5.2
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0

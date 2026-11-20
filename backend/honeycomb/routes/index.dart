@@ -1,5 +1,6 @@
 import 'package:dart_frog/dart_frog.dart';
 
-Response onRequest(RequestContext context) {
-  return Response(body: 'Welcome to Dart Frog!');
-}
+/// Process health. The Grove route separately checks deployment configuration.
+Response onRequest(RequestContext context) => Response.json(
+  body: {'service': 'honeycomb', 'status': 'ok'},
+);

@@ -1,8 +1,17 @@
-import 'package:internet_connection_checker_plus/internet_connection_checker_plus.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 part 'connectivity_provider.g.dart';
+
+const _primaryHoneycombUrl = String.fromEnvironment(
+  'HONEYCOMB_URL',
+  defaultValue: 'https://bearings-honeycomb.westus2.cloudapp.azure.com',
+);
+
+String _apiUrl(String url) {
+  final base = url.trim().replaceFirst(RegExp(r'/+$'), '');
+  return base.endsWith('/api') ? base : '$base/api';
+}
 
 enum HoneycombEndpointMode { azure, cloudflare, custom }
 
@@ -19,16 +28,16 @@ class HoneycombEndpointSelection {
   String get baseUrl {
     switch (mode) {
       case HoneycombEndpointMode.azure:
-        return 'https://honeycomb-a3d3bbaacjhsaxbu.westus2-01.azurewebsites.net/api';
+        return _apiUrl(_primaryHoneycombUrl);
       case HoneycombEndpointMode.cloudflare:
         return 'https://honeycomb.bearings.workers.dev/api';
       case HoneycombEndpointMode.custom:
         final url = customUrl?.trim();
         if (url == null || url.isEmpty) {
           // fallback to azure if custom is invalid
-          return 'https://honeycomb-a3d3bbaacjhsaxbu.westus2-01.azurewebsites.net/api';
+          return _apiUrl(_primaryHoneycombUrl);
         }
-        return url.endsWith('/api') ? url : '$url/api';
+        return _apiUrl(url);
     }
   }
 }
@@ -88,31 +97,4 @@ class HoneycombEndpointPreference extends _$HoneycombEndpointPreference {
   Future<void> setCustomUrl(String? value) {
     return setSelection(HoneycombEndpointMode.custom, customUrl: value);
   }
-}
-
-/// A single shared [InternetConnection] instance used by both the reactive
-/// stream and one-off awaitable checks in the request/auth paths.
-@Riverpod(keepAlive: true)
-InternetConnection internetConnection(Ref ref) {
-  return InternetConnection.createInstance();
-}
-
-/// Streams `true` when the device has internet access, `false` when offline.
-@Riverpod(keepAlive: true)
-Stream<bool> connectivity(Ref ref) async* {
-  final checker = ref.watch(internetConnectionProvider);
-
-  yield await checker.hasInternetAccess;
-
-  await for (final status in checker.onStatusChange) {
-    yield status == InternetStatus.connected;
-  }
-}
-
-Future<bool> checkOnline(Ref ref) {
-  return ref.read(internetConnectionProvider).hasInternetAccess;
-}
-
-bool isDefinitelyOffline(Ref ref) {
-  return ref.read(connectivityProvider).value == false;
 }

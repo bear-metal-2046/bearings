@@ -1,12 +1,10 @@
-import 'package:beariscope/pages/team_lookup/team_providers.dart';
+import 'package:beariscope/utils/competition_media_display.dart';
+import 'package:core/core.dart' show CompetitionMedia;
 
 /// Returns a photo rather than a team avatar, video thumbnail, or CAD preview.
-String? flashCardPhoto(List<TeamMediaRecord> records, String teamKey) {
+String? flashCardPhoto(List<CompetitionMedia> records) {
   final photos = records.where(
-    (record) =>
-        record.teamKeys.contains(teamKey) &&
-        record.isPhoto &&
-        record.previewImageUrl?.isNotEmpty == true,
+    (record) => record.isPhoto && record.previewImageUrl != null,
   );
   for (final photo in photos) {
     if (photo.preferred) return photo.previewImageUrl;

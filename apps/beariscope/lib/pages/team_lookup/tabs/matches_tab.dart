@@ -11,7 +11,7 @@ import 'package:ui/widgets/bearings_status_view.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:services/providers/api_provider.dart';
+import 'package:services/providers/competition_provider.dart';
 import 'package:ui/widgets/bearings_spinner.dart';
 
 String? _scouterNameFromRaw(dynamic rawDoc) {
@@ -23,40 +23,16 @@ String? _scouterNameFromRaw(dynamic rawDoc) {
   return null;
 }
 
-final _teamScheduleProvider = FutureProvider.family<List<int>, int>((
+final _eventQualificationNumbersProvider = Provider<AsyncValue<List<int>>>((
   ref,
-  teamNumber,
-) async {
-  final eventKey = ref.watch(currentEventProvider);
-  final client = ref.watch(honeycombClientProvider);
-
-  try {
-    final data = await client.get<List<dynamic>>(
-      '/matches',
-      queryParams: {'team': 'frc$teamNumber', 'event': eventKey},
-      cachePolicy: CachePolicy.networkFirst,
-    );
-
-    final matchNumbers = <int>[];
-    for (final item in data) {
-      if (item is! Map) continue;
-      final compLevel =
-          (item['comp_level'] ?? item['compLevel'])?.toString() ?? '';
-      if (compLevel != 'qm') continue; // qualification matches only
-      final mn = item['match_number'] ?? item['matchNumber'];
-      final n = mn is int
-          ? mn
-          : mn is double
-          ? mn.toInt()
-          : int.tryParse(mn?.toString() ?? '');
-      if (n != null) matchNumbers.add(n);
-    }
-
-    matchNumbers.sort();
-    return matchNumbers;
-  } catch (_) {
-    return const [];
-  }
+) {
+  final event = ref.watch(currentEventProvider);
+  return ref.watch(competitionMatchesProvider(event)).whenData((result) {
+    return [
+      for (final match in result.requireAvailable().items)
+        if (match.level == 'qm') match.matchNumber,
+    ]..sort();
+  });
 });
 
 class MatchesTab extends ConsumerWidget {
@@ -67,7 +43,7 @@ class MatchesTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final scoutingAsync = ref.watch(teamScoutingProvider(teamNumber));
-    final scheduleAsync = ref.watch(_teamScheduleProvider(teamNumber));
+    final scheduleAsync = ref.watch(_eventQualificationNumbersProvider);
 
     return scoutingAsync.when(
       loading: () => const Center(child: BearingsSpinner()),
@@ -78,7 +54,7 @@ class MatchesTab extends ConsumerWidget {
         subtitle: 'Error loading scouting data: $e',
       ),
       data: (bundle) {
-        final scheduledMatchNumbers = scheduleAsync.asData?.value ?? const [];
+        final scheduledMatchNumbers = scheduleAsync.value ?? const [];
         return _MatchesBody(
           bundle: bundle,
           scheduledMatchNumbers: scheduledMatchNumbers,

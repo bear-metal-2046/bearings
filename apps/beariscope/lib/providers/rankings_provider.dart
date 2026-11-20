@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:services/providers/api_provider.dart';
+import 'package:services/providers/competition_provider.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 
 class TeamRanking {
@@ -16,34 +16,22 @@ class TeamRanking {
   });
 }
 
-final eventRankingsProvider = FutureProvider<Map<int, TeamRanking>>((
+final eventRankingsProvider = Provider<AsyncValue<Map<int, TeamRanking>>>((
   ref,
-) async {
+) {
   final eventKey = ref.watch(currentEventProvider);
-  final client = ref.watch(honeycombClientProvider);
-
-  try {
-    final data = await client.get<List<dynamic>>(
-      '/rankings',
-      queryParams: {'event': eventKey},
-      cachePolicy: CachePolicy.networkFirst,
-    );
-
+  return ref.watch(competitionRankingsProvider(eventKey)).whenData((data) {
     final result = <int, TeamRanking>{};
     for (final entry in data) {
-      if (entry is! Map) continue;
-      final map = Map<String, dynamic>.from(entry);
-
-      final teamKey = (map['teamKey'] ?? '').toString();
+      final teamKey = entry.team.id;
       if (!teamKey.startsWith('frc')) continue;
-
       final teamNumber = int.tryParse(teamKey.substring(3));
       if (teamNumber == null) continue;
 
-      final rank = (map['rank'] as num?)?.toInt() ?? 0;
-      final matches = (map['matchesPlayed'] as num?)?.toInt() ?? 0;
-      final rp = (map['rankingPoints'] as num?)?.toInt() ?? 0;
-      final rs = (rp / matches).toDouble();
+      final rank = entry.result.rank;
+      final matches = entry.result.matchesPlayed ?? 0;
+      final rs = entry.result.sortOrders.firstOrNull ?? 0.0;
+      final rp = (rs * matches).round();
 
       result[teamNumber] = TeamRanking(
         teamNumber: teamNumber,
@@ -53,8 +41,5 @@ final eventRankingsProvider = FutureProvider<Map<int, TeamRanking>>((
       );
     }
     return result;
-  } catch (_) {
-    // no rankings just return
-    return {};
-  }
+  });
 });

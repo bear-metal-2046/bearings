@@ -1,10 +1,13 @@
 /// Abstract interface for the OIDC authentication backend.
 abstract class AuthBackend {
-  /// Launches browser-based OIDC login.
-  Future<void> login(List<String> scopes, {bool isSignup = false});
+  /// Launches browser-based OIDC login and reports if it returned a user.
+  Future<bool> login(List<String> scopes, {bool isSignup = false});
 
   /// Returns a valid access token for the given [scopes], refreshing if needed.
-  Future<String> getAccessToken(List<String> scopes);
+  Future<String> getAccessToken(
+    List<String> scopes, {
+    bool forceRefresh = false,
+  });
 
   /// Attempts to restore a previous session from stored credentials
   /// without showing a browser.
@@ -20,12 +23,11 @@ abstract class AuthBackend {
   Future<void> dispose();
 }
 
-/// Lightweight user profile from the Auth backend.
+/// Lightweight user profile from the OIDC sign-in session.
 ///
-/// Populated from the OIDC ID token or the /userinfo endpoint. Does not contain
-/// binary photo data — that is
-/// loaded separately by [userInfoProvider].
+/// Shared profile fields are loaded from Grove by [userInfoProvider].
 class AuthUser {
+  final String? subject;
   final String? name;
   final String? email;
   final bool? emailVerified;
@@ -33,6 +35,7 @@ class AuthUser {
   final String? nickname;
 
   const AuthUser({
+    this.subject,
     this.name,
     this.email,
     this.emailVerified,

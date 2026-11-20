@@ -1,9 +1,9 @@
 import 'dart:math';
 
+import 'package:core/core.dart' show ScoutingReport;
 import 'package:beariscope/models/match_field_ids.dart';
 import 'package:beariscope/models/pits_form_schema.dart';
 import 'package:beariscope/models/processed_scouting_doc.dart';
-import 'package:beariscope/models/scouting_document.dart';
 import 'package:beariscope/models/team_scouting_bundle.dart';
 import 'package:beariscope/pages/export/export_options.dart';
 import 'package:beariscope/pages/export/ui_creator_schema.dart';
@@ -35,7 +35,7 @@ class ExportService {
 
   /// Builds a consolidated Excel workbook with multiple sheets based on options.
   static List<int> buildConsolidatedExcel({
-    required List<ScoutingDocument> rawDocs,
+    required List<ScoutingReport> rawDocs,
     required List<ProcessedScoutingDoc> processedDocs,
     required UiCreatorSchema schema,
     required ExportOptions options,
@@ -169,7 +169,7 @@ class ExportService {
   static void _buildMatchSheet({
     required Excel excel,
     required String sheetName,
-    required List<ScoutingDocument> docs,
+    required List<ScoutingReport> docs,
     required List<ProcessedScoutingDoc>? processedDocs,
     required UiCreatorSchema schema,
     required ExportOptions options,
@@ -426,7 +426,7 @@ class ExportService {
   static void _buildStratRawSheet({
     required Excel excel,
     required String sheetName,
-    required List<ScoutingDocument> docs,
+    required List<ScoutingReport> docs,
     required ExportOptions options,
     required String eventKey,
   }) {
@@ -535,12 +535,12 @@ class ExportService {
   static void _buildPitsSheet({
     required Excel excel,
     required String sheetName,
-    required List<ScoutingDocument> docs,
+    required List<ScoutingReport> docs,
     required ExportOptions options,
     required String eventKey,
     required PitsFormSchema schema,
   }) {
-    final latestByTeam = <int, ScoutingDocument>{};
+    final latestByTeam = <int, ScoutingReport>{};
     for (final doc in docs) {
       if (doc.meta?['type']?.toString() != 'pits') continue;
       if (doc.meta?['event']?.toString() != eventKey) continue;
@@ -634,7 +634,7 @@ class ExportService {
   static void _buildStratZScoreSheet({
     required Excel excel,
     required String sheetName,
-    required List<ScoutingDocument> docs,
+    required List<ScoutingReport> docs,
     required ExportOptions options,
     required String eventKey,
   }) {
@@ -852,7 +852,7 @@ class ExportService {
 
   // Legacy methods for backward compatibility
   static List<int> buildExcel({
-    required List<ScoutingDocument> docs,
+    required List<ScoutingReport> docs,
     required UiCreatorSchema schema,
     required ExportOptions options,
     required String eventKey,
@@ -870,7 +870,7 @@ class ExportService {
   }
 
   static List<int> buildStratRawExcel({
-    required List<ScoutingDocument> docs,
+    required List<ScoutingReport> docs,
     required ExportOptions options,
     required String eventKey,
   }) {
@@ -889,7 +889,7 @@ class ExportService {
   }
 
   static List<int> buildStratZScoreExcel({
-    required List<ScoutingDocument> docs,
+    required List<ScoutingReport> docs,
     required ExportOptions options,
     required String eventKey,
   }) {
@@ -916,7 +916,7 @@ class ExportService {
     int correctionTodo,
   })
   previewCounts(
-    List<ScoutingDocument> docs,
+    List<ScoutingReport> docs,
     ExportOptions options,
     String eventKey,
   ) {
@@ -930,7 +930,7 @@ class ExportService {
   }
 
   static int previewCount(
-    List<ScoutingDocument> docs,
+    List<ScoutingReport> docs,
     ExportOptions options,
     String eventKey,
   ) {
@@ -959,7 +959,7 @@ class ExportService {
   }
 
   static int previewPitsCount(
-    List<ScoutingDocument> docs,
+    List<ScoutingReport> docs,
     ExportOptions options,
     String eventKey,
   ) {
@@ -980,7 +980,7 @@ class ExportService {
   }
 
   static int previewStratRawCount(
-    List<ScoutingDocument> docs,
+    List<ScoutingReport> docs,
     ExportOptions options,
     String eventKey,
   ) {
@@ -1008,7 +1008,7 @@ class ExportService {
   }
 
   static int previewStratZScoreCount(
-    List<ScoutingDocument> docs,
+    List<ScoutingReport> docs,
     ExportOptions options,
     String eventKey,
   ) {
@@ -1041,7 +1041,7 @@ class ExportService {
     return 0;
   }
 
-  static int? _matchNumber(ScoutingDocument doc) {
+  static int? _matchNumber(ScoutingReport doc) {
     return TeamScoutingBundle.matchNumber(doc);
   }
 
@@ -1070,7 +1070,7 @@ class ExportService {
     }
   }
 
-  static Map<int, int> _rankMap(ScoutingDocument doc, String key) {
+  static Map<int, int> _rankMap(ScoutingReport doc, String key) {
     final list = doc.data[key];
     final result = <int, int>{};
     if (list is! List) return result;
@@ -1081,7 +1081,7 @@ class ExportService {
     return result;
   }
 
-  static List<int> _stratTeams(ScoutingDocument doc) {
+  static List<int> _stratTeams(ScoutingReport doc) {
     final teams = <int>{};
     for (final key in _stratRankingKeys) {
       final list = doc.data[key];
@@ -1133,14 +1133,14 @@ class ExportService {
     return TextCellValue(raw.toString());
   }
 
-  static int? _pitsTeamNumber(ScoutingDocument doc) {
+  static int? _pitsTeamNumber(ScoutingReport doc) {
     final raw = doc.data['teamNumber'];
     if (raw is int) return raw;
     if (raw is num) return raw.toInt();
     return int.tryParse(raw?.toString() ?? '');
   }
 
-  static dynamic _pitsFieldValue(ScoutingDocument doc, PitsFormField field) {
+  static dynamic _pitsFieldValue(ScoutingReport doc, PitsFormField field) {
     final keys = [
       field.id,
       if (field.storageKey != null && field.storageKey!.isNotEmpty)

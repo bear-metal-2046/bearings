@@ -1,6 +1,8 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:grove/grove.dart';
+import 'package:services/providers/competition_provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:bearimetric/custom_widgets/upload_status_indicator.dart';
@@ -18,7 +20,7 @@ class ConfigPage extends ConsumerStatefulWidget {
 }
 
 class _ConfigPageState extends ConsumerState<ConfigPage> {
-  ScoutingEvent? _selectedEvent;
+  ScoutingEventSelection? _selectedEvent;
   ScoutPosition? _selectedPosition;
   final _customKeyController = TextEditingController();
 
@@ -50,7 +52,7 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
         ? (int.tryParse(raw.substring(0, 4)) ?? DateTime.now().year)
         : DateTime.now().year;
 
-    final customEvent = ScoutingEvent(key: raw, name: raw, year: year);
+    final customEvent = ScoutingEventSelection(key: raw, name: raw, year: year);
     setState(() => _selectedEvent = customEvent);
     ref.read(scoutingSessionProvider.notifier).setEvent(customEvent);
   }
@@ -146,30 +148,30 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
                         data: (events) {
                           final trainingEvent = events.isEmpty
                               ? null
-                              : ScoutingEvent(
+                              : ScoutingEventSelection(
                                   key: trainingEventKey,
                                   name: 'Training (no uploads)',
-                                  year: events.first.year,
+                                  year: events.first.season,
                                 );
                           // Ensure displayEvents has unique event keys and, if we
                           // need to include a custom/previously-selected event,
                           // prepend it only once. This prevents multiple
                           // DropdownMenuItems from comparing equal and tripping the
                           // Dropdown assertion.
-                          final combined = <ScoutingEvent>[
+                          final combined = <ScoutingEventSelection>[
                             if (_selectedEvent != null &&
-                                !events.any(
-                                  (e) => e.key == _selectedEvent!.key,
-                                ))
+                                !events.any((e) => e.id == _selectedEvent!.key))
                               _selectedEvent!,
-                            ...events,
+                            ...events.map(
+                              ScoutingEventSelection.fromCompetition,
+                            ),
                           ];
 
                           if (trainingEvent != null) {
                             combined.add(trainingEvent);
                           }
 
-                          final displayEvents = <ScoutingEvent>[];
+                          final displayEvents = <ScoutingEventSelection>[];
                           final seenKeys = <String>{};
                           for (final e in combined) {
                             if (seenKeys.add(e.key)) displayEvents.add(e);
@@ -178,7 +180,7 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
                           // Pick the instance from displayEvents that matches the
                           // selected event by key so the Dropdown has exactly one
                           // matching item instance.
-                          ScoutingEvent? initialValue;
+                          ScoutingEventSelection? initialValue;
                           if (_selectedEvent != null) {
                             try {
                               initialValue = displayEvents.firstWhere(
@@ -189,7 +191,9 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
                             }
                           }
 
-                          return DropdownButtonFormField<ScoutingEvent>(
+                          return DropdownButtonFormField<
+                                ScoutingEventSelection
+                              >(
                                 initialValue: initialValue,
                                 padding: EdgeInsets.all(4),
                                 decoration: InputDecoration(
@@ -240,7 +244,10 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
                         loading: () => const LinearProgressIndicator(),
                         error: (err, _) => _ErrorRetry(
                           message: 'Failed to load competitions',
-                          onRetry: () => ref.invalidate(eventsProvider),
+                          onRetry: () => retryCompetitionEvents(
+                            ProviderScope.containerOf(context, listen: false),
+                            (year: DateTime.now().year, team: 'frc2046'),
+                          ),
                         ),
                       ),
 
@@ -480,8 +487,15 @@ class _ScheduleDownloadTileState extends ConsumerState<_ScheduleDownloadTile> {
   Future<void> _download() async {
     setState(() => _downloading = true);
     try {
-      ref.invalidate(matchesProvider(widget.eventKey));
-      await ref.read(matchesProvider(widget.eventKey).future);
+      final container = ProviderScope.containerOf(context, listen: false);
+      final event = widget.eventKey == trainingEventKey
+          ? (await waitForValue(container, eventsProvider)).first.id
+          : widget.eventKey;
+      if (!mounted) return;
+      final result = await ref.read(competitionProvider).matchResults(event);
+      result.requireAvailable();
+      retryCompetitionMatches(container, event);
+      if (!mounted) return;
       if (widget.eventKey != trainingEventKey) {
         await ref.read(scoutSyncServiceProvider).syncDownEvent(widget.eventKey);
       }

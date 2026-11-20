@@ -7,6 +7,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:services/providers/connectivity_provider.dart';
+import 'package:services/providers/grove_provider.dart';
 
 class AdvancedSettingsPage extends ConsumerStatefulWidget {
   const AdvancedSettingsPage({super.key});
@@ -21,6 +22,7 @@ class _AdvancedSettingsPageState extends ConsumerState<AdvancedSettingsPage> {
       TextEditingController();
   final TextEditingController _customEventKeyController =
       TextEditingController();
+  bool _clearingGroveCache = false;
 
   @override
   void dispose() {
@@ -60,6 +62,21 @@ class _AdvancedSettingsPageState extends ConsumerState<AdvancedSettingsPage> {
       text: eventKey,
       selection: TextSelection.collapsed(offset: eventKey.length),
     );
+  }
+
+  Future<void> _clearGroveCache() async {
+    setState(() => _clearingGroveCache = true);
+    var message = 'Grove cache cleared.';
+    try {
+      await ref.read(bearingsGroveProvider).cache.clearQuerySnapshots();
+    } catch (error) {
+      debugPrint('Could not clear the Grove cache: $error');
+      message = 'Could not clear the Grove cache.';
+    }
+    if (!mounted) return;
+    setState(() => _clearingGroveCache = false);
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -186,6 +203,20 @@ class _AdvancedSettingsPageState extends ConsumerState<AdvancedSettingsPage> {
                     },
                   ),
                 ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          BearingsSettingGroup(
+            title: 'Local Data',
+            children: [
+              ListTile(
+                leading: const Icon(LucideIcons.trash2),
+                title: const Text('Clear Grove cache'),
+                subtitle: const Text(
+                  'Remove downloaded data from this device. Drafts and pending edits are kept.',
+                ),
+                onTap: _clearingGroveCache ? null : _clearGroveCache,
+              ),
             ],
           ),
         ],

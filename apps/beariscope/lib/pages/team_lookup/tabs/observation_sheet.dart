@@ -2,11 +2,11 @@ import 'package:ui/widgets/bearings_modal.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:beariscope/models/observation_note.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
-import 'package:beariscope/providers/scouting_data_provider.dart';
+import 'package:core/core.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:services/providers/api_provider.dart';
-import 'package:services/providers/permissions_provider.dart';
+import 'package:grove/grove.dart';
+import 'package:services/providers/grove_provider.dart';
 import 'package:services/providers/user_profile_provider.dart';
 
 class ObservationSheet extends ConsumerStatefulWidget {
@@ -48,7 +48,10 @@ class _ObservationSheetState extends ConsumerState<ObservationSheet> {
   }
 
   Future<String> _resolveScoutedBy() async {
-    final userInfo = await ref.read(userInfoProvider.future);
+    final userInfo = await waitForValue(
+      ProviderScope.containerOf(context, listen: false),
+      userInfoProvider,
+    );
     final name = userInfo?.name?.trim();
     if (name != null && name.isNotEmpty) {
       return name;
@@ -65,10 +68,10 @@ class _ObservationSheetState extends ConsumerState<ObservationSheet> {
     setState(() => _isSaving = true);
 
     try {
-      final authMe = await ref.read(authMeProvider.future);
+      final subject = await ref.read(groveSubjectProvider.future);
       final eventKey = ref.read(currentEventProvider);
       final scoutedBy = await _resolveScoutedBy();
-      final userId = authMe?.user.id ?? '';
+      final userId = subject ?? '';
 
       final note = ObservationNote(
         teamNumber: widget.teamNumber,
@@ -80,15 +83,11 @@ class _ObservationSheetState extends ConsumerState<ObservationSheet> {
       );
 
       await ref
-          .read(honeycombClientProvider)
-          .post(
-            '/scout/ingest',
-            data: {
-              'entries': [note.toIngestEntry()],
-            },
+          .read(bearingsGroveProvider)
+          .create(
+            ScoutingReport.fromPayload(note.toPayload()),
+            allowOffline: false,
           );
-
-      await ref.read(scoutingDataProvider.notifier).refresh();
 
       if (mounted) BearingsModal.complete<void>(context);
     } catch (e) {

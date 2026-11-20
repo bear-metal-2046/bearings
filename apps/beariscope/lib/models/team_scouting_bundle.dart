@@ -1,19 +1,19 @@
 import 'dart:math';
 
+import 'package:core/core.dart' show ScoutingReport;
 import 'package:beariscope/models/match_field_ids.dart';
 import 'package:beariscope/models/processed_scouting_doc.dart';
-import 'package:beariscope/models/scouting_document.dart';
 
 class TeamScoutingBundle {
   final List<ProcessedScoutingDoc> matchDocs;
 
-  final ScoutingDocument? pitsDoc;
+  final ScoutingReport? pitsDoc;
 
-  final List<ScoutingDocument> stratDocs;
+  final List<ScoutingReport> stratDocs;
 
-  final List<ScoutingDocument> driveTeamDocs;
+  final List<ScoutingReport> driveTeamDocs;
 
-  final List<ScoutingDocument> observationDocs;
+  final List<ScoutingReport> observationDocs;
 
   final int weight;
 
@@ -35,11 +35,12 @@ class TeamScoutingBundle {
   bool get hasObservationData => observationDocs.isNotEmpty;
 
   static dynamic getMatchField(
-    ScoutingDocument doc,
+    ScoutingReport doc,
     String sectionId,
     String fieldId,
   ) {
     final sections = doc.data['sections'];
+    if (sections is Map) return (sections[sectionId] as Map?)?[fieldId];
     if (sections is! List) return null;
     for (final section in sections) {
       if (section is! Map) continue;
@@ -187,7 +188,7 @@ class TeamScoutingBundle {
     return null;
   }
 
-  static int? matchNumber(ScoutingDocument doc) {
+  static int? matchNumber(ScoutingReport doc) {
     final mn = doc.data['matchNumber'];
     if (mn is int) return mn;
     if (mn is double) return mn.toInt();
@@ -195,7 +196,7 @@ class TeamScoutingBundle {
     return null;
   }
 
-  static int? teamNumber(ScoutingDocument doc) {
+  static int? teamNumber(ScoutingReport doc) {
     final tn = doc.data['teamNumber'];
     if (tn is int) return tn;
     if (tn is double) return tn.toInt();

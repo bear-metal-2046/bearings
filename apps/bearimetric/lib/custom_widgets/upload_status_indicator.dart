@@ -1,16 +1,34 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:bearimetric/data/upload_queue.dart';
+import 'package:bearimetric/providers/scouting_flow_provider.dart';
+import 'package:grove/grove.dart';
+import 'package:services/providers/grove_provider.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+
+final _syncStatusProvider = StreamProvider.autoDispose<GroveSyncStatus>(
+  (ref) => ref.watch(bearingsGroveProvider).watchSyncStatus(),
+);
 
 class UploadStatusIndicator extends ConsumerWidget {
   const UploadStatusIndicator({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final pendingCount = ref.watch(
-      uploadQueueProvider.select((queue) => queue.length),
-    );
+    final status = ref.watch(_syncStatusProvider).value;
+    if (status == null) {
+      return const Tooltip(
+        message: 'Checking uploads',
+        child: Icon(LucideIcons.cloud),
+      );
+    }
+    final error = ref.watch(scoutingSubmissionErrorProvider) ?? status.error;
+    if (status.rejected > 0 || error != null) {
+      return Tooltip(
+        message: error ?? '${status.rejected} uploads rejected by the server',
+        child: const Icon(LucideIcons.cloudAlert, color: Colors.red),
+      );
+    }
+    final pendingCount = status.pending;
 
     if (pendingCount == 0) {
       return const Tooltip(

@@ -1,3 +1,5 @@
+import 'package:beariscope/providers/current_event_provider.dart';
+import 'package:services/providers/competition_provider.dart';
 import 'package:ui/widgets/bearings_popup_menu.dart';
 import 'package:ui/widgets/bearings_modal.dart';
 import 'package:beariscope/models/match_field_ids.dart';
@@ -13,6 +15,7 @@ import 'package:beariscope/pages/team_lookup/team_providers.dart';
 import 'package:beariscope/providers/rankings_provider.dart';
 import 'package:beariscope/providers/tba_preferences_provider.dart';
 import 'package:beariscope/providers/team_scouting_provider.dart';
+import 'package:beariscope/utils/competition_media_display.dart';
 import 'package:ui/widgets/bearings_status_view.dart';
 import 'package:beariscope/widgets/team_avatar.dart';
 import 'package:material_ui/material_ui.dart';
@@ -49,7 +52,9 @@ class TeamCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final teamsAsync = ref.watch(teamsProvider);
+    final teamsAsync = ref
+        .watch(competitionTeamsProvider(ref.watch(currentEventProvider)))
+        .whenData((result) => result.requireAvailable().items);
 
     return teamsAsync.when(
       loading: () => _buildCardShell(
@@ -63,18 +68,12 @@ class TeamCard extends ConsumerWidget {
         child: Center(child: Text('Error: $err')),
       ),
       data: (teams) {
-        final teamList = teams
-            .whereType<Map<String, dynamic>>()
-            .map((json) => Team.fromJson(json))
-            .toList();
-
-        Team? team;
-        for (final t in teamList) {
-          if (t.key == teamKey || t.number.toString() == teamKey) {
-            team = t;
-            break;
-          }
-        }
+        final match = teams
+            .where(
+              (team) => team.id == teamKey || team.number.toString() == teamKey,
+            )
+            .firstOrNull;
+        final team = match == null ? null : Team.fromCompetition(match);
 
         if (team == null) {
           return _buildCardShell(

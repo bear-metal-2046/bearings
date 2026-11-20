@@ -68,8 +68,10 @@ class MatchPage extends ConsumerWidget {
             final toSave = next.copyWith(scoutedBy: scoutName);
             store.save(toSave);
           },
-          onNextPressed: () {
-            ref.read(scoutingFlowControllerProvider).nextMatch();
+          onNextPressed: () async {
+            if (!await ref.read(scoutingFlowControllerProvider).nextMatch() ||
+                !context.mounted)
+              return;
             context.go('/match/auto');
           },
         );

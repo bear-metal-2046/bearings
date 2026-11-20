@@ -1,8 +1,9 @@
+import 'package:core/core.dart' show CompetitionMatch, CompetitionAlliance;
 import 'package:material_ui/material_ui.dart';
 import 'package:go_router/go_router.dart';
 
 class MatchCard extends StatelessWidget {
-  final Map<String, dynamic> match;
+  final CompetitionMatch match;
   final List<String> highlightTeams;
 
   const MatchCard({
@@ -14,16 +15,13 @@ class MatchCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final String mKey = match['key']?.toString() ?? '';
-    final alliances = match['alliances'] ?? {};
-    final red = alliances['red'] ?? {};
-    final blue = alliances['blue'] ?? {};
-    final redScore = red['score'] ?? 0;
-    final blueScore = blue['score'] ?? 0;
+    final mKey = match.id;
+    final redScore = match.red?.score ?? 0;
+    final blueScore = match.blue?.score ?? 0;
 
-    final matchNum = match['match_number'] ?? '';
-    final setNum = match['set_number'] ?? '';
-    final compLevel = match['comp_level'] ?? 'qm';
+    final matchNum = match.matchNumber;
+    final setNum = match.setNumber;
+    final compLevel = match.level;
 
     final type = switch (compLevel) {
       'qm' => 'Qualification Match $matchNum',
@@ -32,12 +30,11 @@ class MatchCard extends StatelessWidget {
       _ => compLevel.toUpperCase(),
     };
 
-    List<String> parseTeams(dynamic keys) => (keys as List? ?? [])
-        .map((e) => e.toString().replaceFirst('frc', ''))
-        .toList();
-
-    final redTeams = parseTeams(red['team_keys']);
-    final blueTeams = parseTeams(blue['team_keys']);
+    List<String> teamNumbers(CompetitionAlliance? alliance) => [
+      for (final team in alliance?.teams ?? []) team.id.replaceFirst('frc', ''),
+    ];
+    final redTeams = teamNumbers(match.red);
+    final blueTeams = teamNumbers(match.blue);
 
     return Align(
       alignment: Alignment.topCenter,

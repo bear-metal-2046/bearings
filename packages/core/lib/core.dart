@@ -5,10 +5,7 @@ export 'providers/device_info_provider.dart'
 export 'src/models/match_config.dart'
     show MatchConfig, MatchConfigMeta, PageConfig, ComponentConfig, Layout;
 export 'src/models/match_form_data.dart' show MatchFormData;
-export 'src/models/nexus_event_status.dart'
-    show NexusEventStatus, NexusMatch, NexusMatchTimes;
-export 'src/models/scouting_domain.dart'
-    show ScoutingEvent, ScoutingMatch, MatchAlliance, Scout, ScoutPosition;
+export 'src/models/scout_position.dart' show ScoutPosition;
 export 'src/utils/double_elimination.dart'
     show
         doubleElimination8PlayoffType,
@@ -23,5 +20,14 @@ export 'src/utils/nexus_match_key.dart'
         parseNexusMatchLabel,
         matchKeyForNexusRef,
         nexusLabelToMatchKey;
-export 'utils/hive_cache_interceptor.dart'
-    show CachePolicy, HiveCacheInterceptor;
+export 'src/entities/authorization/access.dart';
+export 'src/entities/authorization/role.dart';
+export 'src/entities/competition/competition_entities.dart';
+export 'src/entities/identity/user.dart';
+export 'src/entities/registry.dart';
+export 'src/entities/scouting/report.dart';
+export 'src/entities/scouting/scout.dart';
+export 'src/entities/strategy/picklist.dart';
+export 'src/integrations/nexus_api.dart';
+export 'src/integrations/tba_api.dart'
+    show TbaApi, firstMirroredTbaSeason, isMirroredTbaKey;

@@ -1,56 +1,57 @@
-import 'package:beariscope/models/scouting_document.dart';
+import 'package:core/core.dart' show ScoutingReport;
+import 'package:grove/grove.dart';
 import 'package:beariscope/pages/scout_audit/scout_audit_logic.dart';
 import 'package:beariscope/pages/scout_audit/scout_audit_preferences_provider.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/scouting_data_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:services/providers/api_provider.dart';
+import 'package:services/providers/competition_provider.dart';
 
-final cachedTbaMatchesProvider = FutureProvider<List<Map<String, dynamic>>>((
+final scoutAuditSnapshotProvider = Provider<AsyncValue<ScoutAuditSnapshot>>((
   ref,
-) async {
-  final eventKey = ref.watch(currentEventProvider);
-  final client = ref.watch(honeycombClientProvider);
-
-  final raw = await client.get<List<dynamic>>(
-    '/matches',
-    queryParams: {'event': eventKey},
-    cachePolicy: CachePolicy.cacheOnly,
-  );
-
-  return raw
-      .whereType<Map>()
-      .map((entry) => Map<String, dynamic>.from(entry))
-      .toList(growable: false);
-});
-
-final scoutAuditSnapshotProvider = FutureProvider<ScoutAuditSnapshot>((
-  ref,
-) async {
+) {
   final eventKey = ref.watch(currentEventProvider);
   final threshold = ref.watch(scoutAuditIncorrectThresholdProvider);
 
-  final docs = await ref.watch(scoutingDataProvider.future);
-  final tbaMatches = await ref.watch(cachedTbaMatchesProvider.future);
+  final reports = ref.watch(
+    groveQueryProvider(ref.watch(scoutingQueryProvider)),
+  );
+  final matches = ref.watch(competitionMatchesProvider(eventKey));
+  return reports.flatMap(
+    (docs) => matches.whenData((schedule) {
+      docs.requireComplete();
+      schedule.requireComplete();
+      if (!schedule.items.any(
+        (match) =>
+            match.level == 'qm' &&
+            (match.red?.teams.length ?? 0) >= 3 &&
+            (match.blue?.teams.length ?? 0) >= 3,
+      )) {
+        throw const GroveException(
+          'schedule_unavailable',
+          'The event schedule is not available yet.',
+        );
+      }
 
-  return buildScoutAuditSnapshot(
-    docs: docs,
-    tbaMatches: tbaMatches,
-    eventKey: eventKey,
-    incorrectThreshold: threshold,
+      return buildScoutAuditSnapshot(
+        docs: docs.items,
+        tbaMatches: schedule.items,
+        eventKey: eventKey,
+        incorrectThreshold: threshold,
+      );
+    }),
   );
 });
 
-List<ScoutingDocument> matchDocsForMatch(
-  List<ScoutingDocument> docs,
+List<ScoutingReport> matchDocsForMatch(
+  List<ScoutingReport> docs,
   String eventKey,
   int matchNumber,
 ) {
   return docs
       .where((doc) {
-        final meta = doc.meta;
-        return meta?['type']?.toString() == 'match' &&
-            meta?['event']?.toString() == eventKey &&
+        return doc.kind == 'match' &&
+            doc.eventKey == eventKey &&
             (doc.data['matchNumber'] == matchNumber ||
                 int.tryParse(doc.data['matchNumber']?.toString() ?? '') ==
                     matchNumber);

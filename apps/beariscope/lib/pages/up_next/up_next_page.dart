@@ -1,4 +1,3 @@
-import 'package:beariscope/models/match_nexus_info.dart';
 import 'package:beariscope/models/up_next_match.dart';
 import 'package:beariscope/pages/main_view.dart';
 import 'package:beariscope/pages/up_next/up_next_provider.dart';
@@ -9,8 +8,10 @@ import 'package:beariscope/providers/tba_preferences_provider.dart';
 import 'package:ui/widgets/bearings_card.dart';
 import 'package:ui/widgets/bearings_popup_menu.dart';
 import 'package:ui/widgets/bearings_status_view.dart';
+import 'package:core/core.dart' show EventStatusSnapshot;
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:grove/grove.dart';
 import 'package:flutter_riverpod/misc.dart' show ProviderException;
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:services/services.dart';
@@ -41,11 +42,10 @@ class _UpNextPageState extends ConsumerState<UpNextPage> {
     final currentEventKey = ref.watch(currentEventProvider);
 
     Future<void> refreshSchedule() async {
-      ref.invalidate(nexusEventStatusProvider(currentEventKey));
-      ref.invalidate(scheduleMatchesProvider(currentEventKey));
-      ref.invalidate(teamEventsProvider);
+      final container = ProviderScope.containerOf(context, listen: false);
+      retryCompetitionMatches(container, currentEventKey);
       try {
-        await ref.read(upNextProvider.future);
+        await refreshNexusStatus(container, currentEventKey);
       } catch (error) {
         debugPrint('Up Next: refresh failed for $currentEventKey: $error');
       }
@@ -123,7 +123,6 @@ class _UpNextPageState extends ConsumerState<UpNextPage> {
         ],
       ),
       body: schedule.when(
-        skipLoadingOnReload: true,
         loading: () => const Center(child: BearingsSpinner()),
         error: (err, stack) => BearingsStatusView(
           icon: LucideIcons.triangleAlert,
@@ -176,7 +175,11 @@ class _UpNextPageState extends ConsumerState<UpNextPage> {
         );
       case _EventAction.openNexus:
         final nexusEventKey =
-            await ref.read(nexusEventKeyProvider.future) ?? eventKey;
+            await waitForValue(
+              ProviderScope.containerOf(context, listen: false),
+              nexusEventKeyProvider,
+            ) ??
+            eventKey;
         launchUrl(
           Uri.parse(
             'https://frc.nexus/en/event/$nexusEventKey/team/2046/matches',
@@ -208,7 +211,7 @@ class _MatchList extends StatelessWidget {
   final bool bearMetalOnly;
   final UpNextSource source;
   final String? nexusProblem;
-  final UpNextEventContext? eventContext;
+  final EventStatusSnapshot? eventContext;
   final Future<void> Function() onRefresh;
 
   @override
@@ -251,8 +254,9 @@ class _MatchList extends StatelessWidget {
     }
 
     final children = <Widget>[
-      if (eventContext != null)
-        _EventContextHeader(eventContext: eventContext!),
+      if (eventContext case final snapshot?
+          when snapshot.nowQueuing != null || snapshot.announcements.isNotEmpty)
+        _EventContextHeader(eventContext: snapshot),
       _SourceLine(source: source, nexusProblem: nexusProblem),
       if (items.isEmpty)
         const SizedBox(
@@ -362,7 +366,7 @@ class _SourceLine extends StatelessWidget {
 class _EventContextHeader extends StatelessWidget {
   const _EventContextHeader({required this.eventContext});
 
-  final UpNextEventContext eventContext;
+  final EventStatusSnapshot eventContext;
 
   @override
   Widget build(BuildContext context) {
@@ -388,7 +392,9 @@ class _EventContextHeader extends StatelessWidget {
         if (eventContext.announcements.isNotEmpty)
           BearingsCard(
             title: 'Announcements',
-            subtitle: eventContext.announcements.join('\n'),
+            subtitle: eventContext.announcements
+                .map((announcement) => announcement.text)
+                .join('\n'),
             leading: const Icon(LucideIcons.megaphone, size: 18),
           ),
       ],

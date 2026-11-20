@@ -46,6 +46,7 @@ class _PicklistsPageState extends ConsumerState<PicklistsPage> {
   Widget build(BuildContext context) {
     final controller = MainViewController.of(context);
     final picklists = ref.watch(picklistLibraryProvider);
+    final shared = ref.watch(sharedPicklistsProvider);
     final eventKey = ref.watch(currentEventProvider);
     final eventName =
         ref
@@ -65,14 +66,6 @@ class _PicklistsPageState extends ConsumerState<PicklistsPage> {
                 icon: const Icon(LucideIcons.menu),
                 onPressed: controller.openDrawer,
               ),
-        actions: [
-          IconButton(
-            tooltip: 'Refresh picklists',
-            icon: const Icon(LucideIcons.refreshCw),
-            onPressed: () =>
-                ref.read(picklistLibraryProvider.notifier).refresh(),
-          ),
-        ],
         content: BearingsPage(
           search: BearingsSearch(
             controller: _searchController,
@@ -86,45 +79,51 @@ class _PicklistsPageState extends ConsumerState<PicklistsPage> {
           bodyBuilder: (context, layout) => SafeArea(
             top: false,
             bottom: false,
-            child: RefreshIndicator(
-              onRefresh: () =>
-                  ref.read(picklistLibraryProvider.notifier).refresh(),
-              child: ValueListenableBuilder(
-                valueListenable: _searchController,
-                builder: (context, value, _) {
-                  final query = value.text.trim().toLowerCase();
-                  final matches = picklists
-                      .where((item) => item.title.toLowerCase().contains(query))
-                      .toList();
-                  if (matches.isEmpty) {
-                    return CustomScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      slivers: [
-                        SliverFillRemaining(
-                          hasScrollBody: false,
-                          child: Padding(
-                            padding: layout.scrollPadding,
-                            child: picklists.isEmpty
-                                ? _EmptyLibrary(eventName: eventName)
-                                : const BearingsStatusView(
-                                    icon: LucideIcons.search,
-                                    title: 'No matching picklists',
-                                    subtitle: 'Try a different search.',
-                                  ),
-                          ),
-                        ),
-                      ],
-                    );
-                  }
-                  return LibraryGrid(
-                    padding: layout.scrollPadding,
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    itemCount: matches.length,
-                    itemBuilder: (context, index) =>
-                        _PicklistCard(item: matches[index]),
+            child: ValueListenableBuilder(
+              valueListenable: _searchController,
+              builder: (context, value, _) {
+                final query = value.text.trim().toLowerCase();
+                final matches = picklists
+                    .where((item) => item.title.toLowerCase().contains(query))
+                    .toList();
+                if (picklists.isEmpty && (shared?.isLoading ?? false)) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (picklists.isEmpty && (shared?.hasError ?? false)) {
+                  return BearingsStatusView(
+                    icon: LucideIcons.cloudAlert,
+                    title: 'Shared picklists unavailable',
+                    subtitle: shared!.error.toString(),
                   );
-                },
-              ),
+                }
+                if (matches.isEmpty) {
+                  return CustomScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    slivers: [
+                      SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: Padding(
+                          padding: layout.scrollPadding,
+                          child: picklists.isEmpty
+                              ? _EmptyLibrary(eventName: eventName)
+                              : const BearingsStatusView(
+                                  icon: LucideIcons.search,
+                                  title: 'No matching picklists',
+                                  subtitle: 'Try a different search.',
+                                ),
+                        ),
+                      ),
+                    ],
+                  );
+                }
+                return LibraryGrid(
+                  padding: layout.scrollPadding,
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  itemCount: matches.length,
+                  itemBuilder: (context, index) =>
+                      _PicklistCard(item: matches[index]),
+                );
+              },
             ),
           ),
         ),
@@ -142,11 +141,15 @@ class _PicklistCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = Theme.of(context).colorScheme;
     final canEdit = ref.read(picklistLibraryProvider.notifier).canEdit(item);
+    final sharedOffline =
+        item.mode == PicklistMode.multiplayer &&
+        ref.watch(sharedPicklistsOfflineProvider);
     return LibraryTile(
       key: ValueKey('picklist-${item.id}'),
       title: item.title,
       caption:
-          '${item.teamKeys.length} ${item.teamKeys.length == 1 ? 'team' : 'teams'} · ${item.mode.label}',
+          '${item.teamKeys.length} ${item.teamKeys.length == 1 ? 'team' : 'teams'} · ${item.mode.label}'
+          '${sharedOffline ? ' · Offline' : ''}',
       color: picklistThumbnailColor(item.emoji, colors),
       thumbnail: PicklistEmoji(item.emoji, size: 56),
       onTap: () => context.push('/picklists/${item.id}'),

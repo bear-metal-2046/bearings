@@ -1,6 +1,7 @@
+import 'package:core/core.dart' show ScoutingReport;
+
 import 'dart:math';
 
-import 'package:beariscope/models/scouting_document.dart';
 import 'package:beariscope/providers/scouting_data_provider.dart';
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -93,7 +94,7 @@ Map<int, double> _sdScorer(Map<int, double> teamAverages) {
   });
 }
 
-StratZScoreData _computeStratZScores(List<ScoutingDocument> stratDocs) {
+StratZScoreData _computeStratZScores(List<ScoutingReport> stratDocs) {
   final rawScores = <String, Map<int, List<double>>>{
     for (final k in _kRankingKeys) k: {},
   };
@@ -129,14 +130,12 @@ StratZScoreData _computeStratZScores(List<ScoutingDocument> stratDocs) {
   );
 }
 
-final stratZScoresProvider = FutureProvider<StratZScoreData>((ref) async {
-  final allDocs = await ref.watch(scoutingDataProvider.future);
-  // if(null == null){
-  final stratDocs = allDocs
-      .where((doc) => doc.meta?['type']?.toString() == 'strat')
-      .toList();
-  if (stratDocs.isEmpty) return StratZScoreData.empty;
-  return _computeStratZScores(stratDocs);
+final stratZScoresProvider = Provider<AsyncValue<StratZScoreData>>((ref) {
+  return watchScoutingReports(ref, 'strat').whenData((reports) {
+    return reports.isEmpty
+        ? StratZScoreData.empty
+        : _computeStratZScores(reports);
+  });
 });
 
 String formattedRank(double rank) {

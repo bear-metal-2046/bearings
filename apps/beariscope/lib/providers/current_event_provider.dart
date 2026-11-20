@@ -1,8 +1,9 @@
+import 'package:core/core.dart' show CompetitionEvent;
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:services/providers/api_provider.dart';
+import 'package:services/providers/competition_provider.dart';
 
 import 'shared_preferences_provider.dart';
 
@@ -32,28 +33,21 @@ class CurrentEvent extends _$CurrentEvent {
   }
 }
 
-final teamEventsProvider = FutureProvider<List<EventOption>>((ref) async {
-  final client = ref.watch(honeycombClientProvider);
+final teamEventsProvider = Provider<AsyncValue<List<EventOption>>>((ref) {
   final year = DateTime.now().year;
-  final response = await client.get<List<dynamic>>(
-    '/events',
-    queryParams: {'team': 'frc2046', 'year': year, 'enrich': false},
-    cachePolicy: CachePolicy.networkFirst,
-  );
+  return ref
+      .watch(competitionEventsProvider((year: year, team: 'frc2046')))
+      .whenData((response) {
+        final events = response.map(EventOption.fromCompetition).toList();
 
-  final events = response
-      .whereType<Map>()
-      .map((raw) => Map<String, dynamic>.from(raw))
-      .map(EventOption.fromJson)
-      .toList();
+        events.sort((a, b) {
+          final aDate = a.startDate ?? DateTime(0);
+          final bDate = b.startDate ?? DateTime(0);
+          return aDate.compareTo(bDate);
+        });
 
-  events.sort((a, b) {
-    final aDate = a.startDate ?? DateTime(0);
-    final bDate = b.startDate ?? DateTime(0);
-    return aDate.compareTo(bDate);
-  });
-
-  return events;
+        return events;
+      });
 });
 
 class EventOption {
@@ -156,29 +150,26 @@ class EventOption {
     );
   }
 
-  factory EventOption.fromJson(Map<String, dynamic> json) {
-    final key = json['key']?.toString() ?? '';
-    final name = json['name']?.toString().trim() ?? '';
-    final honeycombShortName = json['shortName']?.toString().trim() ?? '';
+  factory EventOption.fromCompetition(CompetitionEvent event) {
+    final key = event.id;
+    final name = event.name.trim();
+    final firstCode = event.firstEventCode;
+    final upstreamShortName = event.shortName?.trim() ?? '';
     return EventOption(
       key: key,
-      firstKey:
-          (json['year']?.toString() ?? '') +
-          (json['firstEventCode']?.toString() ?? ''),
+      firstKey: firstCode == null
+          ? key
+          : '${event.season}${firstCode.toLowerCase()}',
       name: name.isNotEmpty ? name : key,
       shortName:
           _shortenEventName(name) ??
-          (honeycombShortName.isNotEmpty
-              ? honeycombShortName
+          (upstreamShortName.isNotEmpty
+              ? upstreamShortName
               : name.isNotEmpty
               ? name
               : key),
-      eventType: (json['eventType'] as num?)?.toInt() ?? unlabeled,
-      startDate: () {
-        final raw = json['startDate'] ?? json['start_date'];
-        if (raw == null) return null;
-        return DateTime.tryParse(raw.toString());
-      }(),
+      eventType: event.eventType ?? unlabeled,
+      startDate: event.startDate,
     );
   }
 

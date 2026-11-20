@@ -11,6 +11,13 @@ dependencies:
   core:
     path: ../../packages/core
   dart_frog: ^1.2.6
+  dart_frog_web_socket: ^1.0.3
+  grove:
+    path: ../../packages/grove
+  jose_plus: ^1.0.0
+  http: ^1.6.0
+  sqlite3: ^3.5.2
+  uuid: ^4.6.0
 
 dev_dependencies:
   dart_frog_lint: ^0.1.2

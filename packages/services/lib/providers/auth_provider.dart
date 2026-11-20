@@ -1,11 +1,10 @@
+import 'dart:async';
+
 import 'package:core/providers/device_info_provider.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:hive_ce/hive.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:services/providers/auth/auth_backend.dart';
 import 'package:services/providers/auth/oidc_backend.dart';
-import 'package:services/providers/connectivity_provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 part 'auth_provider.g.dart';
 
@@ -66,22 +65,18 @@ Future<Auth> auth(Ref ref) async {
   final deviceInfo = ref.watch(deviceInfoProvider);
   final config = ref.watch(auth0ConfigProvider);
 
-  final backend = await _createBackend(config, deviceInfo.deviceOS);
-  return Auth(ref: ref, backend: backend, config: config);
-}
-
-Future<AuthBackend> _createBackend(Auth0Config config, DeviceOS os) async {
-  final redirectUri = config.redirectUris[os];
+  final redirectUri = config.redirectUris[deviceInfo.deviceOS];
   if (redirectUri == null) {
-    throw StateError('No OIDC redirect URI configured for $os.');
+    throw StateError(
+      'No OIDC redirect URI configured for ${deviceInfo.deviceOS}.',
+    );
   }
-
   final backend = OidcAuthBackend(
     config: config,
     redirectUri: Uri.parse(redirectUri),
   );
-  await backend.init();
-  return backend;
+  ref.onDispose(() => unawaited(backend.dispose()));
+  return Auth(ref: ref, backend: backend, config: config);
 }
 
 /// Unified authentication facade that delegates platform-specific OAuth work
@@ -93,8 +88,6 @@ Future<AuthBackend> _createBackend(Auth0Config config, DeviceOS os) async {
 ///
 /// ### Facade-level responsibilities
 /// - Auth status transitions ([AuthStatusNotifier])
-/// - Online connectivity checks before login
-/// - Hive cache and SharedPreferences cleanup on logout
 class Auth {
   final AuthBackend _backend;
   final Ref ref;
@@ -107,17 +100,15 @@ class Auth {
   /// Populated after a successful [login] or [trySilentLogin].
   AuthUser? get user => _backend.user;
 
-  Future<void> login(List<String> scopes, {bool isSignup = false}) async {
+  Future<bool> login(List<String> scopes, {bool isSignup = false}) async {
     _setStatus(AuthStatus.authenticating);
 
-    if (!await checkOnline(ref)) {
-      _setStatus(AuthStatus.unauthenticated);
-      throw OfflineAuthException('No internet connection available to login.');
-    }
-
     try {
-      await _backend.login(scopes, isSignup: isSignup);
-      _setStatus(AuthStatus.authenticated);
+      final signedIn = await _backend.login(scopes, isSignup: isSignup);
+      _setStatus(
+        signedIn ? AuthStatus.authenticated : AuthStatus.unauthenticated,
+      );
+      return signedIn;
     } catch (e) {
       debugPrint('Login Error: $e');
       _setStatus(AuthStatus.unauthenticated);
@@ -125,45 +116,29 @@ class Auth {
     }
   }
 
-  Future<String> getAccessToken(List<String> scopes) async {
-    return _backend.getAccessToken(scopes);
-  }
+  Future<String> getAccessToken(
+    List<String> scopes, {
+    bool forceRefresh = false,
+  }) => _backend.getAccessToken(scopes, forceRefresh: forceRefresh);
 
   Future<void> trySilentLogin() async {
     _setStatus(AuthStatus.authenticating);
 
     try {
       await _backend.trySilentLogin();
-      _setStatus(
-        _backend.user != null
-            ? AuthStatus.authenticated
-            : AuthStatus.unauthenticated,
-      );
     } catch (e) {
       debugPrint('Silent login failed: $e');
-      _setStatus(AuthStatus.unauthenticated);
     }
+    _setStatus(
+      _backend.user != null
+          ? AuthStatus.authenticated
+          : AuthStatus.unauthenticated,
+    );
   }
 
   Future<void> logout({bool federated = false}) async {
-    await _backend.logout(federated: federated);
-
-    // Clear known Hive cache boxes.
-    const cacheBoxNames = ['api_cache', 'scouting_data'];
-    for (final name in cacheBoxNames) {
-      if (Hive.isBoxOpen(name)) {
-        try {
-          await Hive.box(name).clear();
-        } catch (_) {}
-      }
-    }
-
-    // Clear SharedPreferences (app-level keys like endpoint selection).
-    try {
-      (await SharedPreferences.getInstance()).clear();
-    } catch (_) {}
-
     _setStatus(AuthStatus.unauthenticated);
+    await _backend.logout(federated: federated);
   }
 
   void _setStatus(AuthStatus status) {
@@ -195,13 +170,4 @@ class OAuthToken {
       ),
     );
   }
-}
-
-class OfflineAuthException implements Exception {
-  final String message;
-
-  OfflineAuthException([this.message = 'No internet connection available']);
-
-  @override
-  String toString() => 'OfflineAuthException: $message';
 }

@@ -1,0 +1,13 @@
+name: grove_generator
+description: Generates Grove entity descriptors and codecs from Dart models
+version: 26.6.3+24
+publish_to: none
+resolution: workspace
+environment:
+  sdk: ^3.14.0
+dependencies:
+  analyzer: ^14.7.0
+  build: ^5.0.0
+  grove:
+    path: ../grove
+  source_gen: ^4.2.3

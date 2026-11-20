@@ -1,13 +1,20 @@
 library;
 
-export 'providers/api_provider.dart'
+export 'models/up_next_feed_match.dart' show UpNextFeedMatch;
+export 'providers/competition_provider.dart'
     show
-        dioProvider,
-        getDataProvider,
-        getListDataProvider,
-        honeycombClientProvider,
-        HoneycombClient,
-        CachePolicy;
+        competitionProvider,
+        competitionMatchesProvider,
+        competitionTeamsProvider,
+        competitionTeamMatchesProvider,
+        competitionEventsProvider,
+        competitionEventProvider,
+        competitionMatchProvider,
+        competitionRankingsProvider,
+        competitionMediaProvider,
+        retryCompetitionMatches,
+        retryCompetitionEvents,
+        CompetitionClient;
 export 'providers/auth/auth_backend.dart' show AuthBackend, AuthUser;
 export 'providers/auth_provider.dart'
     show
@@ -17,53 +24,36 @@ export 'providers/auth_provider.dart'
         Auth,
         Auth0Config,
         AuthStatus,
-        OAuthToken,
-        OfflineAuthException;
-export 'providers/connectivity_provider.dart'
-    show
-        connectivityProvider,
-        internetConnectionProvider,
-        checkOnline,
-        isDefinitelyOffline;
+        OAuthToken;
 export 'providers/device_credentials_provider.dart'
     show
         DeviceCredentials,
         decodeProvisioningPayload,
         deviceCredentialsProvider;
+export 'providers/grove_provider.dart'
+    show bearingsGroveProvider, initializeGroveStorage, scoutRosterProvider;
 export 'providers/nexus_provider.dart'
     show
         nexusEventStatusProvider,
-        parseNexusEventResponse,
+        refreshNexusStatus,
         NexusFetchResult,
         NexusAvailable,
         NexusEmpty,
         NexusFailed;
 export 'providers/permissions_provider.dart'
     show
-        authMeProvider,
+        groveAccessProvider,
         permissionCheckerProvider,
-        AuthMePayload,
-        AuthUserAccess,
         PermissionChecker,
         PermissionKey,
-        PermissionMetadata;
+        PermissionMetadata,
+        permissionMetadataFor;
 export 'providers/rbac_management_provider.dart'
-    show
-        rbacManagementServiceProvider,
-        rbacMetadataProvider,
-        rbacRolesProvider,
-        rbacUsersProvider,
-        ManagedRole,
-        ManagedUser,
-        RbacManagementService,
-        RbacMetadata,
-        RbacPermissionMetadata;
+    show rbacManagementServiceProvider, RbacManagementService;
 export 'providers/secure_storage_provider.dart';
 export 'providers/up_next_feed_provider.dart'
     show
         upNextFeedProvider,
-        upNextNoRetry,
-        scheduleMatchesProvider,
         needsScheduleFallback,
         selectUpNextFeed,
         UpNextFeed,

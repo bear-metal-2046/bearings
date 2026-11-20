@@ -1,10 +1,12 @@
+import 'package:beariscope/widgets/grove_load_message.dart';
+import 'package:beariscope/providers/current_event_provider.dart';
+import 'package:services/providers/competition_provider.dart';
 import 'package:beariscope/pages/main_view.dart';
 import 'package:beariscope/pages/match_lookup/match_card.dart';
 import 'package:beariscope/pages/match_lookup/match_providers.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:beariscope/pages/team_lookup/team_model.dart';
-import 'package:beariscope/pages/team_lookup/team_providers.dart';
 import 'package:ui/widgets/bearings_status_view.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:ui/widgets/bearings_spinner.dart';
@@ -22,16 +24,17 @@ class _MatchLookupPageState extends ConsumerState<MatchLookupPage> {
   @override
   Widget build(BuildContext context) {
     final controller = MainViewController.of(context);
-    final teamsAsync = ref.watch(teamsProvider);
+    final event = ref.watch(currentEventProvider);
+    final roster = ref.watch(competitionTeamsProvider(event));
+    final teamsAsync = roster.whenData(
+      (result) => result.requireAvailable().items,
+    );
     final filteredMatches = ref.watch(filteredMatchesProvider);
     final t1 = ref.watch(team1SearchProvider);
     final t2 = ref.watch(team2SearchProvider);
 
     final teams = teamsAsync.maybeWhen(
-      data: (data) => data
-          .whereType<Map<String, dynamic>>()
-          .map((json) => Team.fromJson(json))
-          .toList(),
+      data: (data) => data.map(Team.fromCompetition).toList(),
       orElse: () => <Team>[],
     );
 
@@ -111,6 +114,11 @@ class _MatchLookupPageState extends ConsumerState<MatchLookupPage> {
 
             const SizedBox(height: 16),
 
+            if (teamsAsync.asError case final error?)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Text(groveLoadMessage(error.error)),
+              ),
             Expanded(
               child: filteredMatches.when(
                 data: (matches) {
@@ -124,7 +132,7 @@ class _MatchLookupPageState extends ConsumerState<MatchLookupPage> {
 
                   final seenKeys = <String>{};
                   final uniqueMatches = matches
-                      .where((m) => seenKeys.add(m['key'] ?? ''))
+                      .where((m) => seenKeys.add(m.id))
                       .toList();
 
                   if (uniqueMatches.isEmpty) {

@@ -1,10 +1,11 @@
+import 'package:core/core.dart';
 import 'package:beariscope/pages/team_lookup/team_model.dart';
 
 enum PitsScoutingFilter { allTeams, notScouted, scouted }
 
-List<Team> parsePitsTeams(List<Map<String, dynamic>> data) {
+List<Team> parsePitsTeams(List<CompetitionTeam> data) {
   return data
-      .map((json) => Team.fromJson(json))
+      .map(Team.fromCompetition)
       .where((team) => team.number > 0)
       .toList()
     ..sort((a, b) => a.number.compareTo(b.number));
@@ -99,11 +100,10 @@ class PitsScoutingSubmission {
     required this.notes,
   });
 
-  Map<String, Object?> toIngestEntry({
+  Map<String, Object?> toPayload({
     required String eventKey,
     required String scoutedBy,
     int season = 2026,
-    String? existingId,
   }) {
     final meta = <String, Object?>{
       'type': 'pits',
@@ -112,9 +112,6 @@ class PitsScoutingSubmission {
       'event': eventKey,
       'scoutedBy': scoutedBy,
     };
-    if (existingId != null) {
-      meta['existingId'] = existingId;
-    }
 
     return {
       'meta': meta,

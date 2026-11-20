@@ -21,9 +21,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         false;
     final canEditScouts =
         permissionChecker?.hasPermission(PermissionKey.scoutsManage) ?? false;
-    final canManageUsersRoles =
-        permissionChecker?.hasPermission(PermissionKey.usersRolesManage) ??
-        false;
+    final canOpenUsersAndRoles =
+        permissionChecker?.canOpenUsersAndRoles ?? false;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
@@ -57,7 +56,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
           const SizedBox(height: 16),
 
-          if (canViewScouts || canEditScouts || canManageUsersRoles)
+          if (canViewScouts || canEditScouts || canOpenUsersAndRoles)
             BearingsSettingGroup(
               title: 'Team',
               children: [
@@ -70,17 +69,19 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     ),
                     onTap: () => context.push('/settings/user_selection'),
                   ),
-                if (canManageUsersRoles)
+                if (canOpenUsersAndRoles)
                   ListTile(
                     leading: const Icon(LucideIcons.users),
-                    title: const Text('Beariscope Users, Roles'),
-                    subtitle: const Text('Edit Roles, Permissions, Users'),
+                    title: const Text('Users & Roles'),
+                    subtitle: const Text(
+                      'User profiles, role assignments, and permissions',
+                    ),
                     onTap: () => context.push('/settings/roles'),
                   ),
               ],
             ),
 
-          if (canViewScouts || canEditScouts || canManageUsersRoles)
+          if (canViewScouts || canEditScouts || canOpenUsersAndRoles)
             const SizedBox(height: 16),
 
           // About Section

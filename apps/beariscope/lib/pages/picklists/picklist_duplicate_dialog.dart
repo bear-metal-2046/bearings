@@ -15,9 +15,10 @@ Future<Picklist?> duplicatePicklist(
   if (!ref.read(picklistLibraryProvider.notifier).canEdit(source)) return null;
   final canShare =
       ref.read(authStatusProvider) == AuthStatus.authenticated &&
-      (ref
-              .read(permissionCheckerProvider)
-              ?.hasPermission(PermissionKey.picklistsManage) ??
+      (ref.read(permissionCheckerProvider)?.hasAllPermissions([
+            PermissionKey.picklistsRead,
+            PermissionKey.picklistsManage,
+          ]) ??
           false);
   final mode = await BearingsModal.show<PicklistMode>(
     context,
@@ -37,25 +38,42 @@ Future<Picklist?> duplicatePicklist(
           const SizedBox(height: 12),
           const _DuplicateModeOption(mode: PicklistMode.offline),
           const Divider(height: 1, indent: 52, endIndent: 12),
-          _DuplicateModeOption(
-            mode: PicklistMode.multiplayer,
-            enabled: canShare,
+          Consumer(
+            builder: (context, ref, _) => _DuplicateModeOption(
+              mode: PicklistMode.multiplayer,
+              disabledReason: !canShare
+                  ? 'Requires multiplayer editing permission.'
+                  : ref.watch(sharedPicklistsOfflineProvider)
+                  ? 'Reconnect to create a multiplayer copy.'
+                  : null,
+            ),
           ),
         ],
       ),
     ),
   );
   if (mode == null || !context.mounted) return null;
-  return ref
-      .read(picklistLibraryProvider.notifier)
-      .duplicate(source.id, mode: mode);
+  try {
+    return await ref
+        .read(picklistLibraryProvider.notifier)
+        .duplicate(source.id, mode: mode);
+  } catch (error) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not duplicate the picklist: $error')),
+      );
+    }
+    return null;
+  }
 }
 
 class _DuplicateModeOption extends StatelessWidget {
-  const _DuplicateModeOption({required this.mode, this.enabled = true});
+  const _DuplicateModeOption({required this.mode, this.disabledReason});
 
   final PicklistMode mode;
-  final bool enabled;
+  final String? disabledReason;
+
+  bool get enabled => disabledReason == null;
 
   @override
   Widget build(BuildContext context) => ListTile(
@@ -65,9 +83,7 @@ class _DuplicateModeOption extends StatelessWidget {
       mode == PicklistMode.offline ? LucideIcons.laptop : LucideIcons.users,
     ),
     title: Text(mode.label),
-    subtitle: Text(
-      enabled ? mode.description : 'Requires multiplayer editing permission.',
-    ),
+    subtitle: Text(disabledReason ?? mode.description),
     trailing: Icon(
       enabled ? LucideIcons.chevronRight : LucideIcons.lockKeyhole,
       size: 18,

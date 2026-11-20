@@ -1,3 +1,4 @@
+import 'package:grove/grove.dart';
 import 'package:ui/widgets/bearings_popup_menu.dart';
 import 'package:ui/widgets/bearings_alert_dialog.dart';
 import 'package:ui/widgets/bearings_modal.dart';
@@ -12,7 +13,8 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:services/providers/api_provider.dart';
+import 'package:core/core.dart';
+import 'package:services/providers/grove_provider.dart';
 import 'package:services/providers/permissions_provider.dart';
 import 'package:ui/widgets/bearings_spinner.dart';
 
@@ -36,31 +38,18 @@ class _ScoutSelectionPageState extends ConsumerState<ScoutSelectionPage> {
   final FocusNode _searchFocusNode = FocusNode();
   final TextEditingController _addScoutTEC = TextEditingController();
   final TextEditingController newNameTEC = TextEditingController();
-  List<Map<String, String>>? _optimisticScouts;
-  final _scoutsProvider = FutureProvider<List<dynamic>>((ref) {
-    return ref
-        .watch(honeycombClientProvider)
-        .get<List<dynamic>>('/scouts', cachePolicy: CachePolicy.networkFirst);
-  });
-
-  List<Map<String, String>> _normalizeScouts(List<dynamic> data) {
-    final scouts = data.map((item) {
-      return {"name": item["name"] as String, "uuid": item["uuid"] as String};
-    }).toList()..sort((a, b) => a["name"]!.compareTo(b["name"]!));
-    return scouts;
-  }
-
   Future<void> _refreshScouts() async {
-    final client = ref.read(honeycombClientProvider);
-    client.invalidateCache('/scouts');
-    ref.invalidate(_scoutsProvider);
     try {
-      await ref.read(_scoutsProvider.future);
+      final container = ProviderScope.containerOf(context, listen: false);
+      final query = scoutRosterQuery(ref.read(bearingsGroveProvider));
+      final result = await container.refresh(groveQueryProvider(query).future);
+      result.requireComplete();
+    } catch (error) {
       if (mounted) {
-        setState(() => _optimisticScouts = null);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Unable to reach the server: $error')),
+        );
       }
-    } catch (_) {
-      // Keep existing optimistic/cached state if refresh fails.
     }
   }
 
@@ -88,14 +77,14 @@ class _ScoutSelectionPageState extends ConsumerState<ScoutSelectionPage> {
     super.dispose();
   }
 
-  List<Widget> buildScoutList(List<Map<String, String>> scouts) {
+  List<Widget> buildScoutList(List<Scout> scouts) {
     final permissionChecker = ref.read(permissionCheckerProvider);
     final canManageScouts =
         permissionChecker?.hasPermission(PermissionKey.scoutsManage) ?? false;
 
     return scouts.map((scout) {
-      final name = scout["name"]!;
-      final id = scout["uuid"]!;
+      final name = scout.name;
+      final id = scout.uuid;
 
       return BearingsCard(
         title: name,
@@ -126,46 +115,21 @@ class _ScoutSelectionPageState extends ConsumerState<ScoutSelectionPage> {
                           icon: LucideIcons.check,
                           onPressed: () async {
                             if (newNameTEC.text.isNotEmpty) {
-                              final previous = List<Map<String, String>>.from(
-                                _optimisticScouts ??
-                                    _normalizeScouts(
-                                      ref.read(_scoutsProvider).asData?.value ??
-                                          const [],
-                                    ),
-                              );
-
-                              setState(() {
-                                _optimisticScouts =
-                                    previous
-                                        .map(
-                                          (entry) => entry['uuid'] == id
-                                              ? {
-                                                  'name': newNameTEC.text,
-                                                  'uuid': id,
-                                                }
-                                              : entry,
-                                        )
-                                        .toList()
-                                      ..sort(
-                                        (a, b) =>
-                                            a['name']!.compareTo(b['name']!),
-                                      );
-                              });
-
                               try {
                                 await ref
-                                    .read(honeycombClientProvider)
-                                    .put(
-                                      '/scouts/$id',
-                                      data: {"name": newNameTEC.text},
+                                    .read(bearingsGroveProvider)
+                                    .update<Scout>(
+                                      id,
+                                      (scout) => Scout(
+                                        uuid: scout.uuid,
+                                        name: newNameTEC.text.trim(),
+                                      ),
                                     );
-                                await _refreshScouts();
                                 if (context.mounted) {
                                   Navigator.of(context).pop();
                                 }
                               } catch (e) {
                                 if (mounted) {
-                                  setState(() => _optimisticScouts = previous);
                                   ScaffoldMessenger.of(this.context)
                                       .showSnackBar(
                                         SnackBar(
@@ -204,27 +168,10 @@ class _ScoutSelectionPageState extends ConsumerState<ScoutSelectionPage> {
                       ],
                     );
                     if (confirmed == true) {
-                      final previous = List<Map<String, String>>.from(
-                        _optimisticScouts ??
-                            _normalizeScouts(
-                              ref.read(_scoutsProvider).asData?.value ??
-                                  const [],
-                            ),
-                      );
-                      setState(() {
-                        _optimisticScouts = previous
-                            .where((entry) => entry['uuid'] != id)
-                            .toList();
-                      });
-
                       try {
-                        await ref
-                            .read(honeycombClientProvider)
-                            .delete('/scouts/$id');
-                        await _refreshScouts();
+                        await ref.read(bearingsGroveProvider).delete<Scout>(id);
                       } catch (e) {
                         if (mounted) {
-                          setState(() => _optimisticScouts = previous);
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text('Failed to delete scout: $e'),
@@ -269,17 +216,27 @@ class _ScoutSelectionPageState extends ConsumerState<ScoutSelectionPage> {
       return;
     }
 
-    for (final name in names) {
-      await ref
-          .read(honeycombClientProvider)
-          .post('/scouts', data: {"name": name});
+    final grove = ref.read(bearingsGroveProvider);
+    var imported = 0;
+    try {
+      for (final name in names) {
+        await grove.create(Scout.create(name));
+        imported++;
+      }
+      if (mounted)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Imported $imported scouts.')));
+    } catch (error) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Imported $imported of ${names.length} scouts: $error',
+            ),
+          ),
+        );
     }
-
-    await _refreshScouts();
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('Imported ${names.length} scouts.')));
   }
 
   KeyEventResult _handleTypeToSearch(KeyEvent event) {
@@ -318,33 +275,15 @@ class _ScoutSelectionPageState extends ConsumerState<ScoutSelectionPage> {
           icon: LucideIcons.check,
           onPressed: () async {
             if (_addScoutTEC.text.isNotEmpty) {
-              final previous = List<Map<String, String>>.from(
-                _optimisticScouts ??
-                    _normalizeScouts(
-                      ref.read(_scoutsProvider).asData?.value ?? const [],
-                    ),
-              );
-              setState(() {
-                _optimisticScouts = [
-                  ...previous,
-                  {
-                    'name': _addScoutTEC.text,
-                    'uuid': 'temp-${DateTime.now().microsecondsSinceEpoch}',
-                  },
-                ]..sort((a, b) => a['name']!.compareTo(b['name']!));
-              });
-
               try {
                 await ref
-                    .read(honeycombClientProvider)
-                    .post('/scouts', data: {"name": _addScoutTEC.text});
-                await _refreshScouts();
+                    .read(bearingsGroveProvider)
+                    .create(Scout.create(_addScoutTEC.text));
                 if (context.mounted) {
                   Navigator.of(context).pop();
                 }
               } catch (e) {
                 if (mounted) {
-                  setState(() => _optimisticScouts = previous);
                   ScaffoldMessenger.of(this.context).showSnackBar(
                     SnackBar(content: Text('Failed to add scout: $e')),
                   );
@@ -359,7 +298,7 @@ class _ScoutSelectionPageState extends ConsumerState<ScoutSelectionPage> {
 
   @override
   Widget build(BuildContext context) {
-    final scoutsAsync = ref.watch(_scoutsProvider);
+    final scoutsAsync = ref.watch(scoutRosterProvider);
     final permissionChecker = ref.watch(permissionCheckerProvider);
     final canManageScouts =
         permissionChecker?.hasPermission(PermissionKey.scoutsManage) ?? false;
@@ -411,12 +350,9 @@ class _ScoutSelectionPageState extends ConsumerState<ScoutSelectionPage> {
               ),
             ),
             data: (data) {
-              final scoutData = _normalizeScouts(data);
-              final source = _optimisticScouts ?? scoutData;
-
               final searchQuery = _searchTEC.text.trim().toLowerCase();
-              final filteredScouts = source.where((scout) {
-                return scout['name']!.toLowerCase().contains(searchQuery);
+              final filteredScouts = data.where((scout) {
+                return scout.name.toLowerCase().contains(searchQuery);
               }).toList();
 
               if (filteredScouts.isEmpty) {

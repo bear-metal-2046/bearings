@@ -1,25 +1,25 @@
-import 'dart:async';
+import 'package:flutter/foundation.dart';
 
 import 'package:beariscope/providers/post_sign_in_flow_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:services/providers/auth_provider.dart';
-import 'package:services/providers/permissions_provider.dart';
+import 'package:services/providers/grove_provider.dart';
 import 'package:services/providers/user_profile_provider.dart';
 
-enum AppBootStage { initializing, restoringSession, loadingPermissions, ready }
+enum AppBootStage { initializing, restoringSession, connecting, ready }
 
 extension AppBootStageExtention on AppBootStage {
   String get label => switch (this) {
     AppBootStage.initializing => 'Starting up...',
     AppBootStage.restoringSession => 'Authenticating...',
-    AppBootStage.loadingPermissions => 'Authorizing...',
+    AppBootStage.connecting => 'Establishing connection...',
     AppBootStage.ready => 'Crescendo!',
   };
 
   double get progress => switch (this) {
     AppBootStage.initializing => 0.1,
     AppBootStage.restoringSession => 0.3,
-    AppBootStage.loadingPermissions => 0.7,
+    AppBootStage.connecting => 0.7,
     AppBootStage.ready => 1.0,
   };
 }
@@ -55,57 +55,62 @@ class AppBootState {
 }
 
 class AppBootNotifier extends Notifier<AppBootState> {
-  Completer<void>? _startCompleter;
+  Future<void>? _boot;
 
   @override
   AppBootState build() => AppBootState.initial();
 
-  Future<void> start() {
-    if (state.isReady) {
-      return Future.value();
-    }
+  Future<void> start() => _boot ??= _start();
 
-    final completer = _startCompleter;
-    if (completer != null) {
-      return completer.future;
-    }
-
-    final nextCompleter = Completer<void>();
-    _startCompleter = nextCompleter;
-    unawaited(_runBoot(nextCompleter));
-    return nextCompleter.future;
-  }
-
-  Future<void> _runBoot(Completer<void> completer) async {
+  Future<void> _start() async {
+    Auth? restored;
     try {
-      state = AppBootState.stage(AppBootStage.initializing);
-      await Future<void>.delayed(Duration.zero);
-
       state = AppBootState.stage(AppBootStage.restoringSession);
       final auth = await ref.read(authProvider.future);
       await auth.trySilentLogin();
+      if (!ref.mounted) return;
 
       if (ref.read(authStatusProvider) == AuthStatus.authenticated) {
-        ref.invalidate(userInfoProvider);
-        final userInfo = await ref.read(userInfoProvider.future);
-        if (userInfo != null && checkNeedsOnboarding(userInfo)) {
-          ref.read(postSignInFlowPendingProvider.notifier).setPending();
-        }
+        restored = auth;
+        state = AppBootState.stage(AppBootStage.connecting);
+        await ref.read(connectHoneycombProvider)();
       }
+    } catch (error) {
+      debugPrint('Could not finish Beariscope startup: $error');
+    }
+    if (!ref.mounted) return;
 
-      state = AppBootState.stage(AppBootStage.loadingPermissions);
-      await ref.read(authMeProvider.future);
+    state = AppBootState.stage(AppBootStage.ready);
+    if (restored != null &&
+        ref.read(authStatusProvider) == AuthStatus.authenticated) {
+      _resumeOnboarding(restored);
+    }
+  }
 
-      state = AppBootState.stage(AppBootStage.ready);
-      completer.complete();
-    } catch (error, stackTrace) {
-      completer.completeError(error, stackTrace);
-      rethrow;
-    } finally {
-      if (identical(_startCompleter, completer)) {
-        _startCompleter = null;
+  void _resumeOnboarding(Auth session) {
+    final subject = session.user?.subject;
+    if (subject == null) return;
+    late final ProviderSubscription<AsyncValue<UserInfo?>> profile;
+    late final ProviderSubscription<AuthStatus> auth;
+    void stop() {
+      profile.close();
+      auth.close();
+    }
+
+    auth = ref.listen(authStatusProvider, (_, status) {
+      if (status != AuthStatus.authenticated) stop();
+    });
+    void check(AsyncValue<UserInfo?> value) {
+      final user = value.value;
+      if (user == null) return;
+      stop();
+      if (session.user?.subject == subject && checkNeedsOnboarding(user)) {
+        ref.read(postSignInFlowPendingProvider.notifier).setPending();
       }
     }
+
+    profile = ref.listen(userInfoProvider, (_, next) => check(next));
+    check(profile.read());
   }
 }
 

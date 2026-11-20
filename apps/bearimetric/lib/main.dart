@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -17,10 +15,9 @@ import 'package:bearimetric/pages/splash_screen.dart';
 import 'package:bearimetric/pages/strat.dart';
 import 'package:bearimetric/providers/app_provider.dart';
 import 'package:bearimetric/services/device_auth_service.dart';
-import 'package:bearimetric/services/scout_upload_service.dart';
-import 'package:services/providers/api_provider.dart';
 import 'package:services/providers/auth_provider.dart';
 import 'package:services/providers/connectivity_provider.dart';
+import 'package:services/providers/grove_provider.dart';
 import 'package:ui/ui.dart';
 
 Future<void> main() async {
@@ -29,27 +26,47 @@ Future<void> main() async {
   runApp(
     ProviderScope(
       overrides: [
-        // use client_credentials token instead of PKCE user auth.
-        honeycombClientProvider.overrideWith((ref) {
-          return HoneycombClient(
-            ref,
-            tokenOverride: () async {
-              final deviceAuth = await ref.read(
-                deviceAuthServiceProvider.future,
-              );
-              return deviceAuth.getAccessToken();
-            },
-          );
+        groveSubjectProvider.overrideWith((ref) async {
+          if (ref.watch(authStatusProvider) != AuthStatus.authenticated)
+            return null;
+          final auth = await ref.watch(deviceAuthServiceProvider.future);
+          return auth.groveSubject();
         }),
+        groveAccessTokenProvider.overrideWith(
+          (ref) => ({required forceRefresh}) async {
+            final auth = await ref.read(deviceAuthServiceProvider.future);
+            return auth.getAccessToken(forceRefresh: forceRefresh);
+          },
+        ),
       ],
       child: const MyApp(),
     ),
   );
 }
 
+final _deviceBootProvider = FutureProvider<void>((ref) async {
+  try {
+    await ref.read(honeycombEndpointPreferenceProvider.notifier).initialize();
+    final service = await ref.read(deviceAuthServiceProvider.future);
+    await service.initialize();
+    if (ref.mounted &&
+        ref.read(authStatusProvider) == AuthStatus.authenticated) {
+      await ref.read(connectHoneycombProvider)();
+    }
+  } catch (error) {
+    debugPrint('Could not finish Bearimetric startup: $error');
+    if (ref.mounted &&
+        ref.read(authStatusProvider) == AuthStatus.authenticating) {
+      ref
+          .read(authStatusProvider.notifier)
+          .setStatus(AuthStatus.unauthenticated);
+    }
+  }
+});
+
 final routerProvider = Provider<GoRouter>((ref) {
   final authStatus = ref.watch(authStatusProvider.notifier);
-  return GoRouter(
+  final router = GoRouter(
     initialLocation: '/splash',
     refreshListenable: authStatus,
     routes: [
@@ -127,8 +144,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       final auth = ref.read(authStatusProvider);
       final location = state.matchedLocation;
 
-      // splash while authing
-      if (auth == AuthStatus.authenticating) {
+      if (ref.read(_deviceBootProvider).isLoading) {
         return location == '/splash' ? null : '/splash';
       }
 
@@ -147,48 +163,17 @@ final routerProvider = Provider<GoRouter>((ref) {
       return null;
     },
   );
+  ref.listen(_deviceBootProvider, (_, _) => router.refresh());
+  ref.onDispose(router.dispose);
+  return router;
 });
 
-class MyApp extends ConsumerStatefulWidget {
+class MyApp extends ConsumerWidget {
   const MyApp({super.key});
 
   @override
-  ConsumerState<MyApp> createState() => _MyAppState();
-}
-
-class _MyAppState extends ConsumerState<MyApp> {
-  ProviderSubscription<AsyncValue<bool>>? _connectivitySubscription;
-  bool? _wasOnline;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final service = await ref.read(deviceAuthServiceProvider.future);
-      await service.initialize();
-    });
-    _connectivitySubscription = ref.listenManual<AsyncValue<bool>>(
-      connectivityProvider,
-      (previous, next) {
-        final currentOnline = next.value;
-        final previousOnline = previous?.value ?? _wasOnline;
-        _wasOnline = currentOnline;
-        if (currentOnline == true && previousOnline != true) {
-          unawaited(ref.read(scoutUploadServiceProvider).drainIfOnline());
-        }
-      },
-      fireImmediately: true,
-    );
-  }
-
-  @override
-  void dispose() {
-    _connectivitySubscription?.close();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(honeycombSessionProvider);
     final router = ref.watch(routerProvider);
     final usePapyrusFont = ref.watch(papyrusFontProvider);
     final colorScheme = ref.watch(colorSchemeNotifierProvider);

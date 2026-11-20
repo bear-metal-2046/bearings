@@ -12,6 +12,33 @@ class WelcomePage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final signingIn =
+        ref.watch(authStatusProvider) == AuthStatus.authenticating;
+    Future<void> signIn() async {
+      final pending = ref.read(postSignInFlowPendingProvider.notifier);
+      pending.setPending();
+      try {
+        final auth = await ref.read(authProvider.future);
+        final signedIn = await auth.login([
+          'openid',
+          'profile',
+          'email',
+          'offline_access',
+          'ORLhqJbHiTfgdF3Q8hqIbmdwT1wTkkP7',
+        ]);
+        if (!signedIn && context.mounted) pending.clearPending();
+      } catch (e) {
+        if (!context.mounted) return;
+        pending.clearPending();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Sign in failed: $e'),
+            duration: const Duration(seconds: 8),
+          ),
+        );
+      }
+    }
+
     return Scaffold(
       body: Stack(
         children: [
@@ -43,45 +70,9 @@ class WelcomePage extends ConsumerWidget {
                       //   label: const Text('Sign Up'),
                       // ),
                       FilledButton.icon(
-                        onPressed: () async {
-                          ref
-                              .read(postSignInFlowPendingProvider.notifier)
-                              .setPending();
-
-                          try {
-                            final auth = await ref.read(authProvider.future);
-                            await auth.login([
-                              'openid',
-                              'profile',
-                              'email',
-                              'offline_access',
-                              'ORLhqJbHiTfgdF3Q8hqIbmdwT1wTkkP7',
-                            ], isSignup: false);
-                          } on OfflineAuthException {
-                            if (!context.mounted) return;
-                            ref
-                                .read(postSignInFlowPendingProvider.notifier)
-                                .clearPending();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('No internet connection'),
-                              ),
-                            );
-                          } catch (e) {
-                            if (!context.mounted) return;
-                            ref
-                                .read(postSignInFlowPendingProvider.notifier)
-                                .clearPending();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Sign in failed: $e'),
-                                duration: const Duration(seconds: 8),
-                              ),
-                            );
-                          }
-                        },
+                        onPressed: signingIn ? null : signIn,
                         icon: const Icon(LucideIcons.userKey),
-                        label: const Text('Log In'),
+                        label: Text(signingIn ? 'Signing in…' : 'Log In'),
                       ),
                       OutlinedButton.icon(
                         onPressed: () {},

@@ -8,8 +8,7 @@ import 'package:services/providers/auth_provider.dart';
 /// This is the single source of truth that drives GoRouter's redirect,
 /// replacing the previous chain of individual provider checks.
 enum AppPhase {
-  /// Boot sequence still running, or user is actively authenticating
-  /// (login/signup in progress).  Shows the splash screen.
+  /// Startup is restoring the account or attempting the first connection.
   splashing,
 
   /// Boot is complete and user is not authenticated.
@@ -32,10 +31,9 @@ final appPhaseProvider = Provider<AppPhase>((ref) {
   final pendingOnboarding = ref.watch(postSignInFlowPendingProvider);
 
   return switch ((bootReady, authStatus, pendingOnboarding)) {
-    // Still booting or mid-authentication → splash
-    (false, _, _) || (_, AuthStatus.authenticating, _) => AppPhase.splashing,
-    // Boot done, not authenticated → welcome
-    (true, AuthStatus.unauthenticated, _) => AppPhase.loginRequired,
+    (false, _, _) => AppPhase.splashing,
+    (true, AuthStatus.unauthenticated || AuthStatus.authenticating, _) =>
+      AppPhase.loginRequired,
     // Authenticated with pending onboarding
     (true, AuthStatus.authenticated, true) => AppPhase.onboarding,
     // Authenticated, no onboarding needed

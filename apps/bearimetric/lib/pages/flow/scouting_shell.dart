@@ -38,8 +38,7 @@ class _ScoutingShellState extends ConsumerState<ScoutingShell> {
               .maybeWhen(
                 data: (matches) =>
                     matches.where((m) => m.matchNumber != matchNumber).map((m) {
-                      final rawTeam = m.teamNumberAt(position);
-                      final team = rawTeam == '???' ? '—' : rawTeam;
+                      final team = m.teamNumberAt(position) ?? '—';
                       return _UpcomingMatchOption(
                         matchNumber: m.matchNumber,
                         label: 'Match ${m.matchNumber} · Team $team',
@@ -125,11 +124,10 @@ class _ScoutingShellState extends ConsumerState<ScoutingShell> {
             icon: const Icon(LucideIcons.chevronDown),
             onChanged: upcomingMatchOptions.isEmpty
                 ? null
-                : (selectedMatch) {
+                : (selectedMatch) async {
                     if (selectedMatch == null) return;
                     final flow = ref.read(scoutingFlowControllerProvider);
-                    flow.markCurrentMatchForUpload();
-                    flow.markCurrentStratForUpload();
+                    if (!await flow.submitCurrent() || !context.mounted) return;
                     notifier.setMatchNumber(selectedMatch);
                     context.go('/match/auto');
                   },
@@ -154,8 +152,12 @@ class _ScoutingShellState extends ConsumerState<ScoutingShell> {
             tooltip: 'Previous Match',
             visualDensity: VisualDensity.compact,
             constraints: BoxConstraints.tightFor(width: 36, height: 36),
-            onPressed: () {
-              ref.read(scoutingFlowControllerProvider).previousMatch();
+            onPressed: () async {
+              if (!await ref
+                      .read(scoutingFlowControllerProvider)
+                      .previousMatch() ||
+                  !context.mounted)
+                return;
               context.go('/match/auto');
             },
           ),
@@ -189,7 +191,7 @@ class _ScoutingShellState extends ConsumerState<ScoutingShell> {
                 if (!(shouldContinue ?? false)) return;
               }
 
-              flow.nextMatch();
+              if (!await flow.nextMatch() || !context.mounted) return;
               if (context.mounted) {
                 context.go('/match/auto');
               }

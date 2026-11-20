@@ -19,12 +19,13 @@ The scouting app. Runs on team-issued tablets.
 
 ### [Honeycomb](backend/honeycomb)
 
-Backend written with Dart Frog. (wip)
+Dart Frog backend for Grove. See the [cutover checkpoint](docs/grove/implementation.md).
 
 ### Shared packages
 
 - [`core`](packages/core) - Models and utilities shared by everything, no Flutter allowed.
-- [`services`](packages/services) - API client, auth (Auth0), permissions, secure storage, and other Flutter services.
+- [`grove`](packages/grove) - Typed entity queries, reactive updates, and offline synchronization.
+- [`services`](packages/services) - Auth0, Grove setup, permissions, secure storage, and other Flutter services.
 - [`ui`](packages/ui) - Reusable Flutter widgets that drive both apps.
 
 ---

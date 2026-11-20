@@ -9,6 +9,7 @@ import 'package:beariscope/pages/team_lookup/team_model.dart';
 import 'package:beariscope/widgets/library_identity_fields.dart';
 import 'package:beariscope/pages/picklists/picklist_model.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:grove/grove.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -75,7 +76,10 @@ class _FlashCardDeckEditorPageState
             try {
               return MapEntry(
                 event,
-                await ref.read(flashCardEventRosterProvider(event).future),
+                await waitForValue(
+                  ProviderScope.containerOf(context, listen: false),
+                  flashCardEventRosterProvider(event),
+                ),
               );
             } catch (_) {
               throw StateError('Could not load teams for $event. Try again.');

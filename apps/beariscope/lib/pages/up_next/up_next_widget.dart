@@ -1,4 +1,3 @@
-import 'package:beariscope/models/match_nexus_info.dart';
 import 'package:beariscope/models/up_next_match.dart';
 import 'package:beariscope/providers/tba_preferences_provider.dart';
 import 'package:ui/widgets/bearings_card.dart';
@@ -178,7 +177,7 @@ class _Summary extends StatelessWidget {
       );
     }
 
-    final queueTime = match.nexus?.estimatedQueueTime;
+    final queueTime = match.nexus?.times.estimatedQueueTime;
     final text = queueTime != null && queueTime.isAfter(now)
         ? 'Queuing ${_fromNow(queueTime, now)}'
         : switch (match.displayTime) {
@@ -230,11 +229,11 @@ class _MatchDetails extends StatelessWidget {
       if (nexus?.replayOf != null)
         (LucideIcons.rotateCcw, 'Replay of ${nexus!.replayOf}'),
       ?_statusLine(),
-      if (nexus?.scheduledStartTime != null)
+      if (nexus?.times.scheduledStartTime != null)
         (
           LucideIcons.calendar,
           'Originally scheduled to start @ '
-              '${_clock(nexus!.scheduledStartTime!)}',
+              '${_clock(nexus!.times.scheduledStartTime!)}',
         )
       else if (match.displayTime != null)
         (
@@ -282,18 +281,18 @@ class _MatchDetails extends StatelessWidget {
     final nexus = match.nexus;
     if (nexus == null) return null;
     final since = switch (nexus.status) {
-      'On field' => nexus.actualOnFieldTime,
-      'On deck' => nexus.actualOnDeckTime,
-      'Now queuing' => nexus.actualQueueTime,
+      'On field' => nexus.times.actualOnFieldTime,
+      'On deck' => nexus.times.actualOnDeckTime,
+      'Now queuing' => nexus.times.actualQueueTime,
       _ => null,
     };
     if (since != null) {
       return (LucideIcons.clock, '${nexus.status} ${_ago(since, now)}');
     }
 
-    final (verb, time) = switch (nexus.estimatedQueueTime) {
+    final (verb, time) = switch (nexus.times.estimatedQueueTime) {
       final queue? when queue.isAfter(now) => ('Queuing', queue),
-      _ => ('Starting', nexus.estimatedStartTime),
+      _ => ('Starting', nexus.times.estimatedStartTime),
     };
     if (time == null || !time.isAfter(now)) return null;
     return (
@@ -429,14 +428,15 @@ String _slotLabel(PlayoffSlot slot) {
   return slot.isFinals ? 'the Finals ($side)' : 'Playoff ${slot.match} ($side)';
 }
 
-String _clock(DateTime time) => DateFormat.jm().format(time);
+String _clock(DateTime time) => DateFormat.jm().format(time.toLocal());
 
 /// "~48 mins" or "~1 hr 5 mins" until [time].
 String _fromNow(DateTime time, DateTime now) {
   final minutes = time.difference(now).inMinutes;
   if (minutes < 1) return 'now';
   if (minutes < 60) return '~$minutes min${minutes == 1 ? '' : 's'}';
-  if (minutes >= 12 * 60) return DateFormat("EEE 'at' h:mm a").format(time);
+  if (minutes >= 12 * 60)
+    return DateFormat("EEE 'at' h:mm a").format(time.toLocal());
   final hours = minutes ~/ 60;
   final rest = minutes % 60;
   return '~$hours hr${rest == 0 ? '' : ' $rest min${rest == 1 ? '' : 's'}'}';

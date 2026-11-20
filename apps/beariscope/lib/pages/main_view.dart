@@ -2,7 +2,7 @@ import 'package:ui/widgets/bearings_alert_dialog.dart';
 import 'package:beariscope/pages/scout_audit/scout_audit_provider.dart';
 import 'package:beariscope/providers/appearance_provider.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
-import 'package:beariscope/providers/scouting_data_provider.dart';
+import 'package:beariscope/widgets/server_connection_button.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,7 +10,8 @@ import 'package:flutter_svg/svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:services/providers/auth_provider.dart';
-import 'package:services/providers/connectivity_provider.dart';
+import 'package:services/providers/competition_provider.dart';
+import 'package:grove/grove.dart';
 import 'package:services/providers/permissions_provider.dart';
 import 'package:services/providers/user_profile_provider.dart';
 import 'package:services/widgets/profile_picture.dart';
@@ -89,8 +90,6 @@ class _MainViewState extends ConsumerState<MainView> {
 
   final _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  bool _isRefreshing = false;
-
   static final List<_NavItem> _navItems = [
     const _NavItem(
       route: '/up_next',
@@ -116,10 +115,6 @@ class _MainViewState extends ConsumerState<MainView> {
       icon: LucideIcons.notebookText,
       label: 'Picklists',
       group: 'General',
-      requiredPermissions: [
-        PermissionKey.picklistsManage,
-        PermissionKey.picklistsRead,
-      ],
     ),
     const _NavItem(
       route: '/scout_audit',
@@ -201,21 +196,13 @@ class _MainViewState extends ConsumerState<MainView> {
   }
 
   int _scoutAuditIssueCount() {
-    return switch (ref.watch(scoutAuditSnapshotProvider)) {
-      AsyncData(:final value) =>
-        value.incompleteMatches.length +
-            value.notInTba.length +
-            value.duplicates.length +
-            value.incorrect.length,
-      _ => 0,
-    };
-  }
-
-  bool _isOnline() {
-    return switch (ref.watch(connectivityProvider)) {
-      AsyncData(:final value) => value,
-      _ => true,
-    };
+    final audit = ref.watch(scoutAuditSnapshotProvider).value;
+    return audit == null
+        ? 0
+        : audit.incompleteMatches.length +
+              audit.notInTba.length +
+              audit.duplicates.length +
+              audit.incorrect.length;
   }
 
   @override
@@ -255,12 +242,17 @@ class _MainViewState extends ConsumerState<MainView> {
               )
             : widget.child;
 
-        final authMeLoaded = ref.watch(authMeProvider).hasValue;
-
+        final access = ref.watch(groveAccessProvider);
+        final result = access.value;
         final hasNoPermissions =
-            authMeLoaded &&
-            permissionChecker != null &&
-            permissionChecker.permissions.isEmpty;
+            result?.complete == true &&
+            permissionChecker?.permissions.isEmpty == true;
+        final accessError = access.asError?.error;
+        final accessMessage = result?.updateRequired == true
+            ? 'Update Beariscope to load permissions.'
+            : accessError is GroveException && accessError.code == 'forbidden'
+            ? 'The server denied access. Contact a team administrator.'
+            : null;
 
         return Focus(
           autofocus: true,
@@ -310,6 +302,8 @@ class _MainViewState extends ConsumerState<MainView> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   if (hasNoPermissions) const _NoPermissionsBanner(),
+                  if (accessMessage != null)
+                    _NoPermissionsBanner(message: accessMessage),
                   Expanded(child: childContent),
                 ],
               ),
@@ -318,24 +312,6 @@ class _MainViewState extends ConsumerState<MainView> {
         );
       },
     );
-  }
-
-  Future<void> _doRefresh() async {
-    setState(() => _isRefreshing = true);
-    try {
-      await ref.read(scoutingDataProvider.notifier).refresh();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Sync failed: $e'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isRefreshing = false);
-    }
   }
 
   Widget _buildSidebar({
@@ -356,7 +332,7 @@ class _MainViewState extends ConsumerState<MainView> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(24, 14, 18, 0),
+                padding: const EdgeInsets.fromLTRB(24, 4, 12, 0),
                 child: Row(
                   children: [
                     SvgPicture.asset(
@@ -375,6 +351,7 @@ class _MainViewState extends ConsumerState<MainView> {
                         style: Theme.of(context).textTheme.titleLarge,
                       ),
                     ),
+                    const ServerConnectionButton(),
                   ],
                 ),
               ),
@@ -388,12 +365,8 @@ class _MainViewState extends ConsumerState<MainView> {
                   ),
                 ),
               ),
-              Column(
-                children: [
-                  const Divider(height: 2),
-                  _buildBottomComponents(isOnline: _isOnline()),
-                ],
-              ),
+              const Divider(height: 2),
+              _buildBottomComponents(),
             ],
           ),
         ),
@@ -513,7 +486,7 @@ class _MainViewState extends ConsumerState<MainView> {
     );
   }
 
-  Widget _buildBottomComponents({required bool isOnline}) {
+  Widget _buildBottomComponents() {
     final userInfoAsync = ref.watch(userInfoProvider);
     final userName = userInfoAsync.value?.name ?? 'Loading...';
     final themeMode = ref.watch(themeModeProvider);
@@ -598,8 +571,8 @@ class _MainViewState extends ConsumerState<MainView> {
                                   );
                                 },
                             child: Text(
-                              _isRefreshing ? 'Syncing...' : subtitleText,
-                              key: ValueKey('$_isRefreshing-$subtitleText'),
+                              subtitleText,
+                              key: ValueKey(subtitleText),
                               style: textTheme.bodySmall?.copyWith(
                                 color: colorScheme.onSurfaceVariant,
                                 fontSize: 11,
@@ -666,40 +639,16 @@ class _MainViewState extends ConsumerState<MainView> {
                 child: Text('Loading events...'),
               ),
               error: (e, s) => BearingsMenuItem(
-                onPressed: () => ref.invalidate(teamEventsProvider),
+                onPressed: () => retryCompetitionEvents(
+                  ProviderScope.containerOf(context, listen: false),
+                  (year: DateTime.now().year, team: 'frc2046'),
+                ),
                 leadingIcon: const Icon(LucideIcons.circleAlert, size: 20),
                 child: const Text('Failed to load events. Retry?'),
               ),
             ),
 
           if (canSelectEvent && eventsAsync != null) const Divider(height: 16),
-
-          BearingsMenuItem(
-            closeOnActivate: false,
-            leadingIcon: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 200),
-              child: _isRefreshing
-                  ? const SizedBox(
-                      key: ValueKey('loading'),
-                      width: 20,
-                      height: 20,
-                      child: BearingsSpinner(strokeWidth: 2),
-                    )
-                  : Icon(
-                      isOnline ? LucideIcons.cloud : LucideIcons.cloudOff,
-                      key: const ValueKey('icon'),
-                      size: 20,
-                    ),
-            ),
-            onPressed: isOnline && !_isRefreshing ? _doRefresh : null,
-            child: Text(
-              _isRefreshing
-                  ? 'Syncing...'
-                  : isOnline
-                  ? 'Sync Scouting Data'
-                  : 'Sync Unavailable (Offline)',
-            ),
-          ),
 
           if (canProvision)
             BearingsMenuItem(
@@ -779,7 +728,12 @@ class _MainViewState extends ConsumerState<MainView> {
 }
 
 class _NoPermissionsBanner extends StatelessWidget {
-  const _NoPermissionsBanner();
+  const _NoPermissionsBanner({
+    this.message =
+        'No permissions assigned. Ask a team administrator for access.',
+  });
+
+  final String message;
 
   @override
   Widget build(BuildContext context) {
@@ -801,7 +755,7 @@ class _NoPermissionsBanner extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'You don\'t have any permissions yet and won\'t be able to use the app. Ask an Apps lead or Executive to give you access.',
+                  message,
                   style: TextStyle(
                     color: colorScheme.onErrorContainer,
                     fontSize: 13,

@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:beariscope/pages/team_lookup/tabs/media_save_helper.dart';
 import 'package:beariscope/pages/team_lookup/team_providers.dart';
 import 'package:beariscope/providers/youtube_video_metadata_provider.dart';
+import 'package:beariscope/utils/competition_media_display.dart';
+import 'package:core/core.dart' show CompetitionMedia;
 import 'package:ui/widgets/bearings_popup_menu.dart';
 import 'package:ui/widgets/bearings_card.dart';
 import 'package:ui/widgets/bearings_setting_group.dart';
@@ -238,10 +240,10 @@ class _WebsiteFavicon extends StatelessWidget {
 }
 
 class _MediaSections {
-  final List<TeamMediaRecord> photos;
-  final List<TeamMediaRecord> chiefDelphiThreads;
-  final List<TeamMediaRecord> cadReleases;
-  final List<TeamMediaRecord> youtubeVideos;
+  final List<CompetitionMedia> photos;
+  final List<CompetitionMedia> chiefDelphiThreads;
+  final List<CompetitionMedia> cadReleases;
+  final List<CompetitionMedia> youtubeVideos;
 
   const _MediaSections({
     required this.photos,
@@ -250,11 +252,11 @@ class _MediaSections {
     required this.youtubeVideos,
   });
 
-  factory _MediaSections.fromRecords(Iterable<TeamMediaRecord> records) {
-    final photos = <TeamMediaRecord>[];
-    final chiefDelphiThreads = <TeamMediaRecord>[];
-    final cadReleases = <TeamMediaRecord>[];
-    final youtubeVideos = <TeamMediaRecord>[];
+  factory _MediaSections.fromRecords(Iterable<CompetitionMedia> records) {
+    final photos = <CompetitionMedia>[];
+    final chiefDelphiThreads = <CompetitionMedia>[];
+    final cadReleases = <CompetitionMedia>[];
+    final youtubeVideos = <CompetitionMedia>[];
 
     for (final record in records) {
       if (!record.hasRenderableMedia) continue;
@@ -414,7 +416,7 @@ Uri? _normalizeWebsiteUri(String? website) {
 }
 
 class _PhotoGrid extends StatelessWidget {
-  final List<TeamMediaRecord> photos;
+  final List<CompetitionMedia> photos;
   final ValueNotifier<String?> activeUrlNotifier;
 
   const _PhotoGrid({required this.photos, required this.activeUrlNotifier});
@@ -488,7 +490,7 @@ class _PhotoGrid extends StatelessWidget {
 }
 
 class _MediaLinkTile extends StatelessWidget {
-  final TeamMediaRecord record;
+  final CompetitionMedia record;
 
   const _MediaLinkTile({required this.record});
 

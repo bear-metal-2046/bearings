@@ -1,58 +1,46 @@
 import 'package:ui/widgets/bearings_card.dart';
 import 'package:beariscope/models/pits_form_schema.dart';
 import 'package:beariscope/models/pits_scouting_models.dart';
-import 'package:beariscope/models/scouting_document.dart';
 import 'package:beariscope/pages/pits_scouting/pits_scouting_widgets.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/pits_form_schema_provider.dart';
-import 'package:beariscope/providers/scouting_data_provider.dart';
 import 'package:ui/widgets/bearings_status_view.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:services/providers/api_provider.dart';
+import 'package:services/providers/grove_provider.dart';
+import 'package:core/core.dart' show ScoutingReport;
 import 'package:services/providers/user_profile_provider.dart';
 import 'package:ui/widgets/bearings_spinner.dart';
 
-String? _pitsScouterName(ScoutingDocument? doc) {
+String? _pitsScouterName(ScoutingReport? doc) {
   final scoutedBy = doc?.meta?['scoutedBy']?.toString().trim() ?? '';
   return scoutedBy.isNotEmpty ? scoutedBy : null;
 }
 
-class PitsScoutingTeamCard extends ConsumerWidget {
+class PitsScoutingTeamCard extends StatelessWidget {
   final String teamName;
   final int teamNumber;
-  final bool scouted;
-  final ValueChanged<bool> onScoutedChanged;
+  final ScoutingReport? report;
+  final bool statusKnown;
 
   const PitsScoutingTeamCard({
     super.key,
     required this.teamName,
     required this.teamNumber,
-    required this.scouted,
-    required this.onScoutedChanged,
+    required this.report,
+    required this.statusKnown,
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    ScoutingDocument? existingDoc;
-    if (scouted) {
-      final eventKey = ref.read(currentEventProvider);
-      final allDocs = ref.read(scoutingDataProvider).asData?.value ?? [];
-      final pitsDocs =
-          allDocs
-              .where(
-                (doc) =>
-                    doc.meta?['type'] == 'pits' &&
-                    doc.meta?['event'] == eventKey &&
-                    (doc.data['teamNumber'] as num?)?.toInt() == teamNumber,
-              )
-              .toList()
-            ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
-      existingDoc = pitsDocs.firstOrNull;
-    }
-
-    final scouterName = _pitsScouterName(existingDoc);
+  Widget build(BuildContext context) {
+    final scouted = report != null;
+    final scouterName = _pitsScouterName(report);
+    final statusColor = !statusKnown
+        ? Theme.of(context).colorScheme.onSurfaceVariant
+        : scouted
+        ? Colors.green
+        : Colors.red;
 
     return BearingsCard(
       title: teamName,
@@ -62,38 +50,34 @@ class PitsScoutingTeamCard extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Text(
-            scouted ? 'Scouted' : 'Not Scouted',
-            style: TextStyle(
-              color: scouted ? Colors.green : Colors.red,
-              fontWeight: FontWeight.bold,
-            ),
+            !statusKnown
+                ? 'Scouting status unavailable'
+                : scouted
+                ? 'Scouted'
+                : 'Not Scouted',
+            style: TextStyle(color: statusColor, fontWeight: FontWeight.bold),
           ),
           if (scouterName != null)
             Text(
               'by $scouterName',
-              style: TextStyle(
-                color: scouted ? Colors.green : Colors.red,
-                fontSize: 12,
-              ),
+              style: TextStyle(color: statusColor, fontSize: 12),
             ),
         ],
       ),
-      onTap: () async {
-        final result = await Navigator.of(context, rootNavigator: true).push(
-          MaterialPageRoute(
-            builder: (context) => PitsScoutingFormPage(
-              teamNumber: teamNumber,
-              teamName: teamName,
-              scouted: scouted,
-              initialDoc: existingDoc,
-            ),
-          ),
-        );
-
-        if (result != null && result == true) {
-          onScoutedChanged(true);
-        }
-      },
+      onTap: !statusKnown
+          ? null
+          : () {
+              Navigator.of(context, rootNavigator: true).push(
+                MaterialPageRoute(
+                  builder: (context) => PitsScoutingFormPage(
+                    teamNumber: teamNumber,
+                    teamName: teamName,
+                    scouted: scouted,
+                    initialDoc: report,
+                  ),
+                ),
+              );
+            },
     );
   }
 }
@@ -102,7 +86,7 @@ class PitsScoutingFormPage extends ConsumerStatefulWidget {
   final String teamName;
   final int teamNumber;
   final bool scouted;
-  final ScoutingDocument? initialDoc;
+  final ScoutingReport? initialDoc;
 
   const PitsScoutingFormPage({
     super.key,
@@ -226,21 +210,28 @@ class _PitsScoutingFormPageState extends ConsumerState<PitsScoutingFormPage> {
                             notes: _readTextField('notes'),
                           );
 
-                          final entry = submission.toIngestEntry(
+                          final entry = submission.toPayload(
                             eventKey: currentEventKey,
                             scoutedBy: scoutedBy,
-                            existingId: widget.initialDoc?.id,
                           );
 
                           try {
-                            await ref
-                                .read(honeycombClientProvider)
-                                .post(
-                                  '/scout/ingest',
-                                  data: {
-                                    'entries': [entry],
-                                  },
-                                );
+                            final grove = ref.read(bearingsGroveProvider);
+                            final previous = widget.initialDoc;
+                            final report = ScoutingReport.fromPayload(
+                              entry,
+                              id: previous?.id,
+                            );
+                            if (previous == null) {
+                              await grove.create(report, allowOffline: false);
+                            } else {
+                              await grove.update<ScoutingReport>(
+                                previous.id,
+                                (_) => report,
+                                basedOn: previous,
+                                allowOffline: false,
+                              );
+                            }
                             if (context.mounted) {
                               Navigator.pop(context, true);
                             }

@@ -1,4 +1,4 @@
-import 'package:beariscope/models/scouting_document.dart';
+import 'package:core/core.dart' show ScoutingReport;
 
 /// A team-scoped observation note that is always inserted as a new record.
 class ObservationNote {
@@ -33,8 +33,8 @@ class ObservationNote {
     required this.season,
   });
 
-  /// Converts this note into an ingest entry payload for `POST /scout/ingest`.
-  Map<String, Object?> toIngestEntry() {
+  /// Game-specific data carried by a Grove scouting report.
+  Map<String, dynamic> toPayload() {
     return {
       'meta': {
         'type': 'observation',
@@ -43,15 +43,14 @@ class ObservationNote {
         'event': eventKey,
         'scoutedBy': scoutedBy,
         'userId': userId,
-        if (id != null && id!.isNotEmpty) 'existingId': id,
       },
       'teamNumber': teamNumber,
       'note': note,
     };
   }
 
-  /// Reconstructs an [ObservationNote] from a raw [ScoutingDocument].
-  factory ObservationNote.fromScoutingDocument(ScoutingDocument doc) {
+  /// Reconstructs an [ObservationNote] from a raw [ScoutingReport].
+  factory ObservationNote.fromScoutingDocument(ScoutingReport doc) {
     final meta = doc.meta ?? {};
     final tn = doc.data['teamNumber'];
     final teamNumber = tn is int

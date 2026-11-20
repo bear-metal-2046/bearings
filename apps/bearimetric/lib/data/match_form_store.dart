@@ -38,41 +38,4 @@ class MatchFormStore {
       jsonEncode(data.toStoredJson()),
     );
   }
-
-  MatchFormData? loadById(String id) {
-    final box = Hive.box(boxKey);
-    for (final dynamic key in box.keys) {
-      if (key is! String || !key.startsWith('match:')) continue;
-      final raw = box.get(key);
-      if (raw is! String) continue;
-      try {
-        final decoded = Map<String, dynamic>.from(jsonDecode(raw) as Map);
-        final payload = decoded['payload'];
-        if (payload is Map) {
-          final data =
-              MatchFormData.fromJson(Map<String, dynamic>.from(payload))
-                  .copyWith(
-                    id: (() {
-                      final storedId = decoded['id']?.toString();
-                      return storedId != null && storedId.isNotEmpty
-                          ? storedId
-                          : null;
-                    })(),
-                    lastModified:
-                        DateTime.tryParse(
-                          decoded['lastModified']?.toString() ?? '',
-                        ) ??
-                        DateTime.now().toUtc(),
-                  );
-          if (data.id == id) return data;
-          continue;
-        }
-        final data = MatchFormData.fromJson(decoded);
-        if (data.id == id) return data;
-      } catch (_) {
-        // ignore corrupt or non-match documents
-      }
-    }
-    return null;
-  }
 }

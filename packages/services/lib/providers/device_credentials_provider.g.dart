@@ -48,4 +48,4 @@ final class DeviceCredentialsProvider
   }
 }
 
-String _$deviceCredentialsHash() => r'325869d9c8c23e3ea4c431f71c88a1065ab57aac';
+String _$deviceCredentialsHash() => r'e27f8a8dc1219a7af87c471f44f8d1a62a2c65c9';
