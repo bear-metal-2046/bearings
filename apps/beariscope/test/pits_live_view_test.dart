@@ -152,7 +152,7 @@ void main() {
     await grove.stageCreate(
       GamePackObservation(
         id: 'unrelated-match',
-        release: const EntityRef('pack'),
+        gamePack: const EntityRef('pack'),
         event: const EntityRef('2026test'),
         capturedAt: DateTime.utc(2026),
         answers: const {'points': 4},

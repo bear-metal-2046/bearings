@@ -14,47 +14,71 @@ final eventGamePackBindingProvider = Provider.autoDispose
           );
     });
 
-final gamePackReleaseProvider = Provider.autoDispose
-    .family<AsyncValue<GamePackRelease>, String>((ref, id) {
+final gamePackProvider = Provider.autoDispose
+    .family<AsyncValue<GamePack>, String>((ref, id) {
       final grove = ref.watch(bearingsGroveProvider);
       return ref
-          .watch(groveQueryProvider(grove.query<GamePackRelease>().byId(id)))
+          .watch(groveQueryProvider(grove.query<GamePack>().byId(id)))
           .whenData((snapshot) {
-            final release = snapshot.requireAvailable().items.singleOrNull;
-            if (release == null) {
-              throw const GroveException(
-                'not_found',
-                'Published GamePack unavailable',
-              );
+            final gamePack = snapshot.requireAvailable().items.singleOrNull;
+            if (gamePack == null) {
+              throw const GroveException('not_found', 'GamePack unavailable');
             }
-            return release;
+            return gamePack;
           });
     });
 
 final eventGamePackProvider = Provider.autoDispose
-    .family<AsyncValue<GamePackRelease?>, String>((ref, event) {
+    .family<AsyncValue<GamePack?>, String>((ref, event) {
       return ref
           .watch(eventGamePackBindingProvider(event))
           .flatMap(
-            (binding) => binding == null
+            (binding) => binding?.gamePack == null
                 ? const AsyncData(null)
-                : ref.watch(gamePackReleaseProvider(binding.release.id)),
+                : ref.watch(gamePackProvider(binding!.gamePack!.id)),
           );
     });
 
-final eventAnalysisGamePackProvider = Provider.autoDispose
-    .family<AsyncValue<GamePackRelease?>, String>((ref, event) {
+final eventGamePackHasDataProvider = Provider.autoDispose
+    .family<AsyncValue<bool>, String>((ref, event) {
+      final grove = ref.watch(bearingsGroveProvider);
       return ref
-          .watch(eventGamePackBindingProvider(event))
-          .flatMap(
-            (binding) => binding == null
-                ? const AsyncData(null)
-                : ref.watch(
-                    gamePackReleaseProvider(
-                      binding.effectiveAnalysisRelease.id,
-                    ),
-                  ),
-          );
+          .watch(
+            groveQueryProvider(
+              grove.query<GamePackObservation>().where(
+                GamePackObservationFields.event.equals(EntityRef(event)),
+              ),
+            ),
+          )
+          .whenData((snapshot) => snapshot.requireAvailable().items.isNotEmpty);
+    });
+
+final gamePackFormsLockedProvider = Provider.autoDispose
+    .family<AsyncValue<bool>, String>((ref, gamePack) {
+      final grove = ref.watch(bearingsGroveProvider);
+      final bindings = ref.watch(
+        groveQueryProvider(
+          grove.query<EventGamePack>().where(
+            EventGamePackFields.gamePack.equals(EntityRef(gamePack)),
+          ),
+        ),
+      );
+      final observations = ref.watch(
+        groveQueryProvider(grove.query<GamePackObservation>()),
+      );
+      return bindings.flatMap((snapshot) {
+        final events = snapshot
+            .requireAvailable()
+            .items
+            .map((binding) => binding.id)
+            .toSet();
+        if (events.isEmpty) return const AsyncData(false);
+        return observations.whenData(
+          (rows) => rows.requireAvailable().items.any(
+            (row) => events.contains(row.event.id),
+          ),
+        );
+      });
     });
 
 final eventTbaRevisionsProvider = Provider.autoDispose

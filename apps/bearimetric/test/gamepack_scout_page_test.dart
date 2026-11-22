@@ -50,7 +50,7 @@ class _OfflineTransport implements GroveTransport {
 
 void main() {
   testWidgets(
-    'regular match selection opens the published 2026 strategy form and advances',
+    'regular match selection opens the assigned 2026 strategy form and advances',
     (tester) async {
       tester.view.devicePixelRatio = 1;
       tester.view.physicalSize = const Size(1000, 1450);
@@ -62,7 +62,7 @@ void main() {
         transport: MemoryGroveTransport(registry),
       );
       const event = '2026marea';
-      final release = GamePackRelease(
+      final release = GamePack(
         id: 'rebuilt-2026',
         document: jsonDecode(
           File('../../gamepacks/2026-rebuilt.json').readAsStringSync(),
@@ -70,7 +70,7 @@ void main() {
       );
       await grove.create(release);
       await grove.create(
-        const EventGamePack(id: event, release: EntityRef('rebuilt-2026')),
+        const EventGamePack(id: event, gamePack: EntityRef('rebuilt-2026')),
       );
       for (final (number, team) in [(1, 'frc2877'), (2, 'frc133')]) {
         await grove.create(
@@ -216,7 +216,7 @@ void main() {
   );
 
   testWidgets(
-    'restores an offline draft and queues it under the pinned GamePack release',
+    'restores offline answers and queues them for the assigned GamePack',
     (tester) async {
       final registry = bearingsEntityRegistry();
       final cache = MemoryGroveCache();
@@ -226,7 +226,7 @@ void main() {
         cache: cache,
       );
       const event = '2026pilot';
-      final pack = GamePackRelease(
+      final pack = GamePack(
         id: 'release',
         document: GamePackDefinition.typed(
           name: 'Qualification scouting',
@@ -273,7 +273,7 @@ void main() {
       await tester.runAsync(() async {
         await online.create(pack);
         await online.create(
-          const EventGamePack(id: event, release: EntityRef('release')),
+          const EventGamePack(id: event, gamePack: EntityRef('release')),
         );
         await online.create(match);
         final connected = ProviderContainer(
@@ -327,7 +327,7 @@ void main() {
         expect(observation.station, 4);
         expect(observation.match?.id, match.id);
         expect(observation.team?.id, 'frc2046');
-        expect(observation.release.id, pack.id);
+        expect(observation.gamePack.id, pack.id);
       } finally {
         await tester.pumpWidget(const SizedBox.shrink());
         unawaited(offline.close());

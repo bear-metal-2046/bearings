@@ -328,6 +328,54 @@ class EntityStore {
       )
       .isNotEmpty;
 
+  bool hasEventObservations(String event) => database
+      .select(
+        '''
+        SELECT 1 FROM entities
+        WHERE type = 'scouting.observation' AND deleted = 0
+          AND json_extract(data, '\$.event') = ?
+        LIMIT 1
+        ''',
+        [event],
+      )
+      .isNotEmpty;
+
+  bool hasGamePackObservations(String gamePack) => database
+      .select(
+        '''
+        SELECT 1 FROM entities
+        WHERE type = 'scouting.observation' AND deleted = 0
+          AND json_extract(data, '\$.gamePack') = ?
+        LIMIT 1
+        ''',
+        [gamePack],
+      )
+      .isNotEmpty;
+
+  bool isGamePackAssigned(String gamePack) => database
+      .select(
+        '''
+        SELECT 1 FROM entities
+        WHERE type = 'gamepack.binding' AND deleted = 0
+          AND json_extract(data, '\$.gamePack') = ?
+        LIMIT 1
+        ''',
+        [gamePack],
+      )
+      .isNotEmpty;
+
+  List<String> gamePackEvents(String gamePack) => database
+      .select(
+        '''
+        SELECT id FROM entities
+        WHERE type = 'gamepack.binding' AND deleted = 0
+          AND json_extract(data, '\$.gamePack') = ?
+        ''',
+        [gamePack],
+      )
+      .map((row) => row['id'] as String)
+      .toList();
+
   /// Returns a previous receipt before a retry calls an upstream service.
   EntityRecord? mutationReceipt(EntityMutation mutation, String actor) {
     final receipt = database.select(
@@ -368,6 +416,15 @@ class EntityStore {
         result = receipt;
       } else {
         committed = true;
+        // Reject obsolete payloads before domain-specific confirmation code
+        // decodes them into the current model. For example, a pre-cutover
+        // observation has no GamePack reference and must report its schema
+        // boundary instead of failing a nullable cast.
+        if (mutation.kind == MutationKind.create) {
+          registry
+              .named(mutation.type)
+              .latest(mutation.data!, mutation.version);
+        }
         final confirmedData = mutation.kind == MutationKind.create
             ? confirmCreate?.call(mutation.data!)
             : null;

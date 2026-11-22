@@ -79,7 +79,7 @@ class _GamePackScoutPageState extends ConsumerState<GamePackScoutPage> {
     );
   }
 
-  Widget _buildSchedule(GamePackRelease release, String event, bool training) {
+  Widget _buildSchedule(GamePack release, String event, bool training) {
     final form = release.definition.formFor(
       widget.position.isStrategy
           ? GamePackFormKind.strategy
@@ -251,7 +251,7 @@ class _GamePackObservationForm extends ConsumerStatefulWidget {
   final CompetitionMatch match;
   final EntityRef<CompetitionTeam>? team;
   final ScoutPosition position;
-  final GamePackRelease release;
+  final GamePack release;
 
   @override
   ConsumerState<_GamePackObservationForm> createState() =>
@@ -343,7 +343,7 @@ class _GamePackObservationFormState
       event: widget.match.event,
       match: EntityRef(widget.match.id),
       team: widget.team,
-      release: EntityRef(widget.release.id),
+      gamePack: EntityRef(widget.release.id),
       station: widget.position.posIndex,
       capturedAt: submission.capturedAt,
       form: widget.form.id,

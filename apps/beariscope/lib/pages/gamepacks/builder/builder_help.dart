@@ -10,7 +10,7 @@ enum GamePackBuilderSection {
   details('Team details', LucideIcons.layoutDashboard),
   sorting('Sorting & filters', LucideIcons.listFilter),
   exports('Export sheets', LucideIcons.sheet),
-  review('Review & publish', LucideIcons.clipboardCheck);
+  review('Review GamePack', LucideIcons.clipboardCheck);
 
   const GamePackBuilderSection(this.label, this.icon);
   final String label;
@@ -27,7 +27,7 @@ enum GamePackBuilderSection {
       'Build the detailed view for Team Lookup and picklist Quick View.',
     sorting => 'Choose how teammates can sort and filter team lists.',
     exports => 'Choose the columns and rows in the scouting workbook.',
-    review => 'Check your draft before creating a release.',
+    review => 'Review the GamePack before assigning it to an event.',
   };
 
   List<(String, String)> get tips => switch (this) {
@@ -56,7 +56,7 @@ enum GamePackBuilderSection {
       ),
       (
         'Edit test data',
-        'Choose a season event for official scores and add test scouting reports using your draft forms.',
+        'Choose a season event for official scores and add test scouting reports using these forms.',
       ),
     ],
     outputHome => [
@@ -102,8 +102,8 @@ enum GamePackBuilderSection {
         'Select an issue to open the area that needs attention.',
       ),
       (
-        'Publish a release',
-        'The published release appears in the GamePacks library. Pin it to the event when it is ready for collection.',
+        'Save a GamePack',
+        'Every saved GamePack appears in the library. Assign it to an event when it is ready for collection.',
       ),
     ],
   };

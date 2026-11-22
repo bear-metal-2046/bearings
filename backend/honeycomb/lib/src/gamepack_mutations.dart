@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:core/core.dart';
 import 'package:grove/grove.dart';
 
@@ -11,9 +13,12 @@ Json Function(Json)? gamePackCreateConfirmation(
   String actor,
 ) {
   if (mutation.kind != MutationKind.create) return null;
-  if (mutation.type == gamePackReleaseEntity.type) {
-    return (data) =>
-        gamePackReleaseEntity.encode(gamePackReleaseEntity.decode(data));
+  if (mutation.type == gamePackEntity.type) {
+    return (data) {
+      final gamePack = gamePackEntity.decode(data);
+      _validateLibraryDocument(gamePack.document);
+      return gamePackEntity.encode(gamePack);
+    };
   }
   if (mutation.type == eventGamePackEntity.type) {
     return (data) {
@@ -32,16 +37,19 @@ Json Function(Json)? gamePackCreateConfirmation(
       observation.event.id,
       'Event GamePack assignment',
     );
-    if (binding.release.id != observation.release.id) {
-      throw const FormatException('This release is not assigned to the event.');
+    if (binding.gamePack?.id != observation.gamePack.id) {
+      throw const FormatException(
+        'This GamePack is not assigned to the event.',
+      );
     }
-    final release = _requireRecord(
+    final gamePack = _requireRecord(
       store,
-      gamePackReleaseEntity,
-      binding.release.id,
-      'GamePack release',
+      gamePackEntity,
+      binding.gamePack!.id,
+      'GamePack',
     );
-    final form = release.definition.formById(observation.formId);
+    final definition = gamePack.definition;
+    final form = definition.formById(observation.formId);
     final supersedes = observation.supersedes;
     var roster = const <String>[];
     if (supersedes != null) {
@@ -53,7 +61,7 @@ Json Function(Json)? gamePackCreateConfirmation(
       );
       if (!original.hasSameSubject(observation)) {
         throw const FormatException(
-          'A correction must preserve the observation subject and release.',
+          'A correction must preserve the observation subject and GamePack.',
         );
       }
       if (store.hasObservationSuccessor(original.id)) {
@@ -69,7 +77,7 @@ Json Function(Json)? gamePackCreateConfirmation(
         );
       }
       for (final control in form.controls) {
-        final field = release.definition.fieldById[control.field]!;
+        final field = definition.fieldById[control.field]!;
         final answer = original.answers[control.field];
         if (control.type == GamePackControlType.ranking &&
             field.choices.isEmpty &&
@@ -94,10 +102,10 @@ Json Function(Json)? gamePackCreateConfirmation(
         throw const FormatException('A retraction cannot contain new answers.');
       }
     } else {
-      release.definition.validateAnswers(observation.answers, formId: form.id);
+      definition.validateAnswers(observation.answers, formId: form.id);
       form.validateRankings(
         observation.answers,
-        release.definition.fieldById,
+        definition.fieldById,
         roster: roster,
       );
     }
@@ -105,18 +113,123 @@ Json Function(Json)? gamePackCreateConfirmation(
       ...gamePackObservationEntity.encode(observation),
       'author': actor,
     };
-    if (mutation.version == 1) {
-      for (final key in GamePackObservation.groveFieldVersions.keys) {
-        if (data.containsKey(key)) {
-          throw const FormatException(
-            'This observation requires schema version 2.',
-          );
-        }
-        confirmed.remove(key);
-      }
-    }
     return confirmed;
   };
+}
+
+/// Enforces deletion and form-schema locks for library GamePacks.
+void authorizeGamePackUpdate(EntityStore store, EntityMutation mutation) {
+  if (mutation.kind == MutationKind.delete) {
+    _requireRecord(store, gamePackEntity, mutation.id, 'GamePack');
+    if (store.isGamePackAssigned(mutation.id) ||
+        store.hasGamePackObservations(mutation.id)) {
+      throw const GroveException(
+        'conflict',
+        'Unassign this GamePack before deleting it. '
+            'GamePacks with saved data cannot be deleted.',
+      );
+    }
+    return;
+  }
+  if (mutation.kind != MutationKind.update) return;
+
+  final previous = _requireRecord(
+    store,
+    gamePackEntity,
+    mutation.id,
+    'GamePack',
+  );
+  final updated = gamePackEntity.decode(
+    applyChanges(gamePackEntity.encode(previous), mutation.changes),
+  );
+  _validateLibraryDocument(updated.document);
+  final hasData =
+      store.hasGamePackObservations(mutation.id) ||
+      store.gamePackEvents(mutation.id).any(store.hasEventObservations);
+  if (hasData &&
+      _formSchema(previous.document) != _formSchema(updated.document)) {
+    throw const GroveException(
+      'conflict',
+      'Forms cannot be edited after an assigned event has saved data.',
+    );
+  }
+}
+
+/// Locks an event's GamePack assignment after its first observation.
+void authorizeEventGamePackMutation(
+  EntityStore store,
+  EntityMutation mutation,
+) {
+  if (mutation.kind == MutationKind.create ||
+      mutation.kind == MutationKind.update ||
+      mutation.kind == MutationKind.delete) {
+    if (store.hasEventObservations(mutation.id)) {
+      throw const GroveException(
+        'conflict',
+        'This event has saved GamePack data, so its assignment is locked.',
+      );
+    }
+  }
+  if (mutation.kind == MutationKind.update) {
+    final updated = eventGamePackEntity.decode(
+      applyChanges(
+        eventGamePackEntity.encode(
+          _requireRecord(
+            store,
+            eventGamePackEntity,
+            mutation.id,
+            'Event GamePack assignment',
+          ),
+        ),
+        mutation.changes,
+      ),
+    );
+    _validateBinding(store, updated);
+  }
+}
+
+/// Keeps observations append-only after their initial submission.
+void authorizeGamePackObservationMutation(EntityMutation mutation) {
+  if (mutation.kind != MutationKind.create) {
+    throw const GroveException(
+      'forbidden',
+      'GamePack observations are append-only.',
+    );
+  }
+}
+
+void _validateLibraryDocument(dynamic document) {
+  if (utf8.encode(jsonEncode(document)).length > 1024 * 1024) {
+    throw const FormatException('A GamePack document must be up to 1 MB.');
+  }
+}
+
+/// The fields referenced by form controls are captured answer schema too.
+/// Other fields, calculations, layouts, and metadata remain editable.
+String _formSchema(dynamic document) {
+  if (document is! Json) return canonicalJson({'invalid': document});
+  final rawForms = document['forms'];
+  final forms = rawForms is List ? rawForms : const <dynamic>[];
+  try {
+    final fieldIds = <String>{};
+    for (final raw in forms) {
+      if (raw is! Map) throw const FormatException('Invalid form');
+      final form = GamePackForm.fromJson(Map<String, dynamic>.from(raw));
+      fieldIds.addAll(form.controls.map((control) => control.field));
+    }
+    final rawFields = document['fields'];
+    final fields = rawFields is List
+        ? rawFields.where((field) {
+            if (field is! Map) return false;
+            return fieldIds.contains(field['id']);
+          }).toList()
+        : const <dynamic>[];
+    return canonicalJson({'forms': forms, 'fields': fields});
+  } on Object {
+    // If a stored form is already unreadable, fail closed for its schema while
+    // still allowing edits to other document sections.
+    return canonicalJson({'forms': forms, 'fields': document['fields']});
+  }
 }
 
 List<String> _validateObservationSubject(
@@ -189,34 +302,6 @@ List<String> _validateObservationSubject(
       .toList();
 }
 
-void authorizeGamePackAnalysisUpdate(
-  EntityStore store,
-  EntityMutation mutation,
-) {
-  if (mutation.changes.any(
-    (change) =>
-        change.path.length != 1 || change.path.single != 'analysisRelease',
-  )) {
-    throw const GroveException(
-      'forbidden',
-      'The collection release is pinned.',
-    );
-  }
-  final previous = _requireRecord(
-    store,
-    eventGamePackEntity,
-    mutation.id,
-    'Event GamePack assignment',
-  );
-  final updated = eventGamePackEntity.decode(
-    applyChanges(
-      eventGamePackEntity.encode(previous),
-      mutation.changes,
-    ),
-  );
-  _validateBinding(store, updated);
-}
-
 void _validateBinding(EntityStore store, EventGamePack binding) {
   final event = _requireRecord(
     store,
@@ -224,42 +309,24 @@ void _validateBinding(EntityStore store, EventGamePack binding) {
     binding.id,
     'Event',
   );
-  final capture = _requireRecord(
+  if (binding.gamePack == null) return;
+  final gamePack = _requireRecord(
     store,
-    gamePackReleaseEntity,
-    binding.release.id,
-    'Collection release',
+    gamePackEntity,
+    binding.gamePack!.id,
+    'GamePack',
   );
-  if (capture.definition.season case final year? when year != event.season) {
-    throw FormatException(
-      'The collection release is for $year, not ${event.season}.',
+  _validateLibraryDocument(gamePack.document);
+  final definition = gamePack.definition;
+  if (!definition.forms.any((form) => form.controls.isNotEmpty)) {
+    throw const FormatException(
+      'Add at least one question before assigning this GamePack.',
     );
   }
-  final analysisId = binding.effectiveAnalysisRelease.id;
-  if (analysisId == capture.id) return;
-  final analysis = _requireRecord(
-    store,
-    gamePackReleaseEntity,
-    analysisId,
-    'Analysis release',
-  );
-  if (analysis.definition.season case final year? when year != event.season) {
+  if (definition.season case final year? when year != event.season) {
     throw FormatException(
-      'The analysis release is for $year, not ${event.season}.',
+      'The GamePack is for $year, not ${event.season}.',
     );
-  }
-
-  for (final field in capture.definition.fields) {
-    final replacement = analysis.definition.fieldById[field.id];
-    if (replacement == null ||
-        !replacement.type.accepts(field.type) ||
-        (replacement.choices.isNotEmpty &&
-            (field.choices.isEmpty ||
-                !replacement.choices.toSet().containsAll(field.choices)))) {
-      throw FormatException(
-        'The analysis release cannot read captured field ${field.id}.',
-      );
-    }
   }
 }
 

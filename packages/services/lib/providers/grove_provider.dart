@@ -12,11 +12,19 @@ import 'package:riverpod/riverpod.dart';
 import 'package:services/providers/auth_provider.dart';
 import 'package:services/providers/connectivity_provider.dart';
 
-const _boxName = 'grove_v1';
+const _boxName = 'grove_v2';
+const _previousBoxName = 'grove_v1';
 
 /// Call after the app initializes Hive. Browsers use memory for Grove state.
 Future<void> initializeGroveStorage() async {
-  if (!kIsWeb) await Hive.openBox<String>(_boxName);
+  if (!kIsWeb) {
+    // The GamePack cutover changes the binding and offline observation shape.
+    // Drop old snapshots and queued submissions instead of replaying them.
+    if (await Hive.boxExists(_previousBoxName)) {
+      await Hive.deleteBoxFromDisk(_previousBoxName);
+    }
+    await Hive.openBox<String>(_boxName);
+  }
 }
 
 final groveSubjectProvider = FutureProvider<String?>((ref) async {
@@ -56,8 +64,9 @@ final bearingsGroveProvider = Provider<Grove>((ref) {
     transport: WebSocketGroveTransport(
       uri: uri,
       accessToken: () {
-        if (status != AuthStatus.authenticated)
+        if (status != AuthStatus.authenticated) {
           throw const GroveException('unauthenticated', 'Sign in to use Grove');
+        }
         return token(forceRefresh: false);
       },
       refreshAccessToken: () => token(forceRefresh: true),
@@ -71,10 +80,7 @@ final bearingsGroveProvider = Provider<Grove>((ref) {
 final honeycombActionsProvider = Provider<WebSocketGroveTransport>((ref) {
   final transport = ref.watch(bearingsGroveProvider).transport;
   if (transport is! WebSocketGroveTransport) {
-    throw const GroveException(
-      'unavailable',
-      'Server actions are unavailable',
-    );
+    throw const GroveException('unavailable', 'Server actions are unavailable');
   }
   return transport;
 });

@@ -39,7 +39,7 @@ GrovePicklist _picklist(String id, String event) => GrovePicklist(
 
 void _seedCollection(EntityStore store) {
   const event = '2026marea';
-  final release = GamePackRelease(
+  final release = GamePack(
     id: 'rebuilt',
     document: jsonDecode(
       File('../../gamepacks/2026-rebuilt.json').readAsStringSync(),
@@ -81,7 +81,7 @@ void _seedCollection(EntityStore store) {
   ], checkpoint: () {});
   for (final row in [
     record(release),
-    record(EventGamePack(id: event, release: EntityRef(release.id))),
+    record(EventGamePack(id: event, gamePack: EntityRef(release.id))),
   ]) {
     store.mutate(
       EntityMutation(
@@ -192,7 +192,7 @@ void main() {
           match: const EntityRef('2026marea_qm1'),
           team: const EntityRef('frc2046'),
           station: 0,
-          release: const EntityRef('rebuilt'),
+          gamePack: const EntityRef('rebuilt'),
           capturedAt: DateTime.utc(2026),
           answers: const {'auto_fuel_scored': 3},
         ),

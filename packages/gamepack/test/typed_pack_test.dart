@@ -35,14 +35,44 @@ void main() {
     expect(reopened.results.sorts.single.output, gamePackFieldRef('average'));
   });
 
+  test('rejects invalid control types and mismatched view outputs during validation', () {
+    expect(
+      () => _pack(climbControl: GamePackControlType.toggle),
+      throwsFormatException,
+    );
+    expect(() => _pack(incompatibleSort: true), throwsFormatException);
+  });
+
   test(
-    'rejects invalid control types and mismatched view outputs at publish time',
+    'ignores empty builder form placeholders when compiling a definition',
     () {
-      expect(
-        () => _pack(climbControl: GamePackControlType.toggle),
-        throwsFormatException,
-      );
-      expect(() => _pack(incompatibleSort: true), throwsFormatException);
+      final document = _pack().toJson();
+      final forms = document['forms'] as List;
+      document['forms'] = [
+        ...forms,
+        GamePackForm(
+          id: 'pit',
+          label: 'Pit scouting',
+          kind: GamePackFormKind.pit,
+          pages: [
+            GamePackFormPage.scrolling(
+              id: 'questions',
+              label: 'Questions',
+              sections: [
+                GamePackSection.controls(
+                  id: 'questions',
+                  label: 'Questions',
+                  controls: const [],
+                ),
+              ],
+            ),
+          ],
+        ).toJson(),
+      ];
+
+      final reopened = GamePackDefinition.fromJson(document);
+
+      expect(reopened.forms.map((form) => form.id), ['match']);
     },
   );
 }

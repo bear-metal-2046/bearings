@@ -17,7 +17,7 @@ class GamePackMatchObservationsPage extends ConsumerWidget {
   });
 
   final CompetitionMatch match;
-  final GamePackRelease release;
+  final GamePack release;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -30,7 +30,7 @@ class GamePackMatchObservationsPage extends ConsumerWidget {
     final recorded = (history.value ?? const <GamePackObservation>[])
         .where(
           (row) =>
-              row.release.id == release.id &&
+              row.gamePack.id == release.id &&
               row.match?.id == match.id &&
               row.formId == form.id,
         )

@@ -30,8 +30,21 @@ class GamePacksPage extends ConsumerStatefulWidget {
 class _GamePacksPageState extends ConsumerState<GamePacksPage> {
   late String _event = ref.read(currentEventProvider);
   String? _eventName;
-  String? _selected;
-  bool _assigning = false;
+  String _filter = '';
+  bool _busy = false;
+
+  static const _supportedDocumentFields = {
+    'formatVersion',
+    'name',
+    'season',
+    'fields',
+    'forms',
+    'tbaFields',
+    'calculations',
+    'reportChoices',
+    'results',
+    'builderFixture',
+  };
 
   Future<void> _selectEvent() async {
     final event = await BearingsModal.show<CompetitionEvent>(
@@ -46,25 +59,61 @@ class _GamePacksPageState extends ConsumerState<GamePacksPage> {
     }
   }
 
+  GamePackDesign _design(GamePack gamePack) {
+    if (gamePack.document is! Json) {
+      throw const FormatException(
+        'Stored GamePack document is not a JSON object.',
+      );
+    }
+    final unknown = gamePack.document.keys
+        .where((key) => !_supportedDocumentFields.contains(key))
+        .toList();
+    if (unknown.isNotEmpty) {
+      throw FormatException(
+        'Unsupported GamePack fields: ${unknown.join(', ')}',
+      );
+    }
+    return GamePackDesign.fromJson(gamePack.document);
+  }
+
+  String? _errorFor(GamePack gamePack) {
+    try {
+      _design(gamePack);
+      return null;
+    } on Object catch (error) {
+      return error is FormatException ? error.message : error.toString();
+    }
+  }
+
+  bool _readyToAssign(GamePack gamePack) {
+    try {
+      _design(gamePack).compile();
+      return true;
+    } on Object {
+      return false;
+    }
+  }
+
   Future<void> _openBuilder({
-    GamePackDraft? draft,
-    GamePackRelease? original,
+    GamePack? gamePack,
+    bool duplicate = false,
+    bool formsLocked = false,
     GamePackDesign? imported,
   }) async {
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    final release = await Navigator.of(context).push<GamePackRelease>(
+    final saved = await Navigator.of(context).push<GamePack>(
       MaterialPageRoute(
         builder: (_) => GamePackWorkspacePage(
           event: _event,
-          draft: draft,
-          release: original,
+          gamePack: gamePack,
           imported: imported,
+          formsLocked: formsLocked,
+          duplicate: duplicate,
         ),
       ),
     );
-    if (mounted && release != null) {
-      setState(() => _selected = release.id);
-      _notice('Published ${release.definition.name}');
+    if (mounted && saved != null) {
+      _notice('Saved ${saved.name} to the GamePacks library');
     }
   }
 
@@ -91,63 +140,108 @@ class _GamePacksPageState extends ConsumerState<GamePacksPage> {
     }
   }
 
-  Future<void> _assign(GamePackRelease release) async {
+  Future<void> _assign(GamePack gamePack, EventGamePack? binding) async {
     final event = _event;
     final accepted = await BearingsModal.show<bool>(
       context,
       builder: (context) => BearingsModal(
-        title: 'Pin this release?',
+        title: 'Assign this GamePack?',
         actions: const [],
         primaryAction: BearingsModalPrimaryAction(
-          label: 'Pin release',
-          icon: LucideIcons.pin,
+          label: 'Assign GamePack',
+          icon: LucideIcons.link,
           onPressed: () => BearingsModal.complete(context, true),
         ),
         content: Text(
-          '${release.definition.name} will be the collection release for $event. '
-          'The event will keep this release once it is pinned.',
+          '${gamePack.name} will be assigned to $event. You can change the assignment until the event has saved observations.',
         ),
       ),
     );
     if (!mounted || accepted != true) return;
-    setState(() => _assigning = true);
+    setState(() => _busy = true);
     try {
-      await ref
-          .read(bearingsGroveProvider)
-          .create(
-            EventGamePack(id: event, release: EntityRef(release.id)),
-            allowOffline: false,
-          );
+      final grove = ref.read(bearingsGroveProvider);
+      if (binding == null) {
+        await grove.create(
+          EventGamePack(id: event, gamePack: EntityRef(gamePack.id)),
+          allowOffline: false,
+        );
+      } else {
+        await grove.update<EventGamePack>(
+          event,
+          (_) => EventGamePack(id: event, gamePack: EntityRef(gamePack.id)),
+          allowOffline: false,
+        );
+      }
       if (mounted) _notice('GamePack assigned to $event');
     } catch (error) {
-      if (mounted) _notice('Could not assign: $error');
+      if (mounted) _notice('Could not assign GamePack: $error');
     } finally {
-      if (mounted) setState(() => _assigning = false);
+      if (mounted) setState(() => _busy = false);
     }
   }
 
-  Future<void> _selectAnalysis(GamePackRelease release) async {
-    final event = _event;
-    setState(() => _assigning = true);
+  Future<void> _unassign(EventGamePack binding) async {
+    final accepted = await BearingsModal.show<bool>(
+      context,
+      builder: (context) => BearingsModal(
+        title: 'Unassign this GamePack?',
+        actions: const [],
+        primaryAction: BearingsModalPrimaryAction(
+          label: 'Unassign',
+          icon: LucideIcons.unlink,
+          onPressed: () => BearingsModal.complete(context, true),
+        ),
+        content: const Text(
+          'The GamePack will stay in the library. You can assign another GamePack until this event has saved observations.',
+        ),
+      ),
+    );
+    if (!mounted || accepted != true) return;
+    setState(() => _busy = true);
     try {
       await ref
           .read(bearingsGroveProvider)
           .update<EventGamePack>(
-            event,
-            (current) => EventGamePack(
-              id: current.id,
-              release: current.release,
-              analysisRelease: current.release.id == release.id
-                  ? null
-                  : EntityRef(release.id),
-            ),
+            binding.id,
+            (_) => EventGamePack(id: binding.id, gamePack: null),
             allowOffline: false,
           );
-      if (mounted) _notice('Analysis uses ${release.definition.name}');
+      if (mounted) _notice('GamePack unassigned from ${binding.id}');
     } catch (error) {
-      if (mounted) _notice('Could not select analysis release: $error');
+      if (mounted) _notice('Could not unassign GamePack: $error');
     } finally {
-      if (mounted) setState(() => _assigning = false);
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _delete(GamePack gamePack) async {
+    final accepted = await BearingsModal.show<bool>(
+      context,
+      builder: (context) => BearingsModal(
+        title: 'Delete GamePack?',
+        actions: const [],
+        primaryAction: BearingsModalPrimaryAction(
+          label: 'Delete GamePack',
+          icon: LucideIcons.trash2,
+          onPressed: () => BearingsModal.complete(context, true),
+        ),
+        content: Text(
+          'Delete ${gamePack.name} from the library? Assigned GamePacks and GamePacks referenced by saved data cannot be deleted.',
+        ),
+      ),
+    );
+    if (!mounted || accepted != true) return;
+    setState(() => _busy = true);
+    try {
+      await ref
+          .read(bearingsGroveProvider)
+          .delete<GamePack>(gamePack.id, allowOffline: false);
+      if (mounted) _notice('GamePack deleted');
+    } catch (error) {
+      if (mounted) _notice('Could not delete GamePack: $error');
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -160,8 +254,8 @@ class _GamePacksPageState extends ConsumerState<GamePacksPage> {
   Widget build(BuildContext context) {
     final permissions = ref.watch(permissionCheckerProvider);
     final canRead = permissions?.hasPermission(gamePackReadPermission) ?? false;
-    final canPublish =
-        permissions?.hasPermission(gamePackPublishPermission) ?? false;
+    final canManage =
+        permissions?.hasPermission(gamePackManagePermission) ?? false;
     final canReadResults =
         permissions?.hasPermission(gamePackObservationReadPermission) ?? false;
     if (!canRead) {
@@ -171,28 +265,33 @@ class _GamePacksPageState extends ConsumerState<GamePacksPage> {
       );
     }
     final grove = ref.watch(bearingsGroveProvider);
-    final library = canPublish
-        ? ref.watch(groveQueryProvider(grove.query<GamePackRelease>()))
+    final library = canManage
+        ? ref.watch(groveQueryProvider(grove.query<GamePack>()))
         : null;
-    final drafts = canPublish
-        ? ref.watch(groveQueryProvider(grove.query<GamePackDraft>()))
+    final bindings = canManage
+        ? ref.watch(groveQueryProvider(grove.query<EventGamePack>()))
         : null;
-    final saved =
-        (drafts?.value?.items.toList() ?? const <GamePackDraft>[]).toList()
-          ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-    final release = ref.watch(eventGamePackProvider(_event));
-    final analysis = ref.watch(eventAnalysisGamePackProvider(_event));
-    final published = library?.value?.items ?? const <GamePackRelease>[];
-    final selected = published
-        .where((pack) => pack.id == _selected)
-        .firstOrNull;
-    final assigned = release.value;
+    final assignedState = ref.watch(eventGamePackProvider(_event));
+    final bindingState = ref.watch(eventGamePackBindingProvider(_event));
+    final hasDataState = ref.watch(eventGamePackHasDataProvider(_event));
+    final gamePacks = [...?library?.value?.items]
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    final query = _filter.trim().toLowerCase();
+    final visibleGamePacks = gamePacks
+        .where(
+          (gamePack) =>
+              query.isEmpty ||
+              gamePack.name.toLowerCase().contains(query) ||
+              gamePack.id.toLowerCase().contains(query),
+        )
+        .toList();
+    final assigned = assignedState.value;
+    final binding = bindingState.value;
+    final hasData = hasDataState.value ?? true;
     final eventName =
         _eventName ?? ref.watch(competitionEventProvider(_event)).value?.name;
-    final canAssign =
-        release is AsyncData<GamePackRelease?> && assigned == null;
     return Scaffold(
-      appBar: AppBar(title: const Text('GamePacks')),
+      appBar: AppBar(title: const Text('GamePacks library')),
       body: Align(
         alignment: Alignment.topCenter,
         child: ConstrainedBox(
@@ -205,134 +304,243 @@ class _GamePacksPageState extends ConsumerState<GamePacksPage> {
                   leading: const Icon(LucideIcons.calendarCheck),
                   title: Text(eventName ?? _event),
                   trailing: Tooltip(
-                    message:
-                        'Choose the event for test data and release assignment',
+                    message: 'Choose the event to assign a GamePack to',
                     child: OutlinedButton(
-                      onPressed: _assigning ? null : _selectEvent,
+                      onPressed: _busy ? null : _selectEvent,
                       child: const Text('Change event'),
                     ),
                   ),
                   subtitle: Text(
-                    release.when(
+                    assignedState.when(
                       data: (pack) => pack == null
                           ? 'No GamePack assigned'
-                          : '${pack.definition.name} · Collection release ${_shortId(pack.id)}'
-                                '${analysis.value != null && analysis.value!.id != pack.id ? '\nAnalysis · ${analysis.value!.definition.name}' : ''}',
+                          : '${pack.name} · GamePack ${_shortId(pack.id)}',
                       loading: () => 'Checking assignment…',
                       error: (error, _) => 'Assignment unavailable: $error',
                     ),
                   ),
                 ),
               ),
-              if (canPublish) ...[
+              if (canManage) ...[
                 const SizedBox(height: 12),
                 Wrap(
                   spacing: 10,
                   runSpacing: 10,
                   children: [
                     FilledButton.icon(
-                      onPressed: _assigning ? null : () => _openBuilder(),
+                      onPressed: _busy ? null : () => _openBuilder(),
                       icon: const Icon(LucideIcons.blocks),
                       label: const Text('New GamePack'),
                     ),
                     OutlinedButton.icon(
-                      onPressed: _assigning ? null : _importPack,
+                      onPressed: _busy ? null : _importPack,
                       icon: const Icon(LucideIcons.fileUp),
                       label: const Text('Import GamePack'),
                     ),
                   ],
                 ),
-                if (saved.isNotEmpty)
-                  ExpansionTile(
-                    title: Text('Saved drafts (${saved.length})'),
-                    children: [
-                      for (final draft in saved)
-                        ListTile(
-                          title: Text(draft.name),
-                          trailing: const Icon(LucideIcons.chevronRight),
-                          onTap: () => _openBuilder(draft: draft),
-                        ),
-                    ],
-                  ),
-                if (drafts?.error case final error?)
-                  Text('Could not load drafts: $error'),
                 const SizedBox(height: 20),
-                Text(
-                  'Published packs',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 10),
-                if (library?.error case final error?)
-                  Text('Could not load packs: $error'),
-                if (published.isNotEmpty)
-                  BearingsSelect<String>(
-                    key: ValueKey(selected?.id),
-                    value: selected?.id,
-                    decoration: const InputDecoration(
-                      labelText: 'Select a release',
-                    ),
-                    items: [
-                      for (final pack in published)
-                        BearingsSelectItem(
-                          value: pack.id,
-                          child: Text(
-                            '${pack.definition.name} · ${_shortId(pack.id)}',
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                    ],
-                    onChanged: _assigning
-                        ? null
-                        : (value) => setState(() => _selected = value),
+                Text('Library', style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 8),
+                TextField(
+                  decoration: const InputDecoration(
+                    labelText: 'Search GamePacks',
+                    prefixIcon: Icon(LucideIcons.search),
                   ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: [
-                    if (selected != null)
-                      OutlinedButton.icon(
-                        onPressed: _assigning
-                            ? null
-                            : () => _openBuilder(original: selected),
-                        icon: const Icon(LucideIcons.copy),
-                        label: const Text('Edit as new version'),
-                      ),
-                    if (selected != null)
-                      OutlinedButton.icon(
-                        onPressed: _assigning || !canAssign
-                            ? null
-                            : () => _assign(selected),
-                        icon: const Icon(LucideIcons.link),
-                        label: Text(
-                          _assigning ? 'Assigning…' : 'Pin release to event',
-                        ),
-                      ),
-                    if (selected != null &&
-                        assigned != null &&
-                        selected.id != analysis.value?.id)
-                      OutlinedButton.icon(
-                        onPressed: _assigning
-                            ? null
-                            : () => _selectAnalysis(selected),
-                        icon: const Icon(LucideIcons.workflow),
-                        label: const Text('Use for analysis'),
-                      ),
-                  ],
+                  onChanged: (value) => setState(() => _filter = value),
                 ),
+                if (library?.error case final error?)
+                  Text('Could not load the GamePack library: $error'),
+                if (gamePacks.isEmpty && library?.isLoading != true)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 20),
+                    child: Text('No GamePacks saved yet.'),
+                  ),
+                if (gamePacks.isNotEmpty && visibleGamePacks.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 20),
+                    child: Text('No GamePacks match this search.'),
+                  ),
+                for (final gamePack in visibleGamePacks) ...[
+                  const SizedBox(height: 10),
+                  _LibraryGamePackCard(
+                    gamePack: gamePack,
+                    error: _errorFor(gamePack),
+                    assignedEvent: bindings?.value?.items
+                        .where((item) => item.gamePack?.id == gamePack.id)
+                        .map((item) => item.id)
+                        .firstOrNull,
+                    assignedHere: assigned?.id == gamePack.id,
+                    replacesAssignment:
+                        assigned != null && assigned.id != gamePack.id,
+                    canAssign: !hasData && bindingState.hasValue,
+                    readyToAssign: _readyToAssign(gamePack),
+                    formsLocked:
+                        ref
+                            .watch(gamePackFormsLockedProvider(gamePack.id))
+                            .value ??
+                        true,
+                    busy: _busy,
+                    onEdit: (formsLocked) => _openBuilder(
+                      gamePack: gamePack,
+                      formsLocked: formsLocked,
+                    ),
+                    onDuplicate: () =>
+                        _openBuilder(gamePack: gamePack, duplicate: true),
+                    onDelete: () => _delete(gamePack),
+                    onAssign: () => _assign(gamePack, binding),
+                  ),
+                ],
+                if (assigned != null) ...[
+                  const SizedBox(height: 20),
+                  Text(
+                    hasData
+                        ? 'This event has saved observations. Its GamePack assignment and forms are locked; other GamePack sections remain editable.'
+                        : 'This event has no observations yet. You can change or remove its assignment.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  if (!hasData)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        onPressed: _busy || binding == null
+                            ? null
+                            : () => _unassign(binding),
+                        icon: const Icon(LucideIcons.unlink),
+                        label: const Text('Unassign from event'),
+                      ),
+                    ),
+                ],
               ],
               if (assigned != null && canReadResults) ...[
                 const SizedBox(height: 24),
-                analysis.when(
-                  loading: () => const LinearProgressIndicator(),
-                  error: (error, _) => Text('Analysis unavailable: $error'),
-                  data: (pack) => pack == null
-                      ? const SizedBox.shrink()
-                      : _PackAnalysisPreview(event: _event),
-                ),
+                _PackAnalysisPreview(event: _event),
               ],
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LibraryGamePackCard extends StatelessWidget {
+  const _LibraryGamePackCard({
+    required this.gamePack,
+    required this.error,
+    required this.assignedEvent,
+    required this.assignedHere,
+    required this.replacesAssignment,
+    required this.canAssign,
+    required this.readyToAssign,
+    required this.formsLocked,
+    required this.busy,
+    required this.onEdit,
+    required this.onDuplicate,
+    required this.onDelete,
+    required this.onAssign,
+  });
+
+  final GamePack gamePack;
+  final String? error;
+  final String? assignedEvent;
+  final bool assignedHere;
+  final bool replacesAssignment;
+  final bool canAssign;
+  final bool readyToAssign;
+  final bool formsLocked;
+  final bool busy;
+  final ValueChanged<bool> onEdit;
+  final VoidCallback onDuplicate;
+  final VoidCallback onDelete;
+  final VoidCallback onAssign;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final malformed = error != null;
+    return Card.outlined(
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ListTile(
+              leading: Icon(
+                malformed ? LucideIcons.circleAlert : LucideIcons.blocks,
+                color: malformed ? colors.error : null,
+              ),
+              title: Text(
+                malformed ? 'Problem GamePack' : gamePack.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              subtitle: Text(
+                malformed
+                    ? 'ID ${gamePack.id}\n$error'
+                    : [
+                        'ID ${gamePack.id}',
+                        if (assignedEvent != null)
+                          assignedHere
+                              ? 'Assigned to this event'
+                              : 'Assigned to $assignedEvent',
+                        if (formsLocked) 'Forms locked by saved observations',
+                      ].join(' · '),
+              ),
+              trailing: IconButton(
+                tooltip: 'Delete GamePack',
+                onPressed: busy ? null : onDelete,
+                icon: const Icon(LucideIcons.trash2),
+              ),
+            ),
+            if (malformed)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                child: Text(
+                  'This entry cannot be opened. Delete it after unassigning it from any events.',
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: colors.error),
+                ),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: busy ? null : () => onEdit(formsLocked),
+                      icon: const Icon(LucideIcons.pencil),
+                      label: Text(formsLocked ? 'Edit other sections' : 'Edit'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: busy ? null : onDuplicate,
+                      icon: const Icon(LucideIcons.copy),
+                      label: const Text('Duplicate'),
+                    ),
+                    FilledButton.tonalIcon(
+                      onPressed:
+                          busy || !canAssign || !readyToAssign || assignedHere
+                          ? null
+                          : onAssign,
+                      icon: Icon(
+                        assignedHere ? LucideIcons.check : LucideIcons.link,
+                      ),
+                      label: Text(
+                        assignedHere
+                            ? 'Assigned here'
+                            : replacesAssignment
+                            ? 'Replace assignment'
+                            : assignedEvent == null
+                            ? 'Assign to event'
+                            : 'Also assign here',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
         ),
       ),
     );

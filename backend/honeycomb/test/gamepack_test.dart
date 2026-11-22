@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:core/core.dart';
@@ -10,7 +9,7 @@ import 'package:test/test.dart';
 
 void main() {
   test(
-    'publishes, captures offline, and delivers one validated result over Grove',
+    'stores library GamePacks, assigns them, and captures observations over Grove',
     () async {
       final registry = bearingsEntityRegistry();
       final store = EntityStore(sqlite3.openInMemory(), registry);
@@ -109,36 +108,26 @@ void main() {
         (user) => user.copyWith(roles: [const EntityRef('collector')]),
       );
 
-      await publisher.create(
-        GamePackDraft(
-          id: 'draft',
-          name: 'Draft pack',
-          documentJson: '{"formatVersion":2,"forms":[]}',
-          updatedAt: DateTime.utc(2026),
-        ),
+      final malformed = GamePack(
+        id: 'malformed',
+        document: {'name': 'Problem pack', 'unexpected': true},
       );
-      await expectLater(
-        onlineTablet.query<GamePackDraft>().byId('draft').one(),
-        throwsA(
-          isA<GroveException>().having(
-            (error) => error.code,
-            'code',
-            'forbidden',
-          ),
-        ),
-      );
-      await publisher.update<GamePackDraft>(
-        'draft',
-        (draft) => GamePackDraft(
-          id: draft.id,
-          name: 'Edited pack',
-          documentJson: jsonEncode({...draft.document, 'name': 'Edited pack'}),
-          updatedAt: DateTime.utc(2026, 2),
+      await publisher.create(malformed);
+      final visibleMalformed = await onlineTablet
+          .query<GamePack>()
+          .byId('malformed')
+          .one();
+      expect(visibleMalformed.name, 'Problem pack');
+      expect(visibleMalformed.document, containsPair('unexpected', true));
+      await publisher.update<GamePack>(
+        'malformed',
+        (pack) => GamePack(
+          id: pack.id,
+          document: {...pack.document as Json, 'name': 'Edited pack'},
         ),
       );
       expect(
-        (await publisher.query<GamePackDraft>().byId('draft').one())
-            .document['name'],
+        (await publisher.query<GamePack>().byId('malformed').one()).name,
         'Edited pack',
       );
 
@@ -204,90 +193,66 @@ void main() {
             ],
           );
       final definition = pack('count', 'Scouted count');
-      final release = GamePackRelease(
-        id: 'release-a',
+      final gamePack = GamePack(
+        id: 'gamepack-a',
         document: definition.toJson(),
       );
+      final alternate = GamePack(
+        id: 'alternate',
+        document: pack('count', 'Alternate count').toJson(),
+      );
       await expectLater(
-        onlineTablet.create(release),
+        onlineTablet.create(gamePack),
         throwsA(
           isA<GroveException>().having((e) => e.code, 'code', 'forbidden'),
         ),
       );
-      await publisher.create(release);
+      await publisher.create(gamePack);
+      await publisher.create(alternate);
       await publisher.create(
-        const EventGamePack(id: '2026pilot', release: EntityRef('release-a')),
+        const EventGamePack(id: '2026pilot', gamePack: EntityRef('gamepack-a')),
       );
       await expectLater(
-        publisher.delete<GamePackRelease>(release.id),
+        publisher.delete<GamePack>(gamePack.id),
         throwsA(
-          isA<GroveException>().having((e) => e.code, 'code', 'forbidden'),
+          isA<GroveException>().having((e) => e.code, 'code', 'conflict'),
         ),
       );
-      final analysis = GamePackRelease(
-        id: 'analysis',
-        document: {...definition.toJson(), 'name': 'Revised analysis'},
-      );
-      await publisher.create(analysis);
       await publisher.update<EventGamePack>(
         event.id,
-        (binding) => EventGamePack(
-          id: binding.id,
-          release: binding.release,
-          analysisRelease: EntityRef(analysis.id),
+        (_) => const EventGamePack(
+          id: '2026pilot',
+          gamePack: EntityRef('alternate'),
         ),
       );
-      final updated = await publisher
+      expect(
+        (await publisher.query<EventGamePack>().byId(event.id).one())
+            .gamePack!
+            .id,
+        alternate.id,
+      );
+      await publisher.update<EventGamePack>(
+        event.id,
+        (_) => const EventGamePack(id: '2026pilot', gamePack: null),
+      );
+      final unassigned = await publisher
           .query<EventGamePack>()
           .byId(event.id)
           .one();
-      expect(updated.release.id, release.id);
-      expect(updated.effectiveAnalysisRelease.id, analysis.id);
-
-      final incompatible = GamePackRelease(
-        id: 'incompatible',
-        document: pack('other', 'Other').toJson(),
-      );
-      await publisher.create(incompatible);
-      await expectLater(
-        publisher.update<EventGamePack>(
-          event.id,
-          (binding) => EventGamePack(
-            id: binding.id,
-            release: binding.release,
-            analysisRelease: EntityRef(incompatible.id),
-          ),
-        ),
-        throwsA(
-          isA<GroveException>().having(
-            (error) => error.code,
-            'code',
-            'invalid_request',
-          ),
+      expect(unassigned.gamePack, isNull);
+      await publisher.update<EventGamePack>(
+        event.id,
+        (_) => const EventGamePack(
+          id: '2026pilot',
+          gamePack: EntityRef('gamepack-a'),
         ),
       );
-      await expectLater(
-        publisher.update<EventGamePack>(
-          event.id,
-          (binding) =>
-              EventGamePack(id: binding.id, release: EntityRef(analysis.id)),
-        ),
-        throwsA(
-          isA<GroveException>().having(
-            (error) => error.code,
-            'code',
-            'forbidden',
-          ),
-        ),
-      );
+      await publisher.delete<GamePack>(malformed.id);
       final binding = await onlineTablet
           .query<EventGamePack>()
           .byId(event.id)
           .one();
-      await onlineTablet
-          .query<GamePackRelease>()
-          .byId(binding.release.id)
-          .one();
+      await onlineTablet.query<GamePack>().byId(binding.gamePack!.id).one();
       await onlineTablet.query<CompetitionMatch>().byId(match.id).one();
       await onlineTablet.close();
 
@@ -296,13 +261,13 @@ void main() {
         if (!connected) throw const GroveOffline();
         return 'tablet';
       }, cache: cache);
-      final cachedRelease = await tablet
-          .query<GamePackRelease>()
-          .byId(release.id)
+      final cachedGamePack = await tablet
+          .query<GamePack>()
+          .byId(gamePack.id)
           .result();
-      expect(cachedRelease.offline, isTrue);
+      expect(cachedGamePack.offline, isTrue);
       expect(
-        cachedRelease.items.single.definition.fieldById['count']?.label,
+        cachedGamePack.items.single.definition.fieldById['count']?.label,
         'Scouted count',
       );
       expect(
@@ -321,7 +286,7 @@ void main() {
         event: const EntityRef('2026pilot'),
         match: const EntityRef('2026pilot_qm1'),
         team: EntityRef(team),
-        release: const EntityRef('release-a'),
+        gamePack: const EntityRef('gamepack-a'),
         station: 0,
         capturedAt: DateTime.utc(2026, 3),
         answers: {'count': count},
@@ -351,6 +316,63 @@ void main() {
           .single;
       expect(accepted.author, 'tablet');
       expect(accepted.answers, {'count': 12});
+
+      await expectLater(
+        publisher.update<EventGamePack>(
+          event.id,
+          (_) => const EventGamePack(
+            id: '2026pilot',
+            gamePack: EntityRef('alternate'),
+          ),
+        ),
+        throwsA(
+          isA<GroveException>().having(
+            (error) => error.code,
+            'code',
+            'conflict',
+          ),
+        ),
+      );
+      await expectLater(
+        publisher.update<EventGamePack>(
+          event.id,
+          (_) => const EventGamePack(id: '2026pilot', gamePack: null),
+        ),
+        throwsA(
+          isA<GroveException>().having(
+            (error) => error.code,
+            'code',
+            'conflict',
+          ),
+        ),
+      );
+      await publisher.update<GamePack>(
+        gamePack.id,
+        (saved) => GamePack(
+          id: saved.id,
+          document: {...saved.document as Json, 'name': 'Edited after data'},
+        ),
+      );
+      expect(
+        (await publisher.query<GamePack>().byId(gamePack.id).one()).name,
+        'Edited after data',
+      );
+      await expectLater(
+        publisher.update<GamePack>(
+          gamePack.id,
+          (_) => GamePack(
+            id: gamePack.id,
+            document: pack('other', 'Other').toJson(),
+          ),
+        ),
+        throwsA(
+          isA<GroveException>().having(
+            (error) => error.code,
+            'code',
+            'conflict',
+          ),
+        ),
+      );
 
       // Replaying an acknowledged submission cannot append another observation.
       await tablet.stageCreate(observation());
@@ -389,7 +411,7 @@ void main() {
         event: parent.event,
         match: parent.match,
         team: parent.team,
-        release: parent.release,
+        gamePack: parent.gamePack,
         station: parent.station,
         capturedAt: parent.capturedAt,
         form: parent.formId,
@@ -430,25 +452,32 @@ void main() {
         'count': 12,
       });
 
-      // Older tablets can finish sending an already queued v1 match.
+      // Old observation payloads are rejected at the hard schema cutoff.
       final oldData = gamePackObservationEntity.encode(
         observation(id: 'from-v1'),
       );
       for (final key in GamePackObservation.groveFieldVersions.keys) {
         oldData.remove(key);
       }
-      final oldReceipt = await tablet.transport.mutate(
-        EntityMutation(
-          mutationId: 'v1-queue-entry',
-          type: gamePackObservationEntity.type,
-          id: 'from-v1',
-          version: 1,
-          kind: MutationKind.create,
-          data: oldData,
+      await expectLater(
+        tablet.transport.mutate(
+          EntityMutation(
+            mutationId: 'v1-queue-entry',
+            type: gamePackObservationEntity.type,
+            id: 'from-v1',
+            version: 1,
+            kind: MutationKind.create,
+            data: oldData,
+          ),
+        ),
+        throwsA(
+          isA<GroveException>().having(
+            (error) => error.code,
+            'code',
+            'unsupported_schema',
+          ),
         ),
       );
-      expect(oldReceipt.version, 1);
-      expect(gamePackObservationEntity.read(oldReceipt).formId, 'match');
 
       GamePackObservation teamObservation(
         String id, {
@@ -460,7 +489,7 @@ void main() {
         event: const EntityRef('2026pilot'),
         match: matchId == null ? null : EntityRef(matchId),
         team: EntityRef(team),
-        release: const EntityRef('release-a'),
+        gamePack: const EntityRef('gamepack-a'),
         station: station,
         capturedAt: DateTime.utc(2026, 3),
         form: 'observation',

@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:gamepack/gamepack.dart';
 import 'package:grove/grove.dart';
 
@@ -9,77 +7,55 @@ import '../scouting/scout.dart';
 part 'gamepack_entities.g.dart';
 
 const gamePackReadPermission = 'gamepack.read';
-const gamePackPublishPermission = 'gamepack.publish';
+const gamePackManagePermission = 'gamepack.manage';
+@Deprecated('Use gamePackManagePermission.')
+const gamePackPublishPermission = gamePackManagePermission;
 const gamePackObservationReadPermission = 'scouting.observation.read';
 const gamePackSubmitPermission = 'scouting.observation.submit';
 const gamePackCorrectPermission = 'scouting.observation.correct';
 
-/// In-progress editor data may contain incomplete forms or graphs.
-@GroveEntity('gamepack.draft', version: 1)
-class GamePackDraft {
-  GamePackDraft({
-    required this.id,
-    required this.name,
-    required this.documentJson,
-    required this.updatedAt,
-  }) {
-    validateGamePackLabel(name);
-    if (documentJson.length > 1024 * 1024 ||
-        jsonDecode(documentJson) is! Json) {
-      throw const FormatException(
-        'A draft must be a JSON document up to 1 MB.',
-      );
-    }
-  }
+/// A library gamepack. Its document stays raw until a caller needs to use it,
+/// so one unsupported or damaged document cannot prevent the library loading.
+@GroveEntity('gamepack', version: 1)
+class GamePack {
+  GamePack({required this.id, required dynamic document})
+    : document = _freeze(document);
 
   final String id;
-  final String name;
+  final dynamic document;
 
-  /// Treat the collaborative editor document as an atomic value.
-  final String documentJson;
-  final DateTime updatedAt;
+  String get name => document is Map && document['name'] is String
+      ? document['name'] as String
+      : 'Unnamed GamePack';
 
-  Json get document => jsonDecode(documentJson) as Json;
+  GamePackDefinition get definition => GamePackDefinition.fromJson(document);
 }
 
-@GroveEntity('gamepack.release', version: 1)
-class GamePackRelease {
-  GamePackRelease({required String id, required Json document})
-    : this._(id, GamePackDefinition.fromJson(document));
+/// Source compatibility for callers that used the former release name.
+@Deprecated('Use GamePack.')
+typedef GamePackRelease = GamePack;
 
-  GamePackRelease._(this.id, this.definition)
-    : document = _freeze(definition.toJson()) as Json;
-
-  final String id;
-  final GamePackDefinition definition;
-  final Json document;
-}
-
-@GroveEntity('gamepack.binding', version: 1)
+@GroveEntity('gamepack.binding', version: 2)
 class EventGamePack {
-  const EventGamePack({
-    required this.id,
-    required this.release,
-    this.analysisRelease,
-  });
+  const EventGamePack({required this.id, required this.gamePack});
 
-  /// The competition event key. An event can have one collection release.
+  /// The competition event key. An event can have one assigned gamepack.
   final String id;
-  final EntityRef<GamePackRelease> release;
-  final EntityRef<GamePackRelease>? analysisRelease;
 
-  EntityRef<GamePackRelease> get effectiveAnalysisRelease =>
-      analysisRelease ?? release;
+  /// Null means the event has no GamePack assigned.
+  final EntityRef<GamePack>? gamePack;
+
+  static const groveFieldVersions = {'gamePack': 2};
 }
 
-@GroveEntity('scouting.observation', version: 2, offlineMutable: true)
+@GroveEntity('scouting.observation', version: 3, offlineMutable: true)
 class GamePackObservation {
   GamePackObservation({
     required this.id,
     required this.event,
     this.match,
     this.team,
-    required this.release,
+    required this.gamePack,
     this.station,
     required this.capturedAt,
     required Json answers,
@@ -95,7 +71,7 @@ class GamePackObservation {
   final EntityRef<CompetitionEvent> event;
   final EntityRef<CompetitionMatch>? match;
   final EntityRef<CompetitionTeam>? team;
-  final EntityRef<GamePackRelease> release;
+  final EntityRef<GamePack> gamePack;
   final int? station;
   final DateTime capturedAt;
   final Json answers;
@@ -115,8 +91,12 @@ class GamePackObservation {
     'supersedes': 2,
     'retracted': 2,
     'reason': 2,
+    'gamePack': 3,
   };
 
+  // Observation records predate the single-library GamePack shape. The server
+  // cutover intentionally rejects those queued payloads instead of migrating
+  // them into the new data model.
   static final groveMigrations = <int, Json Function(Json)>{
     1: (data) => {...data, 'form': 'match'},
   };
@@ -132,7 +112,7 @@ class GamePackObservation {
       match?.id == other.match?.id &&
       team?.id == other.team?.id &&
       station == other.station &&
-      release.id == other.release.id &&
+      gamePack.id == other.gamePack.id &&
       formId == other.formId;
 }
 
@@ -171,8 +151,8 @@ class TbaMatchRevision {
 }
 
 Object? _freeze(Object? value) => switch (value) {
-  Json map => Map<String, dynamic>.unmodifiable(
-    map.map((key, item) => MapEntry(key, _freeze(item))),
+  Map map => Map<String, dynamic>.unmodifiable(
+    map.map((key, item) => MapEntry(key as String, _freeze(item))),
   ),
   List<dynamic> list => List.unmodifiable(list.map(_freeze)),
   _ => value,

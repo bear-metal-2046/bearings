@@ -20,7 +20,7 @@ Map<String, GamePackType> gamePackSourceTypes(Iterable<GamePackField> fields) {
     'station': GamePackType.integer,
     'form': GamePackType.text,
     'kind': GamePackType.text,
-    'release': GamePackType.text,
+    'gamepack': GamePackType.text,
     'scout': GamePackType.text,
     'author': GamePackType.text,
     'captured_at': GamePackType.integer,

@@ -7,7 +7,7 @@ import 'package:grove/grove.dart';
 import 'package:services/providers/gamepack_analysis_provider.dart';
 
 void main() {
-  final release = GamePackRelease(
+  final release = GamePack(
     id: 'rebuilt-2026',
     document: jsonDecode(
       File('../../gamepacks/2026-rebuilt.json').readAsStringSync(),
@@ -92,7 +92,7 @@ void main() {
       event: const EntityRef(event),
       match: EntityRef(matchKey),
       team: team == null ? null : EntityRef(team),
-      release: EntityRef(release.id),
+      gamePack: EntityRef(release.id),
       station: station,
       capturedAt: timestamp,
       form: team == null ? 'strategy' : 'match',
@@ -146,7 +146,7 @@ void main() {
         event: const EntityRef(event),
         team: const EntityRef('frc2877'),
         form: 'pit',
-        release: EntityRef(release.id),
+        gamePack: EntityRef(release.id),
         capturedAt: timestamp,
         answers: {
           'pit_trench_capability': 'Trench Capable',
@@ -158,7 +158,7 @@ void main() {
         event: const EntityRef(event),
         team: const EntityRef('frc2877'),
         form: 'observation',
-        release: EntityRef(release.id),
+        gamePack: EntityRef(release.id),
         capturedAt: timestamp.add(const Duration(minutes: 1)),
         answers: {'observation_note': 'New bumper fitted'},
       ),

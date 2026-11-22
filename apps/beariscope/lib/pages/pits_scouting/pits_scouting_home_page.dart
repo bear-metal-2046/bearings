@@ -77,7 +77,7 @@ class PitsScoutingHomePageState extends ConsumerState<PitsScoutingHomePage> {
         : null;
     final observations = <int, GamePackObservation>{};
     for (final row in history ?? const <GamePackObservation>[]) {
-      if (row.formId != pitForm?.id || row.release.id != release!.id) continue;
+      if (row.formId != pitForm?.id || row.gamePack.id != release!.id) continue;
       final team = int.tryParse(row.team?.id.replaceFirst('frc', '') ?? '');
       if (team != null) observations.putIfAbsent(team, () => row);
     }

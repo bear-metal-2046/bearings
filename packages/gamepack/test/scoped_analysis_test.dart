@@ -198,7 +198,7 @@ void main() {
     },
   );
 
-  test('reports the incompatible display scope at publish time', () {
+  test('reports the incompatible display scope during validation', () {
     expect(
       () => _pack(
         sorts: [

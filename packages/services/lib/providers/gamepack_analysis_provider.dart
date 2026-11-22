@@ -36,35 +36,30 @@ final gamePackEventAnalysisProvider = Provider.autoDispose
     .family<AsyncValue<GamePackEventAnalysis?>, String>((ref, event) {
       final assigned = ref.watch(eventGamePackBindingProvider(event));
       return assigned.flatMap((binding) {
-        if (binding == null) return const AsyncData(null);
-        final capture = ref.watch(gamePackReleaseProvider(binding.release.id));
-        final analysis = ref.watch(
-          gamePackReleaseProvider(binding.effectiveAnalysisRelease.id),
-        );
-        return capture.flatMap(
-          (capture) => analysis.flatMap((analysis) {
-            final observations = ref.watch(
-              gamePackObservationHistoryProvider(event),
-            );
-            final official = ref.watch(eventTbaRevisionsProvider(event));
-            final schedule =
-                ref.watch(competitionMatchesProvider(event)).value?.items ??
-                const [];
-            return observations.flatMap(
-              (reports) => official.whenData(
-                (archive) => GamePackEventAnalysis(
-                  event: event,
-                  capture: capture,
-                  analysis: analysis,
-                  observations: reports.requireAvailable().items,
-                  revisions: archive.requireAvailable().items,
-                  schedule: schedule,
-                  offline: reports.offline || archive.offline,
-                ),
+        if (binding?.gamePack == null) return const AsyncData(null);
+        final gamePack = ref.watch(gamePackProvider(binding!.gamePack!.id));
+        return gamePack.flatMap((gamePack) {
+          final observations = ref.watch(
+            gamePackObservationHistoryProvider(event),
+          );
+          final official = ref.watch(eventTbaRevisionsProvider(event));
+          final schedule =
+              ref.watch(competitionMatchesProvider(event)).value?.items ??
+              const [];
+          return observations.flatMap(
+            (reports) => official.whenData(
+              (archive) => GamePackEventAnalysis(
+                event: event,
+                capture: gamePack,
+                analysis: gamePack,
+                observations: reports.requireAvailable().items,
+                revisions: archive.requireAvailable().items,
+                schedule: schedule,
+                offline: reports.offline || archive.offline,
               ),
-            );
-          }),
-        );
+            ),
+          );
+        });
       });
     });
 
@@ -83,8 +78,8 @@ class GamePackEventAnalysis {
        _schedule = List.unmodifiable(schedule);
 
   final String event;
-  final GamePackRelease capture;
-  final GamePackRelease analysis;
+  final GamePack capture;
+  final GamePack analysis;
   final bool offline;
   final List<GamePackObservation> _observations;
   final List<TbaMatchRevision> _revisions;
@@ -179,13 +174,15 @@ class GamePackEventAnalysis {
 
 Map<String, GamePackValue> _buildSources(
   String event,
-  GamePackRelease capture,
+  GamePack capture,
   List<GamePackObservation> observations,
   List<TbaMatchRevision> revisions,
 ) {
   final history =
       observations
-          .where((row) => row.event.id == event && row.release.id == capture.id)
+          .where(
+            (row) => row.event.id == event && row.gamePack.id == capture.id,
+          )
           .toList()
         ..sort((a, b) {
           final time = a.capturedAt.compareTo(b.capturedAt);
@@ -220,7 +217,7 @@ Map<String, GamePackValue> _buildSources(
 
 GamePackValue _observationValue(
   GamePackObservation row,
-  GamePackRelease capture,
+  GamePack capture,
   Map<String, GamePackObservation> byId,
 ) {
   final evidence = <GamePackEvidenceRef>{};
@@ -245,7 +242,7 @@ GamePackValue _observationValue(
     },
     'form': row.formId,
     'kind': capture.definition.formById(row.formId).kind.name,
-    'release': row.release.id,
+    'gamepack': row.gamePack.id,
     if (row.scout case final scout?) 'scout': scout.id,
     if (row.author case final author?) 'author': author,
     'captured_at': row.capturedAt.millisecondsSinceEpoch,

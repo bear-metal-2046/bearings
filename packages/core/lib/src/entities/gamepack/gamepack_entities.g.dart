@@ -6,93 +6,53 @@ part of 'gamepack_entities.dart';
 // _GroveGenerator
 // **************************************************************************
 
-Json _GamePackDraftToGroveJson(GamePackDraft value) => {
+Json _GamePackToGroveJson(GamePack value) => {
   "id": value.id,
-  "name": value.name,
-  "documentJson": value.documentJson,
-  "updatedAt": value.updatedAt.toUtc().toIso8601String(),
+  "document": value.document,
 };
-GamePackDraft _GamePackDraftFromGroveJson(Json json) => GamePackDraft(
-  id: json["id"] as String,
-  name: json["name"] as String,
-  documentJson: json["documentJson"] as String,
-  updatedAt: DateTime.parse(json["updatedAt"] as String),
-);
+GamePack _GamePackFromGroveJson(Json json) =>
+    GamePack(id: json["id"] as String, document: json["document"]);
 
-final gamePackDraftEntity = EntityDescriptor<GamePackDraft>(
-  type: "gamepack.draft",
+final gamePackEntity = EntityDescriptor<GamePack>(
+  type: "gamepack",
   version: 1,
   offlineMutable: false,
 
-  encode: _GamePackDraftToGroveJson,
-  decode: _GamePackDraftFromGroveJson,
+  encode: _GamePackToGroveJson,
+  decode: _GamePackFromGroveJson,
 );
 
-abstract final class GamePackDraftFields {
-  static const id = EntityField<GamePackDraft, String>("id");
-  static const name = EntityField<GamePackDraft, String>("name");
-  static const documentJson = EntityField<GamePackDraft, String>(
-    "documentJson",
-  );
-}
-
-Json _GamePackReleaseToGroveJson(GamePackRelease value) => {
-  "id": value.id,
-  "document": value.document.map((key, item) => MapEntry(key, item)),
-};
-GamePackRelease _GamePackReleaseFromGroveJson(Json json) => GamePackRelease(
-  id: json["id"] as String,
-  document: (json["document"] as Map).map(
-    (key, item) => MapEntry(key as String, item),
-  ),
-);
-
-final gamePackReleaseEntity = EntityDescriptor<GamePackRelease>(
-  type: "gamepack.release",
-  version: 1,
-  offlineMutable: false,
-
-  encode: _GamePackReleaseToGroveJson,
-  decode: _GamePackReleaseFromGroveJson,
-);
-
-abstract final class GamePackReleaseFields {
-  static const id = EntityField<GamePackRelease, String>("id");
+abstract final class GamePackFields {
+  static const id = EntityField<GamePack, String>("id");
 }
 
 Json _EventGamePackToGroveJson(EventGamePack value) => {
   "id": value.id,
-  "release": value.release.id,
-  "analysisRelease": value.analysisRelease == null
-      ? null
-      : value.analysisRelease!.id,
+  "gamePack": value.gamePack == null ? null : value.gamePack!.id,
 };
 EventGamePack _EventGamePackFromGroveJson(Json json) => EventGamePack(
   id: json["id"] as String,
-  release: EntityRef<GamePackRelease>(json["release"] as String),
-  analysisRelease: json["analysisRelease"] == null
+  gamePack: json["gamePack"] == null
       ? null
-      : EntityRef<GamePackRelease>(json["analysisRelease"] as String),
+      : EntityRef<GamePack>(json["gamePack"] as String),
 );
 
 final eventGamePackEntity = EntityDescriptor<EventGamePack>(
   type: "gamepack.binding",
-  version: 1,
+  version: 2,
   offlineMutable: false,
 
   encode: _EventGamePackToGroveJson,
   decode: _EventGamePackFromGroveJson,
+
+  fieldVersions: EventGamePack.groveFieldVersions,
 );
 
 abstract final class EventGamePackFields {
   static const id = EntityField<EventGamePack, String>("id");
-  static const release = EntityField<EventGamePack, EntityRef<GamePackRelease>>(
-    "release",
+  static const gamePack = EntityField<EventGamePack, EntityRef<GamePack>?>(
+    "gamePack",
   );
-  static const analysisRelease =
-      EntityField<EventGamePack, EntityRef<GamePackRelease>?>(
-        "analysisRelease",
-      );
 }
 
 Json _GamePackObservationToGroveJson(GamePackObservation value) => {
@@ -100,7 +60,7 @@ Json _GamePackObservationToGroveJson(GamePackObservation value) => {
   "event": value.event.id,
   "match": value.match == null ? null : value.match!.id,
   "team": value.team == null ? null : value.team!.id,
-  "release": value.release.id,
+  "gamePack": value.gamePack.id,
   "station": value.station,
   "capturedAt": value.capturedAt.toUtc().toIso8601String(),
   "answers": value.answers.map((key, item) => MapEntry(key, item)),
@@ -121,7 +81,7 @@ GamePackObservation _GamePackObservationFromGroveJson(Json json) =>
       team: json["team"] == null
           ? null
           : EntityRef<CompetitionTeam>(json["team"] as String),
-      release: EntityRef<GamePackRelease>(json["release"] as String),
+      gamePack: EntityRef<GamePack>(json["gamePack"] as String),
       station: json["station"] as int?,
       capturedAt: DateTime.parse(json["capturedAt"] as String),
       answers: (json["answers"] as Map).map(
@@ -141,7 +101,7 @@ GamePackObservation _GamePackObservationFromGroveJson(Json json) =>
 
 final gamePackObservationEntity = EntityDescriptor<GamePackObservation>(
   type: "scouting.observation",
-  version: 2,
+  version: 3,
   offlineMutable: true,
 
   encode: _GamePackObservationToGroveJson,
@@ -158,8 +118,9 @@ abstract final class GamePackObservationFields {
       EntityField<GamePackObservation, EntityRef<CompetitionMatch>?>("match");
   static const team =
       EntityField<GamePackObservation, EntityRef<CompetitionTeam>?>("team");
-  static const release =
-      EntityField<GamePackObservation, EntityRef<GamePackRelease>>("release");
+  static const gamePack = EntityField<GamePackObservation, EntityRef<GamePack>>(
+    "gamePack",
+  );
   static const station = EntityField<GamePackObservation, int?>("station");
   static const author = EntityField<GamePackObservation, String?>("author");
   static const form = EntityField<GamePackObservation, String?>("form");

@@ -24,7 +24,7 @@ class GamePackObservationPage extends ConsumerStatefulWidget {
 
   final String title;
   final String event;
-  final GamePackRelease release;
+  final GamePack release;
   final GamePackFormKind kind;
   final String? team;
   final String? match;
@@ -85,7 +85,7 @@ class _GamePackObservationPageState
         match:
             previous?.match ??
             (widget.match == null ? null : EntityRef(widget.match!)),
-        release: EntityRef(widget.release.id),
+        gamePack: EntityRef(widget.release.id),
         station: previous?.station ?? widget.station,
         scout: previous?.scout,
         form: form.id,

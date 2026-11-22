@@ -15,14 +15,13 @@ Iterable<String> bearingsPermissions(EntityRegistry registry) sync* {
   yield competitionReadPermission;
   yield deviceProvisionPermission;
   yield gamePackReadPermission;
-  yield gamePackPublishPermission;
+  yield gamePackManagePermission;
   yield gamePackObservationReadPermission;
   yield gamePackSubmitPermission;
   yield gamePackCorrectPermission;
   for (final descriptor in registry.descriptors) {
     if (descriptor.type == groveAccessEntity.type ||
-        descriptor.type == gamePackReleaseEntity.type ||
-        descriptor.type == gamePackDraftEntity.type ||
+        descriptor.type == gamePackEntity.type ||
         descriptor.type == eventGamePackEntity.type ||
         descriptor.type == gamePackObservationEntity.type ||
         descriptor.serverManaged) {
@@ -35,8 +34,7 @@ Iterable<String> bearingsPermissions(EntityRegistry registry) sync* {
 
 EntityRegistry bearingsEntityRegistry() {
   final registry = EntityRegistry()
-    ..register(gamePackDraftEntity)
-    ..register(gamePackReleaseEntity)
+    ..register(gamePackEntity)
     ..register(tbaMatchRevisionEntity)
     ..register(eventGamePackEntity)
     ..register(gamePackObservationEntity)

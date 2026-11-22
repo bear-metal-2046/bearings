@@ -497,7 +497,7 @@ class _ScheduleDownloadTileState extends ConsumerState<_ScheduleDownloadTile> {
       if (!mounted) return;
       final pack = await waitForValue(container, eventGamePackProvider(event));
       if (pack == null) {
-        throw StateError('Assign a published GamePack in Beariscope first.');
+        throw StateError('Assign a GamePack in Beariscope first.');
       }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

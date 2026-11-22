@@ -51,7 +51,7 @@ void main() {
         transport: MemoryGroveTransport(registry),
       );
       const event = '2026marea';
-      final release = GamePackRelease(
+      final release = GamePack(
         id: 'rebuilt-2026',
         document: jsonDecode(
           File('../../gamepacks/2026-rebuilt.json').readAsStringSync(),
@@ -65,7 +65,7 @@ void main() {
       );
       await grove.create(release);
       await grove.create(
-        const EventGamePack(id: event, release: EntityRef('rebuilt-2026')),
+        const EventGamePack(id: event, gamePack: EntityRef('rebuilt-2026')),
       );
 
       Future<void> mount(Widget child) async {
@@ -199,7 +199,7 @@ void main() {
             match: EntityRef(match.id),
             team: EntityRef(team.id),
             station: 0,
-            release: EntityRef(release.id),
+            gamePack: EntityRef(release.id),
             capturedAt: timestamp,
             form: 'match',
             answers: {

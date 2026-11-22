@@ -83,7 +83,7 @@ class _MatchSelectPageState extends ConsumerState<MatchSelectPage> {
       AsyncError() => 'Could not load the assigned GamePack.',
       AsyncLoading() when !packReady => 'Loading the assigned GamePack…',
       _ when definition == null =>
-        'Assign a published GamePack to the event in Beariscope.',
+        'Assign a GamePack to the event in Beariscope.',
       _ when !packReady =>
         'The assigned GamePack has no ${form.label.toLowerCase()} form.',
       _ => null,

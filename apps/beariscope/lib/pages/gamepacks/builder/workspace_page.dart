@@ -24,14 +24,16 @@ class GamePackWorkspacePage extends ConsumerStatefulWidget {
   const GamePackWorkspacePage({
     super.key,
     required this.event,
-    this.draft,
-    this.release,
+    this.gamePack,
     this.imported,
+    this.formsLocked = false,
+    this.duplicate = false,
   });
   final String event;
-  final GamePackDraft? draft;
-  final GamePackRelease? release;
+  final GamePack? gamePack;
   final GamePackDesign? imported;
+  final bool formsLocked;
+  final bool duplicate;
   @override
   ConsumerState<GamePackWorkspacePage> createState() =>
       _GamePackWorkspacePageState();
@@ -50,14 +52,14 @@ class _GamePackWorkspacePageState extends ConsumerState<GamePackWorkspacePage> {
   GamePackDesign? _reviewed;
   List<_ReviewIssue> _issues = const [];
 
-  late GamePackDraft? _saved = widget.draft;
-  late final String _id = widget.draft?.id ?? const Uuid().v4();
+  late GamePack? _saved = widget.duplicate ? null : widget.gamePack;
+  late final String _id = widget.duplicate
+      ? const Uuid().v4()
+      : widget.gamePack?.id ?? const Uuid().v4();
   late GamePackDesign _design =
       widget.imported ??
-      (widget.draft != null
-          ? GamePackDesign.fromJson(widget.draft!.document)
-          : widget.release != null
-          ? GamePackDesign.fromJson(widget.release!.document)
+      (widget.gamePack != null
+          ? GamePackDesign.fromJson(widget.gamePack!.document)
           : GamePackDesign(
               season: int.tryParse(
                 widget.event.length >= 4 ? widget.event.substring(0, 4) : '',
@@ -132,7 +134,7 @@ class _GamePackWorkspacePageState extends ConsumerState<GamePackWorkspacePage> {
   GamePackBuilderFixture _loadFixture() {
     final defaultEvent = _defaultTestEvent(_design.season);
     final fixture = GamePackBuilderFixture.fromJson(
-      widget.draft?.document['builderFixture'],
+      widget.gamePack?.document['builderFixture'],
       defaultEvent: defaultEvent,
       design: _design,
     );
@@ -160,64 +162,30 @@ class _GamePackWorkspacePageState extends ConsumerState<GamePackWorkspacePage> {
     }
   }
 
-  Future<void> _persist() async {
+  Future<GamePack> _persist() async {
     final grove = ref.read(bearingsGroveProvider);
-    final draft = GamePackDraft(
+    final gamePack = GamePack(
       id: _id,
-      name: _design.name.trim(),
-      updatedAt: DateTime.now().toUtc(),
-      documentJson: jsonEncode({
-        ..._design.toJson(),
-        'builderFixture': _fixture.toJson(),
-      }),
+      document: {..._design.toJson(), 'builderFixture': _fixture.toJson()},
     );
     final previous = _saved;
     _saved = previous == null
-        ? await grove.create<GamePackDraft>(draft, allowOffline: false)
-        : await grove.update<GamePackDraft>(_id, (current) {
-            if (current.updatedAt != previous.updatedAt &&
-                current.documentJson != previous.documentJson) {
-              throw const GroveException(
-                'conflict',
-                'This draft was edited elsewhere. Reopen it before saving.',
-              );
-            }
-            return draft;
-          }, allowOffline: false);
+        ? await grove.create<GamePack>(gamePack, allowOffline: false)
+        : await grove.update<GamePack>(
+            _id,
+            (_) => gamePack,
+            allowOffline: false,
+          );
+    return _saved!;
   }
 
-  Future<void> _saveDraft() async {
+  Future<void> _saveGamePack() async {
     FocusScope.of(context).unfocus();
     setState(() => _busy = true);
     try {
       _validatePackDetails();
-      await _persist();
-      if (mounted) setState(() => _dirty = false);
-      _report('Draft saved', error: false);
-    } catch (error) {
-      _report(_describe(error), error: true);
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  Future<void> _publish() async {
-    FocusScope.of(context).unfocus();
-    setState(() => _busy = true);
-    try {
-      _validatePackDetails();
-      final definition = _design.compile();
-      await _persist();
-      if (!mounted) return;
-      final grove = ref.read(bearingsGroveProvider);
-      final release = await grove.create(
-        GamePackRelease(id: const Uuid().v4(), document: definition.toJson()),
-        allowOffline: false,
-      );
-      if (mounted) {
-        setState(() => _dirty = false);
-        Navigator.of(context).pop(release);
-      }
+      final gamePack = await _persist();
+      if (mounted) Navigator.of(context).pop(gamePack);
     } catch (error) {
       _report(_describe(error), error: true);
     } finally {
@@ -261,7 +229,7 @@ class _GamePackWorkspacePageState extends ConsumerState<GamePackWorkspacePage> {
     try {
       final discard = await BearingsAlertDialog.show<bool>(
         context: context,
-        title: 'Leave this draft?',
+        title: 'Leave this GamePack?',
         message: 'Changes since your last save will be lost.',
         actions: const [
           BearingsAlertAction(label: 'Cancel'),
@@ -414,8 +382,8 @@ class _GamePackWorkspacePageState extends ConsumerState<GamePackWorkspacePage> {
                     Expanded(
                       child: Text(
                         ready
-                            ? 'Ready to publish'
-                            : 'Finish these before publishing',
+                            ? 'Ready to assign'
+                            : 'Finish these before assigning',
                         style: theme.textTheme.titleMedium,
                       ),
                     ),
@@ -424,7 +392,7 @@ class _GamePackWorkspacePageState extends ConsumerState<GamePackWorkspacePage> {
                 const SizedBox(height: 8),
                 if (ready)
                   Text(
-                    'Forms with questions are included. Pin the release to an event to use it for scouting.',
+                    'Forms with questions are included. Assign this GamePack to an event to use it for scouting.',
                     style: muted,
                   )
                 else
@@ -457,21 +425,16 @@ class _GamePackWorkspacePageState extends ConsumerState<GamePackWorkspacePage> {
                       onPressed:
                           _busy || _nameError != null || _seasonError != null
                           ? null
-                          : _saveDraft,
+                          : _saveGamePack,
                       style: TextButton.styleFrom(
                         foregroundColor: colors.onSurfaceVariant,
                       ),
-                      child: const Text('Save draft'),
+                      child: const Text('Save GamePack'),
                     ),
-                    if (ready)
-                      FilledButton(
-                        onPressed: _busy ? null : _publish,
-                        child: const Text('Publish release'),
-                      ),
                   ],
                 ),
                 const Divider(height: 32),
-                Text('In this release', style: theme.textTheme.titleMedium),
+                Text('In this GamePack', style: theme.textTheme.titleMedium),
                 const SizedBox(height: 4),
                 for (final (section, detail) in summary)
                   ListTile(
@@ -508,11 +471,33 @@ class _GamePackWorkspacePageState extends ConsumerState<GamePackWorkspacePage> {
     required GamePackBuilderFixture fixture,
   }) {
     return switch (section) {
-      GamePackBuilderSection.forms => GamePackFormsEditor(
-        design: _design,
-        onChanged: _change,
-        compact: !wide,
-        formSelection: _formSelection,
+      GamePackBuilderSection.forms => Stack(
+        children: [
+          IgnorePointer(
+            ignoring: widget.formsLocked,
+            child: GamePackFormsEditor(
+              design: _design,
+              onChanged: _change,
+              compact: !wide,
+              formSelection: _formSelection,
+            ),
+          ),
+          if (widget.formsLocked)
+            Positioned(
+              top: 12,
+              left: 12,
+              right: 12,
+              child: Card.outlined(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                child: const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Text(
+                    'Forms are locked because an event assigned to this GamePack has saved data. Other GamePack sections remain editable.',
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
       GamePackBuilderSection.outputHome => BearingsCardList(
         maxWidth: 780,
@@ -690,8 +675,8 @@ class _GamePackWorkspacePageState extends ConsumerState<GamePackWorkspacePage> {
         (_dirty
             ? 'Unsaved changes'
             : _saved == null
-            ? 'Draft'
-            : 'Draft saved');
+            ? 'Not saved to library'
+            : 'Saved to library');
     return InputDecorationTheme(
       data: InputDecorationTheme.of(context).copyWith(
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
@@ -712,7 +697,7 @@ class _GamePackWorkspacePageState extends ConsumerState<GamePackWorkspacePage> {
               ? null
               : () => _openTestData(context, fixture);
           const testDataIcon = Icon(LucideIcons.flaskConical, size: 19);
-          return PopScope<GamePackRelease>(
+          return PopScope<GamePack>(
             canPop: !_dirty && !_busy && !trayOpen,
             onPopInvokedWithResult: (didPop, _) {
               if (didPop || _busy) return;

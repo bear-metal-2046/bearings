@@ -31,7 +31,7 @@ void main() {
         ),
       ],
     );
-    final analysis = GamePackRelease(
+    final analysis = GamePack(
       id: 'analysis',
       document: GamePackDefinition.typed(
         name: 'Revised analysis',
@@ -61,7 +61,7 @@ void main() {
         season: 2027,
       ).toJson(),
     );
-    final capture = GamePackRelease(
+    final capture = GamePack(
       id: 'capture',
       document: {...analysis.document, 'name': 'Capture'},
     );
@@ -74,7 +74,7 @@ void main() {
       event: const EntityRef(event),
       match: const EntityRef(match),
       team: const EntityRef('frc2046'),
-      release: const EntityRef('capture'),
+      gamePack: const EntityRef('capture'),
       station: 0,
       capturedAt: DateTime.utc(2027, 3),
       answers: retract ? {} : {'score': predecessor == null ? 7 : 10},

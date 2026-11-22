@@ -1,6 +1,6 @@
 import 'package:beariscope/pages/main_view.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
-import 'package:core/core.dart' show GamePackRelease;
+import 'package:core/core.dart' show GamePack;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
@@ -21,7 +21,7 @@ class ScoutAuditPage extends ConsumerWidget {
         ref.watch(permissionCheckerProvider)?.canReadGamePackAnalysis == true;
     final assignment = canRead
         ? ref.watch(eventGamePackProvider(event))
-        : const AsyncData<GamePackRelease?>(null);
+        : const AsyncData<GamePack?>(null);
     final pack = assignment.value;
     if (pack != null) {
       return GamePackAuditPage(
@@ -49,7 +49,7 @@ class ScoutAuditPage extends ConsumerWidget {
               subtitle:
                   assignment.error?.toString() ??
                   (canRead
-                      ? 'Assign a published GamePack to this event.'
+                      ? 'Assign a GamePack to this event.'
                       : 'GamePack observation access is required.'),
             ),
     );

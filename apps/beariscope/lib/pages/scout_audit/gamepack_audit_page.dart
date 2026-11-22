@@ -25,7 +25,7 @@ class GamePackAuditPage extends ConsumerStatefulWidget {
   });
 
   final String event;
-  final GamePackRelease release;
+  final GamePack release;
 
   @override
   ConsumerState<GamePackAuditPage> createState() => _GamePackAuditPageState();
@@ -75,7 +75,7 @@ class _GamePackAuditPageState extends ConsumerState<GamePackAuditPage> {
             GamePackObservation(
               id: const Uuid().v4(),
               event: row.event,
-              release: row.release,
+              gamePack: row.gamePack,
               team: row.team,
               match: row.match,
               station: row.station,
@@ -194,7 +194,7 @@ class _GamePackAuditPageState extends ConsumerState<GamePackAuditPage> {
                     ),
                     data: (rows) {
                       final all = rows
-                          .where((row) => row.release.id == widget.release.id)
+                          .where((row) => row.gamePack.id == widget.release.id)
                           .toList();
                       final active = activeGamePackObservations(all)
                           .map((row) => row.id)
@@ -303,7 +303,7 @@ class _ScoutingCoverage extends ConsumerWidget {
   });
 
   final String event;
-  final GamePackRelease release;
+  final GamePack release;
   final ValueChanged<String> onOpen;
 
   @override
@@ -325,7 +325,7 @@ class _ScoutingCoverage extends ConsumerWidget {
               result.requireAvailable().items,
               all.where(
                 (row) =>
-                    row.release.id == release.id &&
+                    row.gamePack.id == release.id &&
                     formKinds.containsKey(row.formId) &&
                     row.match != null,
               ),
@@ -432,7 +432,7 @@ class _ManualGamePackScout extends ConsumerStatefulWidget {
   const _ManualGamePackScout({required this.event, required this.release});
 
   final String event;
-  final GamePackRelease release;
+  final GamePack release;
 
   @override
   ConsumerState<_ManualGamePackScout> createState() =>

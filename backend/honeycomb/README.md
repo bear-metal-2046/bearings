@@ -83,17 +83,17 @@ capabilities in addition to the team's regular permissions.
 
 | Role | GamePack capabilities |
 | --- | --- |
-| Pack author | `gamepack.read`, `gamepack.publish`, `scouting.observation.read`, `external.read` |
+| Pack author | `gamepack.read`, `gamepack.manage`, `scouting.observation.read`, `external.read` |
 | Bearimetric device | `gamepack.read`, `scouting.observation.submit`, `scouting.scout.read`, `external.read` |
 | Pit and notes contributor | `gamepack.read`, `scouting.observation.read`, `scouting.observation.submit`, `external.read` |
 | Results viewer | `gamepack.read`, `scouting.observation.read`, `external.read` |
 | Audit and corrections | `gamepack.read`, `scouting.observation.read`, `scouting.observation.correct`, `external.read` |
 
 1. Open **Settings → GamePacks** in Beariscope and select the event. Use
-   **Open visual builder** for a new season or **Import GamePack** to open
+   **New GamePack** for a new season or **Import GamePack** to open
    `gamepacks/2026-rebuilt.json`. In **Scout forms**, choose a **Scrolling list**
    for sections with ordered controls and side-by-side rows, or **Grid** for
-   a fixed page with controls that snap to whole cells. This checkout publishes
+   a fixed page with controls that snap to whole cells. This checkout supports
    GamePack format 6. In **Test data**, choose an archived match or add
    sample values. In **Calculations**, map a TBA field from the
    breakdown and choose whether it belongs to the match, alliance, or robot.
@@ -108,10 +108,10 @@ capabilities in addition to the team's regular permissions.
    Preview each setup with **Test data** or a live event. When a numeric or
    yes/no team-match field is available, the picker also offers its event
    average or Yes percentage. These summaries work as calculation inputs and
-   retain links to the original records. Save the draft, run
-   **Validate pack**, then publish and **Pin release to event**. A pinned
-   collection release stays with its event. **Use for analysis** can switch
-   calculations to a compatible release while keeping the capture release.
+   retain links to the original records. Save GamePacks to the library, then
+   assign one to an event. Assignments can change until the event has saved
+   observations. After that, the assignment and form schema are locked, while
+   calculations and other GamePack sections remain editable.
 3. In Bearimetric, select the event, scout, and position, then select a match
    and press **Go**. Load the pack and schedule online before going offline.
    Save a submission and check the upload indicator for confirmation or
@@ -124,19 +124,15 @@ capabilities in addition to the team's regular permissions.
 
 ### Verify the clean cutover
 
-The current Honeycomb environment has no legacy scouting submissions. Start
-with its existing Grove database and publish and assign the event’s GamePack.
-The service keeps existing competition records, users, scouts, and picklists.
+Clear the Honeycomb Grove database before deploying this cutover. The new
+schema has no migration path; existing GamePacks, observations, users, scouts,
+roles, picklists, and cached server entities are removed. After deployment,
+recreate users and roles, then save and assign GamePacks from the new library.
 
-1. Check that any test tablets show zero pending uploads before changing builds.
-2. Keep a SQLite backup and the previous builds available for recovery.
-3. Load the new builds and verify the workflows above. Include a tablet restart
-   and reconnect after an offline submission. The checked-in REBUILT pack is
-   tested with archived 2026 TBA responses.
-
-Production rollout requires explicit authorization. For recovery, preserve the
-current database before restoring a backup. Reconcile submissions accepted
-since that backup before reopening scouting.
+Update Beariscope and Bearimetric together. Both apps discard the prior local
+Grove cache and any queued offline submissions on startup. The checked-in
+REBUILT pack can then be loaded from the library and tested with archived 2026
+TBA responses.
 
 ## Auth0 directory sync
 

@@ -14,7 +14,7 @@ export 'src/team_cards.dart';
 export 'src/value.dart';
 export 'src/views.dart';
 
-/// An immutable, validated release of a scouting season.
+/// A validated GamePack definition for a scouting season.
 class GamePackDefinition {
   GamePackDefinition.typed({
     required this.name,
@@ -65,7 +65,12 @@ class GamePackDefinition {
       name: json['name'] as String,
       season: json['season'] as int?,
       fields: fields,
-      forms: _readList(json['forms'], GamePackForm.fromJson),
+      // Builders keep empty form placeholders in the editable document. They
+      // are not part of the compiled definition until the form has controls.
+      forms: _readList(
+        json['forms'],
+        GamePackForm.fromJson,
+      ).where((form) => form.controls.isNotEmpty).toList(),
       results: GamePackResults.fromJson(
         json['results'] as Map<String, dynamic>? ?? const {},
       ),

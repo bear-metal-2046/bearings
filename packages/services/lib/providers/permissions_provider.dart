@@ -38,13 +38,13 @@ const _permissionLabels = <String, (String, String, String)>{
   ),
   gamePackReadPermission: (
     'GamePacks',
-    'View published GamePacks',
-    'Load the published forms and graphs assigned to an event.',
+    'View GamePacks',
+    'Load the library GamePacks and the forms assigned to an event.',
   ),
-  gamePackPublishPermission: (
+  gamePackManagePermission: (
     'GamePacks',
-    'Publish GamePacks',
-    'Publish validated GamePacks and assign them to events.',
+    'Manage GamePacks',
+    'Create, edit, duplicate, delete, and assign GamePacks.',
   ),
   gamePackObservationReadPermission: (
     'GamePacks',

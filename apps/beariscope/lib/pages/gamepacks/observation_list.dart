@@ -21,7 +21,7 @@ class GamePackTeamObservations extends ConsumerWidget {
 
   final String event;
   final String team;
-  final GamePackRelease release;
+  final GamePack release;
   final Set<GamePackFormKind> kinds;
   final bool notesOnly;
 
@@ -46,7 +46,7 @@ class GamePackTeamObservations extends ConsumerWidget {
           data: (active) {
             final cards = <Widget>[];
             for (final row in active) {
-              if (row.team?.id != team || row.release.id != release.id) {
+              if (row.team?.id != team || row.gamePack.id != release.id) {
                 continue;
               }
               final form = forms[row.formId];
@@ -101,7 +101,7 @@ class GamePackObservationCard extends StatelessWidget {
   });
 
   final GamePackObservation observation;
-  final GamePackRelease release;
+  final GamePack release;
   final Set<String>? fields;
   final List<Widget> actions;
 

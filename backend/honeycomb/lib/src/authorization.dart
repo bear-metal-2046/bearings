@@ -43,8 +43,7 @@ class EntityAuthorization {
     final allowed = permissions(actor);
     _requireLiveEntity(query.type);
     final capability = switch (query.type) {
-      'gamepack.release' || 'gamepack.binding' => gamePackReadPermission,
-      'gamepack.draft' => gamePackPublishPermission,
+      'gamepack' || 'gamepack.binding' => gamePackReadPermission,
       _ when store.registry.isServerManaged(query.type) =>
         competitionReadPermission,
       _ => '${query.type}.read',
@@ -86,30 +85,59 @@ class EntityAuthorization {
   void mutate(AuthenticatedActor actor, EntityMutation mutation) {
     final allowed = permissions(actor);
     _requireLiveEntity(mutation.type);
-    final gamePackCapability = switch (mutation.type) {
-      'gamepack.release' ||
-      'gamepack.binding' ||
-      'gamepack.draft' => gamePackPublishPermission,
-      'scouting.observation' =>
-        mutation.data?['supersedes'] is String
-            ? gamePackCorrectPermission
-            : gamePackSubmitPermission,
-      _ => null,
-    };
-    if (gamePackCapability != null) {
-      final draft = mutation.type == gamePackDraftEntity.type;
-      final analysisUpdate =
-          mutation.type == eventGamePackEntity.type &&
-          mutation.kind == MutationKind.update;
-      if ((!draft && !analysisUpdate && mutation.kind != MutationKind.create) ||
-          !allowed.contains(gamePackCapability)) {
+    if (mutation.type == gamePackEntity.type) {
+      if (!allowed.contains(gamePackManagePermission)) {
         throw const GroveException(
           'forbidden',
-          'This record requires create permission and is immutable',
+          'GamePack manage permission required',
         );
       }
-      if (mutation.type == gamePackObservationEntity.type &&
-          !allowed.contains(gamePackReadPermission)) {
+      if (mutation.kind != MutationKind.create) {
+        read(
+          actor,
+          QueryDescription(
+            type: gamePackEntity.type,
+            filters: [
+              QueryFilter('id', FilterOperator.equal, mutation.id),
+            ],
+          ),
+        );
+      }
+      authorizeGamePackUpdate(store, mutation);
+      return;
+    }
+    if (mutation.type == eventGamePackEntity.type) {
+      if (!allowed.contains(gamePackManagePermission)) {
+        throw const GroveException(
+          'forbidden',
+          'GamePack manage permission required',
+        );
+      }
+      if (mutation.kind != MutationKind.create) {
+        read(
+          actor,
+          QueryDescription(
+            type: eventGamePackEntity.type,
+            filters: [
+              QueryFilter('id', FilterOperator.equal, mutation.id),
+            ],
+          ),
+        );
+      }
+      authorizeEventGamePackMutation(store, mutation);
+      return;
+    }
+    if (mutation.type == gamePackObservationEntity.type) {
+      final gamePackCapability = mutation.data?['supersedes'] is String
+          ? gamePackCorrectPermission
+          : gamePackSubmitPermission;
+      if (!allowed.contains(gamePackCapability)) {
+        throw const GroveException(
+          'forbidden',
+          'GamePack observation permission required',
+        );
+      }
+      if (!allowed.contains(gamePackReadPermission)) {
         throw const GroveException(
           'forbidden',
           'GamePack read permission required',
@@ -122,9 +150,7 @@ class EntityAuthorization {
           'Observation read permission required',
         );
       }
-      if (analysisUpdate) {
-        authorizeGamePackAnalysisUpdate(store, mutation);
-      }
+      authorizeGamePackObservationMutation(mutation);
       return;
     }
     if (store.registry.isServerManaged(mutation.type)) {

@@ -414,7 +414,7 @@ class GamePackBuilderFixture {
           },
           'form': form.id,
           'kind': form.kind.name,
-          'release': 'draft',
+          'gamepack': 'fixture',
           'retracted': false,
           'captured_at': index,
           'answers': GamePackValue.record(answers),

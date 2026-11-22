@@ -295,7 +295,7 @@ void main() {
     expect(design.fields.map((field) => field.id), labels.keys);
   });
 
-  testWidgets('authors, publishes and scouts a new season with the same apps', (
+  testWidgets('saves, assigns and scouts a new season with the same apps', (
     tester,
   ) async {
     tester.view.devicePixelRatio = 1;
@@ -340,7 +340,7 @@ void main() {
               const PermissionChecker(
                 permissions: {
                   gamePackReadPermission,
-                  gamePackPublishPermission,
+                  gamePackManagePermission,
                   gamePackObservationReadPermission,
                 },
               ),
@@ -513,12 +513,12 @@ void main() {
       expect(left.dy, closeTo(right.dy, 1));
       await tooltip('Back to editing');
       await _selectSidebar(tester, GamePackDockTab.review);
-      await tap('Save draft');
-      expect(find.textContaining('Draft saved').hitTestable(), findsOneWidget);
-      await tester.pageBack();
-      await tester.pumpAndSettle();
-      await tap('Saved drafts (1)');
-      await tap('Skyway');
+      await tap('Save GamePack');
+      expect(
+        find.textContaining('Saved Skyway to the GamePacks library'),
+        findsOneWidget,
+      );
+      await tap('Edit');
 
       await tap('Edit test data');
       await tap('Add report');
@@ -633,23 +633,24 @@ void main() {
       expect(find.byType(SfCartesianChart), findsOneWidget);
 
       await _selectSidebar(tester, GamePackDockTab.review);
-      expect(find.text('Ready to publish').hitTestable(), findsOneWidget);
-      await tap('Publish release');
-      final release = (await grove.query<GamePackRelease>().many()).single;
-      final draft = (await grove.query<GamePackDraft>().many()).single;
+      expect(find.text('Ready to assign').hitTestable(), findsOneWidget);
+      await tap('Save GamePack');
+      final gamePack = (await grove.query<GamePack>().many()).single;
+      final definition = GamePackDesign.fromJson(gamePack.document).compile();
       expect(
-        GamePackDesign.fromJson(draft.document).forms.map((form) => form.kind),
+        GamePackDesign.fromJson(gamePack.document).forms
+            .map((form) => form.kind),
         GamePackFormKind.values,
       );
-      expect(release.definition.forms.single.kind, GamePackFormKind.match);
+      expect(definition.forms.single.kind, GamePackFormKind.match);
       expect(
-        (draft.document['builderFixture'] as Json)['reports'],
+        (gamePack.document['builderFixture'] as Json)['reports'],
         hasLength(1),
       );
-      expect(release.definition.season, 2027);
-      expect(release.definition.fieldById['robots_docked']?.defaultValue, 0);
-      expect(release.document.containsKey('graphs'), isFalse);
-      final calculation = release.definition.analysis.calculationById(
+      expect(definition.season, 2027);
+      expect(definition.fieldById['robots_docked']?.defaultValue, 0);
+      expect(gamePack.document.containsKey('graphs'), isFalse);
+      final calculation = definition.analysis.calculationById(
         'adjusted_level_points',
       )!;
       expect(calculation.nodes, hasLength(5));
@@ -660,7 +661,7 @@ void main() {
         (calculation.nodesById['add'] as GamePackStepNode).inputs.values,
         contains('constant'),
       );
-      final form = release.definition.formFor(GamePackFormKind.match)!;
+      final form = definition.formFor(GamePackFormKind.match)!;
       final grid = form.pages.first;
       final placed = grid.gridControls.single.placement!;
       expect(grid.rows, 5);
@@ -673,12 +674,9 @@ void main() {
         'stability',
         'alignment',
       ]);
-      expect(release.definition.results.sorts.single.label, 'Level points');
-      expect(
-        release.definition.results.filters.single.label,
-        'At least 20 points',
-      );
-      final sheets = release.definition.results.sheets;
+      expect(definition.results.sorts.single.label, 'Level points');
+      expect(definition.results.filters.single.label, 'At least 20 points');
+      final sheets = definition.results.sheets;
       expect(sheets.map((sheet) => sheet.rows), [
         GamePackSheetRows.teams,
         GamePackSheetRows.matches,
@@ -687,16 +685,14 @@ void main() {
         sheets.last.columns.last.output,
         gamePackRollupRef('match.robots_docked', GamePackRollup.average),
       );
-      expect(release.definition.teamCards.map((layout) => layout.kind), [
+      expect(definition.teamCards.map((layout) => layout.kind), [
         GamePackTeamCardKind.compact,
         GamePackTeamCardKind.details,
       ]);
-      await tap('Pin release to event');
-      await tap('Pin release');
-      expect(
-        (await grove.query<EventGamePack>().byId('2027demo').one()).release.id,
-        release.id,
-      );
+      await tap('Assign to event');
+      await tap('Assign GamePack');
+      final card = (await grove.query<EventGamePack>().byId('2027demo').one());
+      expect(card.gamePack!.id, gamePack.id);
 
       final official = TbaMatchRevision(
         id: '2027demo_qm1-1',
@@ -738,15 +734,15 @@ void main() {
       await grove.synchronize();
       final observations = await grove.query<GamePackObservation>().many();
       final captured = observations.single;
-      expect(captured.release.id, release.id);
+      expect(captured.gamePack.id, gamePack.id);
       expect(captured.answers, {'robots_docked': 4});
       navigator.pop();
       await tester.pumpAndSettle();
 
       final analysis = GamePackEventAnalysis(
         event: '2027demo',
-        capture: release,
-        analysis: release,
+        capture: gamePack,
+        analysis: gamePack,
         observations: observations,
         revisions: [official],
       );
@@ -813,7 +809,7 @@ void main() {
       await tester.pumpAndSettle();
       navigator.pop();
       await tester.pumpAndSettle();
-      await tap('Edit as new version');
+      await tap('Edit other sections');
       expect(find.text('Match scouting'), findsWidgets);
       await _selectSidebar(
         tester,
@@ -830,7 +826,7 @@ void main() {
       expect(find.text('Preview data'), findsNothing);
       await tap('Edit test data');
       expect(
-        find.text('1 match · 1 with official scores · 0 with scouting reports'),
+        find.text('1 match · 1 with official scores · 1 with scouting reports'),
         findsOneWidget,
       );
       await tap('Add report');
@@ -861,7 +857,7 @@ void main() {
   });
 
   testWidgets(
-    'publishes small calculation canvases with cards and a worked TBA example',
+    'saves calculation canvases with cards and a worked TBA example',
     (tester) async {
       tester.view.devicePixelRatio = 1;
       tester.view.physicalSize = const Size(1280, 1260);
@@ -911,7 +907,7 @@ void main() {
                 const PermissionChecker(
                   permissions: {
                     gamePackReadPermission,
-                    gamePackPublishPermission,
+                    gamePackManagePermission,
                     gamePackObservationReadPermission,
                   },
                 ),
@@ -1093,9 +1089,9 @@ void main() {
         expect(find.byType(SfCartesianChart), findsOneWidget);
 
         await _selectSidebar(tester, GamePackDockTab.review);
-        await tap('Publish release');
-        final drafts = await grove.query<GamePackDraft>().many();
-        final fixture = drafts.single.document['builderFixture'] as Json;
+        await tap('Save GamePack');
+        final saved = (await grove.query<GamePack>().many()).single;
+        final fixture = saved.document['builderFixture'] as Json;
         expect(
           fixture.keys,
           unorderedEquals(['event', 'match', 'team', 'seed', 'reports']),
@@ -1108,10 +1104,9 @@ void main() {
           ),
           ['2027sample_qm1', '2027sample_qm2'],
         );
-        final releases = await grove.query<GamePackRelease>().many();
-        final pack = releases.single.definition;
-        expect(releases.single.document.containsKey('graphs'), isFalse);
-        expect(releases.single.document.containsKey('builderFixture'), isFalse);
+        final pack = GamePackDesign.fromJson(saved.document).compile();
+        expect(saved.document.containsKey('graphs'), isFalse);
+        expect(saved.document.containsKey('builderFixture'), isTrue);
         expect(pack.analysis.tbaFields.single.paths, [
           'score_breakdown.{alliance}.official_units',
         ]);
@@ -1255,19 +1250,8 @@ void main() {
       await tap(find.byTooltip('Next scouting page'));
       expect(find.text('Endgame'), findsOneWidget);
       await tap(find.byTooltip('Back to editing'));
-      expect(find.text('Save draft'), findsNothing);
+      expect(find.text('Save GamePack'), findsNothing);
       await tap(find.text('Review'));
-      await tap(find.text('Save draft'));
-
-      final saved = (await grove.query<GamePackDraft>().many()).single;
-      final edited = GamePackDesign.fromJson(saved.document);
-      expect(
-        edited.fields
-            .firstWhere((field) => field.id == 'tele_fuel_scored')
-            .label,
-        'Fuel scored',
-      );
-      expect(edited.compile().forms, hasLength(4));
       final choices = find.byKey(const ValueKey('gamepack-dock-choices'));
       Future<void> openOutput(String label) async {
         await tap(find.text('Outputs'));
@@ -1343,7 +1327,7 @@ void main() {
     }
   });
 
-  testWidgets('the phone dock switches among the four draft forms', (
+  testWidgets('the phone dock switches among the four GamePack forms', (
     tester,
   ) async {
     tester.view.devicePixelRatio = 1;
@@ -1381,7 +1365,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('Save draft'), findsNothing);
+      expect(find.text('Save GamePack'), findsNothing);
       final editor = find.byType(GamePackFormsEditor);
       final editorState = tester.state(editor);
       final editorBounds = tester.getRect(editor);
@@ -1533,23 +1517,11 @@ void main() {
       await tester.enterText(season, '2028');
       await tap(find.text('Done'));
       expect(season, findsNothing);
-      await tap(find.text('Save draft'));
-
-      final saved = (await grove.query<GamePackDraft>().many()).single;
-      final forms = (saved.document['forms'] as List).map(
-        (form) => GamePackForm.fromJson(form as Json),
-      );
-      expect(saved.document['season'], 2028);
-      expect(forms.map((form) => form.kind), GamePackFormKind.values);
-      expect(
-        forms.every((form) => form.pages.length == 1 && form.controls.isEmpty),
-        isTrue,
-      );
       expect(
         find.text('Add at least one question to a scouting form.'),
         findsOneWidget,
       );
-      expect(find.text('Publish release'), findsNothing);
+      expect(find.text('Save GamePack'), findsOneWidget);
 
       await tap(find.text('Forms'));
       await tester.drag(choices, const Offset(-215, 0));
@@ -1565,8 +1537,9 @@ void main() {
       expect(find.byTooltip('Remove question'), findsOneWidget);
       expect(find.byTooltip('Options for Drive train checks'), findsNothing);
       await tap(find.text('Review'));
-      await tap(find.text('Save draft'));
-      final changed = (await grove.query<GamePackDraft>().many()).single;
+      await tap(find.text('Save GamePack'));
+      final changed = (await grove.query<GamePack>().many()).single;
+      expect(changed.document['season'], 2028);
       expect(
         GamePackDesign.fromJson(changed.document).questions.single.field.label,
         'Drive train checks',
