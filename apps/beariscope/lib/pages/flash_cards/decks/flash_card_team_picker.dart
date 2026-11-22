@@ -159,7 +159,9 @@ class _FlashCardTeamPickerState extends ConsumerState<FlashCardTeamPicker> {
       primaryAction: BearingsModalPrimaryAction(
         label: 'Use $included ${included == 1 ? 'team' : 'teams'}',
         icon: LucideIcons.check,
-        onPressed: ready ? () => Navigator.pop(context, _excluded) : null,
+        onPressed: ready
+            ? () => BearingsModal.complete(context, _excluded)
+            : null,
       ),
       content: LayoutBuilder(
         builder: (context, constraints) => Column(

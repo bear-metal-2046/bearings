@@ -379,7 +379,7 @@ class _CustomColorModalState extends State<_CustomColorModal> {
     primaryAction: BearingsModalPrimaryAction(
       label: 'Select',
       icon: LucideIcons.check,
-      onPressed: () => Navigator.pop(context, _color),
+      onPressed: () => BearingsModal.complete(context, _color),
     ),
     content: ColorPicker(
       color: _color,

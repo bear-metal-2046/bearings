@@ -194,7 +194,7 @@ class _NameDialogState extends State<_NameDialog> {
   void _accept() {
     try {
       validateGamePackLabel(_value);
-      Navigator.pop(
+      BearingsModal.complete(
         context,
         gamePackIdForName(_value, widget.used, widget.fallback),
       );

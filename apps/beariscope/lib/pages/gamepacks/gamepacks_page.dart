@@ -108,19 +108,21 @@ class _GamePacksPageState extends ConsumerState<GamePacksPage> {
     GamePackDesign? imported,
   }) async {
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    final saved = await Navigator.of(context).push<GamePack>(
-      MaterialPageRoute(
+    GamePack? saved;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
         builder: (_) => GamePackWorkspacePage(
           event: _event,
           gamePack: gamePack,
           imported: imported,
           formsLocked: formsLocked,
           duplicate: duplicate,
+          onSaved: (gamePack) => saved = gamePack,
         ),
       ),
     );
     if (mounted && saved != null) {
-      _notice('Saved ${saved.name} to the GamePacks library');
+      _notice('Saved ${saved!.name} to the GamePacks library');
     }
   }
 

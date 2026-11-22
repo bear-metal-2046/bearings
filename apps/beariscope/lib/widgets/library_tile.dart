@@ -39,15 +39,18 @@ class LibraryGrid extends StatelessWidget {
       final extraHeight =
           (scaler.scale(16) - 16).clamp(0.0, double.infinity) * 3 +
           (scaler.scale(12) - 12).clamp(0.0, double.infinity) * 3;
+      const sectionSpacing = 16.0;
+      final headerPadding = contentPadding.copyWith(bottom: 0);
       final gridPadding = contentPadding.copyWith(
-        top: header == null ? contentPadding.top : 0,
+        top: header == null ? contentPadding.top : sectionSpacing,
+        bottom: footer == null ? contentPadding.bottom : sectionSpacing,
       );
       return CustomScrollView(
         physics: physics,
         slivers: [
           if (header case final header?)
             SliverPadding(
-              padding: contentPadding,
+              padding: headerPadding,
               sliver: SliverToBoxAdapter(child: header),
             ),
           SliverPadding(
@@ -67,7 +70,7 @@ class LibraryGrid extends StatelessWidget {
           ),
           if (footer case final footer?)
             SliverPadding(
-              padding: contentPadding.copyWith(top: 0),
+              padding: contentPadding.copyWith(top: sectionSpacing),
               sliver: SliverToBoxAdapter(child: footer),
             ),
         ],

@@ -112,7 +112,7 @@ class _FlashCardEventPickerState extends ConsumerState<FlashCardEventPicker> {
         label:
             'Use ${_selected.length} ${_selected.length == 1 ? 'event' : 'events'}',
         icon: LucideIcons.check,
-        onPressed: () => Navigator.pop(context, _selected),
+        onPressed: () => BearingsModal.complete(context, _selected),
       ),
       content: LayoutBuilder(
         builder: (context, constraints) => Column(

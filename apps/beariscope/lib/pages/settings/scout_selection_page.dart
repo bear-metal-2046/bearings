@@ -465,7 +465,7 @@ class _CsvImportDialogState extends State<_CsvImportDialog> {
           final csvText = _mode == _CsvImportMode.file
               ? _fileContents ?? ''
               : _pasteController.text;
-          Navigator.of(context).pop(_CsvImportResult(csvText));
+          BearingsModal.complete(context, _CsvImportResult(csvText));
         },
       ),
       content: Column(

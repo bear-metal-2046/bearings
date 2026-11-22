@@ -28,12 +28,14 @@ class GamePackWorkspacePage extends ConsumerStatefulWidget {
     this.imported,
     this.formsLocked = false,
     this.duplicate = false,
+    required this.onSaved,
   });
   final String event;
   final GamePack? gamePack;
   final GamePackDesign? imported;
   final bool formsLocked;
   final bool duplicate;
+  final ValueChanged<GamePack> onSaved;
   @override
   ConsumerState<GamePackWorkspacePage> createState() =>
       _GamePackWorkspacePageState();
@@ -43,7 +45,6 @@ typedef _ReviewIssue = ({GamePackBuilderSection? section, String message});
 
 class _GamePackWorkspacePageState extends ConsumerState<GamePackWorkspacePage> {
   GamePackBuilderSection _section = GamePackBuilderSection.forms;
-  GamePackBuilderSection _outputSelection = GamePackBuilderSection.card;
   final _visited = {GamePackBuilderSection.forms};
   final _formSelection = ValueNotifier<String?>(null);
   GamePackDockTab? _dockTray;
@@ -82,9 +83,6 @@ class _GamePackWorkspacePageState extends ConsumerState<GamePackWorkspacePage> {
     setState(() {
       _visited.add(section);
       _section = section;
-      if (GamePackBuilderSection.outputs.contains(section)) {
-        _outputSelection = section;
-      }
       _sidebarGroup = _selectedTab.hasChoices ? _selectedTab : null;
       _dockTray = null;
     });
@@ -189,7 +187,10 @@ class _GamePackWorkspacePageState extends ConsumerState<GamePackWorkspacePage> {
     try {
       _validatePackDetails();
       final gamePack = await _persist();
-      if (mounted) Navigator.of(context).pop(gamePack);
+      if (mounted) {
+        widget.onSaved(gamePack);
+        Navigator.of(context).pop<void>();
+      }
     } catch (error) {
       _report(_describe(error), error: true);
     } finally {
@@ -578,9 +579,10 @@ class _GamePackWorkspacePageState extends ConsumerState<GamePackWorkspacePage> {
       };
 
   String? _selectedChoice(GamePackDockTab? group, String? form) {
-    if (group == GamePackDockTab.forms) return form ?? _design.forms.first.id;
-    if (group == GamePackDockTab.outputs) {
-      return _outputSelection.name;
+    if (group != _selectedTab) return null;
+    if (group == GamePackDockTab.forms) return form;
+    if (group == GamePackDockTab.outputs && _isOutputDetail) {
+      return _section.name;
     }
     return null;
   }

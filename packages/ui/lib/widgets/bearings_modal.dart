@@ -162,18 +162,17 @@ class BearingsModal extends StatefulWidget {
         policy.refresh = route.refreshPolicy;
         return navigator.push<T>(route);
       case _ModalPresentation.ios:
-        // Keep route-transition compatibility independent of the modal's
-        // result type. Flutter checks the incoming route as ModalRoute<T>
-        // before accepting its delegated transition.
-        final route = _CupertinoModalRoute<dynamic>(
+        // GoRouter's page routes use `void` results. Flutter only accepts a
+        // delegated transition when the incoming route has the same result
+        // type, so keep the sheet route void and pass its typed result through
+        // the modal policy instead.
+        final route = _CupertinoModalRoute<void>(
           policy: policy,
           backgroundColor: Theme.of(context).colorScheme.surface,
           child: themes.wrap(Builder(builder: body)),
         );
         policy.refresh = route.refreshPolicy;
-        return navigator
-            .push<dynamic>(route)
-            .then<T?>((result) => result as T?);
+        return navigator.push<void>(route).then<T?>((_) => policy.result as T?);
       case _ModalPresentation.android:
         final route = _MaterialModalRoute<T>(
           policy: policy,
@@ -191,6 +190,14 @@ class BearingsModal extends StatefulWidget {
   /// false or [onDismissRequested] is configured.
   static void complete<T>(BuildContext context, [T? result]) {
     final route = ModalRoute.of(context);
+    final scope = _ModalScope.maybeOf(context);
+    if (scope?.presentation == _ModalPresentation.ios &&
+        route is _CupertinoModalRoute<void>) {
+      scope!.policy.result = result;
+      (route as _GuardedRoute).allowNextPop();
+      Navigator.of(context).pop<void>();
+      return;
+    }
     if (route is _GuardedRoute) (route as _GuardedRoute).allowNextPop();
     Navigator.of(context).pop<T>(result);
   }
@@ -206,6 +213,7 @@ class BearingsModal extends StatefulWidget {
 class _ModalPolicy {
   BearingsModalDismissal dismissal = BearingsModalDismissal.standard;
   bool canDismiss = true;
+  Object? result;
   Future<bool> Function()? onDismissRequested;
   void Function({required bool rebuildPage})? refresh;
 
