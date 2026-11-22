@@ -34,6 +34,9 @@ enum BearingsModalDismissal {
   /// Outside taps and dragging may dismiss the modal.
   standard,
 
+  /// Outside taps may dismiss, but the sheet does not recognize drags.
+  noDrag,
+
   /// Outside taps cannot dismiss; dragging moves the sheet and snaps it back.
   explicit,
 
@@ -159,13 +162,18 @@ class BearingsModal extends StatefulWidget {
         policy.refresh = route.refreshPolicy;
         return navigator.push<T>(route);
       case _ModalPresentation.ios:
-        final route = _CupertinoModalRoute<T>(
+        // Keep route-transition compatibility independent of the modal's
+        // result type. Flutter checks the incoming route as ModalRoute<T>
+        // before accepting its delegated transition.
+        final route = _CupertinoModalRoute<dynamic>(
           policy: policy,
           backgroundColor: Theme.of(context).colorScheme.surface,
           child: themes.wrap(Builder(builder: body)),
         );
         policy.refresh = route.refreshPolicy;
-        return navigator.push<T>(route);
+        return navigator
+            .push<dynamic>(route)
+            .then<T?>((result) => result as T?);
       case _ModalPresentation.android:
         final route = _MaterialModalRoute<T>(
           policy: policy,
@@ -202,7 +210,13 @@ class _ModalPolicy {
   void Function({required bool rebuildPage})? refresh;
 
   bool get barrierDismissible =>
-      dismissal == BearingsModalDismissal.standard && canDismiss;
+      (dismissal == BearingsModalDismissal.standard ||
+          dismissal == BearingsModalDismissal.noDrag) &&
+      canDismiss;
+
+  bool get sheetDragDisabled =>
+      dismissal == BearingsModalDismissal.fixed ||
+      dismissal == BearingsModalDismissal.noDrag;
 
   // A temporary dismissal lock must not remove the grabber and move the header.
   bool get showGrabber =>
@@ -318,7 +332,7 @@ mixin _SheetDragControl<T>
     Animation<double> animation,
     Animation<double> secondaryAnimation,
   ) {
-    if (policy.dismissal != BearingsModalDismissal.fixed) {
+    if (!policy.sheetDragDisabled) {
       return super.buildPage(context, animation, secondaryAnimation);
     }
     return MediaQuery.removeViewInsets(
@@ -511,6 +525,7 @@ class _BearingsModalState extends State<BearingsModal> {
     final oldBarrier = policy.barrierDismissible;
     final oldDragDismissible = policy.dragDismissible;
     final oldDismissal = policy.dismissal;
+    final oldSheetDragDisabled = policy.sheetDragDisabled;
     policy.dismissal = widget.dismissal;
     policy.canDismiss = widget.canDismiss;
     policy.onDismissRequested = widget.onDismissRequested;
@@ -520,9 +535,7 @@ class _BearingsModalState extends State<BearingsModal> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           policy.refresh?.call(
-            rebuildPage:
-                (oldDismissal == BearingsModalDismissal.fixed) !=
-                (policy.dismissal == BearingsModalDismissal.fixed),
+            rebuildPage: oldSheetDragDisabled != policy.sheetDragDisabled,
           );
         }
       });

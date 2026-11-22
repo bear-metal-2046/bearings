@@ -8,22 +8,26 @@ class LibraryGrid extends StatelessWidget {
     required this.itemBuilder,
     required this.padding,
     this.physics,
+    this.header,
+    this.footer,
   });
 
   final int itemCount;
   final IndexedWidgetBuilder itemBuilder;
   final ScrollPhysics? physics;
   final EdgeInsets padding;
+  final Widget? header;
+  final Widget? footer;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, bounds) {
       final gutter = (bounds.maxWidth - 1080) / 2;
-      final gridPadding = padding.copyWith(
+      final contentPadding = padding.copyWith(
         left: gutter > padding.left ? gutter : padding.left,
         right: gutter > padding.right ? gutter : padding.right,
       );
-      final width = bounds.maxWidth - gridPadding.horizontal;
+      final width = bounds.maxWidth - contentPadding.horizontal;
       final scaler = MediaQuery.textScalerOf(context);
       final largeText = scaler.scale(14) > 20;
       final columns = ((width + 16) / (largeText ? 296 : 172)).floor().clamp(
@@ -35,17 +39,38 @@ class LibraryGrid extends StatelessWidget {
       final extraHeight =
           (scaler.scale(16) - 16).clamp(0.0, double.infinity) * 3 +
           (scaler.scale(12) - 12).clamp(0.0, double.infinity) * 3;
-      return GridView.builder(
+      final gridPadding = contentPadding.copyWith(
+        top: header == null ? contentPadding.top : 0,
+      );
+      return CustomScrollView(
         physics: physics,
-        padding: gridPadding,
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: columns,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-          mainAxisExtent: 228 + extraHeight,
-        ),
-        itemCount: itemCount,
-        itemBuilder: itemBuilder,
+        slivers: [
+          if (header case final header?)
+            SliverPadding(
+              padding: contentPadding,
+              sliver: SliverToBoxAdapter(child: header),
+            ),
+          SliverPadding(
+            padding: gridPadding,
+            sliver: SliverGrid(
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: columns,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+                mainAxisExtent: 228 + extraHeight,
+              ),
+              delegate: SliverChildBuilderDelegate(
+                itemBuilder,
+                childCount: itemCount,
+              ),
+            ),
+          ),
+          if (footer case final footer?)
+            SliverPadding(
+              padding: contentPadding.copyWith(top: 0),
+              sliver: SliverToBoxAdapter(child: footer),
+            ),
+        ],
       );
     },
   );

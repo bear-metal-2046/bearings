@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:beariscope/providers/current_event_provider.dart';
+import 'package:beariscope/widgets/library_tile.dart';
 import 'package:core/core.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -29,9 +30,15 @@ class GamePacksPage extends ConsumerStatefulWidget {
 
 class _GamePacksPageState extends ConsumerState<GamePacksPage> {
   late String _event = ref.read(currentEventProvider);
+  final _searchController = TextEditingController();
   String? _eventName;
-  String _filter = '';
   bool _busy = false;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   static const _supportedDocumentFields = {
     'formatVersion',
@@ -276,94 +283,156 @@ class _GamePacksPageState extends ConsumerState<GamePacksPage> {
     final hasDataState = ref.watch(eventGamePackHasDataProvider(_event));
     final gamePacks = [...?library?.value?.items]
       ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
-    final query = _filter.trim().toLowerCase();
-    final visibleGamePacks = gamePacks
-        .where(
-          (gamePack) =>
-              query.isEmpty ||
-              gamePack.name.toLowerCase().contains(query) ||
-              gamePack.id.toLowerCase().contains(query),
-        )
-        .toList();
     final assigned = assignedState.value;
     final binding = bindingState.value;
     final hasData = hasDataState.value ?? true;
     final eventName =
         _eventName ?? ref.watch(competitionEventProvider(_event)).value?.name;
-    return Scaffold(
-      appBar: AppBar(title: const Text('GamePacks library')),
-      body: Align(
-        alignment: Alignment.topCenter,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 820),
-          child: ListView(
-            padding: const EdgeInsets.all(20),
-            children: [
-              Card.outlined(
-                child: ListTile(
-                  leading: const Icon(LucideIcons.calendarCheck),
-                  title: Text(eventName ?? _event),
-                  trailing: Tooltip(
-                    message: 'Choose the event to assign a GamePack to',
-                    child: OutlinedButton(
-                      onPressed: _busy ? null : _selectEvent,
-                      child: const Text('Change event'),
-                    ),
+    return BearingsScaffold(
+      title: const Text('GamePacks'),
+      actions: [
+        if (canManage)
+          IconButton(
+            tooltip: 'Import GamePack',
+            onPressed: _busy ? null : _importPack,
+            icon: const Icon(LucideIcons.fileUp),
+          ),
+      ],
+      content: BearingsPage(
+        search: BearingsSearch(
+          controller: _searchController,
+          hintText: 'Search GamePacks',
+        ),
+        primaryAction: canManage
+            ? BearingsAction(
+                icon: const Icon(LucideIcons.plus),
+                label: 'New GamePack',
+                onPressed: _busy ? null : () => _openBuilder(),
+              )
+            : null,
+        bodyBuilder: (context, layout) => SafeArea(
+          top: false,
+          bottom: false,
+          child: ValueListenableBuilder<TextEditingValue>(
+            valueListenable: _searchController,
+            builder: (context, searchValue, _) {
+              final query = searchValue.text.trim().toLowerCase();
+              final visibleGamePacks = gamePacks
+                  .where(
+                    (gamePack) =>
+                        query.isEmpty ||
+                        gamePack.name.toLowerCase().contains(query) ||
+                        gamePack.id.toLowerCase().contains(query),
+                  )
+                  .toList();
+              Widget? libraryErrorState;
+              if (canManage) {
+                if (library?.error case final error?) {
+                  libraryErrorState = BearingsStatusView(
+                    icon: LucideIcons.cloudAlert,
+                    title: 'GamePack library unavailable',
+                    subtitle: error.toString(),
+                  );
+                }
+              }
+              Widget? emptyState;
+              if (canManage && visibleGamePacks.isEmpty) {
+                if (libraryErrorState != null) {
+                  emptyState = libraryErrorState;
+                } else if (library?.isLoading ?? false) {
+                  emptyState = const SizedBox(
+                    height: 180,
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                } else if (gamePacks.isEmpty) {
+                  emptyState = BearingsStatusView(
+                    icon: LucideIcons.blocks,
+                    title: 'No GamePacks yet',
+                    subtitle:
+                        'Create a GamePack for ${eventName ?? _event} to get started.',
+                  );
+                } else {
+                  emptyState = const BearingsStatusView(
+                    icon: LucideIcons.search,
+                    title: 'No matching GamePacks',
+                    subtitle: 'Try a different search.',
+                  );
+                }
+              }
+
+              final footerChildren = <Widget>[
+                if (assigned != null && canManage) ...[
+                  Text(
+                    hasData
+                        ? 'This event has saved observations. Its GamePack assignment and forms are locked; other GamePack sections remain editable.'
+                        : 'This event has no observations yet. You can change or remove its assignment.',
+                    style: Theme.of(context).textTheme.bodySmall,
                   ),
-                  subtitle: Text(
-                    assignedState.when(
-                      data: (pack) => pack == null
-                          ? 'No GamePack assigned'
-                          : '${pack.name} · GamePack ${_shortId(pack.id)}',
-                      loading: () => 'Checking assignment…',
-                      error: (error, _) => 'Assignment unavailable: $error',
+                  if (!hasData)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        onPressed: _busy || binding == null
+                            ? null
+                            : () => _unassign(binding),
+                        icon: const Icon(LucideIcons.unlink),
+                        label: const Text('Unassign from event'),
+                      ),
                     ),
-                  ),
-                ),
-              ),
-              if (canManage) ...[
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
+                ],
+                if (assigned != null && canReadResults)
+                  _PackAnalysisPreview(event: _event),
+              ];
+
+              return LibraryGrid(
+                padding: layout.scrollPadding,
+                physics: const AlwaysScrollableScrollPhysics(),
+                header: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    FilledButton.icon(
-                      onPressed: _busy ? null : () => _openBuilder(),
-                      icon: const Icon(LucideIcons.blocks),
-                      label: const Text('New GamePack'),
+                    Card.outlined(
+                      child: ListTile(
+                        leading: const Icon(LucideIcons.calendarCheck),
+                        title: Text(eventName ?? _event),
+                        trailing: Tooltip(
+                          message: 'Choose the event to assign a GamePack to',
+                          child: OutlinedButton(
+                            onPressed: _busy ? null : _selectEvent,
+                            child: const Text('Change event'),
+                          ),
+                        ),
+                        subtitle: Text(
+                          assignedState.when(
+                            data: (pack) => pack == null
+                                ? 'No GamePack assigned'
+                                : '${pack.name} · GamePack ${_shortId(pack.id)}',
+                            loading: () => 'Checking assignment…',
+                            error: (error, _) =>
+                                'Assignment unavailable: $error',
+                          ),
+                        ),
+                      ),
                     ),
-                    OutlinedButton.icon(
-                      onPressed: _busy ? null : _importPack,
-                      icon: const Icon(LucideIcons.fileUp),
-                      label: const Text('Import GamePack'),
-                    ),
+                    if (emptyState != null) ...[
+                      const SizedBox(height: 24),
+                      emptyState,
+                    ] else if (libraryErrorState != null) ...[
+                      const SizedBox(height: 16),
+                      libraryErrorState,
+                    ],
                   ],
                 ),
-                const SizedBox(height: 20),
-                Text('Library', style: Theme.of(context).textTheme.titleLarge),
-                const SizedBox(height: 8),
-                TextField(
-                  decoration: const InputDecoration(
-                    labelText: 'Search GamePacks',
-                    prefixIcon: Icon(LucideIcons.search),
-                  ),
-                  onChanged: (value) => setState(() => _filter = value),
-                ),
-                if (library?.error case final error?)
-                  Text('Could not load the GamePack library: $error'),
-                if (gamePacks.isEmpty && library?.isLoading != true)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 20),
-                    child: Text('No GamePacks saved yet.'),
-                  ),
-                if (gamePacks.isNotEmpty && visibleGamePacks.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 20),
-                    child: Text('No GamePacks match this search.'),
-                  ),
-                for (final gamePack in visibleGamePacks) ...[
-                  const SizedBox(height: 10),
-                  _LibraryGamePackCard(
+                footer: footerChildren.isEmpty
+                    ? null
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        spacing: 16,
+                        children: footerChildren,
+                      ),
+                itemCount: visibleGamePacks.length,
+                itemBuilder: (context, index) {
+                  final gamePack = visibleGamePacks[index];
+                  return _GamePackLibraryTile(
                     gamePack: gamePack,
                     error: _errorFor(gamePack),
                     assignedEvent: bindings?.value?.items
@@ -389,34 +458,10 @@ class _GamePacksPageState extends ConsumerState<GamePacksPage> {
                         _openBuilder(gamePack: gamePack, duplicate: true),
                     onDelete: () => _delete(gamePack),
                     onAssign: () => _assign(gamePack, binding),
-                  ),
-                ],
-                if (assigned != null) ...[
-                  const SizedBox(height: 20),
-                  Text(
-                    hasData
-                        ? 'This event has saved observations. Its GamePack assignment and forms are locked; other GamePack sections remain editable.'
-                        : 'This event has no observations yet. You can change or remove its assignment.',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                  if (!hasData)
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: TextButton.icon(
-                        onPressed: _busy || binding == null
-                            ? null
-                            : () => _unassign(binding),
-                        icon: const Icon(LucideIcons.unlink),
-                        label: const Text('Unassign from event'),
-                      ),
-                    ),
-                ],
-              ],
-              if (assigned != null && canReadResults) ...[
-                const SizedBox(height: 24),
-                _PackAnalysisPreview(event: _event),
-              ],
-            ],
+                  );
+                },
+              );
+            },
           ),
         ),
       ),
@@ -424,8 +469,10 @@ class _GamePacksPageState extends ConsumerState<GamePacksPage> {
   }
 }
 
-class _LibraryGamePackCard extends StatelessWidget {
-  const _LibraryGamePackCard({
+enum _GamePackLibraryAction { edit, duplicate, delete, assign }
+
+class _GamePackLibraryTile extends StatelessWidget {
+  const _GamePackLibraryTile({
     required this.gamePack,
     required this.error,
     required this.assignedEvent,
@@ -455,94 +502,132 @@ class _LibraryGamePackCard extends StatelessWidget {
   final VoidCallback onDelete;
   final VoidCallback onAssign;
 
+  String get _assignmentLabel => assignedHere
+      ? 'Assigned here'
+      : replacesAssignment
+      ? 'Replace assignment'
+      : assignedEvent == null
+      ? 'Assign to event'
+      : 'Also assign here';
+
+  Future<void> _showOptions(BuildContext context) async {
+    final malformed = error != null;
+    final action = await BearingsModal.show<_GamePackLibraryAction>(
+      context,
+      builder: (modalContext) => BearingsModal(
+        title: 'GamePack options',
+        actions: [
+          if (!malformed)
+            BearingsModalAction(
+              icon: LucideIcons.pencil,
+              label: formsLocked ? 'Edit other sections' : 'Edit',
+              onPressed: () => BearingsModal.complete(
+                modalContext,
+                _GamePackLibraryAction.edit,
+              ),
+            ),
+          if (!malformed)
+            BearingsModalAction(
+              icon: LucideIcons.copy,
+              label: 'Duplicate GamePack',
+              onPressed: () => BearingsModal.complete(
+                modalContext,
+                _GamePackLibraryAction.duplicate,
+              ),
+            ),
+          BearingsModalAction(
+            icon: LucideIcons.trash2,
+            label: 'Delete GamePack',
+            onPressed: () => BearingsModal.complete(
+              modalContext,
+              _GamePackLibraryAction.delete,
+            ),
+          ),
+        ],
+        primaryAction: malformed
+            ? null
+            : BearingsModalPrimaryAction(
+                label: _assignmentLabel,
+                icon: assignedHere ? LucideIcons.check : LucideIcons.link,
+                enabled: !busy && canAssign && readyToAssign && !assignedHere,
+                onPressed: () => BearingsModal.complete(
+                  modalContext,
+                  _GamePackLibraryAction.assign,
+                ),
+              ),
+        content: Text(
+          malformed
+              ? 'This GamePack cannot be opened: $error'
+              : [
+                  'ID ${gamePack.id}',
+                  if (assignedEvent != null)
+                    assignedHere
+                        ? 'Assigned to this event'
+                        : 'Assigned to $assignedEvent',
+                  if (formsLocked) 'Forms locked by saved observations',
+                ].join(' · '),
+        ),
+      ),
+    );
+    if (!context.mounted || action == null) return;
+    switch (action) {
+      case _GamePackLibraryAction.edit:
+        onEdit(formsLocked);
+      case _GamePackLibraryAction.duplicate:
+        onDuplicate();
+      case _GamePackLibraryAction.delete:
+        onDelete();
+      case _GamePackLibraryAction.assign:
+        onAssign();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final malformed = error != null;
-    return Card.outlined(
-      child: Padding(
-        padding: const EdgeInsets.all(8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            ListTile(
-              leading: Icon(
-                malformed ? LucideIcons.circleAlert : LucideIcons.blocks,
-                color: malformed ? colors.error : null,
-              ),
-              title: Text(
-                malformed ? 'Problem GamePack' : gamePack.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              subtitle: Text(
-                malformed
-                    ? 'ID ${gamePack.id}\n$error'
-                    : [
-                        'ID ${gamePack.id}',
-                        if (assignedEvent != null)
-                          assignedHere
-                              ? 'Assigned to this event'
-                              : 'Assigned to $assignedEvent',
-                        if (formsLocked) 'Forms locked by saved observations',
-                      ].join(' · '),
-              ),
-              trailing: IconButton(
-                tooltip: 'Delete GamePack',
-                onPressed: busy ? null : onDelete,
-                icon: const Icon(LucideIcons.trash2),
-              ),
-            ),
-            if (malformed)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                child: Text(
-                  'This entry cannot be opened. Delete it after unassigning it from any events.',
-                  style: Theme.of(context).textTheme.bodySmall
-                      ?.copyWith(color: colors.error),
-                ),
-              )
-            else
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    OutlinedButton.icon(
-                      onPressed: busy ? null : () => onEdit(formsLocked),
-                      icon: const Icon(LucideIcons.pencil),
-                      label: Text(formsLocked ? 'Edit other sections' : 'Edit'),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: busy ? null : onDuplicate,
-                      icon: const Icon(LucideIcons.copy),
-                      label: const Text('Duplicate'),
-                    ),
-                    FilledButton.tonalIcon(
-                      onPressed:
-                          busy || !canAssign || !readyToAssign || assignedHere
-                          ? null
-                          : onAssign,
-                      icon: Icon(
-                        assignedHere ? LucideIcons.check : LucideIcons.link,
-                      ),
-                      label: Text(
-                        assignedHere
-                            ? 'Assigned here'
-                            : replacesAssignment
-                            ? 'Replace assignment'
-                            : assignedEvent == null
-                            ? 'Assign to event'
-                            : 'Also assign here',
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-          ],
-        ),
+    return LibraryTile(
+      key: ValueKey('gamepack-${gamePack.id}'),
+      title: malformed ? 'Problem GamePack' : gamePack.name,
+      caption: malformed
+          ? 'ID ${_shortId(gamePack.id)}'
+          : [
+              'ID ${_shortId(gamePack.id)}',
+              if (assignedHere)
+                'Assigned to this event'
+              else if (assignedEvent != null)
+                'Assigned to $assignedEvent'
+              else
+                'Not assigned',
+              if (formsLocked) 'Forms locked',
+            ].join(' · '),
+      color: malformed ? colors.errorContainer : colors.primaryContainer,
+      thumbnail: Icon(
+        malformed ? LucideIcons.circleAlert : LucideIcons.blocks,
+        size: 56,
+        color: malformed ? colors.onErrorContainer : colors.onPrimaryContainer,
       ),
+      onTap: () {
+        if (malformed) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Cannot open this GamePack: $error')),
+          );
+        } else {
+          onEdit(formsLocked);
+        }
+      },
+      options: IconButton(
+        tooltip: 'GamePack options for ${gamePack.name}',
+        icon: const Icon(LucideIcons.ellipsis, size: 20),
+        onPressed: busy ? null : () => _showOptions(context),
+      ),
+      footer: !malformed && !readyToAssign
+          ? Text(
+              'Complete setup before assigning',
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: colors.onSurfaceVariant),
+            )
+          : null,
     );
   }
 }

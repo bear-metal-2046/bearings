@@ -635,6 +635,7 @@ class _CalculationEditorState extends State<_CalculationEditor> {
           : 'Edit calculation',
       size: BearingsModalSize.expansive,
       scrolling: BearingsModalScrolling.content,
+      dismissal: BearingsModalDismissal.noDrag,
       actions: const [],
       primaryAction: widget.readOnly
           ? null
