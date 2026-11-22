@@ -36,6 +36,7 @@ dependencies:
   zxing2: ^0.2.4
   logger: ^2.7.0
   lucide_icons_flutter: ^4.0.3
+  motor: ^1.1.0
   package_info_plus: ^10.2.1
   provider: ^6.1.5+1
   riverpod_annotation: ^4.0.8
@@ -66,6 +67,8 @@ dependencies:
   screen_protector: ^1.5.3
 
 dev_dependencies:
+  bearimetric:
+    path: ../bearimetric
   dart_frog: ^1.2.6
   honeycomb:
     path: ../../backend/honeycomb

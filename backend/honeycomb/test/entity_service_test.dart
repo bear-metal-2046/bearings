@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:core/core.dart';
@@ -27,17 +28,74 @@ class _PausedAccounts extends AccountService {
   }
 }
 
-ScoutingReport _report(String id, String event) => ScoutingReport(
+GrovePicklist _picklist(String id, String event) => GrovePicklist(
   id: id,
-  timestamp: DateTime.utc(2026, 3, 15),
-  data: {
-    'meta': {'event': event, 'type': 'match', 'season': 2026},
-    'sections': {
-      'auto': {'score': 3},
-      'teleop': {'score': 4},
-    },
-  },
+  eventKey: event,
+  title: 'Test picklist',
+  emoji: '🤖',
+  createdAt: DateTime.utc(2026),
+  updatedAt: DateTime.utc(2026),
 );
+
+void _seedCollection(EntityStore store) {
+  const event = '2026marea';
+  final release = GamePackRelease(
+    id: 'rebuilt',
+    document: jsonDecode(
+      File('../../gamepacks/2026-rebuilt.json').readAsStringSync(),
+    ) as Json,
+  );
+  EntityRecord record<T>(T value) {
+    final descriptor = store.registry.descriptor<T>();
+    final data = descriptor.encode(value);
+    return EntityRecord(
+      type: descriptor.type,
+      id: data['id'] as String,
+      version: descriptor.version,
+      data: data,
+    );
+  }
+
+  store.replaceExternalDataset(event, [
+    record(
+      const CompetitionEvent(
+        id: event,
+        season: 2026,
+        name: 'District Championship',
+        code: 'marea',
+        location: CompetitionLocation(),
+      ),
+    ),
+    record(
+      const CompetitionMatch(
+        id: '${event}_qm1',
+        event: EntityRef(event),
+        season: 2026,
+        level: 'qm',
+        setNumber: 1,
+        matchNumber: 1,
+        practice: false,
+        red: CompetitionAlliance(teams: [EntityRef('frc2046')]),
+      ),
+    ),
+  ], checkpoint: () {});
+  for (final row in [
+    record(release),
+    record(EventGamePack(id: event, release: EntityRef(release.id))),
+  ]) {
+    store.mutate(
+      EntityMutation(
+        mutationId: 'seed:${row.id}',
+        type: row.type,
+        id: row.id,
+        version: row.version,
+        kind: MutationKind.create,
+        data: row.data,
+      ),
+      'test',
+    );
+  }
+}
 
 void main() {
   test(
@@ -99,6 +157,7 @@ void main() {
       final registry = bearingsEntityRegistry();
       final store = EntityStore(sqlite3.openInMemory(), registry);
       addTearDown(store.close);
+      _seedCollection(store);
       final service = EntityService(
         store: store,
         bootstrapSubject: 'administrator',
@@ -126,7 +185,18 @@ void main() {
       addTearDown(grove.close);
 
       await expectLater(transport.connect(), throwsA(isA<GroveOffline>()));
-      await grove.stage(_report('queued-match', 'pnw'));
+      await grove.stageCreate(
+        GamePackObservation(
+          id: 'queued-match',
+          event: const EntityRef('2026marea'),
+          match: const EntityRef('2026marea_qm1'),
+          team: const EntityRef('frc2046'),
+          station: 0,
+          release: const EntityRef('rebuilt'),
+          capturedAt: DateTime.utc(2026),
+          answers: const {'auto_fuel_scored': 3},
+        ),
+      );
       expect(await grove.pendingMutationCount, 1);
       final synced = grove.watchSyncStatus().firstWhere(
         (status) => status.pending == 0,
@@ -134,7 +204,10 @@ void main() {
       reachable = true;
       transport.checkConnection();
       await synced.timeout(const Duration(seconds: 2));
-      expect(store.get(scoutingReportEntity.type, 'queued-match'), isNotNull);
+      expect(
+        store.get(gamePackObservationEntity.type, 'queued-match'),
+        isNotNull,
+      );
 
       final previous =
           (await transport.watchConnectionInfo().first).lastReplyAt!;
@@ -193,9 +266,34 @@ void main() {
 
       final admin = connect('administrator');
       final scout = connect('scout');
+      final retired = throwsA(
+        isA<GroveException>().having(
+          (e) => e.code,
+          'code',
+          'unsupported_schema',
+        ),
+      );
+      await expectLater(
+        admin.transport.fetch(QueryDescription(type: 'scouting.report')),
+        retired,
+      );
+      await expectLater(
+        admin.transport.mutate(
+          EntityMutation(
+            mutationId: 'rejected-legacy-write',
+            id: 'legacy',
+            type: 'scouting.report',
+            version: 1,
+            kind: MutationKind.create,
+            data: const {'id': 'legacy'},
+          ),
+        ),
+        retired,
+      );
+      expect(store.get('scouting.report', 'legacy'), isNull);
       final bad = connect('invalid');
       await expectLater(
-        bad.query<ScoutingReport>().many(),
+        bad.query<GrovePicklist>().many(),
         throwsA(
           isA<GroveException>().having(
             (e) => e.code,
@@ -211,13 +309,13 @@ void main() {
         GroveConnectionState.signInRequired,
       );
       await expectLater(
-        scout.query<ScoutingReport>().many(),
+        scout.query<GrovePicklist>().many(),
         throwsA(
           isA<GroveException>().having((e) => e.code, 'code', 'forbidden'),
         ),
       );
       await expectLater(
-        scout.create(_report('rejected', 'pnw')),
+        scout.create(_picklist('rejected', 'pnw')),
         throwsA(
           isA<GroveException>().having((e) => e.code, 'code', 'forbidden'),
         ),
@@ -227,7 +325,7 @@ void main() {
         GroveRole(
           id: 'scout',
           name: 'Scout',
-          permissions: ['scouting.report.read', 'scouting.report.mutate'],
+          permissions: ['strategy.picklist.read', 'strategy.picklist.mutate'],
         ),
       );
       await admin.update<GroveUser>(
@@ -238,10 +336,12 @@ void main() {
       final container = ProviderContainer();
       addTearDown(container.dispose);
       final provider = groveQueryProvider(
-        scout.query<ScoutingReport>().where(ScoutingReport.event.equals('pnw')),
+        scout.query<GrovePicklist>().where(
+          GrovePicklistFields.eventKey.equals('pnw'),
+        ),
       );
       final observed =
-          StreamController<AsyncValue<QueryResult<ScoutingReport>>>.broadcast();
+          StreamController<AsyncValue<QueryResult<GrovePicklist>>>.broadcast();
       final subscription = container.listen(
         provider,
         (_, next) => observed.add(next),
@@ -251,29 +351,29 @@ void main() {
         unawaited(observed.close());
       });
       await container.read(provider.future);
-      final second = StreamIterator(admin.watch(admin.query<ScoutingReport>()));
+      final second = StreamIterator(admin.watch(admin.query<GrovePicklist>()));
       addTearDown(second.cancel);
       expect(await second.moveNext(), isTrue);
       expect(second.current.items, isEmpty);
 
-      Future<QueryResult<ScoutingReport>> waitFor(
-        bool Function(QueryResult<ScoutingReport>) predicate,
+      Future<QueryResult<GrovePicklist>> waitFor(
+        bool Function(QueryResult<GrovePicklist>) predicate,
       ) => observed.stream
           .map((value) => value.asData?.value)
           .where((result) => result != null && predicate(result))
-          .cast<QueryResult<ScoutingReport>>()
+          .cast<QueryResult<GrovePicklist>>()
           .first
           .timeout(const Duration(seconds: 4));
       final created = waitFor((result) => result.items.length == 1);
-      await admin.create(_report('match-1', 'pnw'));
+      await admin.create(_picklist('match-1', 'pnw'));
       expect((await created).items.single.id, 'match-1');
       expect(await second.moveNext(), isTrue);
       expect(second.current.items.single.id, 'match-1');
 
       final left = waitFor((result) => result.complete && result.items.isEmpty);
-      await admin.update<ScoutingReport>(
+      await admin.update<GrovePicklist>(
         'match-1',
-        (_) => _report('match-1', 'other'),
+        (_) => _picklist('match-1', 'other'),
       );
       await left;
       final connection = (scout.transport as WebSocketGroveTransport)
@@ -299,12 +399,12 @@ void main() {
       store.mutate(
         EntityMutation(
           mutationId: 'server-write',
-          type: 'scouting.report',
+          type: 'strategy.picklist',
           id: 'match-1',
           version: 1,
           kind: MutationKind.update,
           changes: [
-            FieldChange(['data', 'meta', 'event'], 'pnw'),
+            FieldChange(['eventKey'], 'pnw'),
           ],
         ),
         'honeycomb:processing',
@@ -318,23 +418,21 @@ void main() {
       // Independent patches from two clients must survive either commit order.
       await adminReconnected;
       await Future.wait([
-        scout.update<ScoutingReport>('match-1', (report) {
-          final data = cloneJson(report.data);
-          data['sections']['auto']['score'] = 10;
-          return report.copyWith(data: data);
-        }),
-        admin.update<ScoutingReport>('match-1', (report) {
-          final data = cloneJson(report.data);
-          data['sections']['teleop']['score'] = 12;
-          return report.copyWith(data: data);
-        }),
+        scout.update<GrovePicklist>(
+          'match-1',
+          (row) => row.customize(title: 'Changed title', at: row.updatedAt),
+        ),
+        admin.update<GrovePicklist>(
+          'match-1',
+          (row) => row.customize(emoji: '🧭', at: row.updatedAt),
+        ),
       ]);
-      final saved = await admin.query<ScoutingReport>().byId('match-1').one();
-      expect(saved.data['sections']['auto']['score'], 10);
-      expect(saved.data['sections']['teleop']['score'], 12);
+      final saved = await admin.query<GrovePicklist>().byId('match-1').one();
+      expect(saved.title, 'Changed title');
+      expect(saved.emoji, '🧭');
       expect(
         store
-            .history('scouting.report', 'match-1')
+            .history('strategy.picklist', 'match-1')
             .map((entry) => entry['actor']),
         containsAll(['scout', 'administrator', 'honeycomb:processing']),
       );
@@ -353,7 +451,7 @@ void main() {
         isA<GroveException>().having((e) => e.code, 'code', 'forbidden'),
       );
       await expectLater(
-        scout.delete<ScoutingReport>('match-1'),
+        scout.delete<GrovePicklist>('match-1'),
         throwsA(isA<GroveException>()),
       );
       await admin.create(
@@ -372,7 +470,7 @@ void main() {
         GroveRole(
           id: 'privileged',
           name: 'Privileged',
-          permissions: ['scouting.report.mutate'],
+          permissions: ['strategy.picklist.mutate'],
         ),
       );
       await admin.update<GroveUser>(
@@ -388,7 +486,7 @@ void main() {
           GroveRole(
             id: 'escalated',
             name: 'Escalated',
-            permissions: ['scouting.report.mutate'],
+            permissions: ['strategy.picklist.mutate'],
           ),
         ),
         forbidden,
@@ -401,16 +499,16 @@ void main() {
         ),
         forbidden,
       );
-      await admin.delete<ScoutingReport>('match-1');
+      await admin.delete<GrovePicklist>('match-1');
       expect(
-        await admin.query<ScoutingReport>().byId('match-1').oneOrNull(),
+        await admin.query<GrovePicklist>().byId('match-1').oneOrNull(),
         isNull,
       );
       final reopened = EntityStore(sqlite3.open(path), registry);
       try {
-        expect(reopened.get('scouting.report', 'match-1')?.deleted, isTrue);
+        expect(reopened.get('strategy.picklist', 'match-1')?.deleted, isTrue);
         expect(
-          reopened.history('scouting.report', 'match-1').last['actor'],
+          reopened.history('strategy.picklist', 'match-1').last['actor'],
           'administrator',
         );
       } finally {

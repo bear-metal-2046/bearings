@@ -3,8 +3,8 @@ import 'package:grove/grove.dart';
 import 'authorization/access.dart';
 import 'authorization/role.dart';
 import 'competition/competition_entities.dart';
+import 'gamepack/gamepack_entities.dart';
 import 'identity/user.dart';
-import 'scouting/report.dart';
 import 'scouting/scout.dart';
 import 'strategy/picklist.dart';
 
@@ -14,8 +14,18 @@ const deviceProvisionPermission = 'device.provision';
 Iterable<String> bearingsPermissions(EntityRegistry registry) sync* {
   yield competitionReadPermission;
   yield deviceProvisionPermission;
+  yield gamePackReadPermission;
+  yield gamePackPublishPermission;
+  yield gamePackObservationReadPermission;
+  yield gamePackSubmitPermission;
+  yield gamePackCorrectPermission;
   for (final descriptor in registry.descriptors) {
-    if (descriptor.type == groveAccessEntity.type || descriptor.serverManaged) {
+    if (descriptor.type == groveAccessEntity.type ||
+        descriptor.type == gamePackReleaseEntity.type ||
+        descriptor.type == gamePackDraftEntity.type ||
+        descriptor.type == eventGamePackEntity.type ||
+        descriptor.type == gamePackObservationEntity.type ||
+        descriptor.serverManaged) {
       continue;
     }
     yield '${descriptor.type}.read';
@@ -25,8 +35,12 @@ Iterable<String> bearingsPermissions(EntityRegistry registry) sync* {
 
 EntityRegistry bearingsEntityRegistry() {
   final registry = EntityRegistry()
+    ..register(gamePackDraftEntity)
+    ..register(gamePackReleaseEntity)
+    ..register(tbaMatchRevisionEntity)
+    ..register(eventGamePackEntity)
+    ..register(gamePackObservationEntity)
     ..register(grovePicklistEntity)
-    ..register(scoutingReportEntity)
     ..register(scoutEntity)
     ..register(groveUserEntity)
     ..register(groveRoleEntity)

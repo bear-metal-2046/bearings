@@ -1,4 +1,5 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:services/providers/gamepack_provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:grove/grove.dart';
@@ -9,7 +10,6 @@ import 'package:bearimetric/custom_widgets/upload_status_indicator.dart';
 import 'package:bearimetric/models/scouting_session.dart';
 import 'package:bearimetric/pages/flow/about_page.dart';
 import 'package:bearimetric/providers/scouting_providers.dart';
-import 'package:bearimetric/services/scout_sync_service.dart';
 import 'package:ui/widgets/bearings_spinner.dart';
 
 class ConfigPage extends ConsumerStatefulWidget {
@@ -67,7 +67,6 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
         _selectedEvent != null &&
         _selectedPosition != null &&
         (_selectedEvent!.key != trainingEventKey || hasTrainingSource);
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Select Comp and Position'),
@@ -496,17 +495,14 @@ class _ScheduleDownloadTileState extends ConsumerState<_ScheduleDownloadTile> {
       result.requireAvailable();
       retryCompetitionMatches(container, event);
       if (!mounted) return;
-      if (widget.eventKey != trainingEventKey) {
-        await ref.read(scoutSyncServiceProvider).syncDownEvent(widget.eventKey);
+      final pack = await waitForValue(container, eventGamePackProvider(event));
+      if (pack == null) {
+        throw StateError('Assign a published GamePack in Beariscope first.');
       }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              widget.eventKey == trainingEventKey
-                  ? 'Schedule refreshed'
-                  : 'Schedule refreshed and scouting synced',
-            ),
+            content: Text('Schedule and GamePack downloaded'),
             duration: Duration(seconds: 2),
           ),
         );

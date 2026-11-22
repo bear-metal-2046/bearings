@@ -1,13 +1,15 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:core/core.dart'
+    show GamePackFormKind, gamePackReadPermission, gamePackSubmitPermission;
+import 'package:services/providers/gamepack_provider.dart';
+import 'package:services/providers/permissions_provider.dart';
+import 'package:bearimetric/models/scouting_session.dart' show trainingEventKey;
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:hive_ce/hive.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:bearimetric/custom_widgets/upload_status_indicator.dart';
-import 'package:bearimetric/data/local_data.dart';
-import 'package:bearimetric/data/match_json_gen.dart';
 import 'package:bearimetric/providers/scouting_providers.dart';
 import 'package:ui/widgets/bearings_spinner.dart';
 
@@ -57,6 +59,35 @@ class _MatchSelectPageState extends ConsumerState<MatchSelectPage> {
     }
 
     final position = session.position!;
+    final eventKey = session.event!.key;
+    final permissions = ref.watch(permissionCheckerProvider);
+    final training = eventKey == trainingEventKey;
+    final source = training
+        ? ref.watch(eventsProvider).value?.firstOrNull?.id
+        : eventKey;
+    final canOpen =
+        permissions?.hasPermission(gamePackReadPermission) == true &&
+        (training ||
+            permissions?.hasPermission(gamePackSubmitPermission) == true);
+    final pack = source != null && canOpen
+        ? ref.watch(eventGamePackProvider(source))
+        : null;
+    final form = position.isStrategy
+        ? GamePackFormKind.strategy
+        : GamePackFormKind.match;
+    final definition = pack?.value?.definition;
+    final packReady = definition?.formFor(form) != null;
+    final packStatus = switch (pack) {
+      _ when source == null => 'No event schedule is available for training.',
+      _ when !canOpen => 'This device needs GamePack scouting access.',
+      AsyncError() => 'Could not load the assigned GamePack.',
+      AsyncLoading() when !packReady => 'Loading the assigned GamePack…',
+      _ when definition == null =>
+        'Assign a published GamePack to the event in Beariscope.',
+      _ when !packReady =>
+        'The assigned GamePack has no ${form.label.toLowerCase()} form.',
+      _ => null,
+    };
 
     return Scaffold(
       appBar: AppBar(
@@ -121,6 +152,8 @@ class _MatchSelectPageState extends ConsumerState<MatchSelectPage> {
                           ),
 
                       const SizedBox(height: 16),
+                      if (packStatus != null)
+                        Text(packStatus, textAlign: TextAlign.center),
                       teamAsync.when(
                         data: (team) =>
                             Text(
@@ -254,32 +287,16 @@ class _MatchSelectPageState extends ConsumerState<MatchSelectPage> {
                           width: double.infinity,
                           height: 56,
                           child: FilledButton.icon(
-                            onPressed: _matchNumber != null && _matchNumber! > 0
+                            onPressed:
+                                _matchNumber != null &&
+                                    _matchNumber! > 0 &&
+                                    packReady
                                 ? () {
                                     ref
                                         .read(scoutingSessionProvider.notifier)
                                         .setMatchNumber(_matchNumber!);
 
-                                    final identity = ref
-                                        .read(scoutingSessionProvider.notifier)
-                                        .createMatchIdentity();
-                                    if (identity != null) {
-                                      final team = teamAsync.when(
-                                        data: (t) => t,
-                                        loading: () => null,
-                                        error: (_, _) => null,
-                                      );
-                                      if (team != null) {
-                                        Hive.box(boxKey)
-                                            .put(matchTeamKey(identity), team);
-                                      }
-                                    }
-
-                                    if (position.isStrategy) {
-                                      context.go('/strat');
-                                    } else {
-                                      context.go('/match/auto');
-                                    }
+                                    context.go('/gamepack-match');
                                   }
                                 : null,
                             icon: const Icon(LucideIcons.play),

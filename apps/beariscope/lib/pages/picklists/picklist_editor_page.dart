@@ -14,26 +14,28 @@ import 'package:beariscope/pages/picklists/picklist_presence_stack.dart';
 
 import 'dart:math' as math;
 
-import 'package:beariscope/models/match_field_ids.dart';
-import 'package:beariscope/models/team_scouting_bundle.dart';
+import 'package:beariscope/pages/gamepacks/gamepack_displays.dart';
 import 'package:beariscope/pages/picklists/picklist_model.dart';
 import 'package:beariscope/pages/picklists/picklist_provider.dart';
 import 'package:beariscope/pages/team_lookup/team_model.dart';
 import 'package:beariscope/pages/team_lookup/team_providers.dart';
+import 'package:beariscope/pages/team_lookup/team_sorting.dart';
 import 'package:beariscope/providers/rankings_provider.dart';
-import 'package:beariscope/providers/team_scouting_provider.dart';
+import 'package:beariscope/widgets/editor_draggable.dart';
 import 'package:ui/widgets/bearings_modal.dart';
 import 'package:ui/widgets/bearings_search_bar.dart';
 import 'package:ui/widgets/bearings_status_view.dart';
 import 'package:beariscope/widgets/screenshot_guard.dart';
 import 'package:beariscope/widgets/team_card.dart';
 import 'package:beariscope/utils/competition_media_display.dart';
-import 'package:flutter/gestures.dart';
+import 'package:core/core.dart' show GamePackValue;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:services/providers/gamepack_analysis_provider.dart';
+import 'package:services/providers/permissions_provider.dart';
 import 'package:ui/widgets/bearings_spinner.dart';
 
 final _eventTeamAvatarsProvider = Provider.autoDispose((ref) {
@@ -709,6 +711,9 @@ class _TeamLibrary extends ConsumerStatefulWidget {
 class _TeamLibraryState extends ConsumerState<_TeamLibrary> {
   final _searchController = TextEditingController();
   final _searchFocusNode = FocusNode();
+  String? _metricId;
+  Set<String> _filterIds = {};
+  bool _metricAscending = false;
 
   @override
   void initState() {
@@ -730,6 +735,20 @@ class _TeamLibraryState extends ConsumerState<_TeamLibrary> {
   @override
   Widget build(BuildContext context) {
     final selectedSort = ref.watch(teamSortProvider);
+    final event = ref.watch(currentEventProvider);
+    final analysis =
+        ref.watch(permissionCheckerProvider)?.canReadGamePackAnalysis == true
+        ? ref.watch(gamePackEventAnalysisProvider(event)).value
+        : null;
+    final metrics = teamSortMetrics(analysis);
+    final filters = teamFilters(analysis);
+    final enabled = filters
+        .where((rule) => _filterIds.contains(rule.id))
+        .toList();
+    final session = analysis?.session(analysis.analysis.definition.analysis);
+    final selectedMetric = metrics
+        .where((binding) => binding.id == _metricId)
+        .firstOrNull;
     final rankings =
         ref.watch(eventRankingsProvider).value ?? const <int, TeamRanking>{};
     final avatarByTeam = ref.watch(_eventTeamAvatarsProvider);
@@ -754,27 +773,50 @@ class _TeamLibraryState extends ConsumerState<_TeamLibrary> {
                     elevation: 0,
                   ),
                 ),
+                if (filters.isNotEmpty)
+                  GamePackTeamFilterMenu(
+                    filters: filters,
+                    enabled: enabled.map((rule) => rule.id).toSet(),
+                    onChanged: (ids) => setState(() => _filterIds = ids),
+                  ),
                 BearingsPopupMenu.icon(
                   tooltip: 'Sort teams',
                   icon: Icon(
-                    selectedSort.isAscending
+                    (selectedMetric == null
+                            ? selectedSort.isAscending
+                            : _metricAscending)
                         ? LucideIcons.arrowUpNarrowWide
                         : LucideIcons.arrowDownWideNarrow,
                   ),
                   menuChildren: [
                     for (final sort in TeamSortOptions.values)
                       BearingsMenuItem(
-                        selected: selectedSort.sort == sort,
+                        selected:
+                            selectedMetric == null && selectedSort.sort == sort,
                         onPressed: () {
-                          final ascending = selectedSort.sort == sort
+                          final ascending =
+                              selectedMetric == null &&
+                                  selectedSort.sort == sort
                               ? !selectedSort.isAscending
                               : sort == TeamSortOptions.teamNumber ||
                                     sort == TeamSortOptions.rank;
+                          setState(() => _metricId = null);
                           ref
                               .read(teamSortProvider.notifier)
                               .setSort(sort, ascending);
                         },
                         child: Text(sort.label),
+                      ),
+                    for (final metric in metrics)
+                      BearingsMenuItem(
+                        selected: selectedMetric == metric,
+                        onPressed: () => setState(() {
+                          _metricAscending = selectedMetric == metric
+                              ? !_metricAscending
+                              : metric.ascending;
+                          _metricId = metric.id;
+                        }),
+                        child: Text(metric.label),
                       ),
                   ],
                 ),
@@ -784,9 +826,7 @@ class _TeamLibraryState extends ConsumerState<_TeamLibrary> {
           const Divider(height: 1),
           Expanded(
             child: ref
-                .watch(
-                  competitionTeamsProvider(ref.watch(currentEventProvider)),
-                )
+                .watch(competitionTeamsProvider(event))
                 .whenData((result) => result.requireAvailable().items)
                 .when(
                   loading: () => const Center(child: BearingsSpinner()),
@@ -797,10 +837,25 @@ class _TeamLibraryState extends ConsumerState<_TeamLibrary> {
                         .map(Team.fromCompetition)
                         .where(
                           (team) =>
-                              teamMatchesSearch(team, _searchController.text),
+                              teamMatchesSearch(team, _searchController.text) &&
+                              (session == null ||
+                                  teamPassesFilters(
+                                    session,
+                                    team.key,
+                                    enabled,
+                                  )),
                         )
                         .toList();
-                    _sortTeams(teams, selectedSort, rankings);
+                    final values = selectedMetric == null
+                        ? const <String, GamePackValue>{}
+                        : sortTeamsByMetric(
+                            teams,
+                            analysis!,
+                            selectedMetric,
+                            ascending: _metricAscending,
+                          );
+                    if (selectedMetric == null)
+                      sortTeams(teams, selectedSort, rankings);
                     if (teams.isEmpty) {
                       return const Center(
                         child: SingleChildScrollView(
@@ -820,9 +875,26 @@ class _TeamLibraryState extends ConsumerState<_TeamLibrary> {
                       itemBuilder: (context, index) => Center(
                         child: ConstrainedBox(
                           constraints: const BoxConstraints(maxWidth: 600),
-                          child: _draggableTeam(
-                            teams[index],
-                            avatarByTeam[teams[index].key],
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _draggableTeam(
+                                teams[index],
+                                avatarByTeam[teams[index].key],
+                              ),
+                              if (values[teams[index].key] case final value?)
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    12,
+                                    0,
+                                    12,
+                                    4,
+                                  ),
+                                  child: Text(
+                                    '${selectedMetric!.label} · ${formatGamePackValue(value)}',
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
                       ),
@@ -850,47 +922,6 @@ class _TeamLibraryState extends ConsumerState<_TeamLibrary> {
         icon: Icon(selected ? LucideIcons.check : LucideIcons.plus, size: 20),
       ),
     );
-  }
-
-  void _sortTeams(
-    List<Team> teams,
-    TeamSort selectedSort,
-    Map<int, TeamRanking> rankings,
-  ) {
-    final scores = <int, double>{};
-    final safety = <int, (int, int, int)>{};
-    final needsScouting =
-        selectedSort.sort != TeamSortOptions.teamNumber &&
-        selectedSort.sort != TeamSortOptions.rank;
-    if (needsScouting) {
-      for (final team in teams) {
-        final bundle = ref.watch(teamScoutingProvider(team.number)).value;
-        if (bundle == null) continue;
-        scores[team.number] = _totalAverage(bundle);
-        safety[team.number] = _safetyStats(bundle);
-      }
-    }
-    teams.sort((a, b) {
-      final comparison = switch (selectedSort.sort) {
-        TeamSortOptions.teamNumber => a.number.compareTo(b.number),
-        TeamSortOptions.rank => (rankings[a.number]?.rank ?? 999999).compareTo(
-          rankings[b.number]?.rank ?? 999999,
-        ),
-        TeamSortOptions.custom => (scores[a.number] ?? 0).compareTo(
-          scores[b.number] ?? 0,
-        ),
-        TeamSortOptions.defense => (safety[a.number]?.$1 ?? 0).compareTo(
-          safety[b.number]?.$1 ?? 0,
-        ),
-        TeamSortOptions.noShow => (safety[a.number]?.$2 ?? 0).compareTo(
-          safety[b.number]?.$2 ?? 0,
-        ),
-        TeamSortOptions.brokeDown => (safety[a.number]?.$3 ?? 0).compareTo(
-          safety[b.number]?.$3 ?? 0,
-        ),
-      };
-      return selectedSort.isAscending ? comparison : -comparison;
-    });
   }
 }
 
@@ -1197,7 +1228,7 @@ class _EditorTeamTile extends StatelessWidget {
       return present(
         MouseRegion(
           cursor: SystemMouseCursors.grab,
-          child: _TeamDraggable(
+          child: EditorDraggable<String>(
             data: teamKey,
             canStart: () => presentation.cardBuilder == null,
             feedback: feedback,
@@ -1212,53 +1243,6 @@ class _EditorTeamTile extends StatelessWidget {
       );
     },
   );
-}
-
-class _TeamDraggable extends Draggable<String> {
-  const _TeamDraggable({
-    required super.data,
-    required this.canStart,
-    required super.feedback,
-    required super.childWhenDragging,
-    required super.onDragStarted,
-    required super.onDragUpdate,
-    required super.onDragCompleted,
-    required super.onDraggableCanceled,
-    required super.child,
-  }) : super(maxSimultaneousDrags: 1, hitTestBehavior: HitTestBehavior.opaque);
-
-  final bool Function() canStart;
-
-  @override
-  MultiDragGestureRecognizer createRecognizer(
-    GestureMultiDragStartCallback onStart,
-  ) => _TeamDragRecognizer((position) => canStart() ? onStart(position) : null);
-}
-
-class _TeamDragRecognizer extends DelayedMultiDragGestureRecognizer {
-  _TeamDragRecognizer(GestureMultiDragStartCallback start)
-    : super(delay: const Duration(milliseconds: 250)) {
-    onStart = start;
-    _mouse.onStart = start;
-  }
-
-  final _mouse = ImmediateMultiDragGestureRecognizer();
-
-  @override
-  void addAllowedPointer(PointerDownEvent event) {
-    if (event.kind == PointerDeviceKind.mouse) {
-      _mouse.gestureSettings = gestureSettings;
-      _mouse.addPointer(event);
-    } else {
-      super.addAllowedPointer(event);
-    }
-  }
-
-  @override
-  void dispose() {
-    _mouse.dispose();
-    super.dispose();
-  }
 }
 
 class _PicklistSurface extends ConsumerStatefulWidget {
@@ -1788,60 +1772,4 @@ class _InsertionDivider extends StatelessWidget {
       borderRadius: BorderRadius.circular(2),
     ),
   );
-}
-
-double _totalAverage(TeamScoutingBundle bundle) =>
-    bundle.avgMatchField(kSectionAuto, kAutoFuelScored) +
-    bundle.avgMatchField(kSectionTele, kTeleFuelScored);
-
-(int, int, int) _safetyStats(TeamScoutingBundle bundle) {
-  var defense = 0;
-  var noShow = 0;
-  var breakdown = 0;
-  for (final doc in bundle.matchDocs) {
-    final playedDefense =
-        _truthy(
-          TeamScoutingBundle.getMatchField(
-            doc.raw,
-            kSectionEndgame,
-            kEndPlayedDefenseOffShift,
-          ),
-        ) ||
-        _truthy(
-          TeamScoutingBundle.getMatchField(
-            doc.raw,
-            kSectionEndgame,
-            kEndPlayedDefenseOnShift,
-          ),
-        );
-    final absent = _truthy(
-      TeamScoutingBundle.getMatchField(doc.raw, kSectionEndgame, kEndNoShow),
-    );
-    final failed =
-        _truthy(
-          TeamScoutingBundle.getMatchField(
-            doc.raw,
-            kSectionTele,
-            kTeleStoppedWorking,
-          ),
-        ) ||
-        _truthy(
-          TeamScoutingBundle.getMatchField(
-            doc.raw,
-            kSectionTele,
-            kTeleLostComms,
-          ),
-        );
-    if (playedDefense) defense++;
-    if (absent) noShow++;
-    if (failed) breakdown++;
-  }
-  return (defense, noShow, breakdown);
-}
-
-bool _truthy(Object? value) {
-  if (value is bool) return value;
-  if (value is num) return value > 0;
-  final text = value?.toString().toLowerCase();
-  return text == 'true' || text == '1' || text == 'y';
 }

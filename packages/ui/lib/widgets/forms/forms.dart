@@ -5,7 +5,6 @@ export 'custom_slider.dart' show CustomSlider;
 export 'dropdown.dart' show Dropdown;
 export 'form_style.dart' show FormWidgetStyle;
 export 'int_textbox.dart' show IntTextbox;
-export 'match_form_renderer.dart' show MatchFormRenderer;
 export 'number_button.dart' show NumberButton;
 export 'string_textbox.dart' show StringTextbox;
 export 'tristate_button.dart' show TristateButton;

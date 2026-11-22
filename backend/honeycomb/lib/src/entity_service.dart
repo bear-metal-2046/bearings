@@ -11,6 +11,7 @@ import 'authentication.dart';
 import 'authorization.dart';
 import 'competition_sources.dart';
 import 'entity_store.dart';
+import 'gamepack_mutations.dart';
 import 'nexus_sync.dart';
 
 class EntityService {
@@ -390,7 +391,16 @@ class EntityService {
                         actor!,
                         authorize: authorize,
                       )
-                    : store.mutate(mutation, actor!.id, authorize: authorize);
+                    : store.mutate(
+                        mutation,
+                        actor!.id,
+                        authorize: authorize,
+                        confirmCreate: gamePackCreateConfirmation(
+                          store,
+                          mutation,
+                          actor!.id,
+                        ),
+                      );
                 send({'op': 'result', 'id': id, 'result': result.toJson()});
               default:
                 throw ArgumentError('Unknown Grove operation');

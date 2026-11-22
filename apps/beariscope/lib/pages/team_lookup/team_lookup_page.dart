@@ -2,14 +2,15 @@ import 'package:beariscope/widgets/grove_load_message.dart';
 import 'package:services/providers/competition_provider.dart';
 // dart format width=120
 
-import 'package:beariscope/models/match_field_ids.dart';
-import 'package:beariscope/models/team_scouting_bundle.dart';
 import 'package:beariscope/pages/main_view.dart';
 import 'package:beariscope/pages/team_lookup/team_model.dart';
 import 'package:beariscope/pages/team_lookup/team_providers.dart';
+import 'package:beariscope/pages/team_lookup/team_sorting.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/providers/rankings_provider.dart';
-import 'package:beariscope/providers/team_scouting_provider.dart';
+import 'package:core/core.dart' show GamePackTeamSort;
+import 'package:services/providers/gamepack_analysis_provider.dart';
+import 'package:services/providers/permissions_provider.dart';
 import 'package:ui/widgets/bearings_popup_menu.dart';
 import 'package:ui/widgets/bearings_card.dart';
 import 'package:ui/widgets/bearings_scaffold.dart';
@@ -29,6 +30,9 @@ class TeamLookupPage extends ConsumerStatefulWidget {
 
 class _TeamLookupPageState extends ConsumerState<TeamLookupPage> {
   late final TextEditingController _searchController;
+  String? _metricId;
+  Set<String> _filterIds = {};
+  bool _ascending = false;
 
   @override
   void initState() {
@@ -53,9 +57,21 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage> {
     final searchFocusNode = ref.watch(searchFocusNodeProvider);
     final searchController = ref.watch(searchControllerProvider);
     final selectedSort = ref.watch(teamSortProvider);
-    final roster = ref.watch(
-      competitionTeamsProvider(ref.watch(currentEventProvider)),
-    );
+    final event = ref.watch(currentEventProvider);
+    final analysis =
+        ref.watch(permissionCheckerProvider)?.canReadGamePackAnalysis == true
+        ? ref.watch(gamePackEventAnalysisProvider(event)).value
+        : null;
+    final metrics = teamSortMetrics(analysis);
+    final filters = teamFilters(analysis);
+    final enabled = filters
+        .where((rule) => _filterIds.contains(rule.id))
+        .toList();
+    final session = analysis?.session(analysis.analysis.definition.analysis);
+    final metric = metrics
+        .where((binding) => binding.id == _metricId)
+        .firstOrNull;
+    final roster = ref.watch(competitionTeamsProvider(event));
     final teamsAsync = roster.whenData(
       (result) => result.requireAvailable().items,
     );
@@ -70,7 +86,15 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage> {
               icon: const Icon(LucideIcons.menu),
               onPressed: controller.openDrawer,
             ),
-      actions: [_sortButton(selectedSort)],
+      actions: [
+        if (filters.isNotEmpty)
+          GamePackTeamFilterMenu(
+            filters: filters,
+            enabled: enabled.map((rule) => rule.id).toSet(),
+            onChanged: (ids) => setState(() => _filterIds = ids),
+          ),
+        _sortButton(selectedSort, metrics, metric),
+      ],
       content: BearingsPage(
         search: BearingsSearch(
           focusNode: searchFocusNode,
@@ -88,9 +112,23 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage> {
           data: (rawTeams) {
             final teams = rawTeams
                 .map(Team.fromCompetition)
-                .where((team) => teamMatchesSearch(team, searchController.text))
+                .where(
+                  (team) =>
+                      teamMatchesSearch(team, searchController.text) &&
+                      (session == null ||
+                          teamPassesFilters(session, team.key, enabled)),
+                )
                 .toList();
-            _sortTeams(teams, selectedSort, rankings);
+            if (metric == null) {
+              sortTeams(teams, selectedSort, rankings);
+            } else {
+              sortTeamsByMetric(
+                teams,
+                analysis!,
+                metric,
+                ascending: _ascending,
+              );
+            }
             if (teams.isEmpty) {
               return const BearingsStatusView(
                 icon: LucideIcons.users,
@@ -100,23 +138,10 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage> {
               );
             }
 
-            final scoutingBundles = <TeamScoutingBundle>[];
-            for (final team in teams) {
-              final bundle = ref
-                  .watch(teamScoutingProvider(team.number))
-                  .asData
-                  ?.value;
-              if (bundle != null) scoutingBundles.add(bundle);
-            }
-            final sharedMaxY = teamCardSharedYAxisMax(scoutingBundles);
-
             return BearingsCardList(
               padding: layout.scrollPadding,
               children: teams
-                  .map(
-                    (team) =>
-                        TeamCard(teamKey: team.key, minY: 0, maxY: sharedMaxY),
-                  )
+                  .map((team) => TeamCard(teamKey: team.key, eventKey: event))
                   .toList(),
             );
           },
@@ -125,10 +150,14 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage> {
     );
   }
 
-  Widget _sortButton(TeamSort selectedSort) {
+  Widget _sortButton(
+    TeamSort selectedSort,
+    Iterable<GamePackTeamSort> metrics,
+    GamePackTeamSort? metric,
+  ) {
     return BearingsPopupMenu.icon(
       icon: Icon(
-        selectedSort.isAscending
+        (metric == null ? selectedSort.isAscending : _ascending)
             ? LucideIcons.arrowUpNarrowWide
             : LucideIcons.arrowDownWideNarrow,
       ),
@@ -136,18 +165,19 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage> {
       menuChildren: [
         for (final sort in TeamSortOptions.values)
           BearingsMenuItem(
-            selected: selectedSort.sort == sort,
+            selected: metric == null && selectedSort.sort == sort,
             onPressed: () {
-              final ascending = selectedSort.sort == sort
-                  ? !selectedSort.isAscending
-                  : sort == TeamSortOptions.teamNumber ||
-                        sort == TeamSortOptions.rank;
+              final ascending =
+                  metric != null ||
+                  selectedSort.sort != sort ||
+                  !selectedSort.isAscending;
+              setState(() => _metricId = null);
               ref.read(teamSortProvider.notifier).setSort(sort, ascending);
             },
             child: Row(
               children: [
                 Text(sort.label),
-                if (selectedSort.sort == sort)
+                if (metric == null && selectedSort.sort == sort)
                   Icon(
                     selectedSort.isAscending
                         ? LucideIcons.chevronUp
@@ -156,105 +186,16 @@ class _TeamLookupPageState extends ConsumerState<TeamLookupPage> {
               ],
             ),
           ),
+        for (final binding in metrics)
+          BearingsMenuItem(
+            selected: binding == metric,
+            onPressed: () => setState(() {
+              _ascending = binding == metric ? !_ascending : binding.ascending;
+              _metricId = binding.id;
+            }),
+            child: Text(binding.label),
+          ),
       ],
     );
   }
-
-  void _sortTeams(
-    List<Team> teams,
-    TeamSort selectedSort,
-    Map<int, TeamRanking> rankings,
-  ) {
-    final scores = <int, double>{};
-    final safety = <int, (int, int, int)>{};
-    final needsScouting =
-        selectedSort.sort != TeamSortOptions.teamNumber &&
-        selectedSort.sort != TeamSortOptions.rank;
-    if (needsScouting) {
-      for (final team in teams) {
-        final bundle = ref.watch(teamScoutingProvider(team.number)).value;
-        if (bundle == null) continue;
-        scores[team.number] = _totalAverage(bundle);
-        safety[team.number] = _safetyStats(bundle);
-      }
-    }
-
-    teams.sort((a, b) {
-      final comparison = switch (selectedSort.sort) {
-        TeamSortOptions.teamNumber => a.number.compareTo(b.number),
-        TeamSortOptions.rank => (rankings[a.number]?.rank ?? 999999).compareTo(
-          rankings[b.number]?.rank ?? 999999,
-        ),
-        TeamSortOptions.custom => (scores[a.number] ?? 0).compareTo(
-          scores[b.number] ?? 0,
-        ),
-        TeamSortOptions.defense => (safety[a.number]?.$1 ?? 0).compareTo(
-          safety[b.number]?.$1 ?? 0,
-        ),
-        TeamSortOptions.noShow => (safety[a.number]?.$2 ?? 0).compareTo(
-          safety[b.number]?.$2 ?? 0,
-        ),
-        TeamSortOptions.brokeDown => (safety[a.number]?.$3 ?? 0).compareTo(
-          safety[b.number]?.$3 ?? 0,
-        ),
-      };
-      return selectedSort.isAscending ? comparison : -comparison;
-    });
-  }
-}
-
-double _totalAverage(TeamScoutingBundle bundle) =>
-    bundle.avgMatchField(kSectionAuto, kAutoFuelScored) +
-    bundle.avgMatchField(kSectionTele, kTeleFuelScored);
-
-(int, int, int) _safetyStats(TeamScoutingBundle bundle) {
-  var defense = 0;
-  var noShow = 0;
-  var breakdown = 0;
-  for (final doc in bundle.matchDocs) {
-    final playedDefense =
-        _truthy(
-          TeamScoutingBundle.getMatchField(
-            doc.raw,
-            kSectionEndgame,
-            kEndPlayedDefenseOffShift,
-          ),
-        ) ||
-        _truthy(
-          TeamScoutingBundle.getMatchField(
-            doc.raw,
-            kSectionEndgame,
-            kEndPlayedDefenseOnShift,
-          ),
-        );
-    final absent = _truthy(
-      TeamScoutingBundle.getMatchField(doc.raw, kSectionEndgame, kEndNoShow),
-    );
-    final failed =
-        _truthy(
-          TeamScoutingBundle.getMatchField(
-            doc.raw,
-            kSectionTele,
-            kTeleStoppedWorking,
-          ),
-        ) ||
-        _truthy(
-          TeamScoutingBundle.getMatchField(
-            doc.raw,
-            kSectionTele,
-            kTeleLostComms,
-          ),
-        );
-    if (playedDefense) defense++;
-    if (absent) noShow++;
-    if (failed) breakdown++;
-  }
-  return (defense, noShow, breakdown);
-}
-
-bool _truthy(Object? value) {
-  if (value is bool) return value;
-  if (value is num) return value > 0;
-  final text = value?.toString().toLowerCase();
-  return text == 'true' || text == '1' || text == 'y';
 }

@@ -25,6 +25,7 @@ export 'widgets/bearings_scaffold.dart'
         BearingsSearch,
         BearingsTab,
         BearingsTabs;
+export 'widgets/bearings_select.dart' show BearingsSelect, BearingsSelectItem;
 export 'widgets/bearings_setting_group.dart' show BearingsSettingGroup;
 export 'widgets/bearings_spinner.dart' show BearingsSpinner;
 export 'widgets/bearings_status_view.dart' show BearingsStatusView;

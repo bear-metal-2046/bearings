@@ -21,6 +21,44 @@ class BearingsPopupMenu extends StatefulWidget {
   }) : _icon = null,
        _tooltip = null;
 
+  factory BearingsPopupMenu.button({
+    Key? key,
+    required String label,
+    required List<Widget> menuChildren,
+    String? tooltip,
+    IconData? icon,
+  }) => BearingsPopupMenu(
+    key: key,
+    menuChildren: menuChildren,
+    triggerBuilder: (context, controller, focusNode) {
+      final button = TextButton(
+        focusNode: focusNode,
+        style: TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          foregroundColor: Theme.of(context).colorScheme.onSurface,
+          backgroundColor: Theme.of(context).colorScheme.surfaceContainerHigh,
+        ),
+        onPressed: menuChildren.isEmpty
+            ? null
+            : () => controller.isOpen ? controller.close() : controller.open(),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          spacing: 8,
+          children: [
+            if (icon != null) Icon(icon, size: 17),
+            Flexible(
+              child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+            ),
+            const Icon(LucideIcons.chevronDown, size: 16),
+          ],
+        ),
+      );
+      return tooltip == null
+          ? button
+          : Tooltip(message: tooltip, child: button);
+    },
+  );
+
   const BearingsPopupMenu.icon({
     super.key,
     required Widget this._icon,
@@ -144,6 +182,7 @@ class BearingsMenuItem extends StatelessWidget {
       selected: selected,
       role: SemanticsRole.menuItem,
       child: MenuItemButton(
+        overflowAxis: Axis.vertical,
         style: destructive
             ? _rowStyle.copyWith(
                 foregroundColor: destructiveColor,

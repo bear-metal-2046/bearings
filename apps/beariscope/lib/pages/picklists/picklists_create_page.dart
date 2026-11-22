@@ -1,14 +1,13 @@
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:services/providers/competition_provider.dart';
-import 'package:beariscope/models/match_field_ids.dart';
-import 'package:beariscope/models/team_scouting_bundle.dart';
 import 'package:beariscope/pages/picklists/picklist_model.dart';
 import 'package:beariscope/pages/picklists/picklist_provider.dart';
 import 'package:beariscope/widgets/library_identity_fields.dart';
 import 'package:ui/widgets/bearings_modal.dart';
 import 'package:beariscope/pages/team_lookup/team_model.dart';
+import 'package:beariscope/pages/team_lookup/team_sorting.dart';
 import 'package:beariscope/providers/rankings_provider.dart';
-import 'package:beariscope/providers/team_scouting_provider.dart';
+import 'package:services/providers/gamepack_analysis_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:grove/grove.dart';
 import 'package:go_router/go_router.dart';
@@ -16,26 +15,26 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:services/providers/permissions_provider.dart';
 
-enum _StartingOrder { blank, totalAverage, eventRank }
+enum _StartingOrder { blank, metric, eventRank }
 
 extension on _StartingOrder {
   String get label => switch (this) {
     _StartingOrder.blank => 'Blank picklist',
-    _StartingOrder.totalAverage => 'Total average',
+    _StartingOrder.metric => 'GamePack metric',
     _StartingOrder.eventRank => 'Event rank',
   };
 
   String get description => switch (this) {
     _StartingOrder.blank =>
       'Start with an empty canvas and add every team yourself.',
-    _StartingOrder.totalAverage =>
-      'Highest combined auto and teleop scoring average first.',
+    _StartingOrder.metric =>
+      'Highest value for the selected scouting metric first.',
     _StartingOrder.eventRank => 'Current official event rank, best rank first.',
   };
 
   IconData get icon => switch (this) {
     _StartingOrder.blank => LucideIcons.filePlus,
-    _StartingOrder.totalAverage => LucideIcons.chartNoAxesCombined,
+    _StartingOrder.metric => LucideIcons.chartNoAxesCombined,
     _StartingOrder.eventRank => LucideIcons.trophy,
   };
 }
@@ -56,6 +55,7 @@ class _PicklistsCreatePageState extends ConsumerState<PicklistsCreatePage> {
   final _teamCountController = TextEditingController(text: '24');
   String _emoji = randomPicklistEmoji();
   _StartingOrder _order = _StartingOrder.blank;
+  String? _metricId;
   PicklistMode _mode = PicklistMode.offline;
   bool _creating = false;
   String? _error;
@@ -69,6 +69,15 @@ class _PicklistsCreatePageState extends ConsumerState<PicklistsCreatePage> {
 
   @override
   Widget build(BuildContext context) {
+    final event = ref.watch(currentEventProvider);
+    final analysis =
+        ref.watch(permissionCheckerProvider)?.canReadGamePackAnalysis == true
+        ? ref.watch(gamePackEventAnalysisProvider(event)).value
+        : null;
+    final metrics = teamSortMetrics(analysis).toList();
+    final selectedMetric =
+        metrics.where((binding) => binding.id == _metricId).firstOrNull ??
+        metrics.firstOrNull;
     final canCreateMultiplayer =
         ref.watch(permissionCheckerProvider)?.hasAllPermissions([
           PermissionKey.picklistsRead,
@@ -92,7 +101,9 @@ class _PicklistsCreatePageState extends ConsumerState<PicklistsCreatePage> {
         icon: LucideIcons.check,
         loading: _creating,
         enabled:
-            _mode == PicklistMode.offline || multiplayerDisabledReason == null,
+            (_mode == PicklistMode.offline ||
+                multiplayerDisabledReason == null) &&
+            (_order != _StartingOrder.metric || selectedMetric != null),
         onPressed: _create,
       ),
       content: Form(
@@ -135,18 +146,39 @@ class _PicklistsCreatePageState extends ConsumerState<PicklistsCreatePage> {
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 10),
-            ..._StartingOrder.values.map(
-              (order) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: _OrderCard(
-                  order: order,
-                  selected: order == _order,
-                  onTap: () {
-                    if (!_creating) setState(() => _order = order);
-                  },
+            ..._StartingOrder.values
+                .where(
+                  (order) =>
+                      order != _StartingOrder.metric || metrics.isNotEmpty,
+                )
+                .map(
+                  (order) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _OrderCard(
+                      order: order,
+                      selected: order == _order,
+                      onTap: () {
+                        if (!_creating) setState(() => _order = order);
+                      },
+                    ),
+                  ),
                 ),
+            if (_order == _StartingOrder.metric && selectedMetric != null)
+              DropdownButtonFormField<String>(
+                key: ValueKey((event, selectedMetric.id)),
+                initialValue: selectedMetric.id,
+                decoration: const InputDecoration(labelText: 'Scouting metric'),
+                items: [
+                  for (final metric in metrics)
+                    DropdownMenuItem(
+                      value: metric.id,
+                      child: Text(metric.label),
+                    ),
+                ],
+                onChanged: _creating
+                    ? null
+                    : (id) => setState(() => _metricId = id),
               ),
-            ),
             AnimatedSize(
               duration: MediaQuery.disableAnimationsOf(context)
                   ? Duration.zero
@@ -260,20 +292,19 @@ class _PicklistsCreatePageState extends ConsumerState<PicklistsCreatePage> {
             rankings[b.number]?.rank ?? 999999,
           ),
         );
-      case _StartingOrder.totalAverage:
-        final bundles = await Future.wait(
-          teams.map(
-            (team) =>
-                waitForValue(container, teamScoutingProvider(team.number)),
-          ),
+      case _StartingOrder.metric:
+        final analysis = await waitForValue(
+          container,
+          gamePackEventAnalysisProvider(event),
         );
-        final scores = <int, double>{
-          for (final entry in teams.indexed)
-            entry.$2.number: _teamTotalAverage(bundles[entry.$1]),
-        };
-        teams.sort(
-          (a, b) => (scores[b.number] ?? 0).compareTo(scores[a.number] ?? 0),
-        );
+        final metrics = teamSortMetrics(analysis);
+        final metric =
+            metrics.where((binding) => binding.id == _metricId).firstOrNull ??
+            metrics.firstOrNull;
+        if (analysis == null || metric == null) {
+          throw StateError('No GamePack picklist metrics are available.');
+        }
+        sortTeamsByMetric(teams, analysis, metric, ascending: metric.ascending);
     }
 
     if (container.read(currentEventProvider) != event) {
@@ -282,10 +313,6 @@ class _PicklistsCreatePageState extends ConsumerState<PicklistsCreatePage> {
     return teams.take(limit).map((team) => team.key).toList(growable: false);
   }
 }
-
-double _teamTotalAverage(TeamScoutingBundle bundle) =>
-    bundle.avgMatchField(kSectionAuto, kAutoFuelScored) +
-    bundle.avgMatchField(kSectionTele, kTeleFuelScored);
 
 class _OrderCard extends StatelessWidget {
   final _StartingOrder order;

@@ -69,11 +69,74 @@ Assign a durable administrator role with identity and role read and mutate
 capabilities, plus the permissions the administrator can delegate, before
 removing the bootstrap environment variable.
 
-Grant scouting devices `scouting.report.read`, `scouting.report.mutate`,
+Grant scouting devices `gamepack.read`, `scouting.observation.submit`,
 `scouting.scout.read`, and `external.read` as appropriate. Each device appears as
 its Auth0 machine subject after its first Grove connection. The
 `device.provision` permission controls access to the provisioning QR credentials.
 Honeycomb evaluates permissions on reads, writes, and live updates.
+
+## GamePacks
+
+Use a server and both apps built from the GamePack checkout. Pick an imported
+test event with a match schedule. In Beariscope's Users & Roles, grant these
+capabilities in addition to the team's regular permissions.
+
+| Role | GamePack capabilities |
+| --- | --- |
+| Pack author | `gamepack.read`, `gamepack.publish`, `scouting.observation.read`, `external.read` |
+| Bearimetric device | `gamepack.read`, `scouting.observation.submit`, `scouting.scout.read`, `external.read` |
+| Pit and notes contributor | `gamepack.read`, `scouting.observation.read`, `scouting.observation.submit`, `external.read` |
+| Results viewer | `gamepack.read`, `scouting.observation.read`, `external.read` |
+| Audit and corrections | `gamepack.read`, `scouting.observation.read`, `scouting.observation.correct`, `external.read` |
+
+1. Open **Settings → GamePacks** in Beariscope and select the event. Use
+   **Open visual builder** for a new season or **Import GamePack** to open
+   `gamepacks/2026-rebuilt.json`. In **Scout forms**, choose a **Scrolling list**
+   for sections with ordered controls and side-by-side rows, or **Grid** for
+   a fixed page with controls that snap to whole cells. This checkout publishes
+   GamePack format 6. In **Test data**, choose an archived match or add
+   sample values. In **Calculations**, map a TBA field from the
+   breakdown and choose whether it belongs to the match, alliance, or robot.
+   Start a named calculation with a field or step. Each calculation has its
+   own canvas, with connected fields, scoped test values, and a marked result.
+   Calculations can use one another by name.
+2. In **Results**, choose fields or calculations for app screens and exports.
+   **Team Card** configures Team Lookup and Match Preview cards. **Team Details**
+   configures the shared Details layout in Team Lookup and picklist Quick View.
+   **Sorting & Filters** configures the presets for each team list.
+   **Export Sheets** configures workbook tabs, row sources, and column order.
+   Preview each setup with **Test data** or a live event. When a numeric or
+   yes/no team-match field is available, the picker also offers its event
+   average or Yes percentage. These summaries work as calculation inputs and
+   retain links to the original records. Save the draft, run
+   **Validate pack**, then publish and **Pin release to event**. A pinned
+   collection release stays with its event. **Use for analysis** can switch
+   calculations to a compatible release while keeping the capture release.
+3. In Bearimetric, select the event, scout, and position, then select a match
+   and press **Go**. Load the pack and schedule online before going offline.
+   Save a submission and check the upload indicator for confirmation or
+   rejection after reconnecting.
+4. In Beariscope, check Pits, Team Lookup, Match Preview, Scout Audit, Picklists,
+   and Export Data for the selected event. Team Details and Match Preview
+   use the same Observations form. Match Preview attaches the match to the
+   observation. Audit corrections append a new observation with the reason
+   and the link to the previous record.
+
+### Verify the clean cutover
+
+The current Honeycomb environment has no legacy scouting submissions. Start
+with its existing Grove database and publish and assign the event’s GamePack.
+The service keeps existing competition records, users, scouts, and picklists.
+
+1. Check that any test tablets show zero pending uploads before changing builds.
+2. Keep a SQLite backup and the previous builds available for recovery.
+3. Load the new builds and verify the workflows above. Include a tablet restart
+   and reconnect after an offline submission. The checked-in REBUILT pack is
+   tested with archived 2026 TBA responses.
+
+Production rollout requires explicit authorization. For recovery, preserve the
+current database before restoring a backup. Reconcile submissions accepted
+since that backup before reopening scouting.
 
 ## Auth0 directory sync
 
@@ -148,5 +211,5 @@ See the [Nexus API docs](https://frc.nexus/api/v1/docs) for push and pull endpoi
 External API keys and Auth0 Management credentials live on the server. Shared
 profile names and photos live in Grove. Auth0 still owns sign-in emails,
 verification, password resets, and account deletion. Account deletion removes
-the sign-in account, live Grove profile, and stored photo. Shared scouting
-reports and historical audit entries remain.
+the sign-in account, live Grove profile, and stored photo. Shared GamePack
+observations and historical audit entries remain.

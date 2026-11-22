@@ -1,9 +1,7 @@
 import 'dart:async';
 
-import 'package:beariscope/models/match_field_ids.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
-import 'package:beariscope/providers/processed_scouting_provider.dart';
-import 'package:beariscope/providers/scouting_data_provider.dart';
+import 'package:services/providers/gamepack_analysis_provider.dart';
 import 'package:core/core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,55 +15,6 @@ class _CurrentEvent extends CurrentEvent {
 }
 
 void main() {
-  test('scouting normalization reads the Grove match breakdown', () async {
-    final registry = bearingsEntityRegistry();
-    final grove = Grove(
-      registry: registry,
-      transport: MemoryGroveTransport(registry),
-    );
-    addTearDown(grove.close);
-    await grove.create(
-      const CompetitionMatch(
-        id: '2026test_qm1',
-        season: 2026,
-        event: EntityRef('2026test'),
-        level: 'qm',
-        setNumber: 1,
-        matchNumber: 1,
-        practice: false,
-        red: CompetitionAlliance(
-          teams: [EntityRef('frc2046')],
-          gameBreakdown: {
-            'hubScore': {'autoCount': 20, 'teleopFuelCount': '30'},
-          },
-        ),
-      ),
-    );
-    await grove.create(
-      ScoutingReport.fromMatch(
-        MatchFormData.blank(
-              eventKey: '2026test',
-              matchNumber: 1,
-              pos: 0,
-              season: 2026,
-              configVersion: 1,
-              teamNumber: 2046,
-            )
-            .copyWithField(kSectionAuto, kAutoFuelScored, 10)
-            .copyWithField(kSectionTele, kTeleFuelScored, 10),
-      ),
-    );
-    final container = ProviderContainer.test(
-      overrides: [
-        currentEventProvider.overrideWith(_CurrentEvent.new),
-        bearingsGroveProvider.overrideWithValue(grove),
-      ],
-    );
-    final bundle = await waitForValue(container, processedScoutingProvider);
-    expect(bundle.processedDocs.single.autoFuelScalar, 2);
-    expect(bundle.processedDocs.single.teleFuelScalar, 3);
-  });
-
   test(
     'Beariscope observes live Grove scouting and permission changes',
     () async {
@@ -75,7 +24,9 @@ void main() {
         transport: MemoryGroveTransport(registry),
       );
       addTearDown(grove.close);
-      await grove.create(GroveAccess('actor', ['scouting.report.read']));
+      await grove.create(
+        GroveAccess('actor', [gamePackObservationReadPermission]),
+      );
       final container = ProviderContainer(
         overrides: [
           currentEventProvider.overrideWith(_CurrentEvent.new),
@@ -84,14 +35,15 @@ void main() {
         ],
       );
       addTearDown(container.dispose);
-      final reportChanges = StreamController<List<ScoutingReport>>.broadcast();
+      final reportChanges =
+          StreamController<List<GamePackObservation>>.broadcast();
       final accessChanges = StreamController<PermissionChecker?>.broadcast();
       addTearDown(() async {
         await reportChanges.close();
         await accessChanges.close();
       });
       final scouting = container.listen(
-        groveQueryProvider(container.read(scoutingQueryProvider)),
+        gamePackObservationHistoryProvider('2026test'),
         (_, state) {
           if (state.asData case final value?)
             reportChanges.add(value.value.items);
@@ -107,8 +59,9 @@ void main() {
         access.close();
       });
       expect(
-        (await container.read(
-          groveQueryProvider(container.read(scoutingQueryProvider)).future,
+        (await waitForValue(
+          container,
+          gamePackObservationHistoryProvider('2026test'),
         )).items,
         isEmpty,
       );
@@ -117,18 +70,16 @@ void main() {
           container,
           groveAccessProvider,
         ))!.items.single.permissions,
-        {'scouting.report.read'},
+        {gamePackObservationReadPermission},
       );
 
       permissionsDuringUpdates.clear();
-      final report = ScoutingReport.fromMatch(
-        MatchFormData.blank(
-          eventKey: '2026test',
-          matchNumber: 1,
-          pos: 0,
-          season: 2026,
-          configVersion: 1,
-        ),
+      final report = GamePackObservation(
+        id: 'new-observation',
+        release: const EntityRef('pack'),
+        event: const EntityRef('2026test'),
+        capturedAt: DateTime.utc(2026),
+        answers: const {},
       );
       final received = reportChanges.stream.firstWhere(
         (reports) => reports.isNotEmpty,

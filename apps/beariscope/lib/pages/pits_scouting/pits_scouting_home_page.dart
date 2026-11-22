@@ -1,8 +1,19 @@
-import 'package:core/core.dart' show PitLayout, ScoutingReport;
+import 'package:core/core.dart'
+    show
+        PitLayout,
+        GamePackFormKind,
+        GamePackObservation,
+        gamePackReadPermission,
+        gamePackSubmitPermission,
+        gamePackCorrectPermission;
 import 'package:grove/grove.dart' show QueryResult;
 import 'package:beariscope/widgets/grove_load_message.dart';
 import 'package:services/providers/competition_provider.dart';
+import 'package:services/providers/gamepack_analysis_provider.dart';
+import 'package:services/providers/gamepack_provider.dart';
+import 'package:services/providers/permissions_provider.dart';
 import 'package:beariscope/models/pits_scouting_models.dart';
+import 'package:beariscope/pages/gamepacks/observation_page.dart';
 import 'package:beariscope/pages/main_view.dart';
 import 'package:beariscope/pages/pits_scouting/pits_map_view.dart';
 import 'package:beariscope/pages/pits_scouting/pits_scouting_assets.dart';
@@ -53,9 +64,54 @@ class PitsScoutingHomePageState extends ConsumerState<PitsScoutingHomePage> {
   Widget build(BuildContext context) {
     final main = MainViewController.of(context);
     final teamsAsync = ref.watch(pitsTeamsProvider);
-    final reports = ref.watch(pitsReportsProvider).value;
+    final event = ref.watch(currentEventProvider);
+    final permission = ref.watch(permissionCheckerProvider);
+    final assignment = permission?.hasPermission(gamePackReadPermission) == true
+        ? ref.watch(eventGamePackProvider(event)).value
+        : null;
+    final release = assignment;
+    final pitForm = release?.definition.formFor(GamePackFormKind.pit);
+    final history =
+        release != null && permission?.canReadGamePackAnalysis == true
+        ? ref.watch(activeGamePackObservationsProvider(event)).value
+        : null;
+    final observations = <int, GamePackObservation>{};
+    for (final row in history ?? const <GamePackObservation>[]) {
+      if (row.formId != pitForm?.id || row.release.id != release!.id) continue;
+      final team = int.tryParse(row.team?.id.replaceFirst('frc', '') ?? '');
+      if (team != null) observations.putIfAbsent(team, () => row);
+    }
+    final scoutedNums = history == null ? null : observations.keys.toSet();
+    final maySubmit =
+        permission?.hasPermission(gamePackSubmitPermission) == true;
+    final mayCorrect =
+        permission?.hasPermission(gamePackCorrectPermission) == true;
+    final canOpen = pitForm != null && (maySubmit || history != null);
+
+    Future<void> openTeam(int number, String name) async {
+      final previous = observations[number];
+      if (release == null || (previous == null && !maySubmit)) return;
+      final saved = await Navigator.of(context, rootNavigator: true).push<bool>(
+        MaterialPageRoute(
+          builder: (_) => GamePackObservationPage(
+            title: 'Scouting $number: $name',
+            event: event,
+            release: release,
+            kind: GamePackFormKind.pit,
+            team: 'frc$number',
+            previous: previous,
+            writable: previous == null ? maySubmit : mayCorrect,
+          ),
+        ),
+      );
+      if (saved == true && context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Pit observation saved')));
+      }
+    }
+
     final pitLayout = ref.watch(pitsMapProvider);
-    final scoutedNums = reports?.keys.toSet() ?? const <int>{};
     final teamNameMap = {
       for (final team in teamsAsync.value ?? const <Team>[])
         team.number: team.name,
@@ -99,7 +155,7 @@ class PitsScoutingHomePageState extends ConsumerState<PitsScoutingHomePage> {
               BearingsMenuItem(
                 selected: _statusFilter == filter,
                 onPressed:
-                    reports != null || filter == PitsScoutingFilter.allTeams
+                    scoutedNums != null || filter == PitsScoutingFilter.allTeams
                     ? () => setState(() => _statusFilter = filter)
                     : null,
                 child: Text(switch (filter) {
@@ -121,8 +177,9 @@ class PitsScoutingHomePageState extends ConsumerState<PitsScoutingHomePage> {
               bodyBuilder: (context, layout) => _buildMapView(
                 context,
                 result: pitLayout,
-                reports: reports,
+                scoutedNums: scoutedNums,
                 teamNameMap: teamNameMap,
+                openTeam: canOpen ? openTeam : null,
               ),
             ),
           ),
@@ -141,12 +198,13 @@ class PitsScoutingHomePageState extends ConsumerState<PitsScoutingHomePage> {
                   filterPitsTeams(
                     teams: teams,
                     query: searchController.text,
-                    scoutedTeamNumbers: scoutedNums,
-                    statusFilter: reports == null
+                    scoutedTeamNumbers: scoutedNums ?? const {},
+                    statusFilter: scoutedNums == null
                         ? PitsScoutingFilter.allTeams
                         : _statusFilter,
                   ),
-                  reports,
+                  scoutedNums,
+                  openTeam: canOpen ? openTeam : null,
                   padding: layout.scrollPadding,
                 ),
               ),
@@ -160,8 +218,9 @@ class PitsScoutingHomePageState extends ConsumerState<PitsScoutingHomePage> {
   Widget _buildMapView(
     BuildContext context, {
     required AsyncValue<QueryResult<PitLayout>?> result,
-    required Map<int, ScoutingReport>? reports,
+    required Set<int>? scoutedNums,
     required Map<int, String> teamNameMap,
+    required void Function(int, String)? openTeam,
   }) {
     final pitLayoutAsync = result.whenData(
       (snapshot) => snapshot?.requireAvailable().items.singleOrNull,
@@ -181,23 +240,9 @@ class PitsScoutingHomePageState extends ConsumerState<PitsScoutingHomePage> {
           key: ValueKey(layout.id),
           mapData: mapData,
           pits: layout.pits,
-          scoutedTeams: reports?.keys.toSet(),
+          scoutedTeams: scoutedNums,
           teamNames: teamNameMap,
-          onTeamTap: reports == null
-              ? null
-              : (teamNumber, teamName) {
-                  final report = reports[teamNumber];
-                  Navigator.of(context, rootNavigator: true).push(
-                    MaterialPageRoute(
-                      builder: (_) => PitsScoutingFormPage(
-                        teamNumber: teamNumber,
-                        teamName: teamName,
-                        scouted: report != null,
-                        initialDoc: report,
-                      ),
-                    ),
-                  );
-                },
+          onTeamTap: openTeam,
         );
       },
     );
@@ -222,12 +267,14 @@ class PitsScoutingHomePageState extends ConsumerState<PitsScoutingHomePage> {
   Widget _buildTeamList(
     BuildContext context,
     List<Team> filteredTeams,
-    Map<int, ScoutingReport>? reports, {
+    Set<int>? scoutedNums, {
+    required void Function(int, String)? openTeam,
     EdgeInsetsGeometry? padding,
   }) {
     if (filteredTeams.isEmpty) {
       final hasFilters =
-          (reports != null && _statusFilter != PitsScoutingFilter.allTeams) ||
+          (scoutedNums != null &&
+              _statusFilter != PitsScoutingFilter.allTeams) ||
           ref.read(pitsSearchControllerProvider).text.trim().isNotEmpty;
 
       return ListView(
@@ -255,8 +302,11 @@ class PitsScoutingHomePageState extends ConsumerState<PitsScoutingHomePage> {
             (team) => PitsScoutingTeamCard(
               teamName: team.name,
               teamNumber: team.number,
-              report: reports?[team.number],
-              statusKnown: reports != null,
+              scouted: scoutedNums?.contains(team.number) == true,
+              statusKnown: scoutedNums != null,
+              onTap: openTeam == null
+                  ? null
+                  : () => openTeam(team.number, team.name),
             ),
           )
           .toList(),

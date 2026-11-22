@@ -25,16 +25,12 @@ class TeamSort {
   TeamSort(this.sort, this.isAscending);
 }
 
-enum TeamSortOptions { teamNumber, rank, custom, defense, noShow, brokeDown }
+enum TeamSortOptions { teamNumber, rank }
 
 extension TeamSortLabel on TeamSortOptions {
   String get label => switch (this) {
     TeamSortOptions.teamNumber => 'Team #',
     TeamSortOptions.rank => 'Rank',
-    TeamSortOptions.custom => 'Total #',
-    TeamSortOptions.defense => 'Played Defense',
-    TeamSortOptions.noShow => 'No Shows',
-    TeamSortOptions.brokeDown => 'Breakdowns',
   };
 }
 

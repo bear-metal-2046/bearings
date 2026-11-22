@@ -1,42 +1,37 @@
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:services/providers/competition_provider.dart';
 import 'package:ui/widgets/bearings_popup_menu.dart';
-import 'package:ui/widgets/bearings_modal.dart';
-import 'package:beariscope/models/match_field_ids.dart';
-import 'package:beariscope/models/team_scouting_bundle.dart';
-import 'package:beariscope/pages/team_lookup/tabs/averages_tab.dart';
-import 'package:beariscope/pages/team_lookup/tabs/capabilities_tab.dart';
-import 'package:beariscope/pages/team_lookup/tabs/matches_tab.dart';
+import 'package:beariscope/pages/gamepacks/team_card_content.dart';
+import 'package:beariscope/pages/gamepacks/observation_list.dart';
+import 'package:beariscope/pages/gamepacks/observation_page.dart';
 import 'package:beariscope/pages/team_lookup/tabs/media_tab.dart';
-import 'package:beariscope/pages/team_lookup/tabs/notes_tab.dart';
-import 'package:beariscope/pages/team_lookup/tabs/observation_sheet.dart';
 import 'package:beariscope/pages/team_lookup/team_model.dart';
 import 'package:beariscope/pages/team_lookup/team_providers.dart';
-import 'package:beariscope/providers/rankings_provider.dart';
 import 'package:beariscope/providers/tba_preferences_provider.dart';
-import 'package:beariscope/providers/team_scouting_provider.dart';
 import 'package:beariscope/utils/competition_media_display.dart';
 import 'package:ui/widgets/bearings_status_view.dart';
 import 'package:beariscope/widgets/team_avatar.dart';
+import 'package:core/core.dart'
+    show
+        GamePackFormKind,
+        GamePackTeamCardKind,
+        gamePackReadPermission,
+        gamePackSubmitPermission;
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:services/providers/permissions_provider.dart';
-import 'package:syncfusion_flutter_charts/charts.dart';
+import 'package:services/providers/gamepack_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:ui/widgets/bearings_spinner.dart';
 
-import '../models/processed_scouting_doc.dart';
-import '../providers/strat_z_score_provider.dart';
-
 class TeamCard extends ConsumerWidget {
   final String teamKey;
+  final String? eventKey;
   final bool headerOnly;
   final double? height;
   final Color? allianceColor;
-  final double? minY;
-  final double? maxY;
 
   static const double _defaultPlaceholderHeight = 120;
 
@@ -44,17 +39,20 @@ class TeamCard extends ConsumerWidget {
     super.key,
     this.headerOnly = false,
     required this.teamKey,
+    this.eventKey,
     this.height,
     this.allianceColor,
-    this.minY,
-    this.maxY,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final event = eventKey ?? ref.watch<String>(currentEventProvider);
     final teamsAsync = ref
-        .watch(competitionTeamsProvider(ref.watch(currentEventProvider)))
+        .watch(competitionTeamsProvider(event))
         .whenData((result) => result.requireAvailable().items);
+    final showSummary =
+        !headerOnly &&
+        ref.watch(permissionCheckerProvider)?.canReadGamePackAnalysis == true;
 
     return teamsAsync.when(
       loading: () => _buildCardShell(
@@ -95,20 +93,20 @@ class TeamCard extends ConsumerWidget {
                   teamName: resolvedTeam.name,
                   teamNumber: resolvedTeam.number,
                   teamWebsite: resolvedTeam.website,
+                  eventKey: event,
                 ),
               ),
             );
           },
-          child: headerOnly
-              ? Padding(
+          child: showSummary
+              ? _GamePackTeamCardSummary(
+                  team: resolvedTeam,
+                  event: event,
+                  fillHeight: height != null,
+                )
+              : Padding(
                   padding: const EdgeInsets.all(16),
                   child: _TeamCardHeader(team: resolvedTeam),
-                )
-              : _TeamCardSummary(
-                  team: resolvedTeam,
-                  expandToFillHeight: height != null,
-                  minY: minY,
-                  maxY: maxY,
                 ),
         );
       },
@@ -147,68 +145,39 @@ class TeamCard extends ConsumerWidget {
   }
 }
 
-class _TeamCardSummary extends ConsumerWidget {
-  final Team team;
-  final bool expandToFillHeight;
-  final double? minY;
-  final double? maxY;
-
-  const _TeamCardSummary({
+class _GamePackTeamCardSummary extends StatelessWidget {
+  const _GamePackTeamCardSummary({
     required this.team,
-    required this.expandToFillHeight,
-    required this.minY,
-    required this.maxY,
+    required this.event,
+    required this.fillHeight,
   });
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final bundleAsync = ref.watch(teamScoutingProvider(team.number));
-    final rankingsAsync = ref.watch(eventRankingsProvider);
-    final rankings = switch (rankingsAsync) {
-      AsyncData(:final value) => value,
-      _ => const <int, TeamRanking>{},
-    };
+  final Team team;
+  final String event;
+  final bool fillHeight;
 
+  @override
+  Widget build(BuildContext context) {
+    final statistics = GamePackTeamCardStatistics(
+      event: event,
+      team: team.key,
+      kind: GamePackTeamCardKind.compact,
+      fallback: const SizedBox.shrink(),
+    );
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
-        mainAxisSize: expandToFillHeight ? MainAxisSize.max : MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: fillHeight ? MainAxisSize.max : MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: 5,
         children: [
           _TeamCardHeader(team: team),
-          bundleAsync.when(
-            loading: () => const SizedBox.shrink(),
-            error: (_, _) => const SizedBox.shrink(),
-            data: (bundle) =>
-                SizedBox(height: bundle.matchDocs.length > 1 ? 12 : 4),
-          ),
-          bundleAsync.when(
-            loading: () => const SizedBox.shrink(),
-            error: (_, _) => const SizedBox.shrink(),
-            data: (bundle) {
-              final summary = _SummaryMetrics(
-                teamNumber: team.number,
-                bundle: bundle,
-                expandToFillHeight: expandToFillHeight,
-                minY: minY,
-                maxY: maxY,
-                stratZScores:
-                    ref
-                        .watch(stratZScoresProvider)
-                        .asData
-                        ?.value
-                        .changeToRanks() ??
-                    StratZScoreData.empty,
-                ranking: rankings[team.number],
-              );
-
-              // Only reserve expandable vertical space when chart data exists.
-              if (expandToFillHeight && bundle.matchDocs.length > 1) {
-                return Expanded(child: summary);
-              }
-              return summary;
-            },
-          ),
+          if (fillHeight)
+            Expanded(
+              child: SingleChildScrollView(primary: false, child: statistics),
+            )
+          else
+            statistics,
         ],
       ),
     );
@@ -280,381 +249,34 @@ class _TeamCardHeader extends StatelessWidget {
   }
 }
 
-class _SummaryMetrics extends ConsumerWidget {
-  final int teamNumber;
-  final TeamScoutingBundle bundle;
-  final bool expandToFillHeight;
-  final double? minY;
-  final double? maxY;
-  final StratZScoreData? stratZScores;
-  final TeamRanking? ranking;
-
-  const _SummaryMetrics({
-    required this.teamNumber,
-    required this.bundle,
-    required this.expandToFillHeight,
-    required this.minY,
-    required this.maxY,
-    required this.stratZScores,
-    required this.ranking,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    const playStyleOptions = ['Passing', 'Cycling', 'Shooting', 'Defense'];
-
-    final trenchCapable =
-        bundle.getPitsField<String>('trenchCapability') == 'Trench Capable';
-    final climbCapable = bundle.getPitsField<String>('climbMethod');
-
-    final mostCommonPlayStyle = RegExp(r'\d+')
-        .allMatches(
-          bundle.modalMatchField(kSectionEndgame, kEndPlayStyle).toString(),
-        )
-        .map((m) {
-          final index = int.parse(m.group(0)!);
-          return (index >= 0 && index < playStyleOptions.length)
-              ? playStyleOptions[index]
-              : null;
-        })
-        .whereType<String>()
-        .join(', ');
-
-    final avgAutoFuel = bundle.avgMatchField(kSectionAuto, kAutoFuelScored);
-    final avgTeleFuel = bundle.avgMatchField(kSectionTele, kTeleFuelScored);
-    final avgAccuracy = bundle.avgMatchAccuracyTotal();
-    final hasMatch = bundle.hasMatchData;
-    final hasEnoughMatchDataForGraph = bundle.matchDocs.length > 1;
-    final hasZScores = stratZScores?.hasDataForTeam(teamNumber) ?? false;
-    final hasPitsData = bundle.hasPitsData;
-
-    return Column(
-      mainAxisSize: expandToFillHeight ? MainAxisSize.max : MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (hasPitsData) ...[
-          _ChipsRow(
-            mostCommonPlayStyle: mostCommonPlayStyle,
-            trenchCapable: trenchCapable,
-            climbCapable: climbCapable,
-          ),
-          const SizedBox(height: 8),
-        ],
-        if (hasEnoughMatchDataForGraph) ...[
-          const SizedBox(height: 8),
-          if (expandToFillHeight)
-            Expanded(
-              child: Align(
-                alignment: Alignment.topCenter,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 300),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: SfCartesianChart(
-                      margin: EdgeInsets.zero,
-                      primaryXAxis: CategoryAxis(
-                        labelPlacement: LabelPlacement.onTicks,
-                        labelStyle: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                        majorGridLines: MajorGridLines(width: 0),
-                      ),
-                      primaryYAxis: NumericAxis(
-                        minimum: minY,
-                        maximum: maxY,
-                        interval: 50,
-                        labelStyle: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                        majorGridLines: MajorGridLines(
-                          color: Theme.of(context).colorScheme.outlineVariant,
-                          width: 2,
-                        ),
-                      ),
-                      plotAreaBorderWidth: 0,
-                      series: buildTeamCardLineSeries(
-                        context,
-                        bundle.matchDocs,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            )
-          else
-            SizedBox(
-              height: 180,
-              child: SfCartesianChart(
-                margin: EdgeInsets.zero,
-                primaryXAxis: CategoryAxis(
-                  labelPlacement: LabelPlacement.onTicks,
-                  labelStyle: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                  majorGridLines: MajorGridLines(width: 0),
-                ),
-                primaryYAxis: NumericAxis(
-                  minimum: minY,
-                  maximum: maxY,
-                  interval: 50,
-                  labelStyle: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                  majorGridLines: MajorGridLines(
-                    color: Theme.of(context).colorScheme.outlineVariant,
-                    width: 2,
-                  ),
-                ),
-                plotAreaBorderWidth: 0,
-                series: buildTeamCardLineSeries(context, bundle.matchDocs),
-              ),
-            ),
-        ],
-
-        if (hasEnoughMatchDataForGraph) const Divider(height: 8, thickness: 1),
-
-        if (hasZScores) ...[
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 12,
-            runSpacing: 2,
-            children: [
-              _zScoreLabel(
-                context,
-                'Driver',
-                stratZScores!.driverSkillZ[teamNumber] ?? 0,
-              ),
-              _zScoreLabel(
-                context,
-                'Defense',
-                stratZScores!.defensiveSkillZ[teamNumber] ?? 0,
-              ),
-              _zScoreLabel(
-                context,
-                'Def. Resilience',
-                stratZScores!.defensiveResilienceZ[teamNumber] ?? 0,
-              ),
-              _zScoreLabel(
-                context,
-                'Stability',
-                stratZScores!.mechanicalStabilityZ[teamNumber] ?? 0,
-              ),
-            ],
-          ),
-        ],
-
-        if (hasMatch) ...[
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Wrap(
-                spacing: 12,
-                children: [
-                  _StatPill(
-                    label: 'Auto',
-                    value: avgAutoFuel.toStringAsFixed(1),
-                  ),
-                  _StatPill(
-                    label: 'Tele',
-                    value: avgTeleFuel.toStringAsFixed(1),
-                  ),
-                  _StatPill(
-                    label: 'Total',
-                    value: (avgAutoFuel + avgTeleFuel).toStringAsFixed(1),
-                    highlight: true,
-                  ),
-                  _StatPill(
-                    label: 'Accuracy',
-                    value: avgAccuracy != null
-                        ? '${avgAccuracy.toStringAsFixed(1)}%'
-                        : '?',
-                    highlight: true,
-                  ),
-                ],
-              ),
-              if (ranking != null) _RankBadge(ranking: ranking!),
-            ],
-          ),
-        ],
-      ],
-    );
-  }
-
-  Widget _zScoreLabel(BuildContext context, String label, double value) {
-    return Text.rich(
-      TextSpan(
-        style: Theme.of(context).textTheme.bodySmall,
-        children: [
-          TextSpan(
-            text: '$label: ',
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          TextSpan(text: formattedRank(value)),
-        ],
-      ),
-    );
-  }
-}
-
-class _ChipsRow extends StatelessWidget {
-  final String mostCommonPlayStyle;
-  final bool trenchCapable;
-  final String? climbCapable;
-
-  const _ChipsRow({
-    required this.mostCommonPlayStyle,
-    required this.trenchCapable,
-    required this.climbCapable,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final secondaryColor = Theme.of(context).colorScheme.secondary;
-
-    return Wrap(
-      spacing: 6,
-      runSpacing: 6,
-      children: [
-        if (mostCommonPlayStyle.isNotEmpty)
-          Chip(
-            label: Text(
-              mostCommonPlayStyle,
-              style: TextStyle(
-                fontSize: 12,
-                color: Theme.of(context).colorScheme.onPrimaryContainer,
-              ),
-            ),
-            backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-            side: BorderSide(color: Theme.of(context).colorScheme.primary),
-            visualDensity: VisualDensity.compact,
-            padding: EdgeInsets.zero,
-            labelPadding: const EdgeInsets.symmetric(horizontal: 8),
-          ),
-        if (trenchCapable)
-          _OutlinedChip(
-            icon: LucideIcons.merge,
-            label: 'Trench',
-            color: secondaryColor,
-          ),
-        if (climbCapable != null && climbCapable != 'No Climb')
-          _OutlinedChip(
-            icon: LucideIcons.circleDotDashed,
-            label: climbCapable!,
-            color: secondaryColor,
-          ),
-      ],
-    );
-  }
-}
-
-class _OutlinedChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-
-  const _OutlinedChip({
-    required this.icon,
-    required this.label,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Chip(
-      avatar: Icon(icon, size: 14, color: color),
-      label: Text(label, style: TextStyle(fontSize: 12, color: color)),
-      backgroundColor: color.withValues(alpha: 0.12),
-      side: BorderSide(color: color.withValues(alpha: 0.4)),
-      visualDensity: VisualDensity.compact,
-      padding: EdgeInsets.zero,
-      labelPadding: const EdgeInsets.only(right: 8),
-    );
-  }
-}
-
-class _StatPill extends StatelessWidget {
-  final String label;
-  final String value;
-  final bool highlight;
-
-  const _StatPill({
-    required this.label,
-    required this.value,
-    this.highlight = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final color = highlight
-        ? Theme.of(context).colorScheme.primary
-        : Theme.of(context).colorScheme.onSurfaceVariant;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          label,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(color: color),
-        ),
-        Text(
-          value,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            color: color,
-            fontWeight: highlight ? FontWeight.bold : FontWeight.normal,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _RankBadge extends StatelessWidget {
-  final TeamRanking ranking;
-
-  const _RankBadge({required this.ranking});
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          '#${ranking.rank}',
-          style: Theme.of(context).textTheme.titleMedium
-              ?.copyWith(color: scheme.primary, fontWeight: FontWeight.bold),
-        ),
-        Text(
-          '${ranking.rankingPoints} RP — ${ranking.rankingScore.toStringAsFixed(2)} RS',
-          style: Theme.of(context).textTheme.labelSmall
-              ?.copyWith(color: scheme.onSurfaceVariant),
-        ),
-      ],
-    );
-  }
-}
-
 class TeamDetailsPage extends ConsumerWidget {
   final String teamName;
   final int teamNumber;
   final String? teamWebsite;
+  final String? eventKey;
 
   const TeamDetailsPage({
     super.key,
     required this.teamName,
     required this.teamNumber,
     this.teamWebsite,
+    this.eventKey,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final showNotes =
-        ref
-            .watch(permissionCheckerProvider)
-            ?.hasPermission(PermissionKey.notesRead) ??
-        false;
+    final permission = ref.watch(permissionCheckerProvider);
+    final event = eventKey ?? ref.watch<String>(currentEventProvider);
+    final assigned = permission?.hasPermission(gamePackReadPermission) == true
+        ? ref.watch(eventGamePackProvider(event)).value
+        : null;
+    final pack = assigned;
+    final showObservations =
+        pack != null && permission?.canReadGamePackAnalysis == true;
+    final canAddObservation =
+        showObservations &&
+        pack.definition.formFor(GamePackFormKind.observation) != null &&
+        permission?.hasPermission(gamePackSubmitPermission) == true;
     final mediaAsync = ref.watch(teamMediaProvider(teamNumber));
 
     return mediaAsync.when(
@@ -677,8 +299,8 @@ class TeamDetailsPage extends ConsumerWidget {
         final hasMediaTabContent = hasMedia || hasWebsite;
 
         return DefaultTabController(
-          key: ValueKey('$showNotes-$hasMediaTabContent'),
-          length: 3 + (showNotes ? 1 : 0) + (hasMediaTabContent ? 1 : 0),
+          key: ValueKey('$showObservations-$hasMediaTabContent'),
+          length: 2 + (showObservations ? 1 : 0) + (hasMediaTabContent ? 1 : 0),
           child: Builder(
             builder: (context) {
               final tabController = DefaultTabController.of(context);
@@ -687,23 +309,39 @@ class TeamDetailsPage extends ConsumerWidget {
                 animation: tabController,
                 builder: (context, _) {
                   final showObservationFab =
-                      showNotes && tabController.index == 1;
+                      showObservations &&
+                      canAddObservation &&
+                      tabController.index == 1;
 
                   return Scaffold(
                     floatingActionButton: showObservationFab
                         ? FloatingActionButton.extended(
-                            onPressed: () {
-                              BearingsModal.show<void>(
-                                context,
-
-                                builder: (_) => ObservationSheet(
-                                  teamName: teamName,
-                                  teamNumber: teamNumber,
-                                ),
-                              );
+                            onPressed: () async {
+                              final saved =
+                                  await Navigator.of(
+                                    context,
+                                    rootNavigator: true,
+                                  ).push<bool>(
+                                    MaterialPageRoute(
+                                      builder: (_) => GamePackObservationPage(
+                                        title: 'Observation · $teamName',
+                                        event: event,
+                                        release: pack,
+                                        kind: GamePackFormKind.observation,
+                                        team: 'frc$teamNumber',
+                                      ),
+                                    ),
+                                  );
+                              if (saved == true && context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Observation saved'),
+                                  ),
+                                );
+                              }
                             },
                             icon: const Icon(LucideIcons.messageSquarePlus),
-                            label: const Text('Observation'),
+                            label: const Text('Add observation'),
                           )
                         : null,
                     appBar: AppBar(
@@ -756,9 +394,8 @@ class TeamDetailsPage extends ConsumerWidget {
                         tabAlignment: TabAlignment.start,
                         isScrollable: true,
                         tabs: [
-                          const Tab(text: 'Averages'),
-                          if (showNotes) const Tab(text: 'Notes'),
-                          const Tab(text: 'Capabilities'),
+                          const Tab(text: 'Details'),
+                          if (showObservations) const Tab(text: 'Observations'),
                           const Tab(text: 'Matches'),
                           if (hasMediaTabContent) const Tab(text: 'Media'),
                         ],
@@ -766,10 +403,41 @@ class TeamDetailsPage extends ConsumerWidget {
                     ),
                     body: TabBarView(
                       children: [
-                        AveragesTab(teamNumber: teamNumber),
-                        if (showNotes) NotesTab(teamNumber: teamNumber),
-                        CapabilitiesTab(teamNumber: teamNumber),
-                        MatchesTab(teamNumber: teamNumber),
+                        GamePackTeamCardStatistics(
+                          event: event,
+                          team: 'frc$teamNumber',
+                          kind: GamePackTeamCardKind.details,
+                          scrollable: true,
+                          fallback: const Center(
+                            child: Text('No team details configured.'),
+                          ),
+                        ),
+                        if (showObservations)
+                          GamePackTeamObservations(
+                            event: event,
+                            team: 'frc$teamNumber',
+                            release: pack,
+                            notesOnly: true,
+                            kinds: const {
+                              GamePackFormKind.observation,
+                              GamePackFormKind.match,
+                              GamePackFormKind.pit,
+                            },
+                          ),
+                        if (showObservations) ...[
+                          GamePackTeamObservations(
+                            event: event,
+                            team: 'frc$teamNumber',
+                            release: pack,
+                            kinds: const {GamePackFormKind.match},
+                          ),
+                        ] else ...[
+                          const Center(
+                            child: Text(
+                              'Match observations unavailable for this event.',
+                            ),
+                          ),
+                        ],
                         if (hasMediaTabContent)
                           MediaTab(
                             teamNumber: teamNumber,
@@ -815,185 +483,5 @@ class TeamDetailsPage extends ConsumerWidget {
     }
   }
 }
-
-List<LineSeries<ProcessedScoutingDoc, String>> buildTeamCardLineSeries(
-  BuildContext context,
-  List<ProcessedScoutingDoc> data,
-) {
-  const markerSettings = MarkerSettings(
-    isVisible: true,
-    height: 6,
-    width: 6,
-    shape: DataMarkerType.verticalLine,
-    borderWidth: 2,
-  );
-
-  return [
-    LineSeries<ProcessedScoutingDoc, String>(
-      dataSource: data,
-      xValueMapper: (doc, index) => doc.raw.data['matchNumber'].toString(),
-      yValueMapper: (doc, _) =>
-          _scaledMatchField(doc, kSectionAuto, kAutoFuelScored),
-      name: 'Auto',
-      color: Colors.red,
-      markerSettings: markerSettings,
-      animationDuration: 0,
-    ),
-    LineSeries<ProcessedScoutingDoc, String>(
-      dataSource: data,
-      xValueMapper: (doc, index) => doc.raw.data['matchNumber'].toString(),
-      yValueMapper: (doc, _) =>
-          _scaledMatchField(doc, kSectionTele, kTeleFuelScored),
-      name: 'Tele',
-      color: Colors.blue,
-      markerSettings: markerSettings,
-      animationDuration: 0,
-    ),
-    LineSeries<ProcessedScoutingDoc, String>(
-      dataSource: data,
-      xValueMapper: (doc, index) => doc.raw.data['matchNumber'].toString(),
-      yValueMapper: (doc, _) =>
-          _scaledMatchField(doc, kSectionTele, kTeleFuelScored) +
-          _scaledMatchField(doc, kSectionAuto, kAutoFuelScored),
-      name: 'Total',
-      color: Colors.green,
-      markerSettings: markerSettings,
-      dataLabelSettings: DataLabelSettings(
-        isVisible: true,
-        labelAlignment: ChartDataLabelAlignment.top,
-        offset: Offset(0, 8),
-        builder:
-            (
-              dynamic data,
-              dynamic point,
-              dynamic series,
-              int pointIndex,
-              int seriesIndex,
-            ) {
-              final doc = data as ProcessedScoutingDoc;
-
-              final bool brokeDown =
-                  _parseSafetyBool(
-                    TeamScoutingBundle.getMatchField(
-                      doc.raw,
-                      kSectionTele,
-                      kTeleStoppedWorking,
-                    ),
-                  ) ||
-                  _parseSafetyBool(
-                    TeamScoutingBundle.getMatchField(
-                      doc.raw,
-                      kSectionTele,
-                      kTeleLostComms,
-                    ),
-                  );
-
-              final bool playedDefense =
-                  _parseSafetyBool(
-                    TeamScoutingBundle.getMatchField(
-                      doc.raw,
-                      kSectionEndgame,
-                      kEndPlayedDefenseOffShift,
-                    ),
-                  ) ||
-                  _parseSafetyBool(
-                    TeamScoutingBundle.getMatchField(
-                      doc.raw,
-                      kSectionEndgame,
-                      kEndPlayedDefenseOnShift,
-                    ),
-                  );
-
-              final bool noShow = _parseSafetyBool(
-                TeamScoutingBundle.getMatchField(
-                  doc.raw,
-                  kSectionEndgame,
-                  kEndNoShow,
-                ),
-              );
-
-              if (!brokeDown && !playedDefense && !noShow) {
-                return const SizedBox.shrink();
-              }
-
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (brokeDown)
-                    Icon(
-                      LucideIcons.boneFracture,
-                      color: Theme.of(context).colorScheme.error,
-                      size: 14,
-                    ),
-                  if (playedDefense)
-                    Icon(
-                      LucideIcons.shield,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      size: 14,
-                    ),
-                  if (noShow)
-                    Icon(
-                      LucideIcons.mapPinXInside,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      size: 14,
-                    ),
-                ],
-              );
-            },
-      ),
-      animationDuration: 0,
-    ),
-  ];
-}
-
-// temp until we make fields typed/versioned
-bool _parseSafetyBool(dynamic value) {
-  if (value == null) return false;
-  if (value is bool) return value;
-  if (value is num) return value > 0;
-  if (value is String) {
-    final lower = value.toLowerCase();
-    return lower == 'true' || lower == '1' || lower == 'y';
-  }
-  return false;
-}
-
-double _scaledMatchField(
-  ProcessedScoutingDoc doc,
-  String sectionId,
-  String fieldId,
-) {
-  final value = TeamScoutingBundle.getMatchField(doc.raw, sectionId, fieldId);
-  if (value is! num) return 0.0;
-
-  final raw = value.toDouble();
-  if (sectionId == kSectionAuto && _scaledAutoFields.contains(fieldId)) {
-    return raw * doc.autoFuelScalar;
-  }
-  if (sectionId == kSectionTele && _scaledTeleFields.contains(fieldId)) {
-    return raw * doc.teleFuelScalar;
-  }
-  return raw;
-}
-
-double teamCardSharedYAxisMax(Iterable<TeamScoutingBundle> bundles) {
-  var maximum = 0.0;
-  for (final bundle in bundles) {
-    if (bundle.matchDocs.length <= 1) continue;
-    for (final doc in bundle.matchDocs) {
-      final auto = _scaledMatchField(doc, kSectionAuto, kAutoFuelScored);
-      final tele = _scaledMatchField(doc, kSectionTele, kTeleFuelScored);
-      final total = auto + tele;
-      if (auto > maximum) maximum = auto;
-      if (tele > maximum) maximum = tele;
-      if (total > maximum) maximum = total;
-    }
-  }
-  if (maximum <= 0) return 50;
-  return (maximum / 50).ceil() * 50.0;
-}
-
-const _scaledAutoFields = {kAutoFuelScored, kAutoFuelPassed};
-const _scaledTeleFields = {kTeleFuelScored, kTeleFuelPassed, kTeleFuelPoached};
 
 enum _TeamAction { openTba, openStatbotics, openFrcEvents, copyNumber }

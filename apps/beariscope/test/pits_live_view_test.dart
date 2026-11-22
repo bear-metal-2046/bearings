@@ -149,10 +149,15 @@ void main() {
     await pumpUpdates();
     expectViewportUnchanged();
 
-    final report = ScoutingReport.fromPayload({
-      'meta': {'event': '2026test', 'type': 'match', 'season': 2026},
-    }, id: 'unrelated-match');
-    await grove.stage(report);
+    await grove.stageCreate(
+      GamePackObservation(
+        id: 'unrelated-match',
+        release: const EntityRef('pack'),
+        event: const EntityRef('2026test'),
+        capturedAt: DateTime.utc(2026),
+        answers: const {'points': 4},
+      ),
+    );
     await pumpUpdates();
     expectViewportUnchanged();
 

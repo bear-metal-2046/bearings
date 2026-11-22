@@ -8,6 +8,7 @@ import 'package:beariscope/pages/auth/welcome_page.dart';
 import 'package:beariscope/pages/device_provisioning/device_provisioning_page.dart';
 import 'package:beariscope/pages/export/export_page.dart';
 import 'package:beariscope/pages/main_view.dart';
+import 'package:beariscope/pages/gamepacks/gamepacks_page.dart';
 import 'package:beariscope/pages/match_lookup/match_lookup_page.dart';
 import 'package:beariscope/pages/picklists/picklist_editor_page.dart';
 import 'package:beariscope/pages/picklists/picklists_create_page.dart';
@@ -146,7 +147,7 @@ final routerProvider = Provider<GoRouter>((ref) {
                 path: ':matchKey',
                 builder: (context, state) {
                   final matchKey = state.pathParameters['matchKey'] ?? '1';
-                  return DriveTeamMatchPreviewPage(matchKey: matchKey);
+                  return MatchPreviewPage(matchKey: matchKey);
                 },
               ),
             ],
@@ -275,6 +276,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: 'roles',
             builder: (_, _) => const TeamRoleSettingsPage(),
           ),
+          GoRoute(path: 'gamepacks', builder: (_, _) => const GamePacksPage()),
           GoRoute(path: 'about', builder: (_, _) => const AboutSettingsPage()),
           GoRoute(
             path: 'licenses',

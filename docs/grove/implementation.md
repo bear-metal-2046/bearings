@@ -4,7 +4,7 @@ Grove replaces the legacy Bearings data client in Beariscope and Bearimetric.
 Shared definitions live in `packages/core/lib/src/entities`, grouped into
 authorization, identity, scouting, strategy, and competition. Competition types
 include `team`, `event`, `match`, `event_status`, and `pit_layout`. Match,
-strategy, pit, observation, and drive-team reports keep their game-specific
+strategy, pit, and team observations keep their game-specific
 payloads. Role assignments reference Grove roles from the user profile.
 
 `packages/grove` provides serializable typed queries, CRUD, Riverpod observation,

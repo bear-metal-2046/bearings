@@ -1,5 +1,9 @@
 import 'package:ui/widgets/bearings_alert_dialog.dart';
-import 'package:beariscope/pages/scout_audit/scout_audit_provider.dart';
+import 'package:core/core.dart'
+    show
+        gamePackCorrectPermission,
+        gamePackObservationReadPermission,
+        gamePackSubmitPermission;
 import 'package:beariscope/providers/appearance_provider.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/widgets/server_connection_button.dart';
@@ -26,7 +30,6 @@ class _NavItem {
   final String label;
   final String group;
   final List<String> requiredPermissions;
-  final int? badgeCount;
 
   const _NavItem({
     required this.route,
@@ -34,24 +37,12 @@ class _NavItem {
     required this.label,
     required this.group,
     this.requiredPermissions = const [],
-    this.badgeCount,
   });
 
   bool canAccess(PermissionChecker? checker) {
     if (requiredPermissions.isEmpty) return true;
 
     return checker != null && requiredPermissions.any(checker.hasPermission);
-  }
-
-  _NavItem copyWith({int? badgeCount}) {
-    return _NavItem(
-      route: route,
-      icon: icon,
-      label: label,
-      group: group,
-      requiredPermissions: requiredPermissions,
-      badgeCount: badgeCount,
-    );
   }
 }
 
@@ -108,7 +99,10 @@ class _MainViewState extends ConsumerState<MainView> {
       icon: LucideIcons.wrench,
       label: 'Pits',
       group: 'General',
-      requiredPermissions: [PermissionKey.pitsUpload, PermissionKey.pitsRead],
+      requiredPermissions: [
+        gamePackSubmitPermission,
+        gamePackObservationReadPermission,
+      ],
     ),
     const _NavItem(
       route: '/picklists',
@@ -121,7 +115,10 @@ class _MainViewState extends ConsumerState<MainView> {
       icon: LucideIcons.clipboardCheck,
       label: 'Scout Audit',
       group: 'Data',
-      requiredPermissions: [PermissionKey.matchCorrect],
+      requiredPermissions: [
+        gamePackObservationReadPermission,
+        gamePackCorrectPermission,
+      ],
     ),
     const _NavItem(
       route: '/export',
@@ -143,25 +140,8 @@ class _MainViewState extends ConsumerState<MainView> {
     ),
   ];
 
-  List<_NavItem> _buildNavItems({
-    required int scoutAuditIssueCount,
-    required PermissionChecker? permissionChecker,
-  }) {
-    return _navItems
-        .map((item) {
-          if (item.route == '/scout_audit') {
-            return item.copyWith(
-              badgeCount: scoutAuditIssueCount > 0
-                  ? scoutAuditIssueCount
-                  : null,
-            );
-          }
-
-          return item;
-        })
-        .where((item) => item.canAccess(permissionChecker))
-        .toList();
-  }
+  List<_NavItem> _buildNavItems(PermissionChecker? permissionChecker) =>
+      _navItems.where((item) => item.canAccess(permissionChecker)).toList();
 
   String get _location {
     return GoRouterState.of(context).uri.toString();
@@ -195,16 +175,6 @@ class _MainViewState extends ConsumerState<MainView> {
     context.go(selectedItem.route);
   }
 
-  int _scoutAuditIssueCount() {
-    final audit = ref.watch(scoutAuditSnapshotProvider).value;
-    return audit == null
-        ? 0
-        : audit.incompleteMatches.length +
-              audit.notInTba.length +
-              audit.duplicates.length +
-              audit.incorrect.length;
-  }
-
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -213,10 +183,7 @@ class _MainViewState extends ConsumerState<MainView> {
 
         final permissionChecker = ref.watch(permissionCheckerProvider);
 
-        final visibleNavItems = _buildNavItems(
-          scoutAuditIssueCount: _scoutAuditIssueCount(),
-          permissionChecker: permissionChecker,
-        );
+        final visibleNavItems = _buildNavItems(permissionChecker);
 
         final selectedIndex = _selectedIndexFor(visibleNavItems);
 
@@ -459,24 +426,6 @@ class _MainViewState extends ConsumerState<MainView> {
                       ),
                     ),
                   ),
-                  if (item.badgeCount case final badgeCount?)
-                    Container(
-                      constraints: const BoxConstraints(minWidth: 20),
-                      height: 20,
-                      padding: const EdgeInsets.symmetric(horizontal: 6),
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: colorScheme.tertiaryContainer,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Text(
-                        badgeCount.toString(),
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: colorScheme.onTertiaryContainer,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
                 ],
               ),
             ),

@@ -34,8 +34,33 @@ class TbaImporter {
           id INTEGER PRIMARY KEY CHECK (id = 1), until INTEGER NOT NULL
         )
       ''');
+    _prepareMatchArchive();
     _enqueue(const _TbaJob('/status', priority: 0), _now());
     _enqueue(const _TbaJob('/media/tags', priority: 0), _now());
+  }
+
+  // Existing checkpoints can otherwise return 304 indefinitely. Keep their
+  // normal due times and refresh the body on the next scheduled poll.
+  void _prepareMatchArchive() {
+    _db.execute('BEGIN IMMEDIATE');
+    try {
+      _db.execute(
+        'CREATE TABLE IF NOT EXISTS tba_sync_metadata (name TEXT PRIMARY KEY)',
+      );
+      _db.execute(
+        "INSERT OR IGNORE INTO tba_sync_metadata (name) VALUES ('match_archive')",
+      );
+      if (_db.updatedRows > 0) {
+        _db.execute('''
+          UPDATE tba_sync_jobs SET etag = NULL
+          WHERE path GLOB '/event/*/matches' OR path GLOB '/event/*/matches/practice'
+        ''');
+      }
+      _db.execute('COMMIT');
+    } catch (_) {
+      _db.execute('ROLLBACK');
+      rethrow;
+    }
   }
 
   final EntityStore _store;
@@ -143,10 +168,15 @@ class TbaImporter {
         return true;
       }
       final data = jsonDecode(utf8.decode(response.bodyBytes));
-      final (records, discovered) = _import(job, data);
+      final (records, discovered, matchSamples) = _import(
+        job,
+        data,
+        receivedAt,
+      );
       _store.replaceExternalDataset(
         job.path,
         records,
+        tbaSamples: matchSamples,
         checkpoint: () {
           for (final child in discovered) {
             _enqueue(child, receivedAt);
@@ -264,12 +294,17 @@ class TbaImporter {
     _nextErrorLog = now.add(const Duration(minutes: 1));
   }
 
-  (List<EntityRecord>, List<_TbaJob>) _import(_TbaJob job, Object? body) {
+  (List<EntityRecord>, List<_TbaJob>, List<TbaMatchSample>) _import(
+    _TbaJob job,
+    Object? body,
+    DateTime receivedAt,
+  ) {
     final path = job.path;
     final segments = path.split('/').skip(1).toList();
     final season = job.season;
     final jobs = <_TbaJob>[];
     final records = <EntityRecord>[];
+    final matchSamples = <TbaMatchSample>[];
 
     void record<T>(T entity) {
       final descriptor = _store.registry.descriptor<T>();
@@ -412,7 +447,14 @@ class TbaImporter {
         }
       case ['event', _, 'matches'] || ['event', _, 'matches', 'practice']:
         for (final item in _objects(body)) {
-          record(TbaApi.match(item, practice: segments.length == 4));
+          final match = TbaApi.match(item, practice: segments.length == 4);
+          record(match);
+          matchSamples.add((
+            match: EntityRef(match.id),
+            event: match.event,
+            observedAt: receivedAt,
+            payload: item,
+          ));
         }
       case ['event', final event, 'rankings']:
         for (final ranking in TbaApi.rankings(event, body as Json?)) {
@@ -522,7 +564,7 @@ class TbaImporter {
       default:
         throw FormatException('Unknown TBA sync endpoint: $path');
     }
-    return (records, jobs);
+    return (records, jobs, matchSamples);
   }
 
   _TbaJob _tagJob(String team, int season, String tag) => _TbaJob(

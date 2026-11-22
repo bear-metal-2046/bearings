@@ -1,3 +1,4 @@
+import 'package:bearimetric/providers/scouting_providers.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -6,13 +7,10 @@ import 'package:bearimetric/data/local_data.dart';
 import 'package:bearimetric/pages/flow/config_page.dart';
 import 'package:bearimetric/pages/flow/match_select_page.dart';
 import 'package:bearimetric/pages/flow/scout_page.dart';
-import 'package:bearimetric/pages/flow/scouting_shell.dart';
+import 'package:bearimetric/pages/flow/gamepack_scout_page.dart';
 import 'package:bearimetric/pages/flow/settings_page.dart';
-import 'package:bearimetric/pages/flow/strat_shell.dart';
-import 'package:bearimetric/pages/match_page.dart';
 import 'package:bearimetric/pages/provisioning_page.dart';
 import 'package:bearimetric/pages/splash_screen.dart';
-import 'package:bearimetric/pages/strat.dart';
 import 'package:bearimetric/providers/app_provider.dart';
 import 'package:bearimetric/services/device_auth_service.dart';
 import 'package:services/providers/auth_provider.dart';
@@ -100,45 +98,26 @@ final routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) =>
             const NoTransitionPage(child: MatchSelectPage()),
       ),
-      ShellRoute(
-        builder: (context, state, child) {
-          return ScoutingShell(child: child);
+      GoRoute(
+        path: '/gamepack-match',
+        redirect: (_, _) =>
+            ref.read(scoutingSessionProvider).isConfigured ? null : '/config',
+        builder: (context, state) {
+          final session = ref.read(scoutingSessionProvider);
+          return GamePackScoutPage(
+            event: session.event!.key,
+            position: session.position!,
+            scoutId: session.scout!.uuid,
+            initialMatchNumber: session.matchNumber,
+            onMatchChanged: ref
+                .read(scoutingSessionProvider.notifier)
+                .setMatchNumber,
+            onBack: () => context.go('/match-select'),
+          );
         },
-        routes: [
-          GoRoute(
-            path: '/match/auto',
-            pageBuilder: (context, state) => NoTransitionPage<void>(
-              key: state.pageKey,
-              child: const MatchPage(index: 0),
-            ),
-          ),
-          GoRoute(
-            path: '/match/tele',
-            pageBuilder: (context, state) => NoTransitionPage<void>(
-              key: state.pageKey,
-              child: const MatchPage(index: 1),
-            ),
-          ),
-          GoRoute(
-            path: '/match/end',
-            pageBuilder: (context, state) => NoTransitionPage<void>(
-              key: state.pageKey,
-              child: const MatchPage(index: 2),
-            ),
-          ),
-        ],
       ),
-      ShellRoute(
-        builder: (context, state, child) {
-          return StratShell(child: child);
-        },
-        routes: [
-          GoRoute(
-            path: '/strat',
-            builder: (context, state) => const StratPage(),
-          ),
-        ],
-      ),
+      for (final path in ['/match/auto', '/match/tele', '/match/end', '/strat'])
+        GoRoute(path: path, redirect: (_, _) => '/gamepack-match'),
     ],
     redirect: (context, state) {
       final auth = ref.read(authStatusProvider);

@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:beariscope/providers/current_event_provider.dart';
-import 'package:beariscope/providers/scouting_data_provider.dart';
+import 'package:services/providers/gamepack_analysis_provider.dart';
 import 'package:beariscope/widgets/server_connection_button.dart';
 import 'package:core/core.dart';
 import 'package:dart_frog/dart_frog.dart';
@@ -21,15 +21,17 @@ class _CurrentEvent extends CurrentEvent {
   String build() => '2026test';
 }
 
-class _ReportCount extends ConsumerWidget {
-  const _ReportCount();
+class _ObservationCount extends ConsumerWidget {
+  const _ObservationCount();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final reports = ref
-        .watch(groveQueryProvider(ref.watch(scoutingQueryProvider)))
+        .watch(
+          gamePackObservationHistoryProvider(ref.watch(currentEventProvider)),
+        )
         .whenData((result) => result.requireAvailable().items);
-    return Text('Reports: ${reports.asData?.value.length ?? 'loading'}');
+    return Text('Observations: ${reports.asData?.value.length ?? 'loading'}');
   }
 }
 
@@ -133,41 +135,40 @@ void main() {
             container: container,
             child: const Directionality(
               textDirection: TextDirection.ltr,
-              child: _ReportCount(),
+              child: _ObservationCount(),
             ),
           ),
         );
-        await container.read(
-          groveQueryProvider(container.read(scoutingQueryProvider)).future,
+        await waitForValue(
+          container,
+          gamePackObservationHistoryProvider('2026test'),
         );
         await tester.pump();
-        expect(find.text('Reports: 0'), findsOneWidget);
-        final report = ScoutingReport.fromMatch(
-          MatchFormData.blank(
-            eventKey: '2026test',
-            matchNumber: 1,
-            pos: 0,
-            season: 2026,
-            configVersion: 1,
-          ),
+        expect(find.text('Observations: 0'), findsOneWidget);
+        final observation = GamePackObservation(
+          id: 'server-observation',
+          release: const EntityRef('pack'),
+          event: const EntityRef('2026test'),
+          capturedAt: DateTime.utc(2026),
+          answers: const {'points': 4},
         );
         store.mutate(
           EntityMutation(
             mutationId: 'server-create',
-            type: 'scouting.report',
-            id: report.id,
-            version: 1,
+            type: gamePackObservationEntity.type,
+            id: observation.id,
+            version: gamePackObservationEntity.version,
             kind: MutationKind.create,
-            data: report.toJson(),
+            data: gamePackObservationEntity.encode(observation),
           ),
           'server',
         );
         for (var i = 0; i < 40; i++) {
           await Future<void>.delayed(const Duration(milliseconds: 10));
           await tester.pump();
-          if (find.text('Reports: 1').evaluate().isNotEmpty) break;
+          if (find.text('Observations: 1').evaluate().isNotEmpty) break;
         }
-        expect(find.text('Reports: 1'), findsOneWidget);
+        expect(find.text('Observations: 1'), findsOneWidget);
       });
     } finally {
       await tester.pumpWidget(const SizedBox.shrink());

@@ -135,22 +135,16 @@ void main() {
 
       final first = _container('device-a');
       final grove = first.read(bearingsGroveProvider);
-      final report = ScoutingReport.fromMatch(
-        MatchFormData.blank(
-          eventKey: '2026test',
-          matchNumber: 1,
-          pos: 0,
-          season: 2026,
-          configVersion: 1,
-        ).copyWithField('auto', 'score', 6),
+      final report = GamePackObservation(
+        id: 'cached-observation',
+        release: const EntityRef('pack'),
+        event: const EntityRef('2026test'),
+        capturedAt: DateTime.utc(2026),
+        answers: const {'auto_score': 6, 'teleop_score': 8},
       );
-      await grove.stage(report);
-      await grove.stage(
-        ScoutingReport.fromMatch(
-          report.toMatch().copyWithField('teleop', 'score', 8),
-        ),
-      );
-      expect(await grove.pendingMutationCount, 2);
+      await grove.stageCreate(report);
+      await grove.stageCreate(report);
+      expect(await grove.pendingMutationCount, 1);
       await grove.close();
       first.dispose();
       await Hive.close();
@@ -161,20 +155,23 @@ void main() {
       final restored = reopened.read(bearingsGroveProvider);
       addTearDown(restored.close);
       final result = await restored
-          .query<ScoutingReport>()
+          .query<GamePackObservation>()
           .byId(report.id)
           .result();
       expect(result.offline, isTrue);
       expect(result.complete, isFalse);
-      expect(result.items.single.toMatch().getField('auto', 'score'), 6);
-      expect(result.items.single.toMatch().getField('teleop', 'score'), 8);
+      expect(result.items.single.answers['auto_score'], 6);
+      expect(result.items.single.answers['teleop_score'], 8);
 
       final other = _container('device-b');
       addTearDown(other.dispose);
       final isolated = other.read(bearingsGroveProvider);
       addTearDown(isolated.close);
       expect(await isolated.pendingMutationCount, 0);
-      expect((await isolated.query<ScoutingReport>().result()).items, isEmpty);
+      expect(
+        (await isolated.query<GamePackObservation>().result()).items,
+        isEmpty,
+      );
     },
   );
 }

@@ -79,7 +79,14 @@ void main() {
           return http.Response(
             jsonEncode([
               if (edition == 1) match,
-              if (edition > 1) {...match, 'key': '2027test_qm2'},
+              if (edition == 2)
+                {
+                  ...match,
+                  'score_breakdown': {
+                    'blue': {'gameSpecificField': false},
+                  },
+                },
+              if (edition > 2) {...match, 'key': '2027test_qm2'},
             ]),
             200,
             headers: {'etag': 'matches-$edition'},
@@ -317,6 +324,16 @@ void main() {
       addTearDown(snapshots.cancel);
       expect(await snapshots.moveNext(), isTrue);
       expect(snapshots.current.items.single.id, '2027test_qm1');
+      final archiveQuery = grove.query<TbaMatchRevision>().where(
+        TbaMatchRevisionFields.match.equals(const EntityRef('2027test_qm1')),
+      );
+      final archive = StreamIterator(grove.watch(archiveQuery));
+      addTearDown(archive.cancel);
+      expect(await archive.moveNext(), isTrue);
+      final original = archive.current.items.single;
+      expect(original.payload['score_breakdown'], {
+        'blue': {'gameSpecificField': true},
+      });
 
       now = now.add(const Duration(minutes: 1));
       await drain();
@@ -347,8 +364,34 @@ void main() {
         await snapshots.moveNext().timeout(const Duration(seconds: 3)),
         isTrue,
       );
+      expect(snapshots.current.items.single.blue?.gameBreakdown, {
+        'gameSpecificField': false,
+      });
+      expect(
+        await archive.moveNext().timeout(const Duration(seconds: 3)),
+        isTrue,
+      );
+      final revisions = archive.current.items.toList()
+        ..sort((a, b) => a.sequence.compareTo(b.sequence));
+      expect(revisions, hasLength(2));
+      expect(revisions.first.id, original.id);
+      expect(revisions.last.payload['score_breakdown'], {
+        'blue': {'gameSpecificField': false},
+      });
+
+      edition++;
+      now = now.add(const Duration(minutes: 1));
+      await drain();
+      expect(
+        await snapshots.moveNext().timeout(const Duration(seconds: 3)),
+        isTrue,
+      );
       expect(snapshots.current.items.single.id, '2027test_qm2');
       expect(imported<CompetitionMatch>('2027test_qm1'), isNull);
+      expect(
+        (await archiveQuery.many()).map((revision) => revision.id),
+        unorderedEquals(revisions.map((revision) => revision.id)),
+      );
 
       maxSeason = 2028;
       now = now.add(const Duration(hours: 6));

@@ -357,6 +357,41 @@ class Grove {
     );
   });
 
+  /// Durably queues an append-only record with a retry key derived from its ID.
+  /// Allocate a new entity ID for every distinct submission.
+  Future<T> stageCreate<T>(T entity) => _serialized(() async {
+    final descriptor = registry.descriptor<T>();
+    if (!descriptor.offlineMutable) {
+      throw const GroveException(
+        'online_required',
+        'This entity cannot be staged offline',
+      );
+    }
+    final data = descriptor.encode(entity);
+    final id = data['id'] as String;
+    final mutation = EntityMutation(
+      mutationId: 'create:${canonicalJson([descriptor.type, id])}',
+      type: descriptor.type,
+      id: id,
+      version: descriptor.version,
+      kind: MutationKind.create,
+      data: data,
+    );
+    final pending = await _pending();
+    for (final entry in pending) {
+      final previous = entry['mutation'] as Json;
+      if (previous['mutationId'] != mutation.mutationId) continue;
+      if (canonicalJson(previous) != canonicalJson(mutation.toJson())) {
+        throw const GroveException(
+          'conflict',
+          'This submission ID is already queued with different contents',
+        );
+      }
+      return descriptor.decode(data);
+    }
+    return descriptor.read(await _queue(mutation, null, pending));
+  });
+
   String _draftKey(String type, String id) =>
       'draft:${canonicalJson([type, id])}';
 

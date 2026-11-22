@@ -14,6 +14,7 @@ workspace:
   - apps/beariscope
   - apps/bearimetric
   - packages/core
+  - packages/gamepack
   - packages/grove
   - packages/grove_generator
   - packages/services
@@ -34,6 +35,7 @@ melos:
     - apps/beariscope
     - apps/bearimetric
     - packages/core
+    - packages/gamepack
     - packages/grove
     - packages/grove_generator
     - packages/services
@@ -59,7 +61,7 @@ melos:
 
     test:dart:
       description: Run tests for pure Dart packages.
-      run: melos exec --scope=core --scope=grove --scope=honeycomb --dir-exists=test --fail-fast -- "dart test"
+      run: melos exec --scope=core --scope=gamepack --scope=grove --scope=honeycomb --dir-exists=test --fail-fast -- "dart test"
 
     test:flutter:
       description: Run tests for Flutter packages and apps.

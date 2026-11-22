@@ -33,6 +33,15 @@ class EntityStore {
       'CREATE INDEX IF NOT EXISTS external_records_source ON external_records(source)',
     );
     database.execute('''
+      CREATE UNIQUE INDEX IF NOT EXISTS observation_successor
+      ON entities(json_extract(data, '\$.supersedes'))
+      WHERE type = 'scouting.observation' AND deleted = 0
+    ''');
+    database.execute('''
+      CREATE TABLE IF NOT EXISTS tba_match_revision_heads (
+        match TEXT PRIMARY KEY, id TEXT NOT NULL)
+    ''');
+    database.execute('''
       CREATE TABLE IF NOT EXISTS match_teams (
         type TEXT NOT NULL, id TEXT NOT NULL, team TEXT NOT NULL,
         PRIMARY KEY (type, team, id))
@@ -53,7 +62,13 @@ class EntityStore {
       WHERE deleted = 0 AND version <> 1
     ''');
   }
-  static const _indexedFields = {'event', 'season', 'team', 'district'};
+  static const _indexedFields = {
+    'event',
+    'season',
+    'team',
+    'district',
+    'match',
+  };
 
   final Database database;
   final EntityRegistry registry;
@@ -155,6 +170,7 @@ class EntityStore {
     String dataset,
     List<EntityRecord> records, {
     required void Function() checkpoint,
+    List<TbaMatchSample> tbaSamples = const [],
   }) {
     final changes = <EntityRecord>[];
     database.execute('BEGIN IMMEDIATE');
@@ -226,6 +242,10 @@ class EntityStore {
           id,
         ]);
       }
+      for (final sample in tbaSamples) {
+        final archived = _archiveTbaMatch(sample, nextRevision);
+        if (archived != null) changes.add(archived);
+      }
       if (changes.isNotEmpty) {
         database.execute(
           'REPLACE INTO external_revision (id,revision) VALUES (1,?)',
@@ -242,10 +262,71 @@ class EntityStore {
       _externalChanges.add(ExternalDatasetChange(dataset, changes));
   }
 
+  EntityRecord? _archiveTbaMatch(TbaMatchSample sample, int revision) {
+    final heads = database.select(
+      'SELECT id FROM tba_match_revision_heads WHERE match = ?',
+      [sample.match.id],
+    );
+    final previous = heads.isEmpty
+        ? null
+        : get(tbaMatchRevisionEntity.type, heads.single['id'] as String);
+    if (previous != null &&
+        canonicalJson(previous.data['payload']) ==
+            canonicalJson(sample.payload)) {
+      return null;
+    }
+    final entity = TbaMatchRevision(
+      id: '${sample.match.id}:$revision',
+      event: sample.event,
+      match: sample.match,
+      observedAt: sample.observedAt,
+      sequence: revision,
+      payload: sample.payload,
+    );
+    final descriptor = tbaMatchRevisionEntity;
+    final record = EntityRecord(
+      type: descriptor.type,
+      id: entity.id,
+      version: descriptor.version,
+      revision: revision,
+      data: descriptor.encode(entity),
+    );
+    database.execute(
+      '''
+        INSERT INTO entities (type,id,version,revision,deleted,data)
+        VALUES (?,?,?,?,0,?)
+      ''',
+      [
+        record.type,
+        record.id,
+        record.version,
+        revision,
+        canonicalJson(record.data),
+      ],
+    );
+    database.execute(
+      'REPLACE INTO tba_match_revision_heads (match,id) VALUES (?,?)',
+      [sample.match.id, entity.id],
+    );
+    return record;
+  }
+
   void _removeMatchTeams(String type, String id) => database.execute(
     'DELETE FROM match_teams WHERE type = ? AND id = ?',
     [type, id],
   );
+
+  bool hasObservationSuccessor(String id) => database
+      .select(
+        '''
+    SELECT 1 FROM entities
+    WHERE type = 'scouting.observation' AND deleted = 0
+          AND json_extract(data, '\$.supersedes') = ?
+    LIMIT 1
+    ''',
+        [id],
+      )
+      .isNotEmpty;
 
   /// Returns a previous receipt before a retry calls an upstream service.
   EntityRecord? mutationReceipt(EntityMutation mutation, String actor) {
@@ -274,6 +355,7 @@ class EntityStore {
     void Function()? authorize,
     void Function()? writeRelatedRows,
     List<FieldChange>? confirmedChanges,
+    Json Function(Json)? confirmCreate,
   }) {
     database.execute('BEGIN IMMEDIATE');
     EntityRecord result;
@@ -286,9 +368,12 @@ class EntityStore {
         result = receipt;
       } else {
         committed = true;
+        final confirmedData = mutation.kind == MutationKind.create
+            ? confirmCreate?.call(mutation.data!)
+            : null;
         result = commitMutation(
           registry,
-          confirmedChanges == null
+          confirmedChanges == null && confirmedData == null
               ? mutation
               : EntityMutation(
                   mutationId: mutation.mutationId,
@@ -296,8 +381,8 @@ class EntityStore {
                   id: mutation.id,
                   version: mutation.version,
                   kind: mutation.kind,
-                  data: mutation.data,
-                  changes: confirmedChanges,
+                  data: confirmedData ?? mutation.data,
+                  changes: confirmedChanges ?? mutation.changes,
                 ),
           get(mutation.type, mutation.id),
           revision + 1,
@@ -357,6 +442,13 @@ class EntityStore {
     database.close();
   }
 }
+
+typedef TbaMatchSample = ({
+  EntityRef<CompetitionMatch> match,
+  EntityRef<CompetitionEvent> event,
+  DateTime observedAt,
+  Json payload,
+});
 
 class ExternalDatasetChange {
   ExternalDatasetChange(this.dataset, List<EntityRecord> records) {

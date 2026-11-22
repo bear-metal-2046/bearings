@@ -5,13 +5,6 @@ import 'package:services/providers/grove_provider.dart';
 
 class PermissionKey {
   static const externalRead = competitionReadPermission;
-  static const matchRead = 'scouting.report.read';
-  static const matchUpload = 'scouting.report.mutate';
-  static const matchCorrect = 'scouting.report.mutate';
-  static const pitsRead = 'scouting.report.read';
-  static const pitsUpload = 'scouting.report.mutate';
-  static const notesRead = 'scouting.report.read';
-  static const driveTeamUpload = 'scouting.report.mutate';
   static const scoutsRead = 'scouting.scout.read';
   static const scoutsManage = 'scouting.scout.mutate';
   static const usersRead = 'identity.user.read';
@@ -43,15 +36,30 @@ const _permissionLabels = <String, (String, String, String)>{
     'View competition data',
     'View event schedules, teams, rankings, match status, and pit maps.',
   ),
-  'scouting.report.read': (
-    'Scouting',
-    'View scouting reports',
-    'Read match, pit, strategy, and scouting notes.',
+  gamePackReadPermission: (
+    'GamePacks',
+    'View published GamePacks',
+    'Load the published forms and graphs assigned to an event.',
   ),
-  'scouting.report.mutate': (
-    'Scouting',
-    'Edit scouting reports',
-    'Submit, correct, and delete scouting reports and notes.',
+  gamePackPublishPermission: (
+    'GamePacks',
+    'Publish GamePacks',
+    'Publish validated GamePacks and assign them to events.',
+  ),
+  gamePackObservationReadPermission: (
+    'GamePacks',
+    'View GamePack submissions',
+    'Read collected observations and their calculated results.',
+  ),
+  gamePackSubmitPermission: (
+    'GamePacks',
+    'Submit GamePack observations',
+    'Collect and upload match observations from assigned GamePack forms.',
+  ),
+  gamePackCorrectPermission: (
+    'GamePacks',
+    'Correct GamePack observations',
+    'Append a correction or retraction to an existing observation.',
   ),
   'scouting.scout.read': (
     'Scouting',
@@ -130,6 +138,10 @@ class PermissionChecker {
   bool hasAnyPermission(Iterable<String> values) => values.any(hasPermission);
   bool hasAllPermissions(Iterable<String> values) =>
       values.every(hasPermission);
+  bool get canReadGamePackAnalysis => hasAllPermissions([
+    gamePackReadPermission,
+    gamePackObservationReadPermission,
+  ]);
   bool get canOpenUsersAndRoles => hasAnyPermission([
     PermissionKey.usersRead,
     PermissionKey.rolesRead,

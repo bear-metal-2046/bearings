@@ -130,6 +130,7 @@ class BearingsModal extends StatefulWidget {
     // final presentation = _ModalPresentation.ios;
 
     final navigator = Navigator.of(context, rootNavigator: useRootNavigator);
+    final themes = InheritedTheme.capture(from: context, to: navigator.context);
     final policy = _ModalPolicy();
     final contentKey = GlobalKey();
 
@@ -151,7 +152,7 @@ class BearingsModal extends StatefulWidget {
               DialogTheme.of(context).barrierColor ??
               Theme.of(context).dialogTheme.barrierColor ??
               Colors.black54,
-          themes: InheritedTheme.capture(from: context, to: navigator.context),
+          themes: themes,
           reduceMotion: MediaQuery.disableAnimationsOf(context),
           policy: policy,
         );
@@ -161,7 +162,7 @@ class BearingsModal extends StatefulWidget {
         final route = _CupertinoModalRoute<T>(
           policy: policy,
           backgroundColor: Theme.of(context).colorScheme.surface,
-          child: Builder(builder: body),
+          child: themes.wrap(Builder(builder: body)),
         );
         policy.refresh = route.refreshPolicy;
         return navigator.push<T>(route);
@@ -170,7 +171,7 @@ class BearingsModal extends StatefulWidget {
           policy: policy,
           barrierLabel: MaterialLocalizations.of(context)
               .modalBarrierDismissLabel,
-          child: Builder(builder: body),
+          child: themes.wrap(Builder(builder: body)),
         );
         policy.refresh = route.refreshPolicy;
         return navigator.push<T>(route);
@@ -599,9 +600,14 @@ class _BearingsModalState extends State<BearingsModal> {
         showGrabber: showGrabber,
       ),
     };
+    // Outlined fields paint their floating labels above the field's box.
+    final bodyPadding =
+        InputDecorationTheme.of(context).border is OutlineInputBorder
+        ? const EdgeInsets.only(top: 8)
+        : EdgeInsets.zero;
     final body = widget.scrolling == BearingsModalScrolling.managed
-        ? SingleChildScrollView(child: widget.content)
-        : widget.content;
+        ? SingleChildScrollView(padding: bodyPadding, child: widget.content)
+        : Padding(padding: bodyPadding, child: widget.content);
     final column = Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,

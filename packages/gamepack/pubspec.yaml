@@ -1,0 +1,8 @@
+name: gamepack
+description: Declarative scouting forms and graph evaluation for Bearings
+publish_to: none
+resolution: workspace
+environment:
+  sdk: ^3.14.0
+dev_dependencies:
+  test: ^1.32.0

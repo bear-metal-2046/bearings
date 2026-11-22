@@ -1,11 +1,12 @@
-import 'package:grove/grove.dart';
+import 'package:beariscope/pages/gamepacks/match_observations_page.dart';
 import 'package:beariscope/utils/match_video_opener.dart';
-import 'package:beariscope/models/drive_team_note.dart';
-import 'package:beariscope/providers/current_event_provider.dart';
-import 'package:beariscope/providers/drive_team_notes_provider.dart';
 import 'package:beariscope/providers/match_preview_layout_provider.dart';
-import 'package:services/providers/grove_provider.dart';
-import 'package:core/core.dart' show ScoutingReport, CompetitionMatch;
+import 'package:core/core.dart'
+    show
+        CompetitionMatch,
+        GamePackFormKind,
+        gamePackReadPermission,
+        gamePackSubmitPermission;
 import 'package:beariscope/providers/tba_preferences_provider.dart';
 import 'package:beariscope/widgets/team_card.dart';
 import 'package:dots_indicator/dots_indicator.dart';
@@ -14,8 +15,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:services/providers/competition_provider.dart';
+import 'package:services/providers/gamepack_provider.dart';
 import 'package:services/providers/permissions_provider.dart';
-import 'package:services/providers/user_profile_provider.dart';
 import 'package:ui/ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -37,18 +38,16 @@ final matchProvider = Provider.autoDispose
           ),
     );
 
-class DriveTeamMatchPreviewPage extends ConsumerStatefulWidget {
+class MatchPreviewPage extends ConsumerStatefulWidget {
   final String matchKey;
 
-  const DriveTeamMatchPreviewPage({super.key, required this.matchKey});
+  const MatchPreviewPage({super.key, required this.matchKey});
 
   @override
-  ConsumerState<DriveTeamMatchPreviewPage> createState() =>
-      _DriveTeamMatchPreviewPageState();
+  ConsumerState<MatchPreviewPage> createState() => _MatchPreviewPageState();
 }
 
-class _DriveTeamMatchPreviewPageState
-    extends ConsumerState<DriveTeamMatchPreviewPage> {
+class _MatchPreviewPageState extends ConsumerState<MatchPreviewPage> {
   final ValueNotifier<double> _currentPageNotifier = ValueNotifier(0.0);
   PageController? _pageController;
 
@@ -102,9 +101,15 @@ class _DriveTeamMatchPreviewPageState
         ),
       ),
       data: (match) {
-        String teamNumberFromKey(String teamKey) {
-          return teamKey.replaceFirst(RegExp('^frc'), '');
-        }
+        final assignment =
+            permissionChecker?.hasPermission(gamePackReadPermission) == true
+            ? ref.watch(eventGamePackProvider(match.event.id)).value
+            : null;
+        final capture = assignment;
+        final canAddObservation =
+            capture?.definition.formFor(GamePackFormKind.observation) != null &&
+            permissionChecker?.hasPermission(gamePackSubmitPermission) == true;
+        final wideLayout = MediaQuery.sizeOf(context).width > 1100;
 
         final redTeams = <String>[
           for (final team in match.red?.teams ?? []) team.id,
@@ -126,6 +131,17 @@ class _DriveTeamMatchPreviewPageState
                 'f' => 'Final Match',
                 _ => compLevel.toUpperCase(),
               }} $number';
+        void addObservation() {
+          Navigator.of(context, rootNavigator: true).push(
+            MaterialPageRoute(
+              builder: (_) => GamePackMatchObservationsPage(
+                match: match,
+                release: capture!,
+              ),
+            ),
+          );
+        }
+
         Future<void> handleAction(
           BuildContext context,
           _TeamAction action,
@@ -179,10 +195,16 @@ class _DriveTeamMatchPreviewPageState
           appBar: AppBar(
             title: Text(matchTitle),
             actions: [
+              if (wideLayout && canAddObservation)
+                IconButton(
+                  icon: const Icon(LucideIcons.messageSquarePlus),
+                  tooltip: 'Add observation',
+                  onPressed: addObservation,
+                ),
               BearingsPopupMenu.overflow(
                 tooltip: 'More options',
                 menuChildren: [
-                  if (MediaQuery.sizeOf(context).width <= 1100) ...[
+                  if (!wideLayout) ...[
                     BearingsMenuItem(
                       onPressed: () =>
                           handleAction(context, _TeamAction.switchLayout),
@@ -283,6 +305,7 @@ class _DriveTeamMatchPreviewPageState
                             child: Padding(
                               padding: const EdgeInsets.all(4),
                               child: TeamCard(
+                                eventKey: match.event.id,
                                 teamKey: card.teamKey,
                                 allianceColor: card.color,
                                 height: cardHeight,
@@ -326,12 +349,9 @@ class _DriveTeamMatchPreviewPageState
                         : 1.0;
 
                     if (scrollVertical) {
-                      final canTakeNotes =
-                          permissionChecker?.hasPermission(
-                            PermissionKey.driveTeamUpload,
-                          ) ??
-                          false;
-                      final verticalFooterHeight = canTakeNotes ? 56.0 : 0.0;
+                      final verticalFooterHeight = canAddObservation
+                          ? 56.0
+                          : 0.0;
                       final verticalViewportHeight =
                           (height - verticalFooterHeight)
                               .clamp(0.0, height)
@@ -386,6 +406,7 @@ class _DriveTeamMatchPreviewPageState
                                     child: Align(
                                       alignment: Alignment.topCenter,
                                       child: TeamCard(
+                                        eventKey: match.event.id,
                                         teamKey: cards[index].teamKey,
                                         allianceColor: cards[index].color,
                                         height: verticalCardHeight,
@@ -396,42 +417,15 @@ class _DriveTeamMatchPreviewPageState
                               ),
                             ),
                           ),
-                          if (canTakeNotes)
+                          if (canAddObservation)
                             Padding(
                               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                               child: SizedBox(
                                 width: double.infinity,
                                 height: 40,
                                 child: FilledButton(
-                                  onPressed: () {
-                                    final filteredRedTeams = redTeams
-                                        .where(
-                                          (teamKey) =>
-                                              teamNumberFromKey(teamKey) !=
-                                              '2046',
-                                        )
-                                        .toList();
-                                    final filteredBlueTeams = blueTeams
-                                        .where(
-                                          (teamKey) =>
-                                              teamNumberFromKey(teamKey) !=
-                                              '2046',
-                                        )
-                                        .toList();
-                                    BearingsModal.show<void>(
-                                      context,
-
-                                      builder: (context) =>
-                                          _DriveTeamNotesSheet(
-                                            matchKey: widget.matchKey,
-                                            redAllianceTeamKeys:
-                                                filteredRedTeams,
-                                            blueAllianceTeamKeys:
-                                                filteredBlueTeams,
-                                          ),
-                                    );
-                                  },
-                                  child: const Text('Take Notes'),
+                                  onPressed: addObservation,
+                                  child: const Text('Add observation'),
                                 ),
                               ),
                             ),
@@ -558,6 +552,7 @@ class _DriveTeamMatchPreviewPageState
                                     horizontal: 8,
                                   ),
                                   child: TeamCard(
+                                    eventKey: match.event.id,
                                     teamKey: cards[index].teamKey,
                                     allianceColor: cards[index].color,
                                     height: constraints.maxHeight,
@@ -569,41 +564,14 @@ class _DriveTeamMatchPreviewPageState
                         ),
 
                         dots,
-                        if (permissionChecker?.hasPermission(
-                              PermissionKey.driveTeamUpload,
-                            ) ??
-                            false)
+                        if (canAddObservation)
                           Padding(
                             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                             child: SizedBox(
                               width: 586,
                               child: FilledButton(
-                                onPressed: () {
-                                  final filteredRedTeams = redTeams
-                                      .where(
-                                        (teamKey) =>
-                                            teamNumberFromKey(teamKey) !=
-                                            '2046',
-                                      )
-                                      .toList();
-                                  final filteredBlueTeams = blueTeams
-                                      .where(
-                                        (teamKey) =>
-                                            teamNumberFromKey(teamKey) !=
-                                            '2046',
-                                      )
-                                      .toList();
-                                  BearingsModal.show<void>(
-                                    context,
-
-                                    builder: (context) => _DriveTeamNotesSheet(
-                                      matchKey: widget.matchKey,
-                                      redAllianceTeamKeys: filteredRedTeams,
-                                      blueAllianceTeamKeys: filteredBlueTeams,
-                                    ),
-                                  );
-                                },
-                                child: const Text('Take Notes'),
+                                onPressed: addObservation,
+                                child: const Text('Add observation'),
                               ),
                             ),
                           ),
@@ -656,246 +624,6 @@ class _DriveTeamMatchPreviewPageState
     return Positioned(
       left: x,
       child: Text(label, style: style),
-    );
-  }
-}
-
-class _DriveTeamNotesSheet extends ConsumerStatefulWidget {
-  final String matchKey;
-  final List<String> redAllianceTeamKeys;
-  final List<String> blueAllianceTeamKeys;
-
-  const _DriveTeamNotesSheet({
-    required this.matchKey,
-    required this.redAllianceTeamKeys,
-    required this.blueAllianceTeamKeys,
-  });
-
-  @override
-  ConsumerState<_DriveTeamNotesSheet> createState() =>
-      _DriveTeamNotesSheetState();
-}
-
-class _DriveTeamNotesSheetState extends ConsumerState<_DriveTeamNotesSheet> {
-  final Map<String, TextEditingController> _controllers = {};
-  final Map<String, String> _existingIds = {};
-
-  bool _initialized = false;
-  bool _isSaving = false;
-
-  Future<String> _resolveScoutedBy() async {
-    final userInfo = await waitForValue(
-      ProviderScope.containerOf(context, listen: false),
-      userInfoProvider,
-    );
-    final name = userInfo?.name?.trim();
-    if (name != null && name.isNotEmpty) {
-      return name;
-    }
-    return 'Unknown User';
-  }
-
-  @override
-  void dispose() {
-    for (final c in _controllers.values) {
-      c.dispose();
-    }
-    super.dispose();
-  }
-
-  //populates the controllers with existing notes
-  void _initControllers(Map<int, DriveTeamNote> existingNotes) {
-    if (_initialized) return;
-    _initialized = true;
-
-    final allTeamKeys = [
-      ...widget.redAllianceTeamKeys,
-      ...widget.blueAllianceTeamKeys,
-    ];
-
-    for (final teamKey in allTeamKeys) {
-      final teamNumber = teamKey.replaceFirst(RegExp(r'^frc'), '');
-      final teamNum = int.tryParse(teamNumber);
-      final controller = TextEditingController();
-
-      if (teamNum != null && existingNotes.containsKey(teamNum)) {
-        final existing = existingNotes[teamNum]!;
-        controller.text = existing.note;
-        if (existing.id != null && existing.id!.isNotEmpty) {
-          _existingIds[teamNumber] = existing.id!;
-        }
-      }
-
-      _controllers[teamNumber] = controller;
-    }
-  }
-
-  Future<void> _save() async {
-    if (_isSaving) return;
-    setState(() => _isSaving = true);
-
-    try {
-      final subject = await ref.read(groveSubjectProvider.future);
-      final eventKey = ref.read(currentEventProvider);
-
-      final scoutedBy = await _resolveScoutedBy();
-      final userId = subject ?? '';
-
-      final grove = ref.read(bearingsGroveProvider);
-      for (final entry in _controllers.entries) {
-        final text = entry.value.text.trim();
-        if (text.isEmpty) continue;
-        final teamNum = int.tryParse(entry.key) ?? 0;
-        final note = DriveTeamNote(
-          id: _existingIds[entry.key],
-          matchKey: widget.matchKey,
-          teamNumber: teamNum,
-          note: text,
-          scoutedBy: scoutedBy,
-          userId: userId,
-          eventKey: eventKey,
-          season: 2026,
-        );
-        final report = ScoutingReport.fromPayload(
-          note.toPayload(),
-          id: note.id,
-        );
-        if (note.id case final id?) {
-          await grove.update<ScoutingReport>(
-            id,
-            (_) => report,
-            allowOffline: false,
-          );
-        } else {
-          await grove.create(report, allowOffline: false);
-        }
-      }
-
-      if (mounted) BearingsModal.complete<void>(context);
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isSaving = false);
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Failed to save notes: $e')));
-      }
-    }
-  }
-
-  Widget _buildAllianceSection(
-    ThemeData theme,
-    String label,
-    List<String> teamKeys,
-  ) {
-    if (teamKeys.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          label,
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: theme.colorScheme.onSurface,
-          ),
-        ),
-        const SizedBox(height: 8),
-        for (final teamKey in teamKeys)
-          Builder(
-            builder: (context) {
-              final teamNumber = teamKey.replaceFirst(RegExp(r'^frc'), '');
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    teamNumber.isEmpty ? teamKey : teamNumber,
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    autofocus: true,
-                    controller: _controllers[teamNumber],
-                    maxLines: null,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      labelText: 'Notes',
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-              );
-            },
-          ),
-      ],
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final notesAsync = ref.watch(myDriveTeamNotesProvider(widget.matchKey));
-    final theme = Theme.of(context);
-
-    return BearingsModal(
-      title: 'Drive team notes',
-      size: BearingsModalSize.tall,
-      scrolling: BearingsModalScrolling.content,
-      actions: const [],
-      canDismiss: !_isSaving,
-      primaryAction: BearingsModalPrimaryAction(
-        label: 'Save Notes',
-        icon: LucideIcons.check,
-        enabled:
-            notesAsync.asData != null &&
-            (widget.redAllianceTeamKeys.isNotEmpty ||
-                widget.blueAllianceTeamKeys.isNotEmpty),
-        loading: _isSaving,
-        onPressed: _save,
-      ),
-      content: notesAsync.when(
-        loading: () => const SizedBox(
-          height: 200,
-          child: Center(child: BearingsSpinner()),
-        ),
-        error: (e, _) => SizedBox(
-          height: 200,
-          child: Center(child: Text('Error loading notes: $e')),
-        ),
-        data: (existingNotes) {
-          _initControllers(existingNotes);
-
-          if (widget.redAllianceTeamKeys.isEmpty &&
-              widget.blueAllianceTeamKeys.isEmpty) {
-            return const Padding(
-              padding: EdgeInsets.all(32),
-              child: Center(child: Text('Cannot load notes for this match.')),
-            );
-          }
-
-          return SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildAllianceSection(
-                  theme,
-                  'Red Alliance',
-                  widget.redAllianceTeamKeys,
-                ),
-                _buildAllianceSection(
-                  theme,
-                  'Blue Alliance',
-                  widget.blueAllianceTeamKeys,
-                ),
-              ],
-            ),
-          );
-        },
-      ),
     );
   }
 }

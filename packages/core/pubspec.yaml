@@ -9,6 +9,8 @@ environment:
 
 dependencies:
   crdt_lf: ^5.4.0
+  gamepack:
+    path: ../gamepack
   grove:
     path: ../grove
   riverpod: ^3.5.0

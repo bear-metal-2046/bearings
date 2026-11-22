@@ -1,20 +1,13 @@
 import 'dart:convert';
 
 import 'package:core/core.dart' show CompetitionEvent, CompetitionMatch;
-import 'package:flutter_riverpod/flutter_riverpod.dart' show Provider;
 import 'package:grove/grove.dart';
 import 'package:bearimetric/data/local_data.dart';
-import 'package:bearimetric/data/match_form_store.dart';
-import 'package:bearimetric/data/match_json_gen.dart';
 import 'package:bearimetric/models/scouting_session.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:services/providers/competition_provider.dart';
 
 part 'scouting_providers.g.dart';
-
-final matchFormStoreProvider = Provider<MatchFormStore>((ref) {
-  return MatchFormStore();
-});
 
 extension ScoutingStations on CompetitionMatch {
   String? teamNumberAt(ScoutPosition position) {
@@ -171,22 +164,6 @@ class ScoutingSessionNotifier extends _$ScoutingSessionNotifier {
 
   void setScout(Scout scout) {
     state = state.copyWith(scout: scout);
-  }
-
-  MatchIdentity? createMatchIdentity() {
-    final s = state;
-    if (s.position != null &&
-        s.matchNumber != null &&
-        s.event != null &&
-        s.scout != null) {
-      return (
-        position: s.position!,
-        matchNumber: s.matchNumber!,
-        event: s.event!,
-        scout: s.scout!,
-      );
-    }
-    return null;
   }
 
   void exitToScoutSelect() {

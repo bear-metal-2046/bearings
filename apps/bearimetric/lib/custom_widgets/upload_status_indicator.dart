@@ -1,6 +1,5 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:bearimetric/providers/scouting_flow_provider.dart';
 import 'package:grove/grove.dart';
 import 'package:services/providers/grove_provider.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -21,7 +20,7 @@ class UploadStatusIndicator extends ConsumerWidget {
         child: Icon(LucideIcons.cloud),
       );
     }
-    final error = ref.watch(scoutingSubmissionErrorProvider) ?? status.error;
+    final error = status.error;
     if (status.rejected > 0 || error != null) {
       return Tooltip(
         message: error ?? '${status.rejected} uploads rejected by the server',
