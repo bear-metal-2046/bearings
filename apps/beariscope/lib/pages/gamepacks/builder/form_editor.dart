@@ -1690,21 +1690,11 @@ class _ScoutFormPreviewState extends State<_ScoutFormPreview> {
     widget.fields,
     roster: const ['frc2046', 'frc254', 'frc1678'],
   );
-  final _zoom = TransformationController();
-  final _formView = GlobalKey();
-
-  @override
-  void dispose() {
-    _zoom.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     final tablet = widget.form.pages.any((page) => page.usesGrid);
     final theme = Theme.of(context);
     final form = GamePackFormView(
-      key: _formView,
       fields: widget.fields,
       form: widget.form,
       initialPage: widget.form.pages.indexOf(widget.page),
@@ -1724,36 +1714,17 @@ class _ScoutFormPreviewState extends State<_ScoutFormPreview> {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        actions: [
-          if (tablet)
-            IconButton(
-              tooltip: 'Fit tablet preview',
-              onPressed: () => _zoom.value = Matrix4.identity(),
-              icon: const Icon(LucideIcons.scan),
-            ),
-          if (tablet)
-            IconButton(
-              tooltip: 'Zoom tablet preview',
-              onPressed: () => _zoom.value = Matrix4.diagonal3Values(2, 2, 1),
-              icon: const Icon(LucideIcons.zoomIn),
-            ),
-          const SizedBox(width: 8),
-        ],
       ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: tablet
-              ? InteractiveViewer(
-                  transformationController: _zoom,
-                  maxScale: 4,
-                  child: Card.filled(
-                    color: theme.colorScheme.surface,
-                    margin: EdgeInsets.zero,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: form,
-                    ),
+              ? Card.filled(
+                  color: theme.colorScheme.surface,
+                  margin: EdgeInsets.zero,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: form,
                   ),
                 )
               : Center(

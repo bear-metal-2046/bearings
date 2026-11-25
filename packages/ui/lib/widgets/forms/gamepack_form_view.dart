@@ -4,6 +4,10 @@ import 'package:core/core.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../bearings_capsule_bar.dart';
+
+part 'gamepack_control_tile.dart';
+
 /// Used for collection and the authoring preview. The caller owns the answers,
 /// which are stored exactly as they will be validated by Honeycomb.
 class GamePackFormView extends StatefulWidget {
@@ -15,7 +19,7 @@ class GamePackFormView extends StatefulWidget {
     required this.onChanged,
     this.enabled = true,
     this.initialPage = 0,
-    this.reflowGrid = false,
+    this.pageNavigationTrailing,
   });
 
   final Map<String, GamePackField> fields;
@@ -24,9 +28,7 @@ class GamePackFormView extends StatefulWidget {
   final ValueChanged<Map<String, Object?>> onChanged;
   final bool enabled;
   final int initialPage;
-
-  /// Shows the questions in reading order when trying a tablet page on a phone.
-  final bool reflowGrid;
+  final Widget? pageNavigationTrailing;
 
   @override
   State<GamePackFormView> createState() => _GamePackFormViewState();
@@ -52,60 +54,64 @@ class _GamePackFormViewState extends State<GamePackFormView> {
     final index = _pageIndex.clamp(0, pages.length - 1);
     final page = pages[index];
     final visible = widget.form.visibleFields(widget.answers);
-    Widget field(GamePackControl control, {bool stretch = false}) =>
-        _GamePackFieldView(
-          key: ValueKey(('control', control.field)),
-          field: widget.fields[control.field]!,
+    Widget field(GamePackControl control) {
+      final definition = widget.fields[control.field]!;
+      final value = widget.answers[control.field];
+      final change = widget.enabled
+          ? (Object? value) => _setValue(control.field, value)
+          : null;
+      final tiled = switch (control.appearance) {
+        GamePackControlAppearance.automatic => page.usesGrid,
+        GamePackControlAppearance.tile => true,
+        GamePackControlAppearance.inline => false,
+      };
+      if (tiled) {
+        final tile = _GamePackControlTile(
+          key: ValueKey(('tile', control.field)),
+          field: definition,
           control: control.type,
-          value: widget.answers[control.field],
-          stretch: stretch,
-          change: widget.enabled
-              ? (value) => _setValue(control.field, value)
-              : null,
+          value: value,
+          change: change,
         );
+        return page.usesGrid
+            ? tile
+            : LayoutBuilder(
+                builder: (_, bounds) => SizedBox(
+                  height: (bounds.maxWidth * .65).clamp(120.0, 200.0),
+                  child: tile,
+                ),
+              );
+      }
+
+      final inline = _GamePackFieldView(
+        key: ValueKey(('control', control.field)),
+        field: definition,
+        control: control.type,
+        value: value,
+        change: change,
+      );
+      if (!page.usesGrid) return inline;
+      // A grid still assigns an exact rectangle to an inline override.
+      return LayoutBuilder(
+        builder: (_, bounds) => FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: AlignmentDirectional.topStart,
+          child: SizedBox(width: math.max(180, bounds.maxWidth), child: inline),
+        ),
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (pages.length > 1)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Row(
-              children: [
-                IconButton(
-                  tooltip: 'Previous scouting page',
-                  onPressed: index > 0
-                      ? () => setState(() => _pageIndex = index - 1)
-                      : null,
-                  icon: const Icon(LucideIcons.chevronLeft),
-                ),
-                Expanded(
-                  child: Text(
-                    page.label,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'Next scouting page',
-                  onPressed: index + 1 < pages.length
-                      ? () => setState(() => _pageIndex = index + 1)
-                      : null,
-                  icon: const Icon(LucideIcons.chevronRight),
-                ),
-              ],
-            ),
-          ),
         Expanded(
           child: page.usesGrid
-              ? widget.reflowGrid
-                    ? _ReflowedGrid(page: page, visible: visible, field: field)
-                    : _GridPage(
-                        key: ValueKey(page.id),
-                        page: page,
-                        visible: visible,
-                        field: (control) => field(control, stretch: true),
-                      )
+              ? _GridPage(
+                  key: ValueKey(page.id),
+                  page: page,
+                  visible: visible,
+                  field: field,
+                )
               : PageStorage(
                   bucket: _scrollPositions,
                   child: ListView(
@@ -154,38 +160,33 @@ class _GamePackFormViewState extends State<GamePackFormView> {
                   ),
                 ),
         ),
+        if (pages.length > 1 || widget.pageNavigationTrailing != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                if (pages.length > 1)
+                  Expanded(
+                    child: BearingsCapsuleBar<int>(
+                      selected: index,
+                      onActivated: (page) => setState(() => _pageIndex = page),
+                      destinations: [
+                        for (final (index, page) in pages.indexed)
+                          BearingsCapsuleDestination(
+                            value: index,
+                            label: page.label,
+                          ),
+                      ],
+                    ),
+                  ),
+                if (pages.length > 1 && widget.pageNavigationTrailing != null)
+                  const SizedBox(width: 8),
+                ?widget.pageNavigationTrailing,
+              ],
+            ),
+          ),
       ],
-    );
-  }
-}
-
-class _ReflowedGrid extends StatelessWidget {
-  const _ReflowedGrid({
-    required this.page,
-    required this.visible,
-    required this.field,
-  });
-
-  final GamePackFormPage page;
-  final Set<String> visible;
-  final Widget Function(GamePackControl) field;
-
-  @override
-  Widget build(BuildContext context) {
-    final controls =
-        page.gridControls
-            .where((control) => visible.contains(control.field))
-            .toList()
-          ..sort((a, b) {
-            final row = a.placement!.y.compareTo(b.placement!.y);
-            return row == 0 ? a.placement!.x.compareTo(b.placement!.x) : row;
-          });
-    return ListView.separated(
-      key: ValueKey(page.id),
-      primary: false,
-      itemCount: controls.length,
-      itemBuilder: (_, index) => field(controls[index]),
-      separatorBuilder: (_, _) => const SizedBox(height: 14),
     );
   }
 }
@@ -205,6 +206,7 @@ class _GridPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
+      if (constraints.biggest.isEmpty) return const SizedBox.expand();
       final cellWidth = constraints.maxWidth / page.columns!;
       final cellHeight = constraints.maxHeight / page.rows!;
       return Stack(
@@ -217,20 +219,8 @@ class _GridPage extends StatelessWidget {
                 top: control.placement!.y * cellHeight,
                 width: control.placement!.width * cellWidth,
                 height: control.placement!.height * cellHeight,
-                child: Padding(
-                  padding: const EdgeInsets.all(3),
-                  child: LayoutBuilder(
-                    builder: (context, bounds) => SingleChildScrollView(
-                      primary: false,
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          minHeight: bounds.maxHeight,
-                        ),
-                        child: field(control),
-                      ),
-                    ),
-                  ),
-                ),
+                key: ValueKey(control.field),
+                child: field(control),
               ),
         ],
       );
@@ -244,19 +234,18 @@ class _GamePackFieldView extends StatelessWidget {
     required this.field,
     required this.control,
     required this.value,
-    required this.stretch,
     required this.change,
+    this.inDialog = false,
   });
 
   final GamePackField field;
   final GamePackControlType control;
   final Object? value;
-  final bool stretch;
   final ValueChanged<Object?>? change;
+  final bool inDialog;
 
   @override
   Widget build(BuildContext context) {
-    final hasStateOptions = field.allowUnknown || field.allowNotApplicable;
     final Widget input = switch (control) {
       GamePackControlType.number ||
       GamePackControlType.text ||
@@ -265,6 +254,7 @@ class _GamePackFieldView extends StatelessWidget {
         control: control,
         value: value,
         change: change,
+        autofocus: inDialog,
       ),
       GamePackControlType.toggle => _choices([
         _chip('Yes', value == true, true),
@@ -298,147 +288,39 @@ class _GamePackFieldView extends StatelessWidget {
       GamePackControlType.stepper => _counter(context),
       GamePackControlType.slider => _slider(),
     };
-    if (!hasStateOptions) return input;
+    if (inDialog || field.isRequired) return input;
 
-    final status = switch (value) {
-      {'state': 'unknown'} => 'Unknown',
-      {'state': 'notApplicable'} => 'Not applicable',
-      _ => null,
-    };
-    return Column(
+    return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Expanded(child: Text(status ?? field.label)),
-            if (change != null)
-              PopupMenuButton<GamePackValueState>(
-                tooltip: '${field.label} answer status',
-                icon: const Icon(LucideIcons.ellipsis, size: 18),
-                onSelected: (state) => change!(
-                  state == GamePackValueState.missing
-                      ? null
-                      : {'state': state.name},
-                ),
-                itemBuilder: (_) => [
-                  const PopupMenuItem(
-                    value: GamePackValueState.missing,
-                    child: Text('Clear answer'),
-                  ),
-                  if (field.allowUnknown)
-                    const PopupMenuItem(
-                      value: GamePackValueState.unknown,
-                      child: Text('Unknown'),
-                    ),
-                  if (field.allowNotApplicable)
-                    const PopupMenuItem(
-                      value: GamePackValueState.notApplicable,
-                      child: Text('Not applicable'),
-                    ),
-                ],
-              ),
-          ],
-        ),
-        input,
+        Expanded(child: input),
+        if (_canClear(field, value, change))
+          _clearAnswerMenu(field, () => change!(null)),
       ],
     );
   }
 
-  static const _compactChipAvatar = BoxConstraints.tightFor(
-    width: 12,
-    height: 12,
+  Widget _chip(String label, bool selected, Object option) => ChoiceChip(
+    label: Text(label),
+    selected: selected,
+    onSelected: change == null
+        ? null
+        : (_) => _selectAnswer(field, option, selected, change!),
   );
 
-  Widget _fitChip(Widget Function(bool? showCheckmark) chip) => stretch
-      ? LayoutBuilder(
-          builder: (_, constraints) => chip(constraints.maxWidth >= 64),
-        )
-      : chip(null);
-
-  Widget _chip(String label, bool selected, Object option) => _fitChip(
-    (showCheckmark) => ChoiceChip(
-      label: _buttonLabel(label, selected: selected),
-      showCheckmark: showCheckmark,
-      avatarBoxConstraints: stretch ? _compactChipAvatar : null,
-      labelPadding: stretch ? EdgeInsets.zero : null,
-      padding: stretch ? const EdgeInsets.symmetric(horizontal: 4) : null,
-      selected: selected,
-      onSelected: change == null ? null : (set) => change!(set ? option : null),
-    ),
+  Widget _filterChip(String option) => FilterChip(
+    label: Text(option),
+    selected: value is List && (value as List).contains(option),
+    onSelected: change == null
+        ? null
+        : (_) => change!(_toggleOption(value, option)),
   );
-
-  Widget _filterChip(String option) {
-    final selected = value is List && (value as List).contains(option);
-    return _fitChip(
-      (showCheckmark) => FilterChip(
-        label: _buttonLabel(option, selected: selected),
-        showCheckmark: showCheckmark,
-        avatarBoxConstraints: stretch ? _compactChipAvatar : null,
-        labelPadding: stretch ? EdgeInsets.zero : null,
-        padding: stretch ? const EdgeInsets.symmetric(horizontal: 4) : null,
-        selected: selected,
-        onSelected: change == null
-            ? null
-            : (selected) {
-                final choices = switch (value) {
-                  final List values => values.cast<String>().toList(),
-                  _ => <String>[],
-                };
-                if (selected) {
-                  choices.add(option);
-                } else {
-                  choices.remove(option);
-                }
-                change!(choices);
-              },
-      ),
-    );
-  }
-
-  Widget _buttonLabel(String label, {bool selected = false}) => stretch
-      ? SizedBox(
-          width: double.infinity,
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              label,
-              style: selected
-                  ? const TextStyle(fontWeight: FontWeight.w600)
-                  : null,
-            ),
-          ),
-        )
-      : Text(label);
-
-  Widget _buttonGroup(List<Widget> buttons, {required double spacing}) {
-    if (!stretch || buttons.isEmpty) {
-      return Wrap(spacing: spacing, runSpacing: 2, children: buttons);
-    }
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final columns = ((constraints.maxWidth + spacing) / (36 + spacing))
-            .floor()
-            .clamp(1, buttons.length);
-        final width = math.max(
-          0.0,
-          (constraints.maxWidth - spacing * (columns - 1)) / columns,
-        );
-        return Wrap(
-          spacing: spacing,
-          runSpacing: 2,
-          children: [
-            for (final button in buttons) SizedBox(width: width, child: button),
-          ],
-        );
-      },
-    );
-  }
 
   Widget _choices(List<Widget> choices) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text(field.label),
-      _buttonGroup(choices, spacing: stretch ? 4 : 6),
+      if (!inDialog) Text(field.label),
+      Wrap(spacing: 6, runSpacing: 2, children: choices),
     ],
   );
 
@@ -449,7 +331,7 @@ class _GamePackFieldView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(field.label),
+        if (!inDialog) Text(field.label),
         if (order.isEmpty) const Text('No options available'),
         if (order.isNotEmpty)
           ReorderableListView(
@@ -488,63 +370,132 @@ class _GamePackFieldView extends StatelessWidget {
 
   Widget _counter(BuildContext context) {
     final known = value is int ? value as int : null;
-    final current = known ?? field.minimum?.ceil() ?? 0;
-    final steps = control == GamePackControlType.counter
-        ? [-5, -1, 1, 5]
-        : [-1, 1];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(field.label),
+        if (!inDialog) Text(field.label),
         Text(
           known?.toString() ?? '—',
           style: Theme.of(context).textTheme.headlineSmall,
         ),
-        _buttonGroup([
-          for (final step in steps)
-            OutlinedButton(
-              style: stretch
-                  ? OutlinedButton.styleFrom(
-                      minimumSize: const Size(0, 40),
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                    )
-                  : null,
-              onPressed:
-                  change == null ||
-                      (field.minimum != null &&
-                          current + step < field.minimum!) ||
-                      (field.maximum != null && current + step > field.maximum!)
-                  ? null
-                  : () => change!(current + step),
-              child: _buttonLabel(step > 0 ? '+$step' : '$step'),
-            ),
-        ], spacing: 4),
+        Wrap(
+          spacing: 4,
+          runSpacing: 2,
+          children: [
+            for (final step in _counterSteps(control))
+              OutlinedButton(
+                onPressed: _counterAction(field, value, step, change),
+                child: Text(_stepLabel(step)),
+              ),
+          ],
+        ),
       ],
     );
   }
 
-  Widget _slider() {
-    final minimum = field.minimum!;
-    final maximum = field.maximum!;
-    final known = value is num ? value as num : null;
-    final position = (known ?? minimum).clamp(minimum, maximum).toDouble();
-    final isInteger = field.type == GamePackType.integer;
-    final low = isInteger ? minimum.ceilToDouble() : minimum.toDouble();
-    final high = isInteger ? maximum.floorToDouble() : maximum.toDouble();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('${field.label} · ${known ?? '—'}'),
-        Slider(
-          min: low,
-          max: high,
-          value: position.clamp(low, high),
-          onChanged: change == null
-              ? null
-              : (number) => change!(isInteger ? number.round() : number),
-        ),
-      ],
-    );
+  Widget _slider() => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        inDialog
+            ? '${value is num ? value : '—'}'
+            : '${field.label} · ${value is num ? value : '—'}',
+      ),
+      _answerSlider(field, value, change),
+    ],
+  );
+}
+
+bool _canClear(
+  GamePackField field,
+  Object? value,
+  ValueChanged<Object?>? change,
+) => !field.isRequired && value != null && change != null;
+
+Widget _clearAnswerMenu(
+  GamePackField field,
+  VoidCallback clear, {
+  Widget? child,
+}) => PopupMenuButton<void>(
+  tooltip: '${field.label} answer options',
+  icon: child == null ? const Icon(LucideIcons.ellipsis, size: 18) : null,
+  itemBuilder: (_) => [
+    PopupMenuItem<void>(onTap: clear, child: const Text('Clear answer')),
+  ],
+  child: child,
+);
+
+void _selectAnswer(
+  GamePackField field,
+  Object option,
+  bool selected,
+  ValueChanged<Object?> change,
+) {
+  if (!selected) {
+    change(option);
+  } else if (!field.isRequired) {
+    change(null);
+  }
+}
+
+List<String> _toggleOption(Object? value, String option) {
+  final choices = value is List
+      ? List<String>.of(value.cast<String>())
+      : <String>[];
+  if (!choices.remove(option)) choices.add(option);
+  return choices;
+}
+
+List<int> _counterSteps(GamePackControlType control) =>
+    control == GamePackControlType.counter
+    ? const [-5, -1, 1, 5]
+    : const [-1, 1];
+
+String _stepLabel(int step) => step > 0 ? '+$step' : '$step';
+
+VoidCallback? _counterAction(
+  GamePackField field,
+  Object? value,
+  int step,
+  ValueChanged<Object?>? change,
+) {
+  final current = value is int ? value : field.minimum?.ceil() ?? 0;
+  final next = current + step;
+  if (change == null ||
+      (field.minimum != null && next < field.minimum!) ||
+      (field.maximum != null && next > field.maximum!)) {
+    return null;
+  }
+  return () => change(next);
+}
+
+Widget _answerSlider(
+  GamePackField field,
+  Object? value,
+  ValueChanged<Object?>? change,
+) {
+  final minimum = field.minimum!;
+  final maximum = field.maximum!;
+  final isInteger = field.type == GamePackType.integer;
+  final low = isInteger ? minimum.ceilToDouble() : minimum.toDouble();
+  final high = isInteger ? maximum.floorToDouble() : maximum.toDouble();
+  return Slider(
+    min: low,
+    max: high,
+    value: (value is num ? value : minimum).toDouble().clamp(low, high),
+    onChanged: change == null
+        ? null
+        : (number) => change(isInteger ? number.round() : number),
+  );
+}
+
+String? _textAnswerError(GamePackField field, Object? value) {
+  if (value == null) return field.isRequired ? 'Enter a value' : null;
+  try {
+    field.readAnswer(value);
+    return null;
+  } on FormatException catch (error) {
+    return error.message;
   }
 }
 
@@ -554,12 +505,14 @@ class _GamePackTextField extends StatefulWidget {
     required this.control,
     required this.value,
     required this.change,
+    this.autofocus = false,
   });
 
   final GamePackField field;
   final GamePackControlType control;
   final Object? value;
   final ValueChanged<Object?>? change;
+  final bool autofocus;
 
   @override
   State<_GamePackTextField> createState() => _GamePackTextFieldState();
@@ -604,6 +557,7 @@ class _GamePackTextFieldState extends State<_GamePackTextField> {
   Widget build(BuildContext context) => TextFormField(
     key: ValueKey(widget.field.id),
     controller: _controller,
+    autofocus: widget.autofocus,
     enabled: widget.change != null,
     minLines: widget.control == GamePackControlType.multiline ? 3 : 1,
     maxLines: widget.control == GamePackControlType.multiline ? 5 : 1,
@@ -618,19 +572,7 @@ class _GamePackTextFieldState extends State<_GamePackTextField> {
       helperText: widget.field.isRequired ? null : 'Optional',
       border: const OutlineInputBorder(),
     ),
-    validator: (text) {
-      if (widget.value is Map) return null;
-      final value = _parse(text ?? '');
-      if (value == null) {
-        return widget.field.isRequired ? 'Enter a value' : null;
-      }
-      try {
-        widget.field.readAnswer(value);
-        return null;
-      } on FormatException catch (error) {
-        return error.message;
-      }
-    },
+    validator: (text) => _textAnswerError(widget.field, _parse(text ?? '')),
     onChanged: widget.change == null
         ? null
         : (text) => widget.change!(_parse(text)),

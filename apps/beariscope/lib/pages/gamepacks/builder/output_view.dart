@@ -1,6 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 
-import 'capsule_selector.dart';
+import 'package:ui/ui.dart';
 
 class GamePackOutputView extends StatelessWidget {
   const GamePackOutputView({
@@ -95,20 +95,14 @@ class GamePackEditPreviewSwitcher extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SizedBox(
     width: 120,
-    child: GamePackCapsuleSelector(
-      selected: previewing ? 1 : 0,
-      capsuleKey: const ValueKey('gamepack-edit-preview-capsule'),
-      indicatorKey: const ValueKey('gamepack-edit-preview-indicator'),
-      segments: [
-        for (final label in ['Edit', 'Preview'])
-          GamePackCapsuleSegment(
-            Center(
-              child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
-            ),
-          ),
+    child: BearingsCapsuleBar<bool>(
+      key: const ValueKey('gamepack-edit-preview-capsule'),
+      selected: previewing,
+      destinations: const [
+        BearingsCapsuleDestination(value: false, label: 'Edit'),
+        BearingsCapsuleDestination(value: true, label: 'Preview'),
       ],
-      onSelected: (index) {
-        final next = index == 1;
+      onActivated: (next) {
         if (next != previewing) onChanged(next);
       },
     ),

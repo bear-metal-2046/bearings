@@ -49,6 +49,15 @@ void main() {
 
       store.replaceExternalDataset('pilot', [
         record(event),
+        record(
+          const CompetitionEvent(
+            id: '2025demo',
+            season: 2025,
+            name: 'Practice schedule',
+            code: 'demo',
+            location: CompetitionLocation(),
+          ),
+        ),
         record(match),
         record(
           const CompetitionTeam(
@@ -209,6 +218,33 @@ void main() {
       );
       await publisher.create(gamePack);
       await publisher.create(alternate);
+      const practice = EventGamePack(
+        id: practiceGamePackKey,
+        gamePack: EntityRef('gamepack-a'),
+        practiceEvent: EntityRef('2025demo'),
+      );
+      await publisher.create(practice);
+      final tabletPractice = await onlineTablet
+          .query<EventGamePack>()
+          .byId(practiceGamePackKey)
+          .one();
+      expect(tabletPractice.practiceEvent?.id, '2025demo');
+      expect(tabletPractice.gamePack?.id, gamePack.id);
+      await publisher.update<EventGamePack>(
+        practiceGamePackKey,
+        (_) => const EventGamePack(
+          id: practiceGamePackKey,
+          gamePack: EntityRef('alternate'),
+          practiceEvent: EntityRef('2026pilot'),
+        ),
+      );
+      final swappedPractice = await onlineTablet
+          .query<EventGamePack>()
+          .byId(practiceGamePackKey)
+          .one();
+      expect(swappedPractice.practiceEvent?.id, event.id);
+      expect(swappedPractice.gamePack?.id, alternate.id);
+
       await publisher.create(
         const EventGamePack(id: '2026pilot', gamePack: EntityRef('gamepack-a')),
       );
@@ -421,7 +457,10 @@ void main() {
         answers: retract ? {} : {'count': 14},
       );
       await expectLater(
-        tablet.create(revision('unprivileged', accepted), allowOffline: false),
+        tablet.create(
+          revision('unprivileged', accepted, retract: true),
+          allowOffline: false,
+        ),
         throwsA(
           isA<GroveException>().having(
             (error) => error.code,
@@ -430,7 +469,21 @@ void main() {
           ),
         ),
       );
-      final corrected = await publisher.create(revision('corrected', accepted));
+      await expectLater(
+        tablet.query<GamePackObservation>().many(),
+        throwsA(
+          isA<GroveException>().having((e) => e.code, 'code', 'forbidden'),
+        ),
+      );
+      final ownRows = await tablet
+          .query<GamePackObservation>()
+          .where(GamePackObservationFields.author.equals('tablet'))
+          .many();
+      expect(ownRows.single.id, accepted.id);
+      final corrected = await tablet.create(
+        revision('corrected', accepted),
+        allowOffline: false,
+      );
       await expectLater(
         publisher.create(revision('stale-correction', accepted)),
         throwsA(

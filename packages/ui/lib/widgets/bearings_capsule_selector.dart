@@ -1,22 +1,21 @@
+import 'dart:ui' show PointerDeviceKind;
+
 import 'package:flutter/gestures.dart' show DragStartBehavior;
 import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:material_ui/material_ui.dart';
 import 'package:motor/motor.dart';
 
-final gamePackNavigationSpring = SpringMotion(
-  SpringDescription.withDampingRatio(mass: 1, stiffness: 420, ratio: .72),
-  snapToEnd: true,
-);
+import 'bearings_navigation_motion.dart';
 
-class GamePackCapsuleSegment {
-  const GamePackCapsuleSegment(this.child, {this.expanded});
+class BearingsCapsuleSegment {
+  const BearingsCapsuleSegment(this.child, {this.expanded});
 
   final Widget child;
   final bool? expanded;
 }
 
-class GamePackCapsuleSelector extends StatefulWidget {
-  const GamePackCapsuleSelector({
+class BearingsCapsuleSelector extends StatefulWidget {
+  const BearingsCapsuleSelector({
     super.key,
     required this.segments,
     required this.selected,
@@ -25,38 +24,42 @@ class GamePackCapsuleSelector extends StatefulWidget {
     this.height = 40,
     this.inset = 4,
     this.elevated = false,
-    this.capsuleKey,
-    this.indicatorKey,
-  });
+    this.minimumSegmentWidth = 0,
+  }) : assert(segments.length > 0),
+       assert(selected >= 0 && selected < segments.length);
 
-  final List<GamePackCapsuleSegment> segments;
+  final List<BearingsCapsuleSegment> segments;
   final int selected;
   final ValueChanged<int> onSelected;
   final bool enabled;
   final double height;
   final double inset;
   final bool elevated;
-  final Key? capsuleKey;
-  final Key? indicatorKey;
+
+  /// Below this width, segments scroll instead of shrinking further.
+  final double minimumSegmentWidth;
 
   @override
-  State<GamePackCapsuleSelector> createState() =>
-      _GamePackCapsuleSelectorState();
+  State<BearingsCapsuleSelector> createState() =>
+      _BearingsCapsuleSelectorState();
 }
 
-class _GamePackCapsuleSelectorState extends State<GamePackCapsuleSelector>
+class _BearingsCapsuleSelectorState extends State<BearingsCapsuleSelector>
     with SingleTickerProviderStateMixin {
   late final _indicator = SingleMotionController(
     vsync: this,
-    motion: gamePackNavigationSpring,
+    motion: navigationSpring,
     initialValue: widget.selected.toDouble(),
   );
+  final _scroll = ScrollController();
   double? _dragOffset;
+  ({double viewport, double width, int index, int count})? _reveal;
 
   @override
-  void didUpdateWidget(GamePackCapsuleSelector oldWidget) {
+  void didUpdateWidget(BearingsCapsuleSelector oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.selected != oldWidget.selected ||
+        widget.segments.length != oldWidget.segments.length ||
         (!widget.enabled && _dragOffset != null)) {
       _dragOffset = null;
       _settle();
@@ -73,6 +76,7 @@ class _GamePackCapsuleSelectorState extends State<GamePackCapsuleSelector>
 
   @override
   void dispose() {
+    _scroll.dispose();
     _indicator.dispose();
     super.dispose();
   }
@@ -108,15 +112,76 @@ class _GamePackCapsuleSelectorState extends State<GamePackCapsuleSelector>
     if (_dragOffset == null) return;
     _dragOffset = null;
     final index = _indicator.value.round().clamp(0, widget.segments.length - 1);
-    if (canceled || index == widget.selected) {
-      _settle();
-    } else {
-      _activate(index);
-    }
+    _settle();
+    if (!canceled && index != widget.selected) _activate(index);
+  }
+
+  void _revealSelection(double viewport, double width) {
+    final target = (
+      viewport: viewport,
+      width: width,
+      index: widget.selected,
+      count: widget.segments.length,
+    );
+    if (_reveal == target) return;
+    _reveal = target;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _reveal != target || !_scroll.hasClients) return;
+      final step = (width - 2 * widget.inset) / target.count;
+      final center = widget.inset + step * (target.index + .5);
+      final offset = (center - viewport / 2).clamp(
+        0.0,
+        _scroll.position.maxScrollExtent,
+      );
+      if (MediaQuery.disableAnimationsOf(context)) {
+        _scroll.jumpTo(offset);
+      } else {
+        _scroll.animateTo(
+          offset,
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final minimum =
+          widget.minimumSegmentWidth * widget.segments.length +
+          2 * widget.inset;
+      if (!constraints.hasBoundedWidth) {
+        return SizedBox(
+          width: widget.minimumSegmentWidth > 0
+              ? minimum
+              : 56 * widget.segments.length + 2 * widget.inset,
+          child: _capsule(dragEnabled: widget.enabled),
+        );
+      }
+      final viewport = constraints.maxWidth;
+      if (minimum <= viewport) {
+        _reveal = null;
+        return _capsule(dragEnabled: widget.enabled);
+      }
+
+      _revealSelection(viewport, minimum);
+      final behavior = ScrollConfiguration.of(context);
+      return ScrollConfiguration(
+        behavior: behavior.copyWith(
+          dragDevices: {...behavior.dragDevices, PointerDeviceKind.mouse},
+        ),
+        child: SingleChildScrollView(
+          controller: _scroll,
+          scrollDirection: Axis.horizontal,
+          primary: false,
+          child: SizedBox(width: minimum, child: _capsule(dragEnabled: false)),
+        ),
+      );
+    },
+  );
+
+  Widget _capsule({required bool dragEnabled}) {
     final colors = Theme.of(context).colorScheme;
     return DecoratedBox(
       decoration: ShapeDecoration(
@@ -132,7 +197,7 @@ class _GamePackCapsuleSelectorState extends State<GamePackCapsuleSelector>
         ],
       ),
       child: ClipPath(
-        key: widget.capsuleKey,
+        key: const ValueKey('bearings-capsule-clip'),
         clipper: const ShapeBorderClipper(shape: StadiumBorder()),
         child: Padding(
           padding: EdgeInsets.all(widget.inset),
@@ -141,6 +206,10 @@ class _GamePackCapsuleSelectorState extends State<GamePackCapsuleSelector>
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final step = constraints.maxWidth / widget.segments.length;
+                double logicalX(double x) =>
+                    Directionality.of(context) == TextDirection.rtl
+                    ? constraints.maxWidth - x
+                    : x;
                 return Listener(
                   // An accepted drag can report onEnd after a pointer cancel.
                   onPointerCancel: (_) => _finishDrag(canceled: true),
@@ -148,15 +217,19 @@ class _GamePackCapsuleSelectorState extends State<GamePackCapsuleSelector>
                     behavior: HitTestBehavior.opaque,
                     excludeFromSemantics: true,
                     dragStartBehavior: DragStartBehavior.down,
-                    onHorizontalDragStart: widget.enabled && step > 0
-                        ? (details) =>
-                              _startDrag(details.localPosition.dx, step)
+                    onHorizontalDragStart: dragEnabled && step > 0
+                        ? (details) => _startDrag(
+                            logicalX(details.localPosition.dx),
+                            step,
+                          )
                         : null,
-                    onHorizontalDragUpdate: widget.enabled && step > 0
-                        ? (details) =>
-                              _updateDrag(details.localPosition.dx, step)
+                    onHorizontalDragUpdate: dragEnabled && step > 0
+                        ? (details) => _updateDrag(
+                            logicalX(details.localPosition.dx),
+                            step,
+                          )
                         : null,
-                    onHorizontalDragEnd: widget.enabled
+                    onHorizontalDragEnd: dragEnabled
                         ? (_) => _finishDrag(canceled: false)
                         : null,
                     child: Stack(
@@ -164,15 +237,15 @@ class _GamePackCapsuleSelectorState extends State<GamePackCapsuleSelector>
                       children: [
                         AnimatedBuilder(
                           animation: _indicator,
-                          builder: (_, child) => Positioned(
-                            left: _indicator.value * step,
+                          builder: (_, child) => PositionedDirectional(
+                            start: _indicator.value * step,
                             top: 0,
                             bottom: 0,
                             width: step,
                             child: child!,
                           ),
                           child: DecoratedBox(
-                            key: widget.indicatorKey,
+                            key: const ValueKey('bearings-capsule-indicator'),
                             decoration: ShapeDecoration(
                               color: colors.primaryContainer,
                               shape: StadiumBorder(
@@ -188,7 +261,7 @@ class _GamePackCapsuleSelectorState extends State<GamePackCapsuleSelector>
                             for (final (index, segment)
                                 in widget.segments.indexed)
                               Expanded(
-                                child: GamePackCapsuleTarget(
+                                child: BearingsCapsuleTarget(
                                   selected: index == widget.selected,
                                   expanded: segment.expanded,
                                   shape: const StadiumBorder(),
@@ -213,8 +286,8 @@ class _GamePackCapsuleSelectorState extends State<GamePackCapsuleSelector>
   }
 }
 
-class GamePackCapsuleTarget extends StatelessWidget {
-  const GamePackCapsuleTarget({
+class BearingsCapsuleTarget extends StatelessWidget {
+  const BearingsCapsuleTarget({
     super.key,
     required this.selected,
     required this.onTap,
@@ -236,6 +309,7 @@ class GamePackCapsuleTarget extends StatelessWidget {
     final color = selected ? colors.onPrimaryContainer : colors.onSurface;
     return Semantics(
       button: true,
+      enabled: onTap != null,
       selected: selected,
       expanded: expanded,
       child: Material(

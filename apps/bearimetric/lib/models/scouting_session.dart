@@ -1,9 +1,10 @@
-import 'package:core/core.dart' show CompetitionEvent, Scout, ScoutPosition;
+import 'package:core/core.dart'
+    show CompetitionEvent, Scout, ScoutPosition, practiceGamePackKey;
 
 export 'package:core/core.dart' show Scout, ScoutPosition;
 
 /// Local-only event key used to isolate practice records from real events.
-const trainingEventKey = 'training';
+const trainingEventKey = practiceGamePackKey;
 
 /// The selected event is kept in preferences for offline startup.
 class ScoutingEventSelection {
@@ -40,29 +41,24 @@ class ScoutingSession {
   final ScoutingEventSelection? event;
   final ScoutPosition? position;
   final Scout? scout;
-  final int? matchNumber;
+  final String? matchId;
 
-  const ScoutingSession({
-    this.event,
-    this.position,
-    this.scout,
-    this.matchNumber,
-  });
+  const ScoutingSession({this.event, this.position, this.scout, this.matchId});
 
   bool get isConfigured =>
-      event != null && position != null && scout != null && matchNumber != null;
+      event != null && position != null && scout != null && matchId != null;
 
   ScoutingSession copyWith({
     ScoutingEventSelection? event,
     ScoutPosition? position,
     Scout? scout,
-    int? matchNumber,
+    String? matchId,
   }) {
     return ScoutingSession(
       event: event ?? this.event,
       position: position ?? this.position,
       scout: scout ?? this.scout,
-      matchNumber: matchNumber ?? this.matchNumber,
+      matchId: matchId ?? this.matchId,
     );
   }
 }

@@ -1,7 +1,10 @@
 import 'dart:convert';
 
-import 'package:core/core.dart' show CompetitionEvent, CompetitionMatch;
+import 'package:core/core.dart'
+    show CompetitionEvent, CompetitionMatch, practiceGamePackKey;
 import 'package:grove/grove.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' show Provider;
+import 'package:services/providers/gamepack_provider.dart';
 import 'package:bearimetric/data/local_data.dart';
 import 'package:bearimetric/models/scouting_session.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -16,21 +19,6 @@ extension ScoutingStations on CompetitionMatch {
     if (teams == null || index < 0 || index >= teams.length) return null;
     return teams[index].id.replaceFirst('frc', '');
   }
-}
-
-List<CompetitionMatch> _sortMatches(List<CompetitionMatch> rawData) {
-  final matches = rawData.toList();
-
-  matches.sort((a, b) {
-    const levelOrder = {'qm': 0, 'sf': 1, 'f': 2};
-    final levelA = levelOrder[a.level] ?? 3;
-    final levelB = levelOrder[b.level] ?? 3;
-    if (levelA != levelB) return levelA.compareTo(levelB);
-    if (a.setNumber != b.setNumber) return a.setNumber.compareTo(b.setNumber);
-    return a.matchNumber.compareTo(b.matchNumber);
-  });
-
-  return matches;
 }
 
 @riverpod
@@ -50,58 +38,37 @@ AsyncValue<List<CompetitionEvent>> events(Ref ref) {
       });
 }
 
+final practiceScheduleProvider = Provider.autoDispose<AsyncValue<String?>>((
+  ref,
+) {
+  return ref.watch(eventGamePackBindingProvider(practiceGamePackKey)).flatMap((
+    binding,
+  ) {
+    final event = binding?.practiceEvent?.id;
+    return event != null
+        ? AsyncData(event)
+        : ref
+              .watch(eventsProvider)
+              .whenData((events) => events.firstOrNull?.id);
+  });
+});
+
 @Riverpod(keepAlive: true)
 AsyncValue<List<CompetitionMatch>> matches(Ref ref, String eventKey) {
   if (eventKey == trainingEventKey) {
-    return ref.watch(eventsProvider).flatMap((events) {
-      if (events.isEmpty) {
+    return ref.watch(practiceScheduleProvider).flatMap((event) {
+      if (event == null) {
         throw StateError('No event is available for training schedules');
       }
-      return ref.watch(matchesProvider(events.first.id));
+      return ref.watch(matchesProvider(event));
     });
   }
   return ref
       .watch(competitionMatchesProvider(eventKey))
-      .whenData((result) => _sortMatches(result.requireAvailable().items));
-}
-
-@riverpod
-AsyncValue<String?> teamForMatchPosition(
-  Ref ref,
-  String eventKey,
-  int matchNumber,
-  ScoutPosition position,
-) {
-  if (position.isStrategy) return const AsyncData(null);
-  return ref
-      .watch(matchesProvider(eventKey))
-      .when(
-        data: (matches) =>
-            AsyncData(_findMatch(matches, matchNumber)?.teamNumberAt(position)),
-        error: (_, _) => const AsyncData(null),
-        loading: AsyncLoading<String?>.new,
-      );
-}
-
-@riverpod
-AsyncValue<Map<ScoutPosition, String>> allTeamsForMatch(
-  Ref ref,
-  String eventKey,
-  int matchNumber,
-) {
-  return ref
-      .watch(matchesProvider(eventKey))
-      .when(
-        data: (matches) {
-          final match = _findMatch(matches, matchNumber);
-          return AsyncData({
-            if (match != null)
-              for (final pos in ScoutPosition.values)
-                if (!pos.isStrategy) pos: match.teamNumberAt(pos) ?? '???',
-          });
-        },
-        error: (_, _) => const AsyncData({}),
-        loading: AsyncLoading<Map<ScoutPosition, String>>.new,
+      .whenData(
+        (result) =>
+            result.requireAvailable().items.toList()
+              ..sort(compareScoutingMatches),
       );
 }
 
@@ -136,24 +103,20 @@ class ScoutingSessionNotifier extends _$ScoutingSessionNotifier {
     return ScoutingSession(event: savedEvent, position: savedPosition);
   }
 
-  void setMatchNumber(int matchNumber) {
-    state = state.copyWith(matchNumber: matchNumber);
-  }
-
-  void nextMatch() {
-    if (state.matchNumber != null) {
-      state = state.copyWith(matchNumber: state.matchNumber! + 1);
-    }
-  }
-
-  void previousMatch() {
-    if (state.matchNumber != null && state.matchNumber! > 1) {
-      state = state.copyWith(matchNumber: state.matchNumber! - 1);
-    }
+  void selectMatch(CompetitionMatch match) {
+    state = state.copyWith(matchId: match.id);
   }
 
   void setEvent(ScoutingEventSelection event) {
-    state = state.copyWith(event: event);
+    if (state.event?.key != event.key) {
+      state = ScoutingSession(
+        event: event,
+        position: state.position,
+        scout: state.scout,
+      );
+    } else {
+      state = state.copyWith(event: event);
+    }
     prefs.setString(_eventKey, jsonEncode(event.toJson()));
   }
 
@@ -170,7 +133,7 @@ class ScoutingSessionNotifier extends _$ScoutingSessionNotifier {
     state = ScoutingSession(
       event: state.event,
       position: state.position,
-      matchNumber: state.matchNumber,
+      matchId: state.matchId,
     );
   }
 
@@ -179,45 +142,34 @@ class ScoutingSessionNotifier extends _$ScoutingSessionNotifier {
   }
 }
 
-CompetitionMatch? _findMatch(List<CompetitionMatch> matches, int matchNumber) {
-  final sameNumber = matches.where((match) => match.matchNumber == matchNumber);
-  return sameNumber.where((match) => match.level == 'qm').firstOrNull ??
-      sameNumber.firstOrNull;
+String scoutingMatchLabel(CompetitionMatch match) => switch (match.level) {
+  'qm' => 'Match ${match.matchNumber}',
+  'ef' => 'Eighthfinal ${match.setNumber} · Match ${match.matchNumber}',
+  'qf' => 'Quarterfinal ${match.setNumber} · Match ${match.matchNumber}',
+  'sf' => 'Semifinal ${match.setNumber} · Match ${match.matchNumber}',
+  'f' => 'Final · Match ${match.matchNumber}',
+  _ => match.id.split('_').last.toUpperCase(),
+};
+
+int compareScoutingMatches(CompetitionMatch left, CompetitionMatch right) {
+  final dateOrder = (left.scheduledAt?.millisecondsSinceEpoch ?? 0).compareTo(
+    right.scheduledAt?.millisecondsSinceEpoch ?? 0,
+  );
+  if (dateOrder != 0) return dateOrder;
+  const levelOrder = {'qm': 0, 'ef': 1, 'qf': 2, 'sf': 3, 'f': 4};
+  final level = (levelOrder[left.level] ?? 5).compareTo(
+    levelOrder[right.level] ?? 5,
+  );
+  if (level != 0) return level;
+  final set = left.setNumber.compareTo(right.setNumber);
+  if (set != 0) return set;
+  final number = left.matchNumber.compareTo(right.matchNumber);
+  return number != 0 ? number : left.id.compareTo(right.id);
 }
 
-@riverpod
-AsyncValue<int?> teamNumberForSession(Ref ref) {
-  final session = ref.watch(scoutingSessionProvider);
-  final event = session.event;
-  final position = session.position;
-  final matchNumber = session.matchNumber;
-
-  if (event == null ||
-      position == null ||
-      matchNumber == null ||
-      position.isStrategy) {
-    return const AsyncData(null);
-  }
-  return ref
-      .watch(teamForMatchPositionProvider(event.key, matchNumber, position))
-      .whenData((number) => int.tryParse(number ?? ''));
-}
-
-@riverpod
-AsyncValue<List<String>> allianceTeamsForSession(Ref ref) {
-  final session = ref.watch(scoutingSessionProvider);
-  final event = session.event;
-  final position = session.position;
-  final matchNumber = session.matchNumber;
-
-  if (event == null || position == null || matchNumber == null)
-    return const AsyncData([]);
-  return ref
-      .watch(allTeamsForMatchProvider(event.key, matchNumber))
-      .whenData(
-        (teams) => [
-          for (final entry in teams.entries)
-            if (entry.key.isRed == position.isRed) entry.value,
-        ],
-      );
+bool canScoutMatch(CompetitionMatch match, ScoutPosition position) {
+  final teams = (position.isRed ? match.red : match.blue)?.teams;
+  return teams != null &&
+      teams.isNotEmpty &&
+      (position.isStrategy || position.allianceIndex < teams.length);
 }

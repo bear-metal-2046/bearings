@@ -19,6 +19,7 @@ dependencies:
     path: ../core
   lucide_icons_flutter: ^4.0.3
   material_ui: ^1.11.0
+  motor: ^1.1.0
   cupertino_ui: ^1.1.6
   stupid_simple_sheet: ^0.9.1+1
 

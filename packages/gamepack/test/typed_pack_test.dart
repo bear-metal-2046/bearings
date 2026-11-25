@@ -10,12 +10,25 @@ void main() {
     expect(form.defaults(reopened.fieldById), {'attempted': false});
     expect(form.visibleFields({'attempted': false}), {'attempted'});
     expect(form.pages.single.gridControls.last.placement?.y, 1);
-    final unanswered = reopened.decodeAnswers({
+    final answered = reopened.decodeAnswers({
       'attempted': true,
-      'climb': {'state': 'unknown'},
+      'climb': 'low',
     });
-    expect(unanswered['attempted']!.data, true);
-    expect(unanswered['climb']!.state, GamePackValueState.unknown);
+    expect(answered['attempted']!.data, true);
+    expect(answered['climb']!.data, 'low');
+    for (final removedAnswer in [
+      null,
+      {'state': 'unknown'},
+      {'state': 'notApplicable'},
+    ]) {
+      expect(
+        () => reopened.validateAnswers({
+          'attempted': true,
+          'climb': removedAnswer,
+        }),
+        throwsFormatException,
+      );
+    }
     expect(
       reopened.decodeAnswers({'attempted': false})['attempted']!.data,
       false,
@@ -95,7 +108,6 @@ GamePackDefinition _pack({
       'Climb',
       type: GamePackType.text,
       choices: ['low', 'high'],
-      allowUnknown: true,
     ),
   ],
   forms: [

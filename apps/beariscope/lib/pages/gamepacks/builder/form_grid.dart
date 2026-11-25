@@ -10,6 +10,7 @@ GamePackControl controlWithPlacement(
 ) => GamePackControl(
   field: control.field,
   type: control.type,
+  appearance: control.appearance,
   visibleWhen: control.visibleWhen,
   placement: placement,
 );

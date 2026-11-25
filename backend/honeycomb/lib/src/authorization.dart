@@ -49,6 +49,17 @@ class EntityAuthorization {
       _ => '${query.type}.read',
     };
     if (allowed.contains(capability)) return;
+    if (query.type == gamePackObservationEntity.type &&
+        allowed.contains(gamePackSubmitPermission) &&
+        allowed.contains(gamePackReadPermission) &&
+        query.filters.any(
+          (f) =>
+              f.field == 'author' &&
+              f.operator == FilterOperator.equal &&
+              f.value == actor.id,
+        )) {
+      return;
+    }
     final idFilters = query.filters
         .where((f) => f.field == 'id' && f.operator == FilterOperator.equal)
         .toList();
@@ -80,6 +91,21 @@ class EntityAuthorization {
         data: GroveAccess(actor.id, permissions(actor)).toJson(),
       ),
     ], store.revision);
+  }
+
+  bool _isOwnObservationCorrection(
+    AuthenticatedActor actor,
+    EntityMutation mutation,
+    String parentId,
+  ) {
+    final parent = store.get(gamePackObservationEntity.type, parentId);
+    final data = mutation.data!;
+    return parent != null &&
+        !parent.deleted &&
+        parent.data['author'] == actor.id &&
+        parent.data['scout'] == data['scout'] &&
+        parent.data['retracted'] != true &&
+        data['retracted'] != true;
   }
 
   void mutate(AuthenticatedActor actor, EntityMutation mutation) {
@@ -128,26 +154,21 @@ class EntityAuthorization {
       return;
     }
     if (mutation.type == gamePackObservationEntity.type) {
-      final gamePackCapability = mutation.data?['supersedes'] is String
-          ? gamePackCorrectPermission
-          : gamePackSubmitPermission;
-      if (!allowed.contains(gamePackCapability)) {
+      final parentId = mutation.data?['supersedes'];
+      final isCorrection = parentId is String;
+      final canCorrect =
+          allowed.contains(gamePackCorrectPermission) &&
+          allowed.contains(gamePackObservationReadPermission);
+      final canSubmit = allowed.contains(gamePackSubmitPermission);
+      if (!allowed.contains(gamePackReadPermission) ||
+          (isCorrection
+              ? !canCorrect &&
+                    !(canSubmit &&
+                        _isOwnObservationCorrection(actor, mutation, parentId))
+              : !canSubmit)) {
         throw const GroveException(
           'forbidden',
           'GamePack observation permission required',
-        );
-      }
-      if (!allowed.contains(gamePackReadPermission)) {
-        throw const GroveException(
-          'forbidden',
-          'GamePack read permission required',
-        );
-      }
-      if (gamePackCapability == gamePackCorrectPermission &&
-          !allowed.contains(gamePackObservationReadPermission)) {
-        throw const GroveException(
-          'forbidden',
-          'Observation read permission required',
         );
       }
       authorizeGamePackObservationMutation(mutation);

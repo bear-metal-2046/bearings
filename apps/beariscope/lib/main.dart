@@ -9,6 +9,7 @@ import 'package:beariscope/pages/device_provisioning/device_provisioning_page.da
 import 'package:beariscope/pages/export/export_page.dart';
 import 'package:beariscope/pages/main_view.dart';
 import 'package:beariscope/pages/gamepacks/gamepacks_page.dart';
+import 'package:core/core.dart' show gamePackManagePermission;
 import 'package:beariscope/pages/match_lookup/match_lookup_page.dart';
 import 'package:beariscope/pages/picklists/picklist_editor_page.dart';
 import 'package:beariscope/pages/picklists/picklists_create_page.dart';
@@ -20,6 +21,7 @@ import 'package:beariscope/pages/settings/account_settings_page.dart';
 import 'package:beariscope/pages/settings/advanced_settings_page.dart';
 import 'package:beariscope/pages/settings/appearance_settings_page.dart';
 import 'package:beariscope/pages/settings/notifications_settings_page.dart';
+import 'package:beariscope/pages/settings/practice_settings_page.dart';
 import 'package:beariscope/pages/settings/scout_selection_page.dart';
 import 'package:beariscope/pages/settings/settings_page.dart';
 import 'package:beariscope/pages/settings/team_role_settings_page.dart';
@@ -117,7 +119,10 @@ final routerProvider = Provider<GoRouter>((ref) {
   final refreshNotifier = RouterRefreshNotifier(ref);
   final deckLink = FlashCardDeepLink();
 
+  final rootNavigatorKey = GlobalKey<NavigatorState>();
+
   return GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: '/splash',
     refreshListenable: refreshNotifier,
     routes: [
@@ -139,6 +144,27 @@ final routerProvider = Provider<GoRouter>((ref) {
       ShellRoute(
         builder: (_, _, child) => MainView(child: child),
         routes: [
+          GoRoute(
+            path: '/gamepacks',
+            pageBuilder: (_, _) =>
+                const NoTransitionPage(child: GamePacksPage()),
+            routes: [
+              GoRoute(
+                path: 'editor',
+                parentNavigatorKey: rootNavigatorKey,
+                redirect: (_, state) =>
+                    state.extra is GamePackWorkspaceRequest &&
+                        ref
+                                .read(permissionCheckerProvider)
+                                ?.hasPermission(gamePackManagePermission) ==
+                            true
+                    ? null
+                    : '/gamepacks',
+                builder: (_, state) =>
+                    (state.extra! as GamePackWorkspaceRequest).build(),
+              ),
+            ],
+          ),
           GoRoute(
             path: '/up_next',
             pageBuilder: (_, _) => const NoTransitionPage(child: UpNextPage()),
@@ -276,7 +302,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: 'roles',
             builder: (_, _) => const TeamRoleSettingsPage(),
           ),
-          GoRoute(path: 'gamepacks', builder: (_, _) => const GamePacksPage()),
+          GoRoute(
+            path: 'practice',
+            builder: (_, _) => const PracticeSettingsPage(),
+          ),
+          GoRoute(path: 'gamepacks', redirect: (_, _) => '/gamepacks'),
           GoRoute(path: 'about', builder: (_, _) => const AboutSettingsPage()),
           GoRoute(
             path: 'licenses',

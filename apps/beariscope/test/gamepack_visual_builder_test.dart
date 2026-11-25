@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' show PointerDeviceKind;
 
+import 'package:bearimetric/data/scouting_store.dart';
 import 'package:bearimetric/pages/flow/gamepack_scout_page.dart';
 import 'package:beariscope/pages/export/gamepack_export.dart';
 import 'package:beariscope/pages/gamepacks/builder/design.dart';
@@ -307,6 +308,13 @@ void main() {
       registry: registry,
       transport: MemoryGroveTransport(registry),
     );
+    final scoutingStore = ScoutingStore(
+      grove,
+      box: null,
+      endpoint: 'test',
+      subject: Future.value('tablet'),
+    );
+    addTearDown(scoutingStore.close);
     const team = CompetitionTeam(
       id: 'frc2046',
       number: 2046,
@@ -333,6 +341,7 @@ void main() {
         ProviderScope(
           overrides: [
             bearingsGroveProvider.overrideWithValue(grove),
+            scoutingStoreProvider.overrideWithValue(scoutingStore),
             currentEventProvider.overrideWith(_NextSeasonEvent.new),
             competitionTeamsProvider('2027demo')
                 .overrideWithValue(AsyncData(QueryResult([team]))),
@@ -439,8 +448,8 @@ void main() {
       await enter('Question label', 'Robots docked');
       await enter('Default answer', '0');
       expect(find.text('Advanced options'), findsNothing);
-      expect(find.text('Allow Unknown'), findsOneWidget);
-      expect(find.text('Allow Not applicable'), findsOneWidget);
+      expect(find.text('Allow Unknown'), findsNothing);
+      expect(find.text('Allow Not applicable'), findsNothing);
       await select<GamePackControlType>('Display as', 'Counter');
       await select<GamePackControlType>('Display as', 'Number');
       await tap('Save question');
@@ -470,10 +479,19 @@ void main() {
       await tester.pumpAndSettle();
       expect(tester.getSize(control).width, greaterThan(originalWidth));
       await tap('Preview');
-      expect(
-        find.widgetWithText(TextFormField, 'Robots docked'),
-        findsOneWidget,
+      await tap('Robots docked');
+      Finder numericInput() => find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.byType(TextFormField),
       );
+      expect(numericInput(), findsOneWidget);
+      await tap('Cancel');
+      Future<void> answerDocked(String value) async {
+        await tap('Robots docked');
+        await tester.enterText(numericInput(), value);
+        await tap('Done');
+      }
+
       await tooltip('Back to editing');
       await tooltip('Switch page');
       await tap('Add page');
@@ -518,6 +536,7 @@ void main() {
         find.textContaining('Saved Skyway to the GamePacks library'),
         findsOneWidget,
       );
+      await tooltip('GamePack options for Skyway');
       await tap('Edit');
 
       await tap('Edit test data');
@@ -689,6 +708,7 @@ void main() {
         GamePackTeamCardKind.compact,
         GamePackTeamCardKind.details,
       ]);
+      await tooltip('GamePack options for Skyway');
       await tap('Assign to event');
       await tap('Assign GamePack');
       final card = (await grove.query<EventGamePack>().byId('2027demo').one());
@@ -718,19 +738,19 @@ void main() {
               event: '2027demo',
               position: ScoutPosition.red1,
               scoutId: 'scout-2027',
-              initialMatchNumber: 1,
+              initialMatchId: '2027demo_qm1',
             ),
           ),
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('Skyway'), findsOneWidget);
-      expect(find.text('QM1 · Team 2046'), findsOneWidget);
-      final docked = find.byKey(const ValueKey('robots_docked'));
-      await tester.enterText(docked, '4');
+      expect(find.text('Match 1 · Red 1 · Team 2046'), findsOneWidget);
+      await answerDocked('4');
       await tester.tap(find.text('Save observation').hitTestable());
       await tester.pumpAndSettle();
-      expect(find.text('Observation saved'), findsOneWidget);
+      expect((await scoutingStore.records()).single['ready'], {
+        'robots_docked': 4,
+      });
       await grove.synchronize();
       final observations = await grove.query<GamePackObservation>().many();
       final captured = observations.single;
@@ -809,6 +829,7 @@ void main() {
       await tester.pumpAndSettle();
       navigator.pop();
       await tester.pumpAndSettle();
+      await tooltip('GamePack options for Skyway');
       await tap('Edit other sections');
       expect(find.text('Match scouting'), findsWidgets);
       await _selectSidebar(
@@ -831,7 +852,7 @@ void main() {
       );
       await tap('Add report');
       await tap('Enter answers');
-      await enter('Robots docked', '6');
+      await answerDocked('6');
       await tap('Save report');
       await tap('Apply to previews');
       expect(find.text('36.0 pts'), findsOneWidget);
@@ -1167,7 +1188,11 @@ void main() {
         ProviderScope(
           overrides: [bearingsGroveProvider.overrideWithValue(grove)],
           child: MaterialApp(
-            home: GamePackWorkspacePage(event: '2026demo', imported: design),
+            home: GamePackWorkspacePage(
+              event: '2026demo',
+              imported: design,
+              onSaved: (_) {},
+            ),
           ),
         ),
       );
@@ -1236,19 +1261,21 @@ void main() {
       await tester.enterText(field('Question label'), 'Fuel scored');
       await tap(find.text('Save question'));
       await tap(preview);
+      expect(find.byTooltip('Zoom tablet preview'), findsNothing);
+      expect(find.byTooltip('Fit tablet preview'), findsNothing);
+      expect(find.byType(InteractiveViewer), findsNothing);
       final previewBounds = tester.getSize(find.byType(GamePackFormView));
       expect(previewBounds.width, closeTo(390 - 24 - 32, 1));
       expect(previewBounds.height, greaterThan(600));
-      expect(
-        tester
-            .widget<GamePackFormView>(find.byType(GamePackFormView))
-            .reflowGrid,
-        isFalse,
-      );
       expect(find.text('Try questions'), findsNothing);
       expect(find.text('Tablet layout'), findsNothing);
-      await tap(find.byTooltip('Next scouting page'));
-      expect(find.text('Endgame'), findsOneWidget);
+      final pageBar = find.descendant(
+        of: find.byType(GamePackFormView),
+        matching: find.byType(BearingsCapsuleBar<int>),
+      );
+      await tap(find.descendant(of: pageBar, matching: find.text('Endgame')));
+      final navigation = tester.widget<BearingsCapsuleBar<int>>(pageBar);
+      expect(navigation.destinations[navigation.selected].label, 'Endgame');
       await tap(find.byTooltip('Back to editing'));
       expect(find.text('Save GamePack'), findsNothing);
       await tap(find.text('Review'));
@@ -1271,8 +1298,9 @@ void main() {
       final switcher = find.byKey(
         const ValueKey('gamepack-edit-preview-capsule'),
       );
-      final indicator = find.byKey(
-        const ValueKey('gamepack-edit-preview-indicator'),
+      final indicator = find.descendant(
+        of: switcher,
+        matching: find.byKey(const ValueKey('bearings-capsule-indicator')),
       );
       final origin = tester.getCenter(indicator);
       final travel = Offset(tester.getSize(indicator).width * .85, 0);
@@ -1349,7 +1377,10 @@ void main() {
 
     final choices = find.byKey(const ValueKey('gamepack-dock-choices'));
     final capsule = find.byKey(const ValueKey('gamepack-dock-capsule'));
-    final selector = find.byKey(const ValueKey('gamepack-dock-selector'));
+    final selector = find.descendant(
+      of: capsule,
+      matching: find.byKey(const ValueKey('bearings-capsule-indicator')),
+    );
     final dock = find.byType(GamePackWorkspaceDock);
     final testData = find.descendant(
       of: find.byType(AppBar),
@@ -1359,8 +1390,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [bearingsGroveProvider.overrideWithValue(grove)],
-          child: const MaterialApp(
-            home: GamePackWorkspacePage(event: '2027demo'),
+          child: MaterialApp(
+            home: GamePackWorkspacePage(event: '2027demo', onSaved: (_) {}),
           ),
         ),
       );
@@ -1406,7 +1437,12 @@ void main() {
       final inset = tester.getRect(selector).top - bounds.top;
       expect(tester.getRect(selector).left - bounds.left, inset);
       expect(bounds.bottom - tester.getRect(selector).bottom, inset);
-      final clip = tester.widget<ClipPath>(capsule);
+      final clip = tester.widget<ClipPath>(
+        find.descendant(
+          of: capsule,
+          matching: find.byKey(const ValueKey('bearings-capsule-clip')),
+        ),
+      );
       expect(clip.clipBehavior, Clip.antiAlias);
       expect(clip.clipper, isA<ShapeBorderClipper>());
       expect((clip.clipper as ShapeBorderClipper).shape, isA<StadiumBorder>());

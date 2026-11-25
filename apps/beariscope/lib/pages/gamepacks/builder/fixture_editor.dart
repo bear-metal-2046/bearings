@@ -478,7 +478,6 @@ class _FixtureReportEditorState extends State<_FixtureReportEditor> {
                       answers: _answers,
                       onChanged: (answers) =>
                           setState(() => _answers = answers),
-                      reflowGrid: true,
                     ),
                   ),
                 ),

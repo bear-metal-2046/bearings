@@ -6,7 +6,8 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:motor/motor.dart';
 
-import 'capsule_selector.dart';
+import 'package:ui/ui.dart';
+import 'package:ui/widgets/bearings_navigation_motion.dart';
 
 enum GamePackDockTab {
   forms('Forms', LucideIcons.clipboardList, true),
@@ -63,7 +64,7 @@ class GamePackWorkspaceSidebar extends StatelessWidget {
               side: BorderSide(color: colors.primary.withValues(alpha: .28)),
             )
           : null,
-      child: GamePackCapsuleTarget(
+      child: BearingsCapsuleTarget(
         selected: active,
         expanded: open,
         shape: const StadiumBorder(),
@@ -185,7 +186,7 @@ class _GamePackWorkspaceDockState extends State<GamePackWorkspaceDock>
     with SingleTickerProviderStateMixin {
   late final _reveal = SingleMotionController(
     vsync: this,
-    motion: gamePackNavigationSpring,
+    motion: navigationSpring,
     initialValue: widget.expanded == null ? 0 : 1,
   );
   late GamePackDockTab? _shown = widget.expanded;
@@ -228,39 +229,17 @@ class _GamePackWorkspaceDockState extends State<GamePackWorkspaceDock>
     }
   }
 
-  Widget _bar() => GamePackCapsuleSelector(
-    selected: widget.highlighted.index,
-    enabled: widget.enabled,
-    height: 54,
-    inset: 5,
-    elevated: true,
-    capsuleKey: const ValueKey('gamepack-dock-capsule'),
-    indicatorKey: const ValueKey('gamepack-dock-selector'),
-    onSelected: (index) => widget.onTab(GamePackDockTab.values[index]),
-    segments: [
+  Widget _bar() => BearingsCapsuleBar<GamePackDockTab>(
+    key: const ValueKey('gamepack-dock-capsule'),
+    selected: widget.highlighted,
+    variant: BearingsCapsuleBarVariant.dock,
+    onActivated: widget.enabled ? widget.onTab : null,
+    destinations: [
       for (final tab in GamePackDockTab.values)
-        GamePackCapsuleSegment(
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            spacing: 4,
-            children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                spacing: 3,
-                children: [
-                  Icon(tab.icon, size: 19),
-                  if (tab.hasChoices)
-                    Icon(
-                      tab == widget.expanded
-                          ? LucideIcons.chevronDown
-                          : LucideIcons.chevronUp,
-                      size: 11,
-                    ),
-                ],
-              ),
-              Text(tab.label, maxLines: 1, overflow: TextOverflow.ellipsis),
-            ],
-          ),
+        BearingsCapsuleDestination(
+          value: tab,
+          label: tab.label,
+          icon: tab.icon,
           expanded: tab.hasChoices ? tab == widget.expanded : null,
         ),
     ],
@@ -496,7 +475,7 @@ class _ChoiceTrayState extends State<_ChoiceTray> {
                             ),
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          child: GamePackCapsuleTarget(
+                          child: BearingsCapsuleTarget(
                             selected: selected,
                             onTap: () => widget.onChoice(choice.id),
                             child: Padding(

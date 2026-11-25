@@ -12,8 +12,6 @@ class GamePackField {
     this.minimum,
     this.maximum,
     this.choices = const [],
-    this.allowUnknown = false,
-    this.allowNotApplicable = false,
   });
 
   final String id;
@@ -24,8 +22,6 @@ class GamePackField {
   final num? minimum;
   final num? maximum;
   final List<String> choices;
-  final bool allowUnknown;
-  final bool allowNotApplicable;
 
   factory GamePackField.fromJson(Map<String, dynamic> json) => GamePackField(
     json['id'] as String,
@@ -40,8 +36,6 @@ class GamePackField {
     choices: List.unmodifiable(
       (json['choices'] as List<dynamic>? ?? []).cast<String>(),
     ),
-    allowUnknown: json['allowUnknown'] as bool? ?? false,
-    allowNotApplicable: json['allowNotApplicable'] as bool? ?? false,
   );
 
   Map<String, dynamic> toJson() => {
@@ -53,8 +47,6 @@ class GamePackField {
     if (minimum != null) 'minimum': minimum,
     if (maximum != null) 'maximum': maximum,
     if (choices.isNotEmpty) 'choices': choices,
-    if (allowUnknown) 'allowUnknown': true,
-    if (allowNotApplicable) 'allowNotApplicable': true,
   };
 
   void validateDefinition() {
@@ -90,24 +82,10 @@ class GamePackField {
     if (defaultValue != null) readAnswer(defaultValue);
   }
 
-  /// Decode an answer as recorded. Explicit uncertainty is tagged in JSON.
+  /// Decode a recorded answer. Unanswered fields are omitted.
   GamePackValue readAnswer(Object? raw) {
-    final value = switch (raw) {
-      {'state': 'unknown'} => GamePackValue.unknown,
-      {'state': 'notApplicable'} => GamePackValue.notApplicable,
-      _ => GamePackValue.of(raw),
-    };
-    if (value.state == GamePackValueState.unknown) {
-      if (!allowUnknown || raw is! Map || raw['state'] != 'unknown')
-        throw FormatException('$label needs a value.');
-      return value;
-    }
-    if (value.state == GamePackValueState.notApplicable) {
-      if (!allowNotApplicable) {
-        throw FormatException('$label cannot be marked not applicable.');
-      }
-      return value;
-    }
+    final value = GamePackValue.of(raw);
+    if (!value.isKnown) throw FormatException('$label needs a value.');
     if (!type.acceptsValue(value) ||
         (raw is List &&
             (raw.length > 64 ||
@@ -238,16 +216,27 @@ class GamePackVisibility {
   Map<String, Object> toJson() => {'field': field, 'equals': equals};
 }
 
+enum GamePackControlAppearance {
+  automatic('Automatic'),
+  tile('Tile'),
+  inline('Inline');
+
+  const GamePackControlAppearance(this.label);
+  final String label;
+}
+
 class GamePackControl {
   const GamePackControl({
     required this.field,
     required this.type,
+    this.appearance = GamePackControlAppearance.automatic,
     this.placement,
     this.visibleWhen,
   });
 
   final String field;
   final GamePackControlType type;
+  final GamePackControlAppearance appearance;
   final GamePackPlacement? placement;
   final GamePackVisibility? visibleWhen;
 
@@ -257,6 +246,9 @@ class GamePackControl {
     return GamePackControl(
       field: json['field'] as String,
       type: _enumValue(GamePackControlType.values, json['type']),
+      appearance: json.containsKey('appearance')
+          ? _enumValue(GamePackControlAppearance.values, json['appearance'])
+          : GamePackControlAppearance.automatic,
       placement: placement == null
           ? null
           : GamePackPlacement.fromJson(placement),
@@ -269,6 +261,8 @@ class GamePackControl {
   Map<String, Object> toJson() => {
     'field': field,
     'type': type.name,
+    if (appearance != GamePackControlAppearance.automatic)
+      'appearance': appearance.name,
     if (placement case final placement?) 'placement': placement.toJson(),
     if (visibleWhen case final visibility?) 'visibleWhen': visibility.toJson(),
   };

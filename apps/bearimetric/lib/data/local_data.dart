@@ -3,14 +3,13 @@ import 'package:hive_ce_flutter/adapters.dart';
 import 'package:bearimetric/data/hive_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// the one hive box for all match/strat/queue/schedule data
-const boxKey = "localData";
+import 'scouting_store.dart';
 
 late final SharedPreferences prefs;
 
 Future<void> loadStorage() async {
   await initializeHiveStorage();
-  await initializeGroveStorage();
-  await Hive.openBox(boxKey); // so the code doesn't have to use openBox
+  await initializeGroveStorage(persistOnWeb: true);
+  await Hive.openBox<String>(scoutingBoxName);
   prefs = await SharedPreferences.getInstance();
 }

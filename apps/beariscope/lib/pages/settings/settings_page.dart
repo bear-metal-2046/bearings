@@ -1,4 +1,6 @@
-import 'package:core/core.dart' show gamePackReadPermission;
+import 'package:core/core.dart'
+    show gamePackReadPermission, gamePackManagePermission;
+
 import 'package:ui/widgets/bearings_setting_group.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -25,8 +27,14 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     final canOpenUsersAndRoles =
         permissionChecker?.canOpenUsersAndRoles ?? false;
 
-    final canOpenGamePacks =
-        permissionChecker?.hasPermission(gamePackReadPermission) ?? false;
+    final canManagePractice =
+        permissionChecker?.hasPermission(gamePackReadPermission) == true &&
+        permissionChecker?.hasPermission(gamePackManagePermission) == true;
+    final showTeamSettings =
+        canViewScouts ||
+        canEditScouts ||
+        canOpenUsersAndRoles ||
+        canManagePractice;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
@@ -60,13 +68,17 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
           const SizedBox(height: 16),
 
-          if (canViewScouts ||
-              canEditScouts ||
-              canOpenUsersAndRoles ||
-              canOpenGamePacks)
+          if (showTeamSettings)
             BearingsSettingGroup(
               title: 'Team',
               children: [
+                if (canManagePractice)
+                  ListTile(
+                    leading: const Icon(LucideIcons.flaskConical),
+                    title: const Text('Bearimetric Practice'),
+                    subtitle: const Text('Practice event and GamePack'),
+                    onTap: () => context.push('/settings/practice'),
+                  ),
                 if (canViewScouts || canEditScouts)
                   ListTile(
                     leading: const Icon(LucideIcons.userPen),
@@ -75,15 +87,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       canEditScouts ? 'Add, Remove Scouts' : 'View Scouts',
                     ),
                     onTap: () => context.push('/settings/user_selection'),
-                  ),
-                if (canOpenGamePacks)
-                  ListTile(
-                    leading: const Icon(LucideIcons.workflow),
-                    title: const Text('GamePacks'),
-                    subtitle: const Text(
-                      'Scouting forms, calculations, and results',
-                    ),
-                    onTap: () => context.push('/settings/gamepacks'),
                   ),
                 if (canOpenUsersAndRoles)
                   ListTile(
@@ -97,11 +100,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               ],
             ),
 
-          if (canViewScouts ||
-              canEditScouts ||
-              canOpenUsersAndRoles ||
-              canOpenGamePacks)
-            const SizedBox(height: 16),
+          if (showTeamSettings) const SizedBox(height: 16),
 
           // About Section
           BearingsSettingGroup(

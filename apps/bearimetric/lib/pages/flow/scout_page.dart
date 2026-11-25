@@ -20,7 +20,6 @@ class ScoutPage extends ConsumerStatefulWidget {
 class _ScoutPageState extends ConsumerState<ScoutPage> {
   String _searchQuery = '';
   Scout? _selectedScout;
-  bool _showTimeout = false;
 
   @override
   void initState() {
@@ -32,18 +31,19 @@ class _ScoutPageState extends ConsumerState<ScoutPage> {
           _selectedScout = session.scout;
         });
       }
-
-      Future.delayed(const Duration(seconds: 10), () {
-        if (mounted) {
-          setState(() => _showTimeout = true);
-        }
-      });
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final scoutsAsync = ref.watch(scoutRosterProvider);
+    final grove = ref.watch(bearingsGroveProvider);
+    final roster = ref.watch(groveQueryProvider(scoutRosterQuery(grove)));
+    final scoutsAsync = roster.whenData(
+      (result) => result.requireAvailable().items,
+    );
+    final selected =
+        scoutsAsync.value?.any((scout) => scout.uuid == _selectedScout?.uuid) ==
+        true;
 
     return Scaffold(
       appBar: AppBar(
@@ -156,17 +156,15 @@ class _ScoutPageState extends ConsumerState<ScoutPage> {
                         ),
                       );
                     },
-                    loading: () => _showTimeout
-                        ? _buildTimeoutWidget(context)
-                        : const Center(child: BearingsSpinner()),
-                    error: (_, _) => _buildTimeoutWidget(context),
+                    loading: () => const Center(child: BearingsSpinner()),
+                    error: (error, _) => _buildRosterError(context, error),
                   ),
                 ),
                 SizedBox(
                       width: double.infinity,
                       height: 56,
                       child: FilledButton.icon(
-                        onPressed: _selectedScout != null
+                        onPressed: selected
                             ? () {
                                 ref
                                     .read(scoutingSessionProvider.notifier)
@@ -200,7 +198,7 @@ class _ScoutPageState extends ConsumerState<ScoutPage> {
     );
   }
 
-  Widget _buildTimeoutWidget(BuildContext context) {
+  Widget _buildRosterError(BuildContext context, Object error) {
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -218,13 +216,15 @@ class _ScoutPageState extends ConsumerState<ScoutPage> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Unable to connect to the server',
+            error is GroveOffline
+                ? 'No scout roster is downloaded. Connect to prepare this device.'
+                : 'Could not open the scout roster.',
+            textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 24),
           TextButton.icon(
             onPressed: () {
-              setState(() => _showTimeout = false);
               ref.invalidate(
                 groveQueryProvider(
                   scoutRosterQuery(ref.read(bearingsGroveProvider)),
@@ -233,16 +233,6 @@ class _ScoutPageState extends ConsumerState<ScoutPage> {
             },
             icon: const Icon(LucideIcons.refreshCw),
             label: const Text('Retry'),
-          ),
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            onPressed: () {
-              final guestScout = Scout(name: 'Guest', uuid: 'guest');
-              setState(() => _selectedScout = guestScout);
-              ref.read(scoutingSessionProvider.notifier).setScout(guestScout);
-            },
-            icon: const Icon(LucideIcons.userRound),
-            label: const Text('Continue as Guest'),
           ),
         ],
       ),

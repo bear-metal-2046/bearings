@@ -6,6 +6,9 @@ import '../scouting/scout.dart';
 
 part 'gamepack_entities.g.dart';
 
+/// Reserved assignment key for Bearimetric's local-only practice mode.
+const practiceGamePackKey = 'training';
+
 const gamePackReadPermission = 'gamepack.read';
 const gamePackManagePermission = 'gamepack.manage';
 @Deprecated('Use gamePackManagePermission.')
@@ -35,17 +38,29 @@ class GamePack {
 @Deprecated('Use GamePack.')
 typedef GamePackRelease = GamePack;
 
-@GroveEntity('gamepack.binding', version: 2)
+@GroveEntity('gamepack.binding', version: 3)
 class EventGamePack {
-  const EventGamePack({required this.id, required this.gamePack});
+  const EventGamePack({
+    required this.id,
+    required this.gamePack,
+    this.practiceEvent,
+  });
 
-  /// The competition event key. An event can have one assigned gamepack.
+  /// The competition event key or [practiceGamePackKey].
   final String id;
 
   /// Null means the event has no GamePack assigned.
   final EntityRef<GamePack>? gamePack;
 
-  static const groveFieldVersions = {'gamePack': 2};
+  /// Schedule source for the reserved practice assignment.
+  final EntityRef<CompetitionEvent>? practiceEvent;
+
+  static const groveMigrations = <int, Json Function(Json)>{
+    2: _addPracticeEvent,
+  };
+  static const groveFieldVersions = {'gamePack': 2, 'practiceEvent': 3};
+
+  static Json _addPracticeEvent(Json data) => {...data, 'practiceEvent': null};
 }
 
 @GroveEntity('scouting.observation', version: 3, offlineMutable: true)

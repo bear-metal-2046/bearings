@@ -51,6 +51,27 @@ class Grove {
 
   Future<int> get pendingMutationCount async => (await _pending()).length;
 
+  /// Reads the local delivery outcome for an immutable create, without a
+  /// network request. A missing receipt can safely be replayed with the same ID.
+  Future<({bool queued, bool confirmed, String? error})> createDelivery<T>(
+    String id,
+  ) async {
+    final type = registry.descriptor<T>().type;
+    final state = await cache.read('pending');
+    final mutationId = 'create:${canonicalJson([type, id])}';
+    bool matches(Object? entry) =>
+        (entry as Json)['mutation']['mutationId'] == mutationId;
+    final rejected =
+        (state?['rejected'] as List? ?? []).where(matches).lastOrNull as Json?;
+    final queued = (state?['mutations'] as List? ?? []).any(matches);
+    final receipt = await cache.read('query:${_idQuery(type, id).key}');
+    return (
+      queued: queued,
+      confirmed: (receipt?['records'] as List?)?.isNotEmpty == true,
+      error: rejected?['error'] as String?,
+    );
+  }
+
   Future<GroveSyncStatus> _syncStatus() async {
     final state = await cache.read('pending');
     return GroveSyncStatus(
@@ -562,12 +583,15 @@ class Grove {
       } on GroveRequestTimeout {
         return;
       } on GroveException catch (error) {
-        if (!const {
-          'conflict',
-          'not_found',
-          'unsupported_schema',
-          'invalid_request',
-        }.contains(error.code))
+        if (!(error.code == 'forbidden' &&
+                mutation.kind == MutationKind.create &&
+                mutation.mutationId.startsWith('create:')) &&
+            !const {
+              'conflict',
+              'not_found',
+              'unsupported_schema',
+              'invalid_request',
+            }.contains(error.code))
           rethrow;
         rejected.add({...pending.first, 'error': error.toString()});
       }

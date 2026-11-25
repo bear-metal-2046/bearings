@@ -1,9 +1,8 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:hive_ce/hive.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:bearimetric/data/local_data.dart';
+import 'package:services/providers/grove_provider.dart';
 import 'package:bearimetric/providers/app_provider.dart';
 import 'package:bearimetric/services/device_auth_service.dart';
 
@@ -155,14 +154,14 @@ class SettingsPage extends ConsumerWidget {
 
           ListTile(
             leading: const Icon(LucideIcons.trash2),
-            title: const Text('Delete Local Data'),
+            title: const Text('Clear Downloaded Data'),
             subtitle: const Text(
-              'Clears all cached match data from this device',
+              'Removes downloaded schedules, rosters, and GamePacks',
             ),
             onTap: () => _showPasswordDialog(
               context,
               ref,
-              () => _showDeleteCacheDialog(context),
+              () => _showDeleteCacheDialog(context, ref),
             ),
           ),
         ],
@@ -185,13 +184,16 @@ class SettingsPage extends ConsumerWidget {
     }
   }
 
-  Future<void> _showDeleteCacheDialog(BuildContext context) async {
+  Future<void> _showDeleteCacheDialog(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
     final shouldDelete = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Local Data'),
+        title: const Text('Clear Downloaded Data'),
         content: const Text(
-          'This will delete all locally stored match data, schedule cache, and upload queue. your config (event/position) will be kept.\n\nYou should upload pending matches first.',
+          'Downloaded schedules, rosters, and GamePacks will need to be downloaded again. Local scouting answers and pending uploads are kept.',
         ),
         actions: [
           TextButton(
@@ -200,14 +202,22 @@ class SettingsPage extends ConsumerWidget {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: const Text('Clear', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
     );
 
-    if (shouldDelete ?? false) {
-      await Hive.box(boxKey).clear();
+    if (shouldDelete == true && context.mounted) {
+      try {
+        await ref.read(bearingsGroveProvider).cache.clearQuerySnapshots();
+      } catch (error) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Could not clear downloaded data: $error')),
+          );
+        }
+      }
     }
   }
 

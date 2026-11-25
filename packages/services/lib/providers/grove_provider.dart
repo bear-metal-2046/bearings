@@ -15,12 +15,12 @@ import 'package:services/providers/connectivity_provider.dart';
 const _boxName = 'grove_v2';
 const _previousBoxName = 'grove_v1';
 
-/// Call after the app initializes Hive. Browsers use memory for Grove state.
-Future<void> initializeGroveStorage() async {
-  if (!kIsWeb) {
+/// Call after the app initializes Hive. Browser persistence is opt-in.
+Future<void> initializeGroveStorage({bool persistOnWeb = false}) async {
+  if (!kIsWeb || persistOnWeb) {
     // The GamePack cutover changes the binding and offline observation shape.
     // Drop old snapshots and queued submissions instead of replaying them.
-    if (await Hive.boxExists(_previousBoxName)) {
+    if (!kIsWeb && await Hive.boxExists(_previousBoxName)) {
       await Hive.deleteBoxFromDisk(_previousBoxName);
     }
     await Hive.openBox<String>(_boxName);
@@ -45,6 +45,8 @@ final groveAccessTokenProvider = Provider<GroveAccessToken>((ref) {
   };
 });
 
+final persistGroveOnWebProvider = Provider<bool>((ref) => false);
+
 final bearingsGroveProvider = Provider<Grove>((ref) {
   final endpoint = ref.watch(honeycombEndpointPreferenceProvider).baseUrl;
   final status = ref.watch(authStatusProvider);
@@ -55,7 +57,9 @@ final bearingsGroveProvider = Provider<Grove>((ref) {
     scheme: base.scheme == 'https' ? 'wss' : 'ws',
     path: '${base.path.replaceFirst(RegExp(r'/$'), '')}/grove/ws',
   );
-  final cache = !kIsWeb && Hive.isBoxOpen(_boxName)
+  final cache =
+      (!kIsWeb || ref.watch(persistGroveOnWebProvider)) &&
+          Hive.isBoxOpen(_boxName)
       ? _HiveGroveCache(Hive.box<String>(_boxName), endpoint, subject)
       : MemoryGroveCache();
   final grove = Grove(
@@ -220,12 +224,14 @@ class _HiveGroveCache implements GroveCache {
         // Long keys hide the entry type. QuerySnapshot has only these fields.
         final value = jsonDecode(box.get(key) ?? 'null');
         return value is Map &&
-            value.length == 2 &&
-            value['records'] is List &&
-            value['revision'] is int;
+            (value['_download'] == 'competition' ||
+                (value.length == 2 &&
+                    value['records'] is List &&
+                    value['revision'] is int));
       }
       return switch (jsonDecode(key)) {
-        [String _, String _, String entry] => entry.startsWith('query:'),
+        [String _, String _, String entry] =>
+          entry.startsWith('query:') || entry.startsWith('competition:'),
         _ => false,
       };
     } on FormatException {

@@ -1,10 +1,8 @@
 import 'package:material_ui/material_ui.dart';
-import 'package:core/core.dart'
-    show GamePackFormKind, gamePackReadPermission, gamePackSubmitPermission;
+import 'package:core/core.dart';
 import 'package:services/providers/gamepack_provider.dart';
 import 'package:services/providers/permissions_provider.dart';
 import 'package:bearimetric/models/scouting_session.dart' show trainingEventKey;
-import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -21,33 +19,11 @@ class MatchSelectPage extends ConsumerStatefulWidget {
 }
 
 class _MatchSelectPageState extends ConsumerState<MatchSelectPage> {
-  final _matchNumberController = TextEditingController(text: '1');
-  int? _matchNumber = 1;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final session = ref.read(scoutingSessionProvider);
-      if (mounted && session.matchNumber != null) {
-        setState(() {
-          _matchNumber = session.matchNumber;
-          _matchNumberController.text = session.matchNumber.toString();
-        });
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _matchNumberController.dispose();
-    super.dispose();
-  }
+  String? _selectedId;
 
   @override
   Widget build(BuildContext context) {
     final session = ref.watch(scoutingSessionProvider);
-    final teamAsync = ref.watch(teamNumberForSessionProvider);
 
     if (session.event == null ||
         session.position == null ||
@@ -63,14 +39,18 @@ class _MatchSelectPageState extends ConsumerState<MatchSelectPage> {
     final permissions = ref.watch(permissionCheckerProvider);
     final training = eventKey == trainingEventKey;
     final source = training
-        ? ref.watch(eventsProvider).value?.firstOrNull?.id
+        ? ref.watch(practiceScheduleProvider).value
         : eventKey;
     final canOpen =
         permissions?.hasPermission(gamePackReadPermission) == true &&
         (training ||
             permissions?.hasPermission(gamePackSubmitPermission) == true);
     final pack = source != null && canOpen
-        ? ref.watch(eventGamePackProvider(source))
+        ? ref.watch(
+            training
+                ? practiceGamePackProvider(source)
+                : eventGamePackProvider(source),
+          )
         : null;
     final form = position.isStrategy
         ? GamePackFormKind.strategy
@@ -83,11 +63,28 @@ class _MatchSelectPageState extends ConsumerState<MatchSelectPage> {
       AsyncError() => 'Could not load the assigned GamePack.',
       AsyncLoading() when !packReady => 'Loading the assigned GamePack…',
       _ when definition == null =>
-        'Assign a GamePack to the event in Beariscope.',
+        training
+            ? 'Assign a practice GamePack in Beariscope.'
+            : 'Assign a GamePack to the event in Beariscope.',
       _ when !packReady =>
         'The assigned GamePack has no ${form.label.toLowerCase()} form.',
       _ => null,
     };
+
+    final schedule = ref.watch(matchesProvider(eventKey));
+    final matches =
+        (schedule.value ?? [])
+            .where((match) => canScoutMatch(match, position))
+            .toList()
+          ..sort(compareScoutingMatches);
+    final requestedId = _selectedId ?? session.matchId;
+    final selected = matches
+        .where((match) => match.id == requestedId)
+        .firstOrNull;
+    final index = selected == null ? 0 : matches.indexOf(selected);
+    final preview = matches.isEmpty ? null : matches[index];
+    final chosen = selected ?? (requestedId == null ? preview : null);
+    final team = preview?.teamNumberAt(position);
 
     return Scaffold(
       appBar: AppBar(
@@ -154,128 +151,42 @@ class _MatchSelectPageState extends ConsumerState<MatchSelectPage> {
                       const SizedBox(height: 16),
                       if (packStatus != null)
                         Text(packStatus, textAlign: TextAlign.center),
-                      teamAsync.when(
-                        data: (team) =>
-                            Text(
-                                  team != null ? 'Team: $team' : 'Team: —',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .headlineSmall
-                                      ?.copyWith(
-                                        color: team != null
-                                            ? Theme.of(context)
-                                                  .colorScheme
-                                                  .primary
-                                            : null,
-                                      ),
-                                )
-                                .animate()
-                                .fadeIn(delay: 200.ms, duration: 500.ms)
-                                .slideY(
-                                  begin: -0.2,
-                                  end: 0,
-                                  delay: 200.ms,
-                                  duration: 500.ms,
-                                  curve: Curves.easeOut,
-                                ),
-                        loading: () => const SizedBox(
-                          height: 24,
-                          width: 24,
-                          child: BearingsSpinner(strokeWidth: 2),
-                        ),
-                        error: (_, _) => Text(
-                          'Team: —',
-                          style: Theme.of(context).textTheme.headlineSmall,
-                        ),
-                      ),
-
                       const SizedBox(height: 32),
-
-                      Text(
-                            'Match Number',
-                            style: Theme.of(context).textTheme.titleLarge,
-                          )
-                          .animate()
-                          .fadeIn(delay: 400.ms, duration: 500.ms)
-                          .slideY(
-                            begin: 0.2,
-                            end: 0,
-                            delay: 400.ms,
-                            duration: 500.ms,
+                      if (schedule.isLoading && matches.isEmpty)
+                        const BearingsSpinner()
+                      else if (matches.isEmpty)
+                        const Text('No downloaded matches for this position.')
+                      else ...[
+                        if (chosen == null)
+                          const Text(
+                            'The selected match is unavailable. Choose another match.',
                           ),
-                      const SizedBox(height: 16),
-                      ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 300),
-                            child: TextField(
-                              controller: _matchNumberController,
-                              keyboardType: TextInputType.number,
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                              ],
-                              textAlign: TextAlign.center,
-                              decoration: InputDecoration(
-                                border: const OutlineInputBorder(),
-                                hintText: 'Match number',
-                                prefixIcon: IconButton(
-                                  icon: const Icon(LucideIcons.minus),
-                                  onPressed: () {
-                                    final current =
-                                        int.tryParse(
-                                          _matchNumberController.text,
-                                        ) ??
-                                        1;
-                                    if (current > 1) {
-                                      _matchNumberController.text =
-                                          (current - 1).toString();
-                                      setState(
-                                        () => _matchNumber = current - 1,
-                                      );
-                                      ref
-                                          .read(
-                                            scoutingSessionProvider.notifier,
-                                          )
-                                          .setMatchNumber(current - 1);
-                                    }
-                                  },
-                                ),
-                                suffixIcon: IconButton(
-                                  icon: const Icon(LucideIcons.plus),
-                                  onPressed: () {
-                                    final current =
-                                        int.tryParse(
-                                          _matchNumberController.text,
-                                        ) ??
-                                        1;
-                                    _matchNumberController.text = (current + 1)
-                                        .toString();
-                                    setState(() => _matchNumber = current + 1);
-                                    ref
-                                        .read(scoutingSessionProvider.notifier)
-                                        .setMatchNumber(current + 1);
-                                  },
-                                ),
-                              ),
-                              onChanged: (value) {
-                                final parsed = int.tryParse(value);
-                                setState(() {
-                                  _matchNumber = parsed;
-                                });
-                                if (parsed != null && parsed > 0) {
-                                  ref
-                                      .read(scoutingSessionProvider.notifier)
-                                      .setMatchNumber(parsed);
-                                }
-                              },
+                        Text(
+                          scoutingMatchLabel(preview!),
+                          style: Theme.of(context).textTheme.headlineMedium,
+                        ),
+                        if (team != null) Text('Team $team'),
+                        if (matches.length > 1)
+                          Slider(
+                            value: index.toDouble(),
+                            max: (matches.length - 1).toDouble(),
+                            divisions: matches.length - 1,
+                            label: scoutingMatchLabel(preview),
+                            semanticFormatterCallback: (value) =>
+                                scoutingMatchLabel(matches[value.round()]),
+                            onChanged: (value) => setState(() {
+                              _selectedId = matches[value.round()].id;
+                            }),
+                          ),
+                        if (chosen == null)
+                          TextButton(
+                            onPressed: () =>
+                                setState(() => _selectedId = preview.id),
+                            child: Text(
+                              'Select ${scoutingMatchLabel(preview)}',
                             ),
-                          )
-                          .animate()
-                          .fadeIn(delay: 500.ms, duration: 500.ms)
-                          .slideY(
-                            begin: 0.2,
-                            end: 0,
-                            delay: 500.ms,
-                            duration: 500.ms,
                           ),
+                      ],
                     ],
                   ),
                 ),
@@ -287,15 +198,11 @@ class _MatchSelectPageState extends ConsumerState<MatchSelectPage> {
                           width: double.infinity,
                           height: 56,
                           child: FilledButton.icon(
-                            onPressed:
-                                _matchNumber != null &&
-                                    _matchNumber! > 0 &&
-                                    packReady
+                            onPressed: chosen != null && packReady
                                 ? () {
                                     ref
                                         .read(scoutingSessionProvider.notifier)
-                                        .setMatchNumber(_matchNumber!);
-
+                                        .selectMatch(chosen);
                                     context.go('/gamepack-match');
                                   }
                                 : null,

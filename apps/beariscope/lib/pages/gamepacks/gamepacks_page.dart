@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:beariscope/pages/main_view.dart';
+import 'package:go_router/go_router.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:beariscope/widgets/library_tile.dart';
 import 'package:core/core.dart';
@@ -20,6 +22,33 @@ import 'builder/design.dart';
 import 'builder/event_picker.dart';
 import 'builder/result_picker.dart';
 import 'gamepack_displays.dart';
+
+class GamePackWorkspaceRequest {
+  const GamePackWorkspaceRequest({
+    required this.event,
+    required this.gamePack,
+    required this.imported,
+    required this.formsLocked,
+    required this.duplicate,
+    required this.onSaved,
+  });
+
+  final String event;
+  final GamePack? gamePack;
+  final GamePackDesign? imported;
+  final bool formsLocked;
+  final bool duplicate;
+  final ValueChanged<GamePack> onSaved;
+
+  GamePackWorkspacePage build() => GamePackWorkspacePage(
+    event: event,
+    gamePack: gamePack,
+    imported: imported,
+    formsLocked: formsLocked,
+    duplicate: duplicate,
+    onSaved: onSaved,
+  );
+}
 
 class GamePacksPage extends ConsumerStatefulWidget {
   const GamePacksPage({super.key});
@@ -94,8 +123,10 @@ class _GamePacksPageState extends ConsumerState<GamePacksPage> {
 
   bool _readyToAssign(GamePack gamePack) {
     try {
-      _design(gamePack).compile();
-      return true;
+      return _design(gamePack)
+          .compile()
+          .forms
+          .any((form) => form.controls.isNotEmpty);
     } on Object {
       return false;
     }
@@ -109,18 +140,23 @@ class _GamePacksPageState extends ConsumerState<GamePacksPage> {
   }) async {
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     GamePack? saved;
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => GamePackWorkspacePage(
-          event: _event,
-          gamePack: gamePack,
-          imported: imported,
-          formsLocked: formsLocked,
-          duplicate: duplicate,
-          onSaved: (gamePack) => saved = gamePack,
-        ),
-      ),
+    final request = GamePackWorkspaceRequest(
+      event: _event,
+      gamePack: gamePack,
+      imported: imported,
+      formsLocked: formsLocked,
+      duplicate: duplicate,
+      onSaved: (gamePack) => saved = gamePack,
     );
+    final router = GoRouter.maybeOf(context);
+    if (router != null) {
+      await router.push<void>('/gamepacks/editor', extra: request);
+    } else {
+      await Navigator.of(
+        context,
+        rootNavigator: true,
+      ).push<void>(MaterialPageRoute<void>(builder: (_) => request.build()));
+    }
     if (mounted && saved != null) {
       _notice('Saved ${saved!.name} to the GamePacks library');
     }
@@ -261,6 +297,14 @@ class _GamePacksPageState extends ConsumerState<GamePacksPage> {
 
   @override
   Widget build(BuildContext context) {
+    final main = MainViewController.maybeOf(context);
+    final drawerButton = main != null && !main.isDesktop
+        ? IconButton(
+            tooltip: 'Open navigation',
+            icon: const Icon(LucideIcons.menu),
+            onPressed: main.openDrawer,
+          )
+        : null;
     final permissions = ref.watch(permissionCheckerProvider);
     final canRead = permissions?.hasPermission(gamePackReadPermission) ?? false;
     final canManage =
@@ -269,7 +313,7 @@ class _GamePacksPageState extends ConsumerState<GamePacksPage> {
         permissions?.hasPermission(gamePackObservationReadPermission) ?? false;
     if (!canRead) {
       return Scaffold(
-        appBar: AppBar(title: const Text('GamePacks')),
+        appBar: AppBar(title: const Text('GamePacks'), leading: drawerButton),
         body: const Center(child: Text('GamePack read permission required')),
       );
     }
@@ -292,6 +336,7 @@ class _GamePacksPageState extends ConsumerState<GamePacksPage> {
         _eventName ?? ref.watch(competitionEventProvider(_event)).value?.name;
     return BearingsScaffold(
       title: const Text('GamePacks'),
+      leading: drawerButton,
       actions: [
         if (canManage)
           IconButton(
@@ -438,7 +483,11 @@ class _GamePacksPageState extends ConsumerState<GamePacksPage> {
                     gamePack: gamePack,
                     error: _errorFor(gamePack),
                     assignedEvent: bindings?.value?.items
-                        .where((item) => item.gamePack?.id == gamePack.id)
+                        .where(
+                          (item) =>
+                              item.id != practiceGamePackKey &&
+                              item.gamePack?.id == gamePack.id,
+                        )
                         .map((item) => item.id)
                         .firstOrNull,
                     assignedHere: assigned?.id == gamePack.id,
@@ -513,63 +562,69 @@ class _GamePackLibraryTile extends StatelessWidget {
       : 'Also assign here';
 
   Future<void> _showOptions(BuildContext context) async {
-    final malformed = error != null;
     final action = await BearingsModal.show<_GamePackLibraryAction>(
       context,
-      builder: (modalContext) => BearingsModal(
-        title: 'GamePack options',
-        actions: [
-          if (!malformed)
-            BearingsModalAction(
-              icon: LucideIcons.pencil,
-              label: formsLocked ? 'Edit other sections' : 'Edit',
-              onPressed: () => BearingsModal.complete(
-                modalContext,
-                _GamePackLibraryAction.edit,
-              ),
-            ),
-          if (!malformed)
-            BearingsModalAction(
-              icon: LucideIcons.copy,
-              label: 'Duplicate GamePack',
-              onPressed: () => BearingsModal.complete(
-                modalContext,
-                _GamePackLibraryAction.duplicate,
-              ),
-            ),
-          BearingsModalAction(
-            icon: LucideIcons.trash2,
-            label: 'Delete GamePack',
-            onPressed: () => BearingsModal.complete(
-              modalContext,
-              _GamePackLibraryAction.delete,
-            ),
-          ),
-        ],
-        primaryAction: malformed
-            ? null
-            : BearingsModalPrimaryAction(
-                label: _assignmentLabel,
-                icon: assignedHere ? LucideIcons.check : LucideIcons.link,
-                enabled: !busy && canAssign && readyToAssign && !assignedHere,
-                onPressed: () => BearingsModal.complete(
-                  modalContext,
-                  _GamePackLibraryAction.assign,
+      builder: (modalContext) {
+        final colors = Theme.of(modalContext).colorScheme;
+        void choose(_GamePackLibraryAction action) =>
+            BearingsModal.complete(modalContext, action);
+
+        return BearingsModal(
+          title: gamePack.name,
+          actions: const [],
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (error case final error?)
+                Text('This GamePack cannot be opened: $error')
+              else ...[
+                ListTile(
+                  leading: const Icon(LucideIcons.pencil),
+                  title: Text(formsLocked ? 'Edit other sections' : 'Edit'),
+                  subtitle: formsLocked
+                      ? const Text('Saved observations lock the forms.')
+                      : null,
+                  onTap: () => choose(_GamePackLibraryAction.edit),
                 ),
-              ),
-        content: Text(
-          malformed
-              ? 'This GamePack cannot be opened: $error'
-              : [
-                  'ID ${gamePack.id}',
-                  if (assignedEvent != null)
+                ListTile(
+                  leading: const Icon(LucideIcons.copy),
+                  title: const Text('Duplicate GamePack'),
+                  onTap: () => choose(_GamePackLibraryAction.duplicate),
+                ),
+                const Divider(),
+                ListTile(
+                  leading: Icon(
+                    assignedHere ? LucideIcons.check : LucideIcons.link,
+                  ),
+                  title: Text(_assignmentLabel),
+                  subtitle: Text(
                     assignedHere
-                        ? 'Assigned to this event'
-                        : 'Assigned to $assignedEvent',
-                  if (formsLocked) 'Forms locked by saved observations',
-                ].join(' · '),
-        ),
-      ),
+                        ? 'Active for the selected event.'
+                        : !readyToAssign
+                        ? 'Complete setup before assigning.'
+                        : !canAssign
+                        ? 'The selected event’s assignment cannot be changed.'
+                        : 'Use for scouting at the selected event.',
+                  ),
+                  onTap: canAssign && readyToAssign && !assignedHere
+                      ? () => choose(_GamePackLibraryAction.assign)
+                      : null,
+                ),
+              ],
+              const Divider(),
+              ListTile(
+                leading: Icon(LucideIcons.trash2, color: colors.error),
+                title: Text(
+                  'Delete GamePack',
+                  style: TextStyle(color: colors.error),
+                ),
+                onTap: () => choose(_GamePackLibraryAction.delete),
+              ),
+            ],
+          ),
+        );
+      },
     );
     if (!context.mounted || action == null) return;
     switch (action) {
@@ -594,13 +649,12 @@ class _GamePackLibraryTile extends StatelessWidget {
       caption: malformed
           ? 'ID ${_shortId(gamePack.id)}'
           : [
-              'ID ${_shortId(gamePack.id)}',
               if (assignedHere)
                 'Assigned to this event'
               else if (assignedEvent != null)
                 'Assigned to $assignedEvent'
               else
-                'Not assigned',
+                'Not assigned to an event',
               if (formsLocked) 'Forms locked',
             ].join(' · '),
       color: malformed ? colors.errorContainer : colors.primaryContainer,
@@ -610,10 +664,9 @@ class _GamePackLibraryTile extends StatelessWidget {
         color: malformed ? colors.onErrorContainer : colors.onPrimaryContainer,
       ),
       onTap: () {
+        if (busy) return;
         if (malformed) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Cannot open this GamePack: $error')),
-          );
+          _showOptions(context);
         } else {
           onEdit(formsLocked);
         }

@@ -2,6 +2,13 @@ library;
 
 export 'widgets/bearings_alert_dialog.dart'
     show BearingsAlertAction, BearingsAlertActionRole, BearingsAlertDialog;
+export 'widgets/bearings_capsule_bar.dart'
+    show
+        BearingsCapsuleBar,
+        BearingsCapsuleBarVariant,
+        BearingsCapsuleDestination;
+export 'widgets/bearings_capsule_selector.dart'
+    show BearingsCapsuleSegment, BearingsCapsuleSelector, BearingsCapsuleTarget;
 export 'widgets/bearings_card.dart' show BearingsCard, BearingsCardList;
 export 'widgets/bearings_modal.dart'
     show

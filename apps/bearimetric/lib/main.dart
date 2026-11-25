@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:bearimetric/data/local_data.dart';
+import 'package:bearimetric/data/scouting_store.dart';
+import 'package:core/core.dart' show ScoutPosition;
 import 'package:bearimetric/pages/flow/config_page.dart';
 import 'package:bearimetric/pages/flow/match_select_page.dart';
 import 'package:bearimetric/pages/flow/scout_page.dart';
@@ -24,9 +26,11 @@ Future<void> main() async {
   runApp(
     ProviderScope(
       overrides: [
+        persistGroveOnWebProvider.overrideWithValue(true),
         groveSubjectProvider.overrideWith((ref) async {
-          if (ref.watch(authStatusProvider) != AuthStatus.authenticated)
+          if (ref.watch(authStatusProvider) != AuthStatus.authenticated) {
             return null;
+          }
           final auth = await ref.watch(deviceAuthServiceProvider.future);
           return auth.groveSubject();
         }),
@@ -47,10 +51,6 @@ final _deviceBootProvider = FutureProvider<void>((ref) async {
     await ref.read(honeycombEndpointPreferenceProvider.notifier).initialize();
     final service = await ref.read(deviceAuthServiceProvider.future);
     await service.initialize();
-    if (ref.mounted &&
-        ref.read(authStatusProvider) == AuthStatus.authenticated) {
-      await ref.read(connectHoneycombProvider)();
-    }
   } catch (error) {
     debugPrint('Could not finish Bearimetric startup: $error');
     if (ref.mounted &&
@@ -100,24 +100,41 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/gamepack-match',
-        redirect: (_, _) =>
-            ref.read(scoutingSessionProvider).isConfigured ? null : '/config',
+        redirect: (_, state) =>
+            state.extra is ScoutingUploadTarget ||
+                ref.read(scoutingSessionProvider).isConfigured
+            ? null
+            : '/config',
         builder: (context, state) {
+          final target = state.extra;
+          if (target is ScoutingUploadTarget) {
+            return GamePackScoutPage(
+              key: ValueKey(target.match),
+              event: target.event,
+              position: ScoutPosition.fromPosIndex(target.station)!,
+              scoutId: target.scout,
+              initialMatchId: target.match,
+              onChooseMatch: () => context.go('/config'),
+              onBack: () => context.go('/config'),
+            );
+          }
           final session = ref.read(scoutingSessionProvider);
           return GamePackScoutPage(
             event: session.event!.key,
             position: session.position!,
             scoutId: session.scout!.uuid,
-            initialMatchNumber: session.matchNumber,
-            onMatchChanged: ref
+            initialMatchId: session.matchId!,
+            onChooseMatch: () => context.go('/match-select'),
+            onMatchSelected: ref
                 .read(scoutingSessionProvider.notifier)
-                .setMatchNumber,
-            onBack: () => context.go('/match-select'),
+                .selectMatch,
+            onBack: () {
+              ref.read(scoutingSessionProvider.notifier).exitToScoutSelect();
+              context.go('/scout');
+            },
           );
         },
       ),
-      for (final path in ['/match/auto', '/match/tele', '/match/end', '/strat'])
-        GoRoute(path: path, redirect: (_, _) => '/gamepack-match'),
     ],
     redirect: (context, state) {
       final auth = ref.read(authStatusProvider);
@@ -153,6 +170,9 @@ class MyApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(honeycombSessionProvider);
+    if (ref.watch(authStatusProvider) == AuthStatus.authenticated) {
+      ref.watch(scoutingStoreProvider);
+    }
     final router = ref.watch(routerProvider);
     final usePapyrusFont = ref.watch(papyrusFontProvider);
     final colorScheme = ref.watch(colorSchemeNotifierProvider);

@@ -156,7 +156,10 @@ class MemoryGroveCache implements GroveCache {
 
   @override
   Future<void> clearQuerySnapshots() async {
-    _values.removeWhere((key, _) => key.startsWith('query:'));
+    _values.removeWhere(
+      (key, value) =>
+          key.startsWith('query:') || value['_download'] == 'competition',
+    );
   }
 }
 

@@ -29,22 +29,27 @@ abstract final class GamePackFields {
 Json _EventGamePackToGroveJson(EventGamePack value) => {
   "id": value.id,
   "gamePack": value.gamePack == null ? null : value.gamePack!.id,
+  "practiceEvent": value.practiceEvent == null ? null : value.practiceEvent!.id,
 };
 EventGamePack _EventGamePackFromGroveJson(Json json) => EventGamePack(
   id: json["id"] as String,
   gamePack: json["gamePack"] == null
       ? null
       : EntityRef<GamePack>(json["gamePack"] as String),
+  practiceEvent: json["practiceEvent"] == null
+      ? null
+      : EntityRef<CompetitionEvent>(json["practiceEvent"] as String),
 );
 
 final eventGamePackEntity = EntityDescriptor<EventGamePack>(
   type: "gamepack.binding",
-  version: 2,
+  version: 3,
   offlineMutable: false,
 
   encode: _EventGamePackToGroveJson,
   decode: _EventGamePackFromGroveJson,
 
+  migrations: EventGamePack.groveMigrations,
   fieldVersions: EventGamePack.groveFieldVersions,
 );
 
@@ -53,6 +58,8 @@ abstract final class EventGamePackFields {
   static const gamePack = EntityField<EventGamePack, EntityRef<GamePack>?>(
     "gamePack",
   );
+  static const practiceEvent =
+      EntityField<EventGamePack, EntityRef<CompetitionEvent>?>("practiceEvent");
 }
 
 Json _GamePackObservationToGroveJson(GamePackObservation value) => {

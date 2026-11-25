@@ -96,17 +96,15 @@ class _QuestionEditorState extends State<_QuestionEditor> {
   );
   late final _originalDefault = switch (widget.field?.defaultValue) {
     final List values => values.join(', '),
-    {'state': 'unknown'} => 'Unknown',
-    {'state': 'notApplicable'} => 'Not applicable',
     null => '',
     final value => value.toString(),
   };
   late final _default = TextEditingController(text: _originalDefault);
   late GamePackAnswerKind _kind = GamePackAnswerKind.forQuestion(widget.field);
   late bool _required = widget.field?.isRequired ?? true;
-  late bool _unknown = widget.field?.allowUnknown ?? false;
-  late bool _notApplicable = widget.field?.allowNotApplicable ?? false;
   late GamePackControlType? _display = widget.control?.type;
+  late GamePackControlAppearance _appearance =
+      widget.control?.appearance ?? GamePackControlAppearance.automatic;
   late GamePackField? _dependency = widget.conditionFields
       .where((field) => field.id == widget.control?.visibleWhen?.field)
       .firstOrNull;
@@ -200,8 +198,6 @@ class _QuestionEditorState extends State<_QuestionEditor> {
         minimum: _isNumeric ? _bound(_minimum) : null,
         maximum: _isNumeric ? _bound(_maximum) : null,
         defaultValue: _defaultValue(),
-        allowUnknown: _unknown,
-        allowNotApplicable: _notApplicable,
       );
       field.validateDefinition();
       GamePackVisibility? visibility;
@@ -245,6 +241,7 @@ class _QuestionEditorState extends State<_QuestionEditor> {
         control: GamePackControl(
           field: id,
           type: _displayType(field),
+          appearance: _appearance,
           visibleWhen: visibility,
           placement: placement,
         ),
@@ -328,6 +325,24 @@ class _QuestionEditorState extends State<_QuestionEditor> {
             ],
             onChanged: (type) => setState(() => _display = type),
           ),
+          BearingsSelect<GamePackControlAppearance>(
+            value: _appearance,
+            decoration: const InputDecoration(labelText: 'Appearance'),
+            items: [
+              for (final appearance in GamePackControlAppearance.values)
+                BearingsSelectItem(
+                  value: appearance,
+                  child: Text(
+                    appearance == GamePackControlAppearance.automatic
+                        ? 'Automatic (${widget.page.usesGrid ? 'Tile' : 'Inline'})'
+                        : appearance.label,
+                  ),
+                ),
+            ],
+            onChanged: (appearance) {
+              if (appearance != null) setState(() => _appearance = appearance);
+            },
+          ),
           if (_isNumeric)
             Row(
               children: [
@@ -400,18 +415,6 @@ class _QuestionEditorState extends State<_QuestionEditor> {
                 labelText: 'When the answer is',
               ),
             ),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Allow Unknown'),
-            value: _unknown,
-            onChanged: (value) => setState(() => _unknown = value),
-          ),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Allow Not applicable'),
-            value: _notApplicable,
-            onChanged: (value) => setState(() => _notApplicable = value),
-          ),
           if (_position.isNotEmpty)
             ExpansionTile(
               tilePadding: EdgeInsets.zero,

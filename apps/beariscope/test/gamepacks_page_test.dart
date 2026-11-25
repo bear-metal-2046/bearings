@@ -1,11 +1,14 @@
 import 'dart:async';
 
+import 'package:beariscope/main.dart' show routerProvider;
 import 'package:beariscope/pages/gamepacks/gamepacks_page.dart';
+import 'package:beariscope/providers/app_phase_provider.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
 import 'package:core/core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:grove/grove.dart';
+import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:services/providers/grove_provider.dart';
 import 'package:services/providers/permissions_provider.dart';
@@ -16,7 +19,7 @@ class _PilotEvent extends CurrentEvent {
 }
 
 void main() {
-  testWidgets('manages library assignments and isolates malformed GamePacks', (
+  testWidgets('manages library assignments and saves practice from Settings', (
     tester,
   ) async {
     tester.view.devicePixelRatio = 1;
@@ -87,6 +90,15 @@ void main() {
         location: CompetitionLocation(),
       ),
     );
+    await grove.create(
+      const CompetitionEvent(
+        id: '2026practice',
+        season: 2026,
+        name: 'Practice District Event',
+        code: 'practice',
+        location: CompetitionLocation(),
+      ),
+    );
     await grove.create(GamePack(id: 'analysis', document: definition.toJson()));
     await grove.create(
       GamePack(
@@ -134,15 +146,11 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      Finder card(String name) => find
-          .ancestor(of: find.text(name).first, matching: find.byType(Card))
-          .first;
 
       Future<void> tapCardAction(String name, String action) async {
-        final button = find.descendant(
-          of: card(name),
-          matching: find.text(action),
-        );
+        await tester.tap(find.byTooltip('GamePack options for $name'));
+        await tester.pumpAndSettle();
+        final button = find.text(action);
         expect(button.hitTestable(), findsOneWidget);
         await tester.tap(button);
         await tester.pumpAndSettle();
@@ -158,7 +166,9 @@ void main() {
       expect(find.text('Alternate scoring'), findsOneWidget);
       expect(find.text('Problem GamePack'), findsOneWidget);
       expect(find.text('Corrected scoring'), findsOneWidget);
-      expect(find.text('Duplicate'), findsWidgets);
+
+      expect(find.byTooltip('Practice settings'), findsNothing);
+      expect(find.text('Bearimetric practice'), findsNothing);
 
       await assign('Corrected scoring', 'Assign to event');
       expect(
@@ -186,13 +196,7 @@ void main() {
         (await grove.query<EventGamePack>().byId(event).one()).gamePack!.id,
         'alternate',
       );
-      await tester.tap(
-        find.descendant(
-          of: card('Problem GamePack'),
-          matching: find.byTooltip('Delete GamePack'),
-        ),
-      );
-      await tester.pumpAndSettle();
+      await tapCardAction('Broken entry', 'Delete GamePack');
       await tester.tap(find.text('Delete GamePack'));
       await tester.pumpAndSettle();
       expect(find.text('Problem GamePack'), findsNothing);
@@ -237,6 +241,56 @@ void main() {
         find.textContaining('Forms are locked because an event assigned'),
         findsOneWidget,
       );
+      final settingsContainer = ProviderContainer(
+        overrides: [
+          appPhaseProvider.overrideWithValue(AppPhase.ready),
+          currentEventProvider.overrideWith(_PilotEvent.new),
+          bearingsGroveProvider.overrideWithValue(grove),
+          permissionCheckerProvider.overrideWithValue(
+            const PermissionChecker(
+              permissions: {gamePackReadPermission, gamePackManagePermission},
+            ),
+          ),
+        ],
+      );
+      addTearDown(settingsContainer.dispose);
+      final router = settingsContainer.read(routerProvider);
+      addTearDown(router.dispose);
+      router.go('/settings');
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: settingsContainer,
+          child: MaterialApp.router(routerConfig: router),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Bearimetric Practice'));
+      await tester.pumpAndSettle();
+      expect(
+        GoRouterState.of(tester.element(find.text('Practice event'))).uri.path,
+        '/settings/practice',
+      );
+      await tester.tap(find.text('Practice event'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Practice District Event'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Practice GamePack'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Alternate scoring'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save practice settings'));
+      await tester.pumpAndSettle();
+      final practice = await grove
+          .query<EventGamePack>()
+          .byId(practiceGamePackKey)
+          .one();
+      expect(practice.practiceEvent?.id, '2026practice');
+      expect(practice.gamePack?.id, 'alternate');
+      expect(find.text('Practice settings saved'), findsOneWidget);
+      expect(find.text('Practice District Event'), findsOneWidget);
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+      expect(find.text('Settings'), findsOneWidget);
     } finally {
       await tester.pumpWidget(const SizedBox.shrink());
       unawaited(grove.close());

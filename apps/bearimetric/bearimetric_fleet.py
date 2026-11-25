@@ -339,7 +339,7 @@ def op_install(serial: str) -> None:
 def _list_hive_files(serial: str) -> list[str]:
     """
     Return the basenames of every .hive file in the app's data directory
-    on the given device (e.g. ["localData.hive", "api_cache.hive"]).
+    on the given device (e.g. ["bearimetric_matches.hive", "grove_v2.hive"]).
     """
     rc, out = adb_shell(
         serial,
@@ -394,10 +394,15 @@ def op_export(serial: str) -> None:
 
             # Parse and write individual JSON documents
             entries = parse_hive_box(raw)
-            for key, value in entries.items():
+            for index, (key, value) in enumerate(entries.items()):
+                if isinstance(value, str) and box in {"bearimetric_matches", "grove_v2"}:
+                    try:
+                        value = json.loads(value)
+                    except json.JSONDecodeError:
+                        pass
                 safe_key = re.sub(r"[^\w\-]", "_", str(key))
                 zf.writestr(
-                    f"{box}/{safe_key}.json",
+                    f"{box}/{index:04d}-{safe_key}.json",
                     json.dumps(
                         {"_key": key, "value": value},
                         indent=2,

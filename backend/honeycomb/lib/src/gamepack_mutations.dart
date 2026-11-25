@@ -31,6 +31,9 @@ Json Function(Json)? gamePackCreateConfirmation(
 
   return (data) {
     final observation = gamePackObservationEntity.decode(data);
+    if (observation.event.id == practiceGamePackKey) {
+      throw const FormatException('Practice observations stay on the device.');
+    }
     final binding = _requireRecord(
       store,
       eventGamePackEntity,
@@ -303,12 +306,26 @@ List<String> _validateObservationSubject(
 }
 
 void _validateBinding(EntityStore store, EventGamePack binding) {
-  final event = _requireRecord(
-    store,
-    competitionEventEntity,
-    binding.id,
-    'Event',
-  );
+  final practice = binding.id == practiceGamePackKey;
+  if (practice) {
+    final schedule = binding.practiceEvent;
+    if (schedule == null || binding.gamePack == null) {
+      throw const FormatException('Choose a practice event and GamePack.');
+    }
+    _requireRecord(
+      store,
+      competitionEventEntity,
+      schedule.id,
+      'Practice event',
+    );
+  } else if (binding.practiceEvent != null) {
+    throw const FormatException(
+      'Only the practice assignment can set a practice event.',
+    );
+  }
+  final event = practice
+      ? null
+      : _requireRecord(store, competitionEventEntity, binding.id, 'Event');
   if (binding.gamePack == null) return;
   final gamePack = _requireRecord(
     store,
@@ -323,7 +340,8 @@ void _validateBinding(EntityStore store, EventGamePack binding) {
       'Add at least one question before assigning this GamePack.',
     );
   }
-  if (definition.season case final year? when year != event.season) {
+  if (definition.season case final year?
+      when event != null && year != event.season) {
     throw FormatException(
       'The GamePack is for $year, not ${event.season}.',
     );

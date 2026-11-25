@@ -2,10 +2,12 @@ import 'package:ui/widgets/bearings_alert_dialog.dart';
 import 'package:core/core.dart'
     show
         gamePackCorrectPermission,
+        gamePackReadPermission,
         gamePackObservationReadPermission,
         gamePackSubmitPermission;
 import 'package:beariscope/providers/appearance_provider.dart';
 import 'package:beariscope/providers/current_event_provider.dart';
+import 'package:ui/widgets/bearings_navigation_motion.dart';
 import 'package:beariscope/widgets/server_connection_button.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
@@ -13,6 +15,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:motor/motor.dart';
 import 'package:services/providers/auth_provider.dart';
 import 'package:services/providers/competition_provider.dart';
 import 'package:grove/grove.dart';
@@ -58,8 +61,11 @@ class MainViewController extends InheritedWidget {
   });
 
   static MainViewController of(BuildContext context) {
-    return context.dependOnInheritedWidgetOfExactType<MainViewController>()!;
+    return maybeOf(context)!;
   }
+
+  static MainViewController? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<MainViewController>();
 
   @override
   bool updateShouldNotify(MainViewController oldWidget) {
@@ -119,6 +125,13 @@ class _MainViewState extends ConsumerState<MainView> {
         gamePackObservationReadPermission,
         gamePackCorrectPermission,
       ],
+    ),
+    const _NavItem(
+      route: '/gamepacks',
+      icon: LucideIcons.blocks,
+      label: 'GamePacks',
+      group: 'Data',
+      requiredPermissions: [gamePackReadPermission],
     ),
     const _NavItem(
       route: '/export',
@@ -325,11 +338,13 @@ class _MainViewState extends ConsumerState<MainView> {
               Expanded(
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(14, 6, 14, 16),
-                  children: _buildNavChildren(
-                    visibleNavItems,
-                    selectedIndex: selectedIndex,
-                    isDesktop: isDesktop,
-                  ),
+                  children: [
+                    _buildNavDestinations(
+                      visibleNavItems,
+                      selectedIndex: selectedIndex,
+                      isDesktop: isDesktop,
+                    ),
+                  ],
                 ),
               ),
               const Divider(height: 2),
@@ -341,96 +356,128 @@ class _MainViewState extends ConsumerState<MainView> {
     );
   }
 
-  List<Widget> _buildNavChildren(
-    List<_NavItem> visibleNavItems, {
+  Widget _buildNavDestinations(
+    List<_NavItem> items, {
     required int selectedIndex,
     required bool isDesktop,
   }) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final labelStyle = theme.textTheme.labelMedium;
+    final headingHeight =
+        MediaQuery.textScalerOf(context).scale(labelStyle?.fontSize ?? 12) *
+            1.5 +
+        12;
+    const rowHeight = 46.0;
+    const rowInset = 2.0;
+    const shape = StadiumBorder();
     final children = <Widget>[];
     String? currentGroup;
+    double top = 0;
+    double selectedTop = 0;
 
-    for (final entry in visibleNavItems.indexed) {
-      final index = entry.$1;
-      final item = entry.$2;
+    for (final (index, item) in items.indexed) {
       if (item.group != currentGroup) {
         if (currentGroup != null) {
-          children.add(const Divider(height: 20, indent: 12, endIndent: 12));
+          children.add(const Divider(height: 16, indent: 12, endIndent: 12));
+          top += 16;
         }
         currentGroup = item.group;
         children.add(
-          Padding(
-            padding: EdgeInsets.fromLTRB(12, children.isEmpty ? 12 : 0, 12, 6),
-            child: Text(
-              currentGroup,
-              style: Theme.of(context).textTheme.labelMedium,
+          SizedBox(
+            height: headingHeight,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: Text(currentGroup, style: labelStyle),
+              ),
             ),
           ),
         );
+        top += headingHeight;
       }
 
+      final selected = index == selectedIndex;
+      if (selected) selectedTop = top;
+      final foreground = selected
+          ? colors.onPrimaryContainer
+          : colors.onSurfaceVariant;
       children.add(
-        _buildNavDestination(
-          item: item,
-          selected: index == selectedIndex,
-          onTap: () =>
-              _onDestinationSelected(index, isDesktop, visibleNavItems),
-        ),
-      );
-    }
-
-    return children;
-  }
-
-  Widget _buildNavDestination({
-    required _NavItem item,
-    required bool selected,
-    required VoidCallback onTap,
-  }) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final foregroundColor = selected
-        ? colorScheme.onSurface
-        : colorScheme.onSurfaceVariant;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Material(
-        color: selected
-            ? colorScheme.surfaceContainerHighest
-            : Colors.transparent,
-        borderRadius: BorderRadius.circular(16),
-        clipBehavior: Clip.antiAlias,
-        elevation: 0,
-        child: InkWell(
-          onTap: onTap,
-          child: SizedBox(
-            height: 44,
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 14),
-              child: Row(
-                children: [
-                  Icon(
-                    item.icon,
-                    size: 18,
-                    weight: 600,
-                    color: selected ? colorScheme.primary : foregroundColor,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      item.label,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: selected ? colorScheme.primary : foregroundColor,
-                        fontWeight: selected
-                            ? FontWeight.w700
-                            : FontWeight.w500,
+        SizedBox(
+          height: rowHeight,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: rowInset),
+            child: Semantics(
+              selected: selected,
+              child: InkWell(
+                customBorder: shape,
+                onTap: () => _onDestinationSelected(index, isDesktop, items),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  child: Row(
+                    spacing: 12,
+                    children: [
+                      Icon(item.icon, size: 18, color: foreground),
+                      Expanded(
+                        child: Text(
+                          item.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: foreground,
+                            fontWeight: selected
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ),
         ),
+      );
+      top += rowHeight;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(5),
+      child: Stack(
+        children: [
+          if (selectedIndex >= 0)
+            SingleMotionBuilder(
+              value: selectedTop + rowInset,
+              motion: navigationSpring,
+              active: !MediaQuery.disableAnimationsOf(context),
+              builder: (_, position, child) => Positioned(
+                top: position.clamp(0.0, top - rowHeight + 2 * rowInset),
+                left: 0,
+                right: 0,
+                height: rowHeight - 2 * rowInset,
+                child: child!,
+              ),
+              child: DecoratedBox(
+                decoration: ShapeDecoration(
+                  color: colors.primaryContainer,
+                  shape: StadiumBorder(
+                    side: BorderSide(
+                      color: colors.primary.withValues(alpha: .28),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          Material(
+            type: MaterialType.transparency,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: children,
+            ),
+          ),
+        ],
       ),
     );
   }

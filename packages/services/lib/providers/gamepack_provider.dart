@@ -39,6 +39,20 @@ final eventGamePackProvider = Provider.autoDispose
           );
     });
 
+/// Existing installations use the schedule's pack until practice is configured.
+final practiceGamePackProvider = Provider.autoDispose
+    .family<AsyncValue<GamePack?>, String>((ref, scheduleEvent) {
+      return ref
+          .watch(eventGamePackBindingProvider(practiceGamePackKey))
+          .flatMap(
+            (binding) => binding == null
+                ? ref.watch(eventGamePackProvider(scheduleEvent))
+                : binding.gamePack == null
+                ? const AsyncData(null)
+                : ref.watch(gamePackProvider(binding.gamePack!.id)),
+          );
+    });
+
 final eventGamePackHasDataProvider = Provider.autoDispose
     .family<AsyncValue<bool>, String>((ref, event) {
       final grove = ref.watch(bearingsGroveProvider);

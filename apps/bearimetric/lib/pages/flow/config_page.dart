@@ -1,4 +1,12 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:core/core.dart'
+    show
+        CompetitionMatch,
+        GamePackFormKind,
+        gamePackReadPermission,
+        gamePackSubmitPermission;
+import 'package:services/providers/grove_provider.dart';
+import 'package:services/providers/permissions_provider.dart';
 import 'package:services/providers/gamepack_provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -60,9 +68,9 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
   @override
   Widget build(BuildContext context) {
     final eventsAsync = ref.watch(eventsProvider);
-    final session = ref.watch(scoutingSessionProvider);
-    final scheduleEvent = session.event;
-    final hasTrainingSource = eventsAsync.value?.isNotEmpty == true;
+
+    final practiceSchedule = ref.watch(practiceScheduleProvider).value;
+    final hasTrainingSource = practiceSchedule != null;
     final canContinue =
         _selectedEvent != null &&
         _selectedPosition != null &&
@@ -145,12 +153,18 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
                       const SizedBox(height: 8),
                       eventsAsync.when(
                         data: (events) {
-                          final trainingEvent = events.isEmpty
+                          final trainingEvent = !hasTrainingSource
                               ? null
                               : ScoutingEventSelection(
                                   key: trainingEventKey,
                                   name: 'Training (no uploads)',
-                                  year: events.first.season,
+                                  year:
+                                      int.tryParse(
+                                        practiceSchedule.characters
+                                            .take(4)
+                                            .toString(),
+                                      ) ??
+                                      DateTime.now().year,
                                 );
                           // Ensure displayEvents has unique event keys and, if we
                           // need to include a custom/previously-selected event,
@@ -306,15 +320,19 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
                           const Padding(
                             padding: EdgeInsets.only(bottom: 12),
                             child: Text(
-                              'Training mode uses the first competition\'s schedule. '
+                              'Training uses the configured practice schedule when available. '
                               'Scouting records stay on this device and are not uploaded.',
                               textAlign: TextAlign.center,
                             ),
                           ),
-                        if (scheduleEvent != null)
-                          _ScheduleDownloadTile(eventKey: scheduleEvent.key)
-                              .animate()
-                              .fadeIn(delay: 500.ms, duration: 300.ms),
+                        _ScheduleDownloadTile(
+                          key: ValueKey((
+                            _selectedEvent!.key,
+                            _selectedPosition,
+                          )),
+                          eventKey: _selectedEvent!.key,
+                          position: _selectedPosition,
+                        ).animate().fadeIn(delay: 500.ms, duration: 300.ms),
                       ],
                     ],
                   ),
@@ -472,8 +490,13 @@ class _PositionSelector extends StatelessWidget {
 
 class _ScheduleDownloadTile extends ConsumerStatefulWidget {
   final String eventKey;
+  final ScoutPosition? position;
 
-  const _ScheduleDownloadTile({required this.eventKey});
+  const _ScheduleDownloadTile({
+    super.key,
+    required this.eventKey,
+    required this.position,
+  });
 
   @override
   ConsumerState<_ScheduleDownloadTile> createState() =>
@@ -488,21 +511,51 @@ class _ScheduleDownloadTileState extends ConsumerState<_ScheduleDownloadTile> {
     try {
       final container = ProviderScope.containerOf(context, listen: false);
       final event = widget.eventKey == trainingEventKey
-          ? (await waitForValue(container, eventsProvider)).first.id
+          ? await waitForValue(container, practiceScheduleProvider)
           : widget.eventKey;
+      if (event == null) {
+        throw StateError('Choose a practice event in Beariscope first.');
+      }
       if (!mounted) return;
       final result = await ref.read(competitionProvider).matchResults(event);
-      result.requireAvailable();
+      final matches = result.requireAvailable().items;
+      if (!_hasSchedule(matches) || result.offline) {
+        throw StateError('Connect to download a schedule for this position.');
+      }
       retryCompetitionMatches(container, event);
       if (!mounted) return;
-      final pack = await waitForValue(container, eventGamePackProvider(event));
-      if (pack == null) {
-        throw StateError('Assign a GamePack in Beariscope first.');
+      final pack = await waitForValue(
+        container,
+        widget.eventKey == trainingEventKey
+            ? practiceGamePackProvider(event)
+            : eventGamePackProvider(event),
+      );
+      if (pack == null ||
+          !_hasForm(pack.definition.forms.map((form) => form.kind))) {
+        throw StateError(
+          'Assign a GamePack with the required form in Beariscope.',
+        );
+      }
+      if (!mounted) return;
+      final grove = ref.read(bearingsGroveProvider);
+      final roster = await scoutRosterQuery(grove).result();
+      if (roster.requireAvailable().items.isEmpty || roster.offline) {
+        throw StateError('Connect to download a scout roster.');
+      }
+      if (mounted) ref.invalidate(groveQueryProvider(scoutRosterQuery(grove)));
+      final access = await waitForValue(container, groveAccessProvider);
+      final permissions = access
+          ?.requireAvailable()
+          .items
+          .singleOrNull
+          ?.permissions;
+      if (!_hasAccess(permissions)) {
+        throw StateError('This device needs GamePack scouting access.');
       }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Schedule and GamePack downloaded'),
+            content: Text('Event ready for offline scouting'),
             duration: Duration(seconds: 2),
           ),
         );
@@ -521,27 +574,77 @@ class _ScheduleDownloadTileState extends ConsumerState<_ScheduleDownloadTile> {
     }
   }
 
+  bool _hasAccess(Set<String>? permissions) =>
+      permissions?.contains(gamePackReadPermission) == true &&
+      (widget.eventKey == trainingEventKey ||
+          permissions?.contains(gamePackSubmitPermission) == true);
+
+  bool _hasSchedule(Iterable<CompetitionMatch> matches) {
+    final position = widget.position;
+    return position == null
+        ? matches.isNotEmpty
+        : matches.any((match) => canScoutMatch(match, position));
+  }
+
+  bool _hasForm(Iterable<GamePackFormKind> forms) => widget.position == null
+      ? forms.any(
+          (kind) =>
+              kind == GamePackFormKind.match ||
+              kind == GamePackFormKind.strategy,
+        )
+      : forms.contains(
+          widget.position!.isStrategy
+              ? GamePackFormKind.strategy
+              : GamePackFormKind.match,
+        );
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final matchesAsync = ref.watch(matchesProvider(widget.eventKey));
-    final loaded = matchesAsync.asData != null;
-    final statusText = matchesAsync.when(
-      data: (matches) => '${matches.length} matches loaded',
-      loading: () => 'Loading schedule…',
-      error: (_, _) => 'No schedule',
+    final training = widget.eventKey == trainingEventKey;
+    final event = training
+        ? ref.watch(practiceScheduleProvider).value
+        : widget.eventKey;
+    final eligibleMatches = ref.watch(matchesProvider(widget.eventKey));
+    final pack = event == null
+        ? null
+        : ref.watch(
+            training
+                ? practiceGamePackProvider(event)
+                : eventGamePackProvider(event),
+          );
+    final roster = ref.watch(scoutRosterProvider);
+    final hasSchedule = _hasSchedule(eligibleMatches.value ?? []);
+    final hasForm = _hasForm(
+      pack?.value?.definition.forms.map((form) => form.kind) ?? [],
     );
+    final hasRoster = roster.value?.isNotEmpty == true;
+    final hasAccess = _hasAccess(
+      ref.watch(permissionCheckerProvider)?.permissions,
+    );
+    final loaded = hasSchedule && hasForm && hasRoster && hasAccess;
+    final missing = [
+      if (!hasSchedule) 'schedule',
+      if (!hasForm) 'GamePack form',
+      if (!hasRoster) 'scout roster',
+      if (!hasAccess) 'scouting access',
+    ];
+    final statusText = loaded
+        ? 'Ready for offline scouting'
+        : 'Missing ${missing.join(', ')}';
 
-    return Row(
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 8,
+      runSpacing: 4,
       children: [
         Icon(
           loaded ? LucideIcons.cloudCheck : LucideIcons.cloudOff,
           size: 18,
           color: loaded ? theme.colorScheme.primary : theme.colorScheme.error,
         ),
-        const SizedBox(width: 8),
         Text(statusText, style: theme.textTheme.bodySmall),
-        const Spacer(),
         _downloading
             ? const SizedBox(
                 width: 20,
@@ -551,7 +654,7 @@ class _ScheduleDownloadTileState extends ConsumerState<_ScheduleDownloadTile> {
             : OutlinedButton.icon(
                 onPressed: _download,
                 icon: const Icon(LucideIcons.download, size: 16),
-                label: const Text('Refresh schedule'),
+                label: const Text('Prepare for offline'),
                 style: OutlinedButton.styleFrom(
                   visualDensity: VisualDensity.compact,
                   padding: const EdgeInsets.symmetric(

@@ -361,7 +361,7 @@ class CompetitionClient {
     }
     try {
       final data = await transport.competition(resource, args);
-      await _grove.cache.write(key, {'data': data});
+      await _grove.cache.write(key, {'data': data, '_download': 'competition'});
       return (data: data, offline: false);
     } on GroveException catch (error) {
       if (!const {'offline', 'unavailable'}.contains(error.code)) rethrow;
